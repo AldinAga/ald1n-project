@@ -100,7 +100,7 @@
         .exchange-rate-settings-sync{border:1px solid var(--line);color:inherit}
     </style>
     {{-- JavaScript off: no toggle (it would do nothing); the sheet content stays in normal flow so navigation and logout remain reachable on phones. --}}
-    <noscript><style>@media (max-width:1199px){.a1-menu-btn{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
+    <noscript><style>.a1-bell__btn{display:none}@media (max-width:1199px){.a1-menu-btn,.a1-header__theme{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
 </head>
 <body class="a1-body">
@@ -117,9 +117,18 @@
         </a>
 
         @auth
-        <button class="a1-header__search a1-searchbtn" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-haspopup="dialog">
-            <x-icon name="search" :size="20" :shell="true" />
+        {{-- The field opens the global search dialog; the magnifier sits on the right of the field and is the action icon. --}}
+        <button class="a1-header__search a1-searchbtn" type="button" data-header-product-search-toggle aria-controls="headerProductSearch" aria-expanded="false" aria-haspopup="dialog" aria-label="Globalna pretraga">
             <span class="a1-searchbtn__label">Globalna pretraga</span>
+            <x-icon name="search" :size="20" :shell="true" />
+        </button>
+        {{-- Right-hand controls in ONE box, so the search field can sit in the exact centre of the header (grid 1fr / search / 1fr from 1200px). --}}
+        <div class="a1-header__end">
+        {{-- Phones and tablets: one icon button cycles sistem / svetla / tamna (the desktop switch stays in the bar from 1200px). --}}
+        <button class="a1-btn a1-btn--icon a1-btn--sm a1-header__theme" type="button" data-theme-cycle aria-label="Tema: prema sistemu. Promeni temu" title="Promeni temu">
+            <span class="a1-header__theme-ico" data-theme-ico="auto"><x-icon name="monitor" :size="20" :shell="true" /></span>
+            <span class="a1-header__theme-ico" data-theme-ico="light"><x-icon name="sun" :size="20" :shell="true" /></span>
+            <span class="a1-header__theme-ico" data-theme-ico="dark"><x-icon name="moon" :size="20" :shell="true" /></span>
         </button>
         @can('orders.create')
         <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="{{ route('cart.index') }}" aria-label="Korpa · {{ $headerCartCount }} komada" title="Korpa">
@@ -129,19 +138,87 @@
         @endcan
         @if($moduleVisibility->enabled('notifications'))
         @can('notifications.view')
-        <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja">
-            <x-icon name="bell" :size="20" :shell="true" />
-            @if(($siteHeaderUnreadNotifications ?? 0) > 0)<span class="a1-count a1-count--float" aria-hidden="true">{{ min(99, (int) $siteHeaderUnreadNotifications) }}</span>@endif
-        </a>
+        {{-- Bell: a button that opens the last 10 notifications; without JavaScript the plain link inside noscript opens the full page. --}}
+        <div class="a1-bell a1-header__quick" data-bell data-bell-url="{{ route('notifications.recent') }}" data-bell-read-all-url="{{ route('notifications.read-all') }}">
+            <button type="button" class="a1-btn a1-btn--icon a1-btn--sm a1-bell__btn" data-bell-toggle aria-expanded="false" aria-controls="a1BellPanel" aria-label="Obaveštenja{{ ($siteHeaderUnreadNotifications ?? 0) > 0 ? ': '.(int) $siteHeaderUnreadNotifications.' nepročitanih' : '' }}" title="Obaveštenja">
+                <x-icon name="bell" :size="20" :shell="true" />
+                @if(($siteHeaderUnreadNotifications ?? 0) > 0)<span class="a1-count a1-count--float" data-bell-count aria-hidden="true">{{ min(99, (int) $siteHeaderUnreadNotifications) }}</span>@endif
+            </button>
+            <noscript><a class="a1-btn a1-btn--icon a1-btn--sm" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja"><x-icon name="bell" :size="20" :shell="true" /></a></noscript>
+            <div class="a1-bell__panel" id="a1BellPanel" role="region" aria-label="Poslednja obaveštenja" hidden>
+                <div class="a1-bell__head"><strong>Obaveštenja</strong><span data-bell-unread class="a1-bell__unread"></span></div>
+                <ul class="a1-bell__list" data-bell-list></ul>
+                <p class="a1-bell__empty" data-bell-empty hidden>Nema obaveštenja.</p>
+                <div class="a1-bell__foot">
+                    <button type="button" class="a1-btn a1-btn--sm" data-bell-read-all>Označi sve kao pročitano</button>
+                    <a class="a1-btn a1-btn--sm a1-btn--quiet" href="{{ route('notifications.index') }}">Prikaži sva</a>
+                </div>
+            </div>
+        </div>
         @endcan
         @endif
         <span class="a1-sr" data-exchange-rate-sync-status aria-live="polite"></span>
+        {{-- Account menu, one instance for every width: the avatar button sits left of the hamburger on phones, the name pill on desktop. --}}
+        <details class="a1-nav-dd a1-nav-dd--end a1-header__user">
+            <summary class="a1-user" aria-label="Moj nalog: {{ $headerDisplayName }}">
+                <span class="a1-user__avatar" aria-hidden="true">{{ $headerInitial }}</span>
+                <span class="a1-user__label">{{ $headerDisplayName }}</span>
+            </summary>
+            <div class="a1-nav-dd__panel">
+                <span class="a1-nav-dd__label">{{ $headerRoleName }}</span>
+                {{ $navItem(route('account.show'), 'Moj nalog') }}
+                <span class="a1-nav-dd__sep" role="separator"></span>
+                <span class="a1-nav-dd__label" id="a1CurrencyLabel">Valuta prikaza</span>
+                <div class="a1-nav-dd__row">
+                    <div class="a1-theme a1-theme--wide" role="group" aria-labelledby="a1CurrencyLabel">
+                        <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="native" aria-pressed="false">Izvorno</button>
+                        <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="EUR" aria-pressed="false">EUR</button>
+                        <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="RSD" aria-pressed="false">RSD</button>
+                    </div>
+                </div>
+                <small class="a1-nav-dd__note" data-display-currency-status aria-live="polite"></small>
+                <span class="a1-nav-dd__sep" role="separator"></span>
+                <form class="a1-nav-dd__form" method="post" action="{{ route('logout') }}">@csrf<button class="a1-nav-dd__item a1-nav-dd__item--button" type="submit"><x-icon name="logout" :size="20" :shell="true" />Odjava</button></form>
+            </div>
+        </details>
         <button class="a1-menu-btn" type="button" data-mobile-menu-toggle aria-controls="siteHeaderMenu" aria-expanded="false" aria-label="Otvori glavni meni">
             <svg class="a1-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="a1-menu-btn__bars" d="M4 7h16M4 12h16M4 17h16"/><path class="a1-menu-btn__x" d="M6 6l12 12M18 6L6 18"/></svg>
             <span class="a1-menu-btn__text">Meni</span>
         </button>
+        {{-- Desktop (from 1200px): rate chip and theme switch live in the bar's right-hand box. --}}
+        @can('system.manage_settings')
+        <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
+            <span data-exchange-rate-header-label>EUR/RSD{!! $exchangeRateIsStale ? '<span class="a1-sr"> · proveri kurs</span>' : '' !!}</span>
+            <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+        </button>
+        @else
+        <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
+            <span>EUR/RSD{!! $exchangeRateIsStale ? '<span class="a1-sr"> · proveri kurs</span>' : '' !!}</span>
+            <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+        </span>
+        @endcan
+        <div class="a1-theme" role="group" aria-label="Tema">
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="auto" aria-pressed="false" aria-label="Tema prema sistemu" title="Tema prema sistemu"><x-icon name="monitor" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="light" aria-pressed="false" aria-label="Svetla tema" title="Svetla tema"><x-icon name="sun" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="dark" aria-pressed="false" aria-label="Tamna tema" title="Tamna tema"><x-icon name="moon" :size="20" :shell="true" /></button>
+            </div>
+        </div>
 
         <div class="a1-header__panel" id="siteHeaderMenu" data-mobile-menu>
+            {{-- Phones and tablets: the EUR/RSD rate as a compact card above the menu items (the desktop chip sits in the bar). --}}
+            @can('system.manage_settings')
+            <button class="a1-drawer-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
+                <span>EUR/RSD kurs{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-card-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+                <small data-exchange-rate-source>{{ $exchangeRateSource }}</small>
+            </button>
+            @else
+            <div class="a1-drawer-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}">
+                <span>EUR/RSD kurs{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-card-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+                <small data-exchange-rate-source>{{ $exchangeRateSource }}</small>
+            </div>
+            @endcan
             <nav class="a1-header__nav" aria-label="Glavna navigacija">
                 <ul class="a1-nav">
                     <li>{{ $navLink(route('dashboard'), 'Početna', request()->routeIs('dashboard', 'portal.messages.*')) }}</li>
@@ -315,46 +392,7 @@
                 </ul>
             </nav>
 
-            @can('system.manage_settings')
-            <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
-                <span data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
-                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
-            </button>
-            @else
-            <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
-                <span>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
-                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
-            </span>
-            @endcan
 
-            <div class="a1-theme" role="group" aria-label="Tema">
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="auto" aria-pressed="false" aria-label="Tema prema sistemu" title="Tema prema sistemu"><x-icon name="monitor" :size="20" :shell="true" /></button>
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="light" aria-pressed="false" aria-label="Svetla tema" title="Svetla tema"><x-icon name="sun" :size="20" :shell="true" /></button>
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="dark" aria-pressed="false" aria-label="Tamna tema" title="Tamna tema"><x-icon name="moon" :size="20" :shell="true" /></button>
-            </div>
-
-            <details class="a1-nav-dd a1-nav-dd--end a1-header__user">
-                <summary class="a1-user">
-                    <span class="a1-user__avatar" aria-hidden="true">{{ $headerInitial }}</span>
-                    <span class="a1-user__label">{{ $headerDisplayName }}</span>
-                </summary>
-                <div class="a1-nav-dd__panel">
-                    <span class="a1-nav-dd__label">{{ $headerRoleName }}</span>
-                    {{ $navItem(route('account.show'), 'Moj nalog') }}
-                    <span class="a1-nav-dd__sep" role="separator"></span>
-                    <span class="a1-nav-dd__label" id="a1CurrencyLabel">Valuta prikaza</span>
-                    <div class="a1-nav-dd__row">
-                        <div class="a1-theme a1-theme--wide" role="group" aria-labelledby="a1CurrencyLabel">
-                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="native" aria-pressed="false">Izvorno</button>
-                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="EUR" aria-pressed="false">EUR</button>
-                            <button class="a1-theme__opt a1-theme__opt--text" type="button" data-display-currency-option="RSD" aria-pressed="false">RSD</button>
-                        </div>
-                    </div>
-                    <small class="a1-nav-dd__note" data-display-currency-status aria-live="polite"></small>
-                    <span class="a1-nav-dd__sep" role="separator"></span>
-                    <form class="a1-nav-dd__form" method="post" action="{{ route('logout') }}">@csrf<button class="a1-nav-dd__item a1-nav-dd__item--button" type="submit"><x-icon name="logout" :size="20" :shell="true" />Odjava</button></form>
-                </div>
-            </details>
         </div>
         @endauth
     </div>
@@ -431,6 +469,8 @@
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     const themeQuery = window.matchMedia('(prefers-color-scheme: light)');
     const themeModes = ['auto', 'dark', 'light'];
+    const themeCycleOrder = ['auto', 'light', 'dark'];
+    const themeCycleNames = { auto: 'prema sistemu', light: 'svetla', dark: 'tamna' };
     const resolveTheme = (mode) => mode === 'auto' ? (themeQuery.matches ? 'light' : 'dark') : mode;
     const applyThemeLogos = () => {
         const theme = document.documentElement.dataset.theme || 'dark';
@@ -450,12 +490,22 @@
         document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
             button.setAttribute('aria-pressed', button.dataset.themeModeOption === normalized ? 'true' : 'false');
         });
+        // Phone/tablet cycle button: its name always states the current theme (the icon follows html[data-theme-mode] in CSS).
+        document.querySelectorAll('[data-theme-cycle]').forEach((button) => {
+            button.setAttribute('aria-label', 'Tema: ' + themeCycleNames[normalized] + '. Promeni temu');
+        });
         applyThemeLogos();
     };
     applyThemeMode(document.documentElement.dataset.themeMode || 'auto', false);
     document.querySelectorAll('[data-theme-mode-option]').forEach((button) => {
         button.addEventListener('click', () => {
             applyThemeMode(button.dataset.themeModeOption || 'auto');
+        });
+    });
+    document.querySelectorAll('[data-theme-cycle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const current = themeCycleOrder.indexOf(document.documentElement.dataset.themeMode || 'auto');
+            applyThemeMode(themeCycleOrder[(current + 1) % themeCycleOrder.length]);
         });
     });
     themeQuery.addEventListener?.('change', () => {
@@ -851,7 +901,7 @@ const loadProductSearch = async (term) => {
         const formattedRate = formatExchangeRate(payload?.rate);
         if (formattedRate === null) throw new Error('Server nije vratio ispravan EUR/RSD kurs.');
 
-        document.querySelectorAll('[data-exchange-rate-value]').forEach((node) => {
+        document.querySelectorAll('[data-exchange-rate-value], [data-exchange-rate-card-value]').forEach((node) => {
             const requestedDecimals = Number.parseInt(node.dataset.exchangeRateDecimals || '4', 10);
             node.textContent = formatExchangeRate(payload?.rate, requestedDecimals) || formattedRate;
         });
@@ -883,7 +933,7 @@ const loadProductSearch = async (term) => {
             });
         }
 
-        document.querySelectorAll('.a1-rate.is-stale').forEach((node) => node.classList.remove('is-stale'));
+        document.querySelectorAll('.a1-rate.is-stale, .a1-drawer-rate.is-stale').forEach((node) => node.classList.remove('is-stale'));
     };
 
     const runExchangeRateSync = async (endpoint) => {
@@ -1054,6 +1104,8 @@ const loadProductSearch = async (term) => {
             }
             clickPinnedDropdowns.add(dropdown);
             setDropdown(dropdown, true);
+            // Phones: the account menu and the sheet menu are separate layers; opening one closes the other.
+            if (dropdown.classList.contains('a1-header__user')) setMobileMenu(false);
         });
         dropdown.addEventListener('mouseenter', () => {
             clearDropdownClose(dropdown);
@@ -1105,6 +1157,82 @@ const loadProductSearch = async (term) => {
     });
     mobileMenuQuery.addEventListener?.('change', () => { closeDropdowns(); setMobileMenu(false); });
     desktopHoverQuery.addEventListener?.('change', () => closeDropdowns());
+
+    // Notification bell: button + dropdown with the last 10 notifications (JSON from notifications.recent), Escape closes and returns focus.
+    document.querySelectorAll('[data-bell]').forEach((bell) => {
+        const toggle = bell.querySelector('[data-bell-toggle]');
+        const panel = bell.querySelector('.a1-bell__panel');
+        const list = bell.querySelector('[data-bell-list]');
+        const empty = bell.querySelector('[data-bell-empty]');
+        const unread = bell.querySelector('[data-bell-unread]');
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        if (!toggle || !panel || !list) return;
+        const setCount = (n) => {
+            let badge = bell.querySelector('[data-bell-count]');
+            if (n > 0 && !badge) {
+                badge = document.createElement('span');
+                badge.className = 'a1-count a1-count--float';
+                badge.setAttribute('data-bell-count', '');
+                badge.setAttribute('aria-hidden', 'true');
+                toggle.appendChild(badge);
+            }
+            if (badge) { if (n > 0) badge.textContent = String(Math.min(99, n)); else badge.remove(); }
+            toggle.setAttribute('aria-label', n > 0 ? 'Obaveštenja: ' + n + ' nepročitanih' : 'Obaveštenja');
+            if (unread) unread.textContent = n > 0 ? n + ' nepročitanih' : 'Sve pročitano';
+        };
+        const openRead = (item) => {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = item.read_url;
+            const token = document.createElement('input');
+            token.type = 'hidden'; token.name = '_token'; token.value = csrf;
+            form.appendChild(token);
+            document.body.appendChild(form);
+            form.submit();
+        };
+        const render = (data) => {
+            list.textContent = '';
+            (data.items || []).forEach((item) => {
+                const li = document.createElement('li');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'a1-bell__item' + (item.read ? '' : ' is-unread');
+                const title = document.createElement('strong');
+                title.textContent = (item.read ? '' : 'Novo: ') + item.title;
+                const message = document.createElement('span');
+                message.textContent = item.message || '';
+                const time = document.createElement('small');
+                time.textContent = item.time || '';
+                button.append(title, message, time);
+                button.addEventListener('click', () => openRead(item));
+                li.appendChild(button);
+                list.appendChild(li);
+            });
+            if (empty) empty.hidden = (data.items || []).length > 0;
+            setCount(Number(data.unread) || 0);
+        };
+        const load = () => fetch(bell.dataset.bellUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then((response) => response.ok ? response.json() : Promise.reject(new Error('HTTP ' + response.status)))
+            .then(render)
+            .catch(() => { if (empty) { empty.hidden = false; empty.textContent = 'Obaveštenja trenutno nisu dostupna.'; } });
+        const setOpen = (open, returnFocus = false) => {
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) load();
+            else if (returnFocus) toggle.focus();
+        };
+        toggle.addEventListener('click', () => setOpen(panel.hidden));
+        bell.querySelector('[data-bell-read-all]')?.addEventListener('click', () => {
+            fetch(bell.dataset.bellReadAllUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
+                .then(load).catch(() => {});
+        });
+        bell.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !panel.hidden) { event.stopPropagation(); setOpen(false, true); }
+        });
+        document.addEventListener('click', (event) => {
+            if (!panel.hidden && event.target instanceof Node && !bell.contains(event.target)) setOpen(false);
+        });
+    });
 
     const filterForms = Array.from(document.querySelectorAll('form.filter-panel'));
     filterForms.forEach((form, index) => {

@@ -80,8 +80,8 @@ final class CustomerPortalDashboardTest extends TestCase
         $this->actingAs($admin)->get('/')
             ->assertOk()
             ->assertSee('Prioritetne aktivnosti')
-            ->assertSee('Brze akcije')
-            ->assertSee('Svi dostupni moduli na jednom mestu');
+            ->assertDontSee('Brze akcije')
+            ->assertDontSee('Svi dostupni moduli na jednom mestu');
     }
 
     private function user(string $username): User

@@ -51,8 +51,8 @@ final class OperatorWorkspace796Test extends TestCase
         $this->item($a, $operator, 'First sold laptop');
         $this->item($b, $operator, 'Second sold laptop');
         $response = $this->actingAs($operator)->get('/')->assertOk();
-        $response->assertSee('data-operator-order-center', false)
-            ->assertSee('Porudžbine korisnika')->assertSee('seller-a')->assertSee('seller-b')
+        $response->assertSee('Poslednje porudžbine')->assertDontSee('data-operator-order-center', false)->assertDontSee('Porudžbine korisnika')
+            ->assertSee('Korisnik: ', false)->assertSee('Kupac: ', false)->assertSee('seller-a')->assertSee('seller-b')
             ->assertSee('First sold laptop')->assertSee('Second sold laptop')
             ->assertSee(route('admin.orders.show', $a), false)
             ->assertDontSee('Moje porudžbine')->assertDontSee('data-customer-center-ready', false)

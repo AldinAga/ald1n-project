@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\CommissionAdjustment;
 use App\Models\OrderCommission;
 use App\Models\User;
 use App\Services\Pdf\CommissionReportPdfService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 final class CommissionReportService
@@ -17,12 +19,19 @@ final class CommissionReportService
     public function __construct(
         private readonly SettingsService $settings,
         private readonly CommissionReportPdfService $pdf,
+        private readonly CommissionEligibilityService $eligibility,
     ) {}
+
+    /** Eager load (lazy loading je zabranjen); adjustments samo kad migracija postoji. @param list<string> $relations @return list<string> */
+    private function relations(array $relations): array
+    {
+        return \App\Support\CommissionMoney::hasAdjustments() ? [...$relations, 'adjustments'] : $relations;
+    }
 
     /** @param array<string,mixed> $filters */
     public function managedQuery(User $actor, array $filters): Builder
     {
-        $query = OrderCommission::query()->with(['order.supplier', 'user', 'paymentBatch'])->latest('id');
+        $query = OrderCommission::query()->with($this->relations(['order.supplier', 'order.items', 'user', 'paymentBatch']))->latest('id');
         if (!$actor->hasRole('superadmin')) {
             $query->whereHas('order', static fn (Builder $order): Builder => $order->where('supplier_user_id', $actor->id));
         }
@@ -33,7 +42,7 @@ final class CommissionReportService
     public function ownQuery(User $user, array $filters): Builder
     {
         return $this->filters(
-            OrderCommission::query()->with(['order.supplier', 'paymentBatch'])->where('user_id', $user->id)->latest('id'),
+            OrderCommission::query()->with($this->relations(['order.supplier', 'paymentBatch']))->where('user_id', $user->id)->latest('id'),
             $filters,
             false,
         );
@@ -142,6 +151,7 @@ final class CommissionReportService
             });
         }
         if (in_array($filters['status'] ?? null, ['pending', 'approved', 'paid', 'cancelled'], true)) $query->where('status', $filters['status']);
+        if (in_array($filters['state'] ?? null, CommissionEligibilityService::STATES, true)) $this->eligibility->scopeState($query, (string) $filters['state']);
         if (!empty($filters['date_from'])) $query->whereDate('created_at', '>=', $filters['date_from']);
         if (!empty($filters['date_to'])) $query->whereDate('created_at', '<=', $filters['date_to']);
         if ($allowUserSupplier && !empty($filters['user_id'])) $query->where('user_id', (int) $filters['user_id']);
@@ -153,7 +163,32 @@ final class CommissionReportService
     private function summary(Builder $query): array
     {
         $rows = (clone $query)->reorder()->selectRaw('status, COUNT(*) AS total_count, SUM(total_eur) AS total_eur')->groupBy('status')->get()->keyBy('status');
+        $group = function (string $state) use ($query): array {
+            $row = $this->eligibility->scopeState((clone $query)->reorder(), $state)->selectRaw('COUNT(*) AS c, COALESCE(SUM(order_commissions.total_eur),0) AS s')->first();
+            return ['count' => (int) ($row->c ?? 0), 'eur' => (float) ($row->s ?? 0)];
+        };
+        $ids = (clone $query)->reorder()->select('order_commissions.id');
+        $hasAdjustments = \App\Support\CommissionMoney::hasAdjustments(); // stranica radi i pre migracije
+        $adjusted = static fn (string $kind, string $status = 'confirmed'): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->where('status', $status)->whereIn('commission_id', $ids)->sum('amount_eur');
+        // otvoreno dugovanje = potvrđena zaduženja minus već prebijeno pri isplatama
+        $settled = $hasAdjustments && Schema::hasTable('commission_debit_settlements')
+            ? (float) DB::table('commission_debit_settlements')->whereIn('adjustment_id', CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'confirmed')->whereIn('commission_id', $ids)->select('id'))->sum('amount_eur')
+            : 0.0;
+        $proposed = $hasAdjustments
+            ? CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'proposed')->whereIn('commission_id', $ids)->selectRaw('COUNT(*) AS c, COALESCE(SUM(amount_eur),0) AS s')->first()
+            : null;
+        $due = $group('due');
+        $notDue = $group('not_due');
+
         return [
+            'due_count' => $due['count'],
+            'due_eur' => $due['eur'],
+            'not_due_count' => $notDue['count'],
+            'not_due_eur' => $notDue['eur'],
+            'reversed_eur' => $adjusted('reversal'),
+            'owed_eur' => max(0.0, round($adjusted('debit') - $settled, 2)),
+            'proposed_debit_count' => (int) ($proposed->c ?? 0),
+            'proposed_debit_eur' => (float) ($proposed->s ?? 0),
             'count' => (int) $rows->sum('total_count'),
             'pending_count' => (int) ($rows['pending']->total_count ?? 0),
             'pending_eur' => (float) ($rows['pending']->total_eur ?? 0),

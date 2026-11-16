@@ -1421,3 +1421,176 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table td.a1-ol-primary{overflow:visible;font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
   .a1-ops .a1-ol-table td.a1-ol-primary .a1-link{white-space:nowrap;letter-spacing:0}
 }
+
+/* ==========================================================================
+   Dashboard + shell owner feedback (2026-11-16). One block, appended; tokens only.
+   Shell: centered desktop search with the icon on the right, avatar + theme icon + rate card on phones.
+   Dashboard: compact recent-orders rows, earnings cards, trend series toggles, Top 5/10 brand list.
+   ========================================================================== */
+
+/* Desktop search: centered between the logo and the right-hand controls, label left, magnifier right. */
+@media (min-width:1200px){
+  .a1-header .a1-brand{margin-right:0}
+  .a1-header .a1-header__theme{display:none}
+}
+
+/* Phones and tablets (sheet menu): avatar button left of the hamburger, one theme icon right of the search icon. */
+.a1-header__theme{order:2}
+.a1-header__theme-ico{display:none;place-items:center}
+html[data-theme-mode=auto] .a1-header__theme-ico[data-theme-ico=auto],
+html[data-theme-mode=light] .a1-header__theme-ico[data-theme-ico=light],
+html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:inline-grid}
+@media (max-width:1199px){
+  .a1-header__bar{column-gap:var(--a1-space-8);position:relative}
+  .a1-header .a1-brand__logo{max-width:clamp(48px,calc(100vw - 300px),260px)}
+  .a1-header__user{order:3}
+  .a1-header .a1-header__user{position:static}
+  .a1-header__user>.a1-user{justify-content:center;min-width:var(--a1-size-touch-target);padding:var(--a1-space-4)}
+  .a1-header__user>.a1-user .a1-user__label,.a1-header__user>summary::after{display:none}
+  .a1-header__user>.a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-4));right:0;width:min(320px,100%);max-height:calc(100dvh - 96px);overflow-y:auto;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);box-shadow:var(--a1-shadow-card-hover)}
+  /* The theme switch leaves the drawer (the icon button in the bar replaces it); the rate becomes a card above the menu items. */
+}
+
+/* Recent orders: one compact block, aligned columns (item + number/date, status, amount, arrow). */
+.a1-list--recent{gap:var(--a1-space-4)}
+@media (min-width:768px){
+  .a1-list--recent .a1-item--order{grid-template-columns:minmax(0,1fr) 7.5rem minmax(9.5rem,max-content) 1rem;column-gap:var(--a1-space-12);min-height:52px;padding-block:var(--a1-space-8)}
+}
+
+/* Earnings cards: plain tiles with a caption under them. */
+[data-dashboard-earnings] .a1-kpi__note{color:var(--a1-text-secondary)}
+
+/* Trend: series toggles (44px targets), two more bar styles that do not rely on colour, per-series summary. */
+.a1-tgl{display:inline-flex;align-items:center;gap:var(--a1-space-8);min-width:var(--a1-size-touch-target);min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-16);border:var(--a1x-border-width) dashed var(--a1-border-strong);border-radius:var(--a1-radius-pill);background:transparent;color:var(--a1-text-secondary);font:var(--a1-typography-font-weight-nav) var(--a1-typography-font-size-sm-plus)/1 var(--a1-typography-font-family-sans);cursor:pointer}
+.a1-tgl:hover{background:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
+.a1-tgl[aria-pressed=true]{border-style:solid;border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
+.a1-tgl[aria-pressed=false] .a1-swatch{opacity:.5}
+.a1-tgl:focus-visible{outline-offset:1px}
+.a1-trend__bar--comm{border:var(--a1x-border-width-strong) solid var(--a1-status-warning-dot);border-bottom:0;background-color:transparent;background-image:radial-gradient(var(--a1-status-warning-dot) 1.2px,transparent 1.6px);background-size:5px 5px}
+.a1-trend__bar--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);border-bottom:0;background-color:var(--a1-button-ghost-hover)}
+.a1-swatch--comm{border:var(--a1x-border-width-strong) solid var(--a1-status-warning-dot);background-color:transparent;background-image:radial-gradient(var(--a1-status-warning-dot) 1.2px,transparent 1.6px);background-size:5px 5px}
+.a1-swatch--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);background-color:var(--a1-button-ghost-hover)}
+.a1-trendpanel{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);min-width:0}
+.a1-trendsum{display:grid;gap:var(--a1-space-4)}
+.a1-trendsum .a1-text{font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+.a1-trendpanel[data-trend-off~=rev] .a1-trend__bar--rev,
+.a1-trendpanel[data-trend-off~=rev] [data-trend-summary=rev],
+.a1-trendpanel[data-trend-off~=gross] .a1-trend__bar--gross,
+.a1-trendpanel[data-trend-off~=gross] [data-trend-summary=gross],
+.a1-trendpanel[data-trend-off~=comm] .a1-trend__bar--comm,
+.a1-trendpanel[data-trend-off~=comm] [data-trend-summary=comm],
+.a1-trendpanel[data-trend-off~=orders] .a1-trend__bar--orders,
+.a1-trendpanel[data-trend-off~=orders] [data-trend-summary=orders]{display:none}
+
+/* Brand list: from the seventh entry the colour ramp repeats, so those swatches get a hatch as a second cue. */
+.a1-swatch--alt{background-image:repeating-linear-gradient(135deg,var(--a1-surface-solid) 0 2px,transparent 2px 5px)}
+
+@media (forced-colors:active){
+  .a1-trend__bar--comm,.a1-swatch--comm{background:Canvas;border:var(--a1x-border-width-strong) solid CanvasText}
+  .a1-trend__bar--orders,.a1-swatch--orders{background:Canvas;border:var(--a1x-border-width-strong) dashed CanvasText}
+  .a1-swatch--alt{forced-color-adjust:none}
+  .a1-tgl{border-color:ButtonText;color:ButtonText;background:ButtonFace}
+  .a1-tgl[aria-pressed=true]{border:3px solid Highlight;color:Highlight}
+}
+
+/* Owner decisions 2026-11-16, part 2: one-row greeting, compact period bar, enriched earnings cards, EUR sub-lines, 1440px content cap. */
+.a1-dash .a1-card.a1-hero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-24);padding-block:var(--a1-space-12)}
+.a1-dash .a1-hero .a1-hero__title{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--a1-space-12)}
+.a1-dash .a1-hero__title .a1-title{font-size:var(--a1-typography-font-size-xl);line-height:var(--a1-typography-line-height-snug)}
+.a1-dash .a1-hero .a1-hero__actions{justify-content:flex-end}
+@media (max-width:767px){.a1-dash .a1-hero .a1-hero__actions{justify-content:flex-start}}
+.a1-dash .a1-periodbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);padding-block:var(--a1-space-12)}
+.a1-periodbar .a1-text{font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-periodbar .a1-hero__range{flex:1 1 100%}
+
+/* Cards: the value row carries a small trend line; EUR and the comparison are one line each. */
+.a1-kpi__eur,.a1-item__eur{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums;font-weight:var(--a1-typography-font-weight-regular)}
+
+/* Content width: the admin shell and every page inside it stop at 1440px, centred, same gutters as before. */
+.a1-body .a1-shell{--a1x-container:1440px}
+.a1-body .page-shell{width:min(100% - 48px,1440px)}
+@media (max-width:1250px){.a1-body .page-shell{width:min(100% - 30px,1440px)}}
+@media (max-width:700px){.a1-body .page-shell{width:min(100% - 22px,1440px)}}
+
+/* Desktop navigation stays a top bar; the active item also gets a heavier weight (not colour alone). */
+.a1-header .a1-nav__link--active{font-weight:var(--a1-typography-font-weight-semibold)}
+
+/* Notification bell: dropdown with the last 10 notifications (opaque surface, 44px rows). */
+.a1-bell{position:relative;display:inline-flex}
+.a1-bell__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-8));right:0;display:grid;gap:var(--a1-space-8);width:min(380px,calc(100vw - 24px));padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);box-shadow:var(--a1-shadow-card-hover);color:var(--a1-text-primary)}
+.a1-bell__panel[hidden]{display:none}
+.a1-bell__head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--a1-space-8);padding:var(--a1-space-4) var(--a1-space-8)}
+.a1-bell__unread{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-bell__list{display:grid;gap:2px;max-height:min(60dvh,420px);margin:0;padding:0;overflow-y:auto;list-style:none}
+.a1-bell__item{display:grid;gap:2px;width:100%;min-height:var(--a1-size-touch-target);padding:var(--a1-space-8) var(--a1-space-12);border:var(--a1x-border-width) solid transparent;border-radius:var(--a1-radius-sm);background:transparent;color:var(--a1-text-primary);font:inherit;text-align:left;cursor:pointer}
+.a1-bell__item:hover{background:var(--a1-button-ghost-hover);border-color:var(--a1-border-normal)}
+.a1-bell__item.is-unread{border-left:4px solid var(--a1-accent-link)}
+.a1-bell__item span{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:anywhere}
+.a1-bell__item small{color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-xs-plus)}
+.a1-bell__empty{margin:0;padding:var(--a1-space-8) var(--a1-space-12);color:var(--a1-text-secondary)}
+.a1-bell__foot{display:flex;flex-wrap:wrap;gap:var(--a1-space-8);padding:var(--a1-space-4) var(--a1-space-4) 0}
+@media (max-width:1199px){
+  .a1-header .a1-bell{position:static}
+}
+
+/* Owner round 2 (2026-11-16): centred search grid, drawer rate card, one-row period bar, KPI card slots, phone layout. */
+.a1-header__end{display:contents}
+.a1-drawer-rate{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px var(--a1-space-12);justify-self:stretch;width:100%;padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background:var(--a1-button-ghost-bg);color:var(--a1-text-secondary);font:inherit;text-align:left}
+.a1-drawer-rate.is-stale{border-color:var(--a1-status-warning-dot)}
+.a1-drawer-rate b{color:var(--a1-text-primary);font-size:var(--a1-typography-font-size-lg);font-variant-numeric:tabular-nums;text-align:right}
+.a1-drawer-rate small{grid-column:1/-1;font-size:var(--a1-typography-font-size-sm);overflow-wrap:anywhere}
+button.a1-drawer-rate{cursor:pointer}
+@media (max-width:1199px){
+  .a1-header__end>.a1-rate,.a1-header__end>.a1-theme{display:none}
+}
+@media (min-width:1200px){
+  /* Logo | search | controls: the two outer tracks stay equal, so the field is in the exact centre of the header. */
+  .a1-header .a1-header__bar:has(>.a1-header__end){display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
+  .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
+  /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
+  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between}
+  .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
+  .a1-header .a1-header__end>.a1-header__quick{order:1}
+  .a1-header .a1-header__end>.a1-rate{order:2;max-width:9.5rem;overflow:hidden}
+  .a1-header .a1-header__end>.a1-rate b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .a1-header .a1-header__end>.a1-theme{order:3}
+  .a1-header .a1-header__end>.a1-header__user{order:4}
+  .a1-header .a1-header__nav{grid-column:1/-1;grid-row:2}
+  .a1-header .a1-drawer-rate{display:none}
+  .a1-header .a1-header__end .a1-user__label{display:none}
+}
+
+/* Dashboard: period bar in one row, details only after "Prilagođeno". */
+.a1-muted-line{margin:0;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-dash .a1-periodbar{flex-wrap:wrap}
+.a1-periodbar .a1-seg-form{flex:0 0 auto}
+.a1-periodbar__custom{flex:0 0 auto}
+.a1-periodbar__custom>summary{display:inline-flex;align-items:center;min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-pill);background:var(--a1-button-ghost-bg);list-style:none;cursor:pointer}
+.a1-periodbar__custom>summary::-webkit-details-marker{display:none}
+.a1-periodbar__custom[open]{flex:1 1 100%}
+.a1-periodbar__fields{margin-top:var(--a1-space-12)}
+.a1-periodbar__label{flex:1 1 auto;text-align:right}
+@media (max-width:767px){
+  .a1-periodbar .a1-seg__opt{padding-inline:var(--a1-space-12)}
+  .a1-periodbar__label{flex-basis:100%;text-align:left}
+}
+
+/* Earnings cards: the trend line has one fixed slot (top right) in every card; phones get a 2x2 grid. */
+.a1-dash [data-dashboard-earnings] .a1-kpi{position:relative}
+.a1-dash [data-dashboard-earnings] .a1-kpi__label{padding-right:84px}
+.a1-kpi__spark{position:absolute;top:var(--a1-space-12);right:var(--a1-space-16);width:72px;height:24px;color:var(--a1-accent-link)}
+@media (max-width:559px){
+  .a1-dash [data-dashboard-earnings]{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--a1-space-8)}
+  .a1-dash [data-dashboard-earnings] .a1-kpi{padding:var(--a1-space-8) var(--a1-space-12)}
+  .a1-dash [data-dashboard-earnings] .a1-kpi__label{padding-right:0}
+  .a1-dash [data-dashboard-earnings] .a1-kpi__value{font-size:clamp(14px,4.4vw,20px);overflow-wrap:normal}
+  .a1-dash [data-dashboard-earnings] .a1-kpi__unit{font-size:var(--a1-typography-font-size-xs-plus)}
+  .a1-kpi__spark{display:none}
+  .a1-dash [data-dashboard-earnings] .a1-kpi__note{display:none}
+  /* Quick actions: one horizontally scrollable row instead of three wrapped rows. */
+  .a1-dash .a1-hero .a1-hero__actions{flex-wrap:nowrap;width:100%;padding:var(--a1-space-4);margin:calc(-1 * var(--a1-space-4));overflow-x:auto;scrollbar-width:thin}
+  .a1-dash .a1-hero__actions>*{flex:0 0 auto}
+}
+/* Round 2b: phone greeting stays on two lines at most; the orders list keeps a tidy width inside the wide card. */
+.a1-card .a1-list--recent{max-width:62rem}
+@media (max-width:559px){.a1-dash .a1-hero__title .a1-title{font-size:clamp(14px,4.2vw,18px)}}

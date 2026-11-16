@@ -9,6 +9,14 @@ final class CommissionCalculator
 {
     public const DEFAULT_RATE_PERCENT = 10.0;
 
+    /** @param float|null $ratePercent podešavanje commission_default_percent (SuperAdmin); null = DEFAULT_RATE_PERCENT */
+    public function __construct(private readonly ?float $ratePercent = null) {}
+
+    public function ratePercent(): float
+    {
+        return $this->ratePercent !== null && $this->ratePercent >= 0.0 && $this->ratePercent <= 100.0 ? $this->ratePercent : self::DEFAULT_RATE_PERCENT;
+    }
+
     public function unitEur(
         float $priceAmount,
         string $currency,
@@ -31,7 +39,7 @@ final class CommissionCalculator
     {
         return round(
             $this->priceEur($priceAmount, $currency, $eurRsdRate)
-                * (self::DEFAULT_RATE_PERCENT / 100),
+                * ($this->ratePercent() / 100),
             2,
         );
     }

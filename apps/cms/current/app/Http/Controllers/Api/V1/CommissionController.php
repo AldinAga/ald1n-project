@@ -6,18 +6,23 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrderCommission;
+use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 final class CommissionController extends Controller
 {
+    public function __construct(private readonly CommissionEligibilityService $eligibility) {}
+
     public function index(Request $request, CommissionReportService $reports): JsonResponse
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:190'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'paid', 'cancelled'])],
+            'state' => ['nullable', Rule::in(CommissionEligibilityService::STATES)],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ]);
@@ -38,6 +43,10 @@ final class CommissionController extends Controller
                 'approved_eur' => (float) ($summary['approved_eur'] ?? 0),
                 'paid_eur' => (float) ($summary['paid_eur'] ?? 0),
                 'count' => (int) ($summary['count'] ?? 0),
+                // dodato 16.11.2026 (aditivno)
+                'due_eur' => (float) ($summary['due_eur'] ?? 0),
+                'not_due_eur' => (float) ($summary['not_due_eur'] ?? 0),
+                'owed_eur' => (float) ($summary['owed_eur'] ?? 0),
             ],
             'links' => [
                 'first' => $commissions->url(1),
@@ -76,6 +85,7 @@ final class CommissionController extends Controller
     private function payload(OrderCommission $commission): array
     {
         $status = (string) $commission->status;
+        $eligibility = $this->eligibility->evaluate($commission);
         $responsibleName = $commission->order?->supplier_name_snapshot
             ?: $commission->order?->supplier?->displayName()
             ?: 'Administrator';
@@ -90,6 +100,12 @@ final class CommissionController extends Controller
             'status' => $status,
             'status_label' => $this->statusLabel($status),
             'status_note' => $commission->status_note ?: null,
+            'state' => $eligibility['state'],
+            'state_label' => $eligibility['state_label'],
+            'payable_code' => $eligibility['code'],
+            'payable_reason' => $eligibility['reason'],
+            'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
+            'owed_eur' => (float) $commission->openDebitEur(),
             'responsible_name' => (string) $responsibleName,
             'payment' => $status === 'paid' ? [
                 'method' => $commission->payment_method ?: null,
@@ -117,7 +133,7 @@ final class CommissionController extends Controller
     {
         return match ($status) {
             'pending' => "Na \u{010D}ekanju",
-            'approved' => 'Odobrena',
+            'approved' => 'Za isplatu',
             'paid' => "Ispla\u{0107}ena",
             'cancelled' => 'Stornirana',
             default => $status,

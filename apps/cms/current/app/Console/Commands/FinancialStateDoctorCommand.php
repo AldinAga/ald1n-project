@@ -96,7 +96,7 @@ final class FinancialStateDoctorCommand extends Command
         $repairIds = array_values(array_unique(array_merge($derivedRepairIds, $ipsMismatches)));
         foreach ($repairIds as $id) {
             $order = Order::query()->findOrFail($id);
-            if (in_array($id, $derivedRepairIds, true)) $financial->project($order);
+            if (in_array($id, $derivedRepairIds, true)) $financial->project($order, false);
             $reconciliation->reconcile($order);
         }
 

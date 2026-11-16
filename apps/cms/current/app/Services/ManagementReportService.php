@@ -116,6 +116,10 @@ final class ManagementReportService
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NULL THEN ri.line_total_rsd ELSE 0 END),0) as revenue_missing_cost_rsd')
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NULL THEN 1 ELSE 0 END),0) as missing_cost_lines')
             ->selectRaw('COALESCE(SUM(COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(report_order_data.eur_rsd_rate,0)),0) as commissions_rsd')
+            // EUR view of the same RSD figures: each item at the rate stored on ITS order (orders without a stored rate are not converted).
+            ->selectRaw('COALESCE(SUM(ri.line_total_rsd / NULLIF(report_order_data.eur_rsd_rate,0)),0) as revenue_eur')
+            ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NOT NULL THEN ri.purchase_total_rsd_snapshot / NULLIF(report_order_data.eur_rsd_rate,0) ELSE 0 END),0) as cogs_eur')
+            ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NULL THEN ri.line_total_rsd / NULLIF(report_order_data.eur_rsd_rate,0) ELSE 0 END),0) as revenue_missing_cost_eur')
             ->first();
 
         $revenue = (float) ($itemSummary->revenue_rsd ?? 0);
@@ -147,6 +151,8 @@ final class ManagementReportService
             'missing_cost_lines' => (int) ($itemSummary->missing_cost_lines ?? 0),
             'revenue_missing_cost_rsd' => round((float) ($itemSummary->revenue_missing_cost_rsd ?? 0), 2),
             'cost_coverage_percent' => $revenue > 0 ? round($knownRevenue / $revenue * 100, 2) : 100.0,
+            'revenue_eur' => round((float) ($itemSummary->revenue_eur ?? 0), 2),
+            'gross_profit_eur' => round(max(0.0, (float) ($itemSummary->revenue_eur ?? 0) - (float) ($itemSummary->revenue_missing_cost_eur ?? 0)) - (float) ($itemSummary->cogs_eur ?? 0), 2),
         ];
     }
 
@@ -181,7 +187,7 @@ final class ManagementReportService
      */
     public static function summarizeDashboardBrandRows(array $rows): array
     {
-        $build = static function (string $key) use ($rows): array {
+        $build = static function (string $key, int $limit) use ($rows): array {
             $positive = [];
             foreach ($rows as $row) {
                 $amount = (float) $row->{$key};
@@ -195,8 +201,8 @@ final class ManagementReportService
             if ($total <= 0) {
                 return ['total' => 0, 'slices' => []];
             }
-            $top = array_slice($positive, 0, 5);
-            $other = array_sum(array_column(array_slice($positive, 5), 'value'));
+            $top = array_slice($positive, 0, $limit);
+            $other = array_sum(array_column(array_slice($positive, $limit), 'value'));
             if ($other > 0) {
                 $top[] = ['label' => 'Ostali', 'value' => $other];
             }
@@ -218,7 +224,11 @@ final class ManagementReportService
                 'gradient' => 'conic-gradient('.implode(', ', $stops).')',
             ];
         };
-        return ['revenue' => $build('revenue'), 'units' => $build('units')];
+        // "revenue"/"units" keep the Top 5 ring; the *_top10 variants feed the Top 10 choice of the dashboard.
+        return [
+            'revenue' => $build('revenue', 5), 'units' => $build('units', 5),
+            'revenue_top10' => $build('revenue', 10), 'units_top10' => $build('units', 10),
+        ];
     }
 
     /** @param array<string,mixed> $filters @return list<array<string,mixed>> */
@@ -281,7 +291,8 @@ final class ManagementReportService
             ->join('orders as o', 'o.id', '=', 'ri.order_id');
         $this->applyItemFilters($query, $filters, 'ri');
         $trendRows = $query
-            ->select(['ri.line_total_rsd', 'ri.purchase_total_rsd_snapshot'])
+            ->select(['ri.order_id', 'ri.line_total_rsd', 'ri.purchase_total_rsd_snapshot'])
+            ->selectRaw($this->commissionRsdSql().' as commission_rsd')
             ->selectRaw("DATE_FORMAT($dateColumn, '$format') as report_period");
 
         return DB::query()->fromSub($trendRows, 'trend_rows')
@@ -289,12 +300,106 @@ final class ManagementReportService
             ->selectRaw('COALESCE(SUM(line_total_rsd),0) as revenue_rsd')
             ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NOT NULL THEN purchase_total_rsd_snapshot ELSE 0 END),0) as cogs_rsd')
             ->selectRaw('COALESCE(SUM(CASE WHEN purchase_total_rsd_snapshot IS NULL THEN line_total_rsd ELSE 0 END),0) as missing_revenue_rsd')
+            ->selectRaw('COALESCE(SUM(commission_rsd),0) as commissions_rsd')
+            ->selectRaw('COUNT(DISTINCT order_id) as orders_count')
             ->groupBy('report_period')->orderBy('report_period')->get()
             ->map(static function ($row): array {
                 $revenue = (float) $row->revenue_rsd;
                 $known = max(0, $revenue - (float) $row->missing_revenue_rsd);
-                return ['period' => (string) $row->period, 'revenue_rsd' => round($revenue, 2), 'gross_profit_rsd' => round($known - (float) $row->cogs_rsd, 2)];
+                return [
+                    'period' => (string) $row->period,
+                    'revenue_rsd' => round($revenue, 2),
+                    'gross_profit_rsd' => round($known - (float) $row->cogs_rsd, 2),
+                    'commissions_rsd' => round((float) $row->commissions_rsd, 2),
+                    'orders_count' => (int) $row->orders_count,
+                ];
             })->all();
+    }
+
+    /**
+     * Commission of one order item in RSD (EUR snapshot x the order's rate). A commission record that was
+     * cancelled is not owed, so its orders contribute 0. Same item snapshots as summary() and the subagent report.
+     */
+    private function commissionRsdSql(string $item = 'ri', string $order = 'o'): string
+    {
+        $raw = "(COALESCE($item.commission_total_eur_snapshot,0) * COALESCE($order.eur_rsd_rate,0))";
+        if (!Schema::hasTable('order_commissions')) {
+            return $raw;
+        }
+
+        return "(CASE WHEN EXISTS (SELECT 1 FROM order_commissions oc WHERE oc.order_id = $order.id AND oc.status = 'cancelled') THEN 0 ELSE $raw END)";
+    }
+
+    /**
+     * SuperAdmin earnings cards for the selected period (scope "completed"): promet and bruto zarada are the
+     * summary() values (bruto = revenue of items with a recorded purchase price minus that purchase cost, the rule of
+     * the "Bruto dobit" figures); provizija = commissions of those orders without cancelled commission records;
+     * neto zarada = bruto zarada minus provizija. One SQL aggregate, no per-order queries.
+     *
+     * @param array<string,mixed> $filters normalizeFilters() output
+     * @param array<string,mixed>|null $summary summary() of the same filters, when the caller already has it
+     * @return array{revenue_rsd:float,commissions_rsd:float,gross_rsd:float,net_rsd:float}
+     */
+    public function earnings(User $user, array $filters, ?array $summary = null, bool $withPrevious = true): array
+    {
+        $summary ??= $this->summary($user, $filters);
+        $query = DB::table('order_items as ri')
+            ->joinSub(clone $this->orderIds($user, $filters), 'report_orders', static fn ($join) => $join->on('report_orders.id', '=', 'ri.order_id'))
+            ->join('orders as o', 'o.id', '=', 'ri.order_id');
+        $this->applyItemFilters($query, $filters, 'ri');
+        $row = $query
+            ->selectRaw('COALESCE(SUM('.$this->commissionRsdSql().'),0) as commissions_rsd')
+            ->selectRaw('COALESCE(SUM('.$this->commissionEurSql().'),0) as commissions_eur')
+            ->first();
+        $commissions = round((float) ($row->commissions_rsd ?? 0), 2);
+        $commissionsEur = round((float) ($row->commissions_eur ?? 0), 2);
+        $gross = (float) ($summary['gross_profit_rsd'] ?? 0);
+        $grossEur = (float) ($summary['gross_profit_eur'] ?? 0);
+
+        $out = [
+            'revenue_rsd' => (float) ($summary['revenue_rsd'] ?? 0),
+            'commissions_rsd' => $commissions,
+            'gross_rsd' => $gross,
+            'net_rsd' => round($gross - $commissions, 2),
+            // EUR: items at the rate stored on their order; commissions are stored in EUR already.
+            'revenue_eur' => (float) ($summary['revenue_eur'] ?? 0),
+            'commissions_eur' => $commissionsEur,
+            'gross_eur' => $grossEur,
+            'net_eur' => round($grossEur - $commissionsEur, 2),
+            'orders_count' => (int) ($summary['orders_count'] ?? 0),
+            'average_order_rsd' => (float) ($summary['average_order_rsd'] ?? 0),
+            'average_order_eur' => (int) ($summary['orders_count'] ?? 0) > 0 ? round((float) ($summary['revenue_eur'] ?? 0) / (int) $summary['orders_count'], 2) : 0.0,
+        ];
+        if ($withPrevious) {
+            // Previous period of the same length, directly before this one; percent is null when the previous value is 0.
+            $from = CarbonImmutable::parse((string) $filters['date_from'])->startOfDay();
+            $days = max(1, (int) $from->diffInDays(CarbonImmutable::parse((string) $filters['date_to'])->startOfDay()) + 1);
+            $previousTo = $from->subDay();
+            $previousFilters = $filters;
+            $previousFilters['date_from'] = $previousTo->subDays($days - 1)->format('Y-m-d');
+            $previousFilters['date_to'] = $previousTo->format('Y-m-d');
+            $previous = $this->earnings($user, $previousFilters, null, false);
+            $out['previous_period'] = ['date_from' => $previousFilters['date_from'], 'date_to' => $previousFilters['date_to']];
+            $out['deltas'] = [
+                'revenue' => $this->metricDelta($out['revenue_rsd'], $previous['revenue_rsd']),
+                'commission' => $this->metricDelta($out['commissions_rsd'], $previous['commissions_rsd']),
+                'gross' => $this->metricDelta($out['gross_rsd'], $previous['gross_rsd']),
+                'net' => $this->metricDelta($out['net_rsd'], $previous['net_rsd']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Stored EUR commission of one item; cancelled commission records are not owed (same rule as commissionRsdSql). */
+    private function commissionEurSql(string $item = 'ri', string $order = 'o'): string
+    {
+        $raw = "COALESCE($item.commission_total_eur_snapshot,0)";
+        if (!Schema::hasTable('order_commissions')) {
+            return "($raw)";
+        }
+
+        return "(CASE WHEN EXISTS (SELECT 1 FROM order_commissions oc WHERE oc.order_id = $order.id AND oc.status = 'cancelled') THEN 0 ELSE $raw END)";
     }
 
     /** @return array<string,mixed> */
