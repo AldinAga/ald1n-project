@@ -49,7 +49,10 @@ const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430,
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
 // Orders module (strict): the main screens get all seven widths; stress and detail pages four or three; status and secondary pages two.
 const ORDERS_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280, 1440]);
-const ORDERS_WIDTHS_4 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 430, 768, 1280]);
+// Orders list pages also run the desktop layout gates at 1200/1280/1440 and 1920 (orders-index; page 2 gets the same desktop set).
+const ORDERS_WIDTHS_WIDE = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280, 1440, 1920]);
+const ORDERS_WIDTHS_PAGE2 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 430, 768, 1200, 1280, 1440, 1920]);
+const ORDERS_WIDTHS_4 =(process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 430, 768, 1280]);
 const ORDERS_WIDTHS_3 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
 const ORDERS_WIDTHS_2 = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 1280]);
 const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
@@ -226,7 +229,7 @@ const PAGES = [
   // partly paid, shipped, 15 items, a 60-character name, a 12.345.678,90 RSD total and 6 archived orders.
   // Width tiers keep the matrix inside the 45 minute job: main screens x7, stress/detail pages x4 or x3, status and
   // secondary pages x2. Orders cells also run ordersChecks (computed contrast, unlabeled controls, one h1) and the extra axe rules.
-  { module: 'orders', key: 'orders-index', path: '/admin/orders', widths: ORDERS_WIDTHS },
+  { module: 'orders', key: 'orders-index', path: '/admin/orders', widths: ORDERS_WIDTHS_WIDE },
   { module: 'orders', key: 'orders-show', path: (i) => `/admin/orders/${i.order}`, widths: ORDERS_WIDTHS },
   // New orders are created by the customer role (orders.create); superadmin gets 403 by design.
   { module: 'orders', key: 'orders-create', path: '/order/new', persona: 'customer', widths: ORDERS_WIDTHS },
@@ -234,7 +237,7 @@ const PAGES = [
   { module: 'orders', key: 'orders-customer-show', path: (i) => `/orders/${i.order}`, persona: 'customer', widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-index-filtered', path: '/admin/orders?status=new&payment_status=pending&source_system=laravel&q=ADMIN-VISUAL-F0&date_from=2025-01-01&date_to=2026-12-31', widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-index-empty', path: '/admin/orders?q=nema-takvog-broja-vizuelni-qa', widths: ORDERS_WIDTHS_4 },
-  { module: 'orders', key: 'orders-index-page2', path: '/admin/orders?page=2', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-index-page2', path: '/admin/orders?page=2', widths: ORDERS_WIDTHS_PAGE2 },
   { module: 'orders', key: 'orders-archived', path: '/admin/orders/archived', widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-show-items15', path: (i) => `/admin/orders/${i.order_items15}`, widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-show-long-name', path: (i) => `/admin/orders/${i.order_long_name}`, widths: ORDERS_WIDTHS_4 },
@@ -502,6 +505,67 @@ async function ordersChecks(page, pg, width, theme) {
   if (dom.missing) { out.push({ ...base, rule: 'orders-structure', count: 1, selectors: [ORDERS_SCOPE + ' missing'] }); return out; }
   if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
   if (dom.h1 !== 1) out.push({ ...base, rule: 'orders-structure', count: 1, selectors: ['h1 x' + dom.h1] });
+  if (width >= DESKTOP_FROM) out.push(...await ordersLayoutChecks(page, pg, width, base));
+  return out;
+}
+// Desktop layout gates for the orders module (generic over .a1-tablewrap, no page names except the median row height).
+// Pure helpers: tested once per run by selfTestLayoutHelpers() below, so the gate cannot silently measure nothing.
+const LINE_TOL = 4;
+// rects = [top, bottom] pairs of the text boxes inside one cell; boxes whose tops lie within LINE_TOL px share a line.
+function countLines(rects) {
+  const tops = rects.filter((r) => r[1] - r[0] > 1).map((r) => r[0]).sort((a, b) => a - b);
+  let lines = 0, last = -Infinity;
+  for (const t of tops) { if (t - last > LINE_TOL) { lines += 1; last = t; } }
+  return lines;
+}
+const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : 0; };
+function selfTestLayoutHelpers() {
+  const ok = countLines([[0, 20], [0, 20]]) === 1 && countLines([[0, 20], [22, 42]]) === 2 && countLines([[0, 20], [1, 21], [40, 60]]) === 2 && countLines([]) === 0 && countLines([[5, 5]]) === 0
+    && median([3, 1, 2]) === 2 && median([1, 2, 3, 10]) === 2.5 && median([]) === 0;
+  selfTests.push({ layoutHelpers: ok });
+  if (!ok) fail('SELFTEST', 'countLines/median helpers returned a wrong value');
+}
+selfTestLayoutHelpers();
+async function ordersLayoutChecks(page, pg, width, base) {
+  const out = [];
+  const m = await page.evaluate(() => {
+    const label = (e) => e.tagName.toLowerCase() + ([...e.classList].slice(0, 2).map((x) => '.' + x).join('') || '');
+    // (i) vertical scrollers inside main (header dropdowns, dialogs, textareas and data-a1-scroll-x are exempt).
+    const main = document.querySelector('main') || document.querySelector('.page-shell') || document.body;
+    const scrollers = [main, ...main.querySelectorAll('*')].filter((e) => {
+      if (e.closest('[data-a1-scroll-x], header, nav, dialog, [role=menu], [role=dialog]') || e.matches('textarea, svg, svg *')) return false;
+      if (e.getClientRects().length === 0) return false;
+      return /^(auto|scroll|overlay)$/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1;
+    }).map((e) => label(e) + ' ' + e.scrollHeight + '>' + e.clientHeight);
+    // (ii) text boxes per cell: one [top, bottom] pair per text-node line fragment, so inline icons and badges cannot add lines.
+    const cells = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td, .a1-tablewrap th')) {
+      if (td.getClientRects().length === 0) continue;
+      const dl = td.getAttribute('data-label') || '';
+      let max = null;
+      if (td.classList.contains('a1-table__num') || td.getAttribute('data-a1-lines') === '1' || dl === 'Broj') max = 1;
+      else if (dl === 'Datum' || dl === 'Rok') max = 2;
+      if (max === null) continue;
+      const rects = [];
+      const walker = document.createTreeWalker(td, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.nodeValue.trim()) continue;
+        const r = document.createRange(); r.selectNodeContents(n);
+        for (const q of r.getClientRects()) rects.push([q.top, q.bottom]);
+      }
+      cells.push({ id: label(td) + '[' + (dl || td.cellIndex) + '] "' + (td.textContent || '').trim().slice(0, 20) + '"', max, rects });
+    }
+    const rows = [...document.querySelectorAll('.a1-tablewrap tbody tr')].filter((r) => r.getClientRects().length > 0).map((r) => r.getBoundingClientRect().height);
+    return { scrollers, cells, rows };
+  });
+  if (m.scrollers.length) out.push({ ...base, rule: 'inner-vertical-scroll', count: m.scrollers.length, selectors: m.scrollers.slice(0, 3) });
+  const bad = m.cells.map((c) => ({ ...c, lines: countLines(c.rects) })).filter((c) => c.lines > c.max).map((c) => c.id + ' ' + c.lines + ' lines (max ' + c.max + ')');
+  if (bad.length) out.push({ ...base, rule: 'cell-line-count', count: bad.length, selectors: bad.slice(0, 3) });
+  if (width === 1280 && pg.key === 'orders-index') {
+    const med = median(m.rows);
+    if (m.rows.length < 5) out.push({ ...base, rule: 'row-height', count: 1, selectors: ['only ' + m.rows.length + ' tbody rows measured'] });
+    else if (med > 64) out.push({ ...base, rule: 'row-height', count: 1, detail: `median tbody tr ${med}px over ${m.rows.length} rows (max 64)`, selectors: ['median ' + med + 'px > 64px'] });
+  }
   return out;
 }
 // Freeze text that changes between runs (dates, times, relative times, rate) - after axe, text only.
@@ -757,7 +821,7 @@ async function runMenuMatrix(browser, state) {
   }
   await browser.close();
   const out = {
-    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'horizontal-overflow', 'console-error', 'failed-request'],
+    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
     infra_failures: infra, selfTests, menuMatrix, foldMetrics, cells, determinism, findings,
   };
