@@ -236,9 +236,9 @@ final class CommissionPayableRuleTest extends TestCase
         $notDue = $this->extraOrder($sub, $admin);
 
         $this->actingAs($admin)->get('/admin/commissions?state=approved')->assertOk()
-            ->assertSee($due->order_number)->assertDontSee($notDue->order_number)->assertSee('Za isplatu');
+            ->assertSee('/admin/orders/'.$due->id.'"', false)->assertDontSee('/admin/orders/'.$notDue->id.'"', false)->assertSee('Za isplatu');
         $this->actingAs($admin)->get('/admin/commissions?state=not_due')->assertOk()
-            ->assertSee($notDue->order_number)->assertDontSee($due->order_number)->assertSee('Nije dospela');
+            ->assertSee('/admin/orders/'.$notDue->id.'"', false)->assertDontSee('/admin/orders/'.$due->id.'"', false)->assertSee('Nije dospela');
         $this->actingAs($admin)->get('/admin/commissions')->assertOk()
             ->assertSee('Nisu dospele · 1', false)->assertSee('Za isplatu · 1', false)
             ->assertDontSee('Odobri izabrane')->assertDontSee('>Odobri<', false);
