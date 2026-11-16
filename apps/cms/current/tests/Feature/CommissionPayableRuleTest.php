@@ -142,7 +142,7 @@ final class CommissionPayableRuleTest extends TestCase
         $this->completeOrder($order, $admin); // isporuka + naplata (pouzeće)
         self::assertSame('approved', $commission->fresh()->status);
         // isporučena porudžbina zaključava uplate: prvo ponovno otvaranje (i dalje plaćena), pa poništenje uplate
-        app(OrderWorkflowService::class)->reopen($order->fresh(), $admin, 'Ponovno otvaranje zbog greške u isporuci.');
+        app(OrderWorkflowService::class)->reopen($order->fresh(), $this->user('super-reopen', 'superadmin'), 'Ponovno otvaranje zbog greške u isporuci.');
         self::assertSame('approved', $commission->fresh()->status);
         app(OrderPaymentService::class)->void(OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified')->firstOrFail(), $admin);
         self::assertSame('pending', $commission->fresh()->status);
