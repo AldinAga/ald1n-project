@@ -436,15 +436,12 @@ async function dashboardD1Smoke(page, persona, mode) {
     for (const [w, h] of [[1440, 900], [1280, 800]]) {
       await page.setViewportSize({width:w,height:h});
       await navigate(page,fixture.paths.dashboard,'D1_DESKTOP_FOLD_'+w);
+      // Owner decision 2026-11-16: greeting, period bar, then the KPI number cards first; priorities and charts follow below the cards.
+      const earnings = await page.locator('[data-dashboard-earnings]').boundingBox();
+      check(!!earnings && earnings.y + earnings.height <= h, 'D1_EARNINGS_ROW_ABOVE_FOLD_'+w, label+': '+JSON.stringify(earnings));
       for (const key of ['revenue','gross','net']) {
         const box = await page.locator('[data-dashboard-d1-kpi="'+key+'"]').boundingBox();
         check(!!box && box.y + box.height <= h, 'D1_FIRST_KPI_ROW_ABOVE_FOLD_'+w, label+' '+key+': '+JSON.stringify(box));
-      }
-      const prio = await page.locator('[aria-labelledby="d1-priority-heading"]').boundingBox();
-      check(!!prio && prio.y + prio.height <= h, 'D1_PRIORITIES_ABOVE_FOLD_'+w, label+': '+JSON.stringify(prio));
-      if (w === 1440) {
-        const sale = await page.locator('[data-dashboard-d1-kpi="sale"]').boundingBox();
-        check(!!sale && sale.y + sale.height <= h, 'D1_ALL_SIX_ABOVE_DESKTOP_FOLD', label+': '+JSON.stringify(sale));
       }
     }
   }

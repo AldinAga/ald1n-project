@@ -117,7 +117,7 @@ final class DashboardModuleTwoTest extends TestCase
 
         // Quick actions, module cards and the rate card the layout script drives.
         foreach ([route('catalog.index'), route('admin.products.create'), route('admin.products.bulk'), route('admin.receivables.index'),
-            route('admin.after-sales.index'), route('admin.reports.index'), route('admin.users.index'), route('account.show')] as $href) {
+            route('admin.after-sales.index'), route('admin.reports.index'), route('admin.users.index')] as $href) {
             self::assertStringContainsString('href="'.$href.'"', $dash);
         }
         foreach (['Fokus danas', 'Prioritetne aktivnosti', 'Trend prodaje', 'Najprodavaniji brendovi', 'Poslednje porudžbine', 'Brze akcije', 'Porudžbine korisnika', 'Svi dostupni moduli na jednom mestu'] as $heading) {
@@ -128,8 +128,12 @@ final class DashboardModuleTwoTest extends TestCase
         // The band now offers "Dodaj artikal"; direct sale stays in the catalog (product page).
         self::assertSame(1, substr_count($dash, 'Dodaj artikal'));
         self::assertSame(0, substr_count($dash, 'Direktna prodaja'));
-        self::assertMatchesRegularExpression('/<button type="button" class="a1-ratecard a1-ratecard--chip a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="[^"]+"/', $dash);
-        self::assertStringContainsString('data-exchange-rate-value data-exchange-rate-decimals="2"', $dash);
+        // The rate left the greeting card: it lives in the header chip (desktop) and the drawer card (phones).
+        self::assertStringNotContainsString('a1-ratecard', $dash);
+        self::assertStringContainsString('data-exchange-rate-value data-exchange-rate-decimals="2"', $html);
+        // Quick actions: only targets this user may open; no Moj nalog and no Direktna prodaja in the row.
+        self::assertStringContainsString('Evidentiraj uplatu', $dash);
+        self::assertStringContainsString('Provizije', $dash);
         self::assertStringContainsString('<details class="a1-acc a1-modules">', $dash);
         self::assertStringNotContainsString('<details class="a1-acc a1-modules" open', $dash);
     }

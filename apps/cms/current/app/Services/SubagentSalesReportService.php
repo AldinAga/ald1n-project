@@ -81,7 +81,12 @@ final class SubagentSalesReportService
         .', COALESCE(SUM(CASE WHEN cost IS NULL THEN 1 ELSE 0 END),0) AS missing_lines'
         .', COALESCE(SUM(comm),0) AS commission'
         .', COALESCE(SUM(comm_paid),0) AS commission_paid'
-        .', COALESCE(SUM(comm_unpaid),0) AS commission_unpaid';
+        .', COALESCE(SUM(comm_unpaid),0) AS commission_unpaid'
+        // EUR view: RSD items at the rate stored on their order (no stored rate = not converted), commission as stored in EUR.
+        .', COALESCE(SUM(revenue_eur),0) AS revenue_eur'
+        .', COALESCE(SUM(CASE WHEN cost IS NOT NULL THEN cost_eur ELSE 0 END),0) AS cogs_eur'
+        .', COALESCE(SUM(CASE WHEN cost IS NULL THEN revenue_eur ELSE 0 END),0) AS missing_revenue_eur'
+        .', COALESCE(SUM(comm_eur),0) AS commission_eur';
 
     public function __construct(private readonly ManagementReportService $management) {}
 
@@ -530,6 +535,9 @@ final class SubagentSalesReportService
             ->selectRaw('ri.line_total_rsd AS revenue')
             ->selectRaw('ri.purchase_total_rsd_snapshot AS cost')
             ->selectRaw($comm.' AS comm')
+            ->selectRaw('(ri.line_total_rsd / NULLIF(o.eur_rsd_rate,0)) AS revenue_eur')
+            ->selectRaw('(ri.purchase_total_rsd_snapshot / NULLIF(o.eur_rsd_rate,0)) AS cost_eur')
+            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) AS comm_eur')
             ->selectRaw("CASE WHEN oc.status = 'paid' THEN $comm ELSE 0 END AS comm_paid")
             ->selectRaw("CASE WHEN oc.status IS NULL OR oc.status IN ('pending','approved') THEN $comm ELSE 0 END AS comm_unpaid");
         foreach ($groupSelects as $alias => $expression) {
@@ -662,6 +670,11 @@ final class SubagentSalesReportService
             'share' => $totalRevenue > 0 ? round($revenue / $totalRevenue * 100, 2) : 0.0,
             'missing_lines' => (int) $raw->missing_lines,
             'missing_revenue' => round($missing, 2),
+            'revenue_eur' => round((float) ($raw->revenue_eur ?? 0), 2),
+            'gross_eur' => round(max(0.0, (float) ($raw->revenue_eur ?? 0) - (float) ($raw->missing_revenue_eur ?? 0)) - (float) ($raw->cogs_eur ?? 0), 2),
+            'commission_eur' => round((float) ($raw->commission_eur ?? 0), 2),
+            'net_eur' => round(max(0.0, (float) ($raw->revenue_eur ?? 0) - (float) ($raw->missing_revenue_eur ?? 0)) - (float) ($raw->cogs_eur ?? 0) - (float) ($raw->commission_eur ?? 0), 2),
+            'avg_eur' => $orders > 0 ? round((float) ($raw->revenue_eur ?? 0) / $orders, 2) : 0.0,
         ];
     }
 

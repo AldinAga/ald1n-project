@@ -76,6 +76,34 @@ final class DashboardTrendSummary
         return (int) max(0, min(100, round(abs($value) / max(1.0, $scale) * 100)));
     }
 
+    /**
+     * SVG polyline points (viewBox 0 0 $w $h) for a small trend line; a flat middle line when there is one value or no range.
+     *
+     * @param list<float> $values
+     */
+    public static function sparkline(array $values, int $w = 96, int $h = 28): string
+    {
+        $n = count($values);
+        if ($n === 0) {
+            return '';
+        }
+        $min = min($values);
+        $max = max($values);
+        $points = [];
+        foreach ($values as $i => $v) {
+            $x = $n === 1 ? $w / 2 : $i / ($n - 1) * $w;
+            $y = $max - $min < 0.000001 ? $h / 2 : $h - 2 - (($v - $min) / ($max - $min)) * ($h - 4);
+            $points[] = number_format($x, 1, '.', '').','.number_format($y, 1, '.', '');
+        }
+        if ($n === 1) {
+            // One bucket: a flat segment across the box instead of a single invisible point.
+            $y = explode(',', $points[0])[1];
+            $points = ['0.0,'.$y, number_format($w, 1, '.', '').','.$y];
+        }
+
+        return implode(' ', $points);
+    }
+
     /** dd.mm.yyyy. for a daily bucket, mm.yyyy. for a monthly one. */
     public static function periodText(string $period): string
     {

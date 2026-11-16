@@ -70,16 +70,85 @@ final class DashboardOwnerFeedback1116Test extends TestCase
 
         self::assertSame(1, preg_match('/<section class="a1-kpis a1-kpis--4" data-dashboard-earnings.*?<\/section>/s', $dash, $section));
         foreach ([
-            'revenue' => ['Ukupan promet', '18.000,00'],
-            'commission' => ['Provizija', '3.510,00'],
-            'gross' => ['Bruto zarada', '6.000,00'],
-            'net' => ['Neto zarada', '2.490,00'],
-        ] as $key => [$label, $value]) {
-            self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="'.$key.'">\s*<span class="a1-kpi__label">'.preg_quote($label, '/').'<\/span>\s*<span class="a1-kpi__value a1-num">'.preg_quote($value, '/').' /', $section[0], $key);
+            'revenue' => ['Ukupan promet', '18.000,00', '153,85'],
+            'commission' => ['Provizija', '3.510,00', '30,00'],
+            'gross' => ['Bruto zarada', '6.000,00', '51,28'],
+            'net' => ['Neto zarada', '2.490,00', '21,28'],
+        ] as $key => [$label, $value, $eur]) {
+            self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="'.$key.'" href="[^"]+">\s*<span class="a1-kpi__label">'.preg_quote($label, '/').'<\/span>\s*<span class="a1-kpi__row">\s*<span class="a1-kpi__value a1-num">'.preg_quote($value, '/').' /', $section[0], $key);
+            // EUR line: items at the rate stored on their order (117), commissions as stored in EUR (the cancelled one is out).
+            self::assertStringContainsString('data-earnings-eur="'.$key.'">'.$eur.' EUR<', $section[0], $key);
+            // No previous period in this fixture: the comparison says so in words.
+            self::assertMatchesRegularExpression('/data-earnings-delta="'.$key.'">\s*<span>Nema podataka za prethodni period<\/span>/', $section[0], $key);
         }
+        self::assertStringContainsString('3 porudžbina · prosek 6.000,00 RSD (51,28 EUR)', $section[0]);
+        // Every card links to a report with the same period: management report, and sales by subagent for the commission.
+        $management = e(route('admin.reports.index', ['date_from' => '2026-01-01', 'date_to' => '2026-01-31', 'scope' => 'completed']));
+        $subagents = e(route('admin.reports.subagents', ['period' => 'custom', 'date_from' => '2026-01-01', 'date_to' => '2026-01-31']));
+        self::assertStringContainsString('data-dashboard-earnings-kpi="revenue" href="'.$management.'"', $section[0]);
+        self::assertStringContainsString('data-dashboard-earnings-kpi="commission" href="'.$subagents.'"', $section[0]);
+        self::assertStringContainsString('<svg class="a1-kpi__spark" viewBox="0 0 96 28" aria-hidden="true"', $section[0]);
+        // The period KPI tile carries the same EUR figure.
+        self::assertMatchesRegularExpression('/data-dashboard-d1-kpi="revenue".{0,700}153,85 EUR/s', $dash);
         self::assertStringContainsString('Neto zarada: bruto zarada minus provizija.', $dash);
         // Outside the period nothing of the February order shows up (9.000 would change promet to 27.000).
         self::assertStringNotContainsString('27.000,00', $section[0]);
+    }
+
+    public function test_earnings_comparison_with_the_previous_period_of_the_same_length(): void
+    {
+        $admin = $this->person('superadmin');
+        $this->earningsFixture($admin);
+        // Previous period of 31 days = December 2025: revenue 6.000, purchase 3.000, no commission.
+        $this->order($admin, 'EF-PREV-1', 6000.0, 3000.0, 0.0, '2025-12-10 10:00:00');
+
+        $response = $this->actingAs($admin)->get(self::JANUARY)->assertOk();
+        $dash = $this->dashboard((string) $response->getContent());
+        preg_match('/<section class="a1-kpis a1-kpis--4" data-dashboard-earnings.*?<\/section>/s', $dash, $section);
+
+        $deltaOf = static function (string $key) use ($section): string {
+            self::assertSame(1, preg_match('/data-earnings-delta="'.$key.'">(.*?)<span class="a1-kpi__note">/s', $section[0], $m), $key);
+
+            return trim((string) preg_replace('/\s+/', ' ', strip_tags($m[1])));
+        };
+        // 18.000 vs 6.000 = +200 %, gross 6.000 vs 3.000 = +100 %, net 2.490 vs 3.000 = -17 %, commission 3.510 vs 0 = no percent.
+        self::assertStringContainsString('+200,0%', $deltaOf('revenue'));
+        self::assertStringContainsString('više nego u prethodnom periodu', $deltaOf('revenue'));
+        self::assertStringContainsString('+100,0%', $deltaOf('gross'));
+        self::assertStringContainsString('-17,0%', $deltaOf('net'));
+        self::assertStringContainsString('manje nego u prethodnom periodu', $deltaOf('net'));
+        self::assertStringContainsString('Nema podataka za prethodni period', $deltaOf('commission'));
+        self::assertStringNotContainsString('%', $deltaOf('commission'));
+        self::assertSame('2025-12-01', $response->viewData('reportStats')['earnings']['previous_period']['date_from']);
+        self::assertSame('2025-12-31', $response->viewData('reportStats')['earnings']['previous_period']['date_to']);
+    }
+
+    public function test_recent_order_shows_eur_from_the_rate_stored_on_the_order(): void
+    {
+        $admin = $this->person('superadmin');
+        $this->order($admin, 'OF-EUR-1', 10000.0, 6000.0, 0.0, '2026-01-10 10:00:00');
+
+        $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
+
+        // 10.000 RSD at the stored rate 117 = 85,47 EUR; today's rate does not enter.
+        self::assertStringContainsString('<span class="a1-item__money">10.000,00 RSD</span><span class="a1-item__eur">85,47 EUR</span>', $dash);
+    }
+
+    public function test_subagent_sales_totals_show_eur_with_the_stored_rates(): void
+    {
+        $admin = $this->person('superadmin');
+        $this->earningsFixture($admin);
+
+        $html = (string) $this->actingAs($admin)
+            ->get('/admin/reports/subagents?period=custom&date_from=2026-01-01&date_to=2026-01-31')->assertOk()->getContent();
+
+        // Promet 18.000 RSD / 117 = 153,85 EUR; bruto 6.000 RSD / 117 = 51,28 EUR; provizija as stored in EUR (20 + 10 + 5);
+        // neto EUR = 51,28 - 35,00 = 16,28; prosek 153,85 / 3 = 51,28.
+        self::assertStringContainsString('data-sbs-eur="revenue">153,85 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="gross">51,28 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="commission">35,00 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="net">16,28 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="avg">51,28 EUR<', $html);
     }
 
     public function test_trend_table_carries_every_series_per_period(): void

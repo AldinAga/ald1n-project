@@ -26,7 +26,7 @@ final class DashboardLegacyDesignTest extends TestCase
         $response = $this->actingAs($this->superAdmin())->get('/')->assertOk();
 
         $response->assertSee('data-universal-dashboard-ready="1"', false);
-        $response->assertSee('class="a1-card a1-hero a1-hero--split"', false);
+        $response->assertSee('class="a1-card a1-hero"', false);
         $response->assertSee('class="a1-card a1-strip"', false);
         $response->assertSee('class="a1-kpis"', false);
         $response->assertSee('data-build16-home-redesign="1"', false);

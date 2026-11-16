@@ -503,14 +503,15 @@ async function dashboardChecks(page, pg, width, theme) {
       const bottom = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().bottom) : null; };
       const top = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; };
       return { vh: window.innerHeight, scrollY: window.scrollY, headerBottom: bottom('.a1-header'),
-        strip: bottom('.a1-strip'), revenue: bottom('[data-dashboard-d1-kpi="revenue"]'), gross: bottom('[data-dashboard-d1-kpi="gross"]'),
+        strip: bottom('.a1-strip'), earnings: bottom('[data-dashboard-earnings]'), revenue: bottom('[data-dashboard-d1-kpi="revenue"]'), gross: bottom('[data-dashboard-d1-kpi="gross"]'),
         net: bottom('[data-dashboard-d1-kpi="net"]'), netTop: top('[data-dashboard-d1-kpi="net"]'), sale: bottom('[data-dashboard-d1-kpi="sale"]') };
     });
     foldMetrics.push({ browser: browserName, width, theme, ...f });
     console.log('FOLD ' + browserName + ' ' + width + 'x' + f.vh + ' ' + theme + ' ' + JSON.stringify(f));
     const rowBottom = Math.max(f.revenue || 0, f.gross || 0, f.net || 0);
     const missed = [];
-    if (f.strip === null || f.strip > f.vh) missed.push('priorities strip bottom ' + f.strip + ' > ' + f.vh);
+    // Owner decision 2026-11-16: the KPI cards come first (earnings row, then the six); the priorities strip follows them and is no longer part of the first look.
+    if (!f.earnings || f.earnings > f.vh) missed.push('earnings cards bottom ' + f.earnings + ' > ' + f.vh);
     if (!rowBottom || rowBottom > f.vh) missed.push('first KPI row bottom ' + rowBottom + ' > ' + f.vh);
     if (missed.length) out.push({ ...base, rule: 'above-the-fold', count: missed.length, selectors: missed });
   }
@@ -540,6 +541,7 @@ async function ownerDashboardChecks(page, pg, width, theme) {
       listWidth: list ? Math.round(list.getBoundingClientRect().width) : null,
       pills: [...document.querySelectorAll('.a1-list--recent .a1-pill')].filter(vis).map((p) => ({ text: p.textContent.trim(), ok: p.classList.contains('a1-pill--ok'), left: Math.round(p.getBoundingClientRect().left) })),
       hero: [...document.querySelectorAll('.a1-hero__actions a')].map((a) => a.textContent.trim()),
+      rateInGreeting: !!document.querySelector('.a1-hero [data-exchange-rate-value]'),
       series: [...document.querySelectorAll('[data-trend-series]')].map((b) => b.dataset.trendSeries + ':' + b.getAttribute('aria-pressed')),
       summaries: [...document.querySelectorAll('[data-trend-summary]')].filter(vis).map((e) => ({ key: e.dataset.trendSummary, text: text(e) })),
       table: [...document.querySelectorAll('.a1-dash .a1-table thead th')].map((th) => th.textContent.trim()),
@@ -548,7 +550,9 @@ async function ownerDashboardChecks(page, pg, width, theme) {
   const isSuper = pg.persona !== 'administrator' && pg.persona !== 'customer';
   if (pg.persona === 'customer') return out;
   if (isSuper) {
-    if (!d.hero.some((t) => /Dodaj artikal/.test(t)) || d.hero.some((t) => /Direktna prodaja/.test(t))) bad('owner-hero-action', JSON.stringify(d.hero));
+    if (!d.hero.some((t) => /Dodaj artikal/.test(t)) || d.hero.some((t) => /Direktna prodaja|Moj nalog/.test(t))) bad('owner-hero-action', JSON.stringify(d.hero));
+    for (const want of ['Katalog', 'Provizije', 'Evidentiraj uplatu']) if (!d.hero.some((t) => t.includes(want))) bad('owner-quick-action-missing', want + ' in ' + JSON.stringify(d.hero));
+    if (d.rateInGreeting) bad('owner-rate-in-greeting', 'the EUR/RSD block is still inside the greeting card');
     // An invalid period shows no financial snapshot at all (cards and trend included).
     if (pg.key !== 'dashboard-error') {
       if (!d.earnings || d.earnings.length !== 4) bad('owner-earnings-cards-missing', JSON.stringify(d.earnings));

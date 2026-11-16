@@ -58,6 +58,8 @@ final class DashboardController extends Controller
             'warranties_view_own' => $this->allows($user, 'warranties.view_own'),
             'receivables_manage' => $this->allows($user, 'receivables.manage'),
             'reports_view' => $this->allows($user, 'reports.view'),
+            'commissions_manage' => $this->allows($user, 'commissions.manage'),
+            'commissions_own' => $this->allows($user, 'commissions.view_own'),
         ];
 
         $orderStats = $this->orderStats($user, $access);
@@ -327,6 +329,8 @@ final class DashboardController extends Controller
                     'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Isporučena','cancelled'=>'Otkazana'][$displayStatus] ?? $displayStatus,
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'remaining_rsd' => max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd),
+                    // EUR line: the rate stored on the order itself, never today's rate; null when the order has none.
+                    'total_eur' => (float) $order->eur_rsd_rate > 0 ? round((float) $order->subtotal_rsd / (float) $order->eur_rsd_rate, 2) : null,
                     'updated_at' => $order->updated_at,
                     'url' => $access['orders_manage'] ? route('admin.orders.show', $order) : route('orders.show', $order),
                 ];

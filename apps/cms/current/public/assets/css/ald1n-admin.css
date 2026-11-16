@@ -936,3 +936,27 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
   .a1-tgl{border-color:ButtonText;color:ButtonText;background:ButtonFace}
   .a1-tgl[aria-pressed=true]{border:3px solid Highlight;color:Highlight}
 }
+
+/* Owner decisions 2026-11-16, part 2: one-row greeting, compact period bar, enriched earnings cards, EUR sub-lines, 1440px content cap. */
+.a1-dash .a1-card.a1-hero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-24);padding-block:var(--a1-space-12)}
+.a1-dash .a1-hero .a1-hero__title{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--a1-space-12)}
+.a1-dash .a1-hero__title .a1-title{font-size:var(--a1-typography-font-size-xl);line-height:var(--a1-typography-line-height-snug)}
+.a1-dash .a1-hero .a1-hero__actions{justify-content:flex-end}
+@media (max-width:767px){.a1-dash .a1-hero .a1-hero__actions{justify-content:flex-start}}
+.a1-dash .a1-periodbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-16);padding-block:var(--a1-space-12)}
+.a1-periodbar .a1-text{font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-periodbar .a1-hero__range{flex:1 1 100%}
+
+/* Cards: the value row carries a small trend line; EUR and the comparison are one line each. */
+.a1-kpi__row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-12)}
+.a1-kpi__spark{flex:0 0 auto;width:72px;height:24px;color:var(--a1-accent-link)}
+.a1-kpi__eur,.a1-item__eur{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums;font-weight:var(--a1-typography-font-weight-regular)}
+
+/* Content width: the admin shell and every page inside it stop at 1440px, centred, same gutters as before. */
+.a1-body .a1-shell{--a1x-container:1440px}
+.a1-body .page-shell{width:min(100% - 48px,1440px)}
+@media (max-width:1250px){.a1-body .page-shell{width:min(100% - 30px,1440px)}}
+@media (max-width:700px){.a1-body .page-shell{width:min(100% - 22px,1440px)}}
+
+/* Desktop navigation stays a top bar; the active item also gets a heavier weight (not colour alone). */
+.a1-header .a1-nav__link--active{font-weight:var(--a1-typography-font-weight-semibold)}
