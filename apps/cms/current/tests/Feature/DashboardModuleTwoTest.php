@@ -116,8 +116,8 @@ final class DashboardModuleTwoTest extends TestCase
         }
 
         // Quick actions, module cards and the rate card the layout script drives.
-        foreach ([route('catalog.index'), route('admin.products.create'), route('admin.products.bulk'), route('admin.receivables.index'),
-            route('admin.after-sales.index'), route('admin.reports.index'), route('admin.users.index')] as $href) {
+        // Quick actions of the greeting row. Bulk edit, after-sales, reports and users were only reachable from the removed bottom cards; they stay in the main navigation.
+        foreach ([route('catalog.index'), route('admin.products.create'), route('admin.receivables.index'), route('admin.commissions.index')] as $href) {
             self::assertStringContainsString('href="'.$href.'"', $dash);
         }
         foreach (['Fokus danas', 'Prioritetne aktivnosti', 'Trend prodaje', 'Najprodavaniji brendovi', 'Poslednje porudžbine'] as $heading) {
