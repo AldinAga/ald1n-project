@@ -105,7 +105,7 @@ final class CommissionController extends Controller
             'payable_code' => $eligibility['code'],
             'payable_reason' => $eligibility['reason'],
             'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
-            'owed_eur' => (float) $commission->adjustmentSumEur('debit'),
+            'owed_eur' => (float) $commission->openDebitEur(),
             'responsible_name' => (string) $responsibleName,
             'payment' => $status === 'paid' ? [
                 'method' => $commission->payment_method ?: null,

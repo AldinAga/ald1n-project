@@ -65,6 +65,28 @@ final class OrderCommission extends Model
         return \App\Support\CommissionMoney::format($cents);
     }
 
+    /** Otvoreno dugovanje po ovoj proviziji: potvrđena zaduženja minus već prebijeno pri isplatama (string "0.00"). */
+    public function openDebitEur(): string
+    {
+        if (!\App\Support\CommissionMoney::hasAdjustments()) {
+            return '0.00';
+        }
+        $rows = ($this->relationLoaded('adjustments') ? $this->adjustments : $this->adjustments()->get())
+            ->filter(static fn ($r): bool => $r->kind === 'debit' && $r->status === 'confirmed');
+        if ($rows->isEmpty()) {
+            return '0.00';
+        }
+        $cents = 0;
+        foreach ($rows as $row) {
+            $cents += \App\Support\CommissionMoney::cents($row->amount_eur);
+        }
+        foreach (\Illuminate\Support\Facades\DB::table('commission_debit_settlements')->whereIn('adjustment_id', $rows->pluck('id'))->pluck('amount_eur') as $v) {
+            $cents -= \App\Support\CommissionMoney::cents($v);
+        }
+
+        return \App\Support\CommissionMoney::format(max(0, $cents));
+    }
+
     public function paymentBatch(): BelongsTo
     {
         return $this->belongsTo(CommissionPaymentBatch::class, 'payment_batch_id');

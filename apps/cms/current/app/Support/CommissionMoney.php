@@ -7,6 +7,9 @@ namespace App\Support;
 /** Iznosi provizije u EUR kao celi centi (int); nikad float. */
 final class CommissionMoney
 {
+    /** Samo za testove: simulira da migracija još nije izvršena. */
+    public static ?bool $adjustmentsOverride = null;
+
     public static function cents(mixed $value): int
     {
         $value = str_replace(',', '.', trim((string) $value));
@@ -20,6 +23,9 @@ final class CommissionMoney
     /** Postoji li tabela storno/zaduženja (migracija izvršena); keširano po procesu da ne pravi upit po redu. */
     public static function hasAdjustments(): bool
     {
+        if (self::$adjustmentsOverride !== null) {
+            return self::$adjustmentsOverride;
+        }
         static $has = null;
 
         return $has ??= \Illuminate\Support\Facades\Schema::hasTable('commission_adjustments');

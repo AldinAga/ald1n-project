@@ -47,6 +47,9 @@ final class CommissionWorkflowService
                 return $locked;
             }
 
+            if ($oldStatus === 'paid' && $newStatus === 'cancelled') {
+                throw ValidationException::withMessages(['status' => 'Isplaćena provizija se ne otkazuje ručno jer bi isplata ostala bez traga. Koristi „Storniraj proviziju“ (beleži zaduženje).']);
+            }
             if ($oldStatus === 'pending' && $newStatus === 'approved') {
                 throw ValidationException::withMessages(['status' => 'Odobravanje je automatsko: provizija postaje "Za isplatu" čim je porudžbina u potpunosti plaćena ili isporučena. '.$this->eligibility->evaluate($locked)['reason']]);
             }
@@ -195,7 +198,7 @@ final class CommissionWorkflowService
             $batch = CommissionPaymentBatch::query()->create($attributes);
             $batch->update(['batch_number' => sprintf('ISPL-%s-%06d', now()->format('Ymd'), $batch->id)]);
             foreach ($settlements as $adjustmentId => $cents) {
-                DB::table('commission_debit_settlements')->insert(['adjustment_id' => $adjustmentId, 'batch_id' => $batch->id, 'amount_eur' => M::format($cents), 'created_at' => now(), 'updated_at' => now()]);
+                $this->reversals->settleDebit((int) $adjustmentId, (int) $batch->id, $cents);
             }
 
             foreach ($commissions as $commission) {

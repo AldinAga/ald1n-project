@@ -102,7 +102,7 @@ final class CommissionController extends Controller
             ],
             'filters' => $this->filterOptions($actor),
             'capabilities' => [
-                'bulk_pay' => true,
+                'bulk_pay' => $actor->hasRole('superadmin'),
                 'reverse' => true,
                 'exports' => true,
                 'can_filter_people' => $actor->hasRole('superadmin'),
@@ -336,14 +336,14 @@ final class CommissionController extends Controller
                 'paid_at' => optional($commission->paid_at)->toIso8601String(),
             ] : null,
             'allowed_transitions' => $this->allowedTransitions($status, $actor),
-            'bulk_pay_eligible' => $status === 'approved',
+            'bulk_pay_eligible' => $status === 'approved' && $actor->hasRole('superadmin'), // isplatu radi samo SuperAdmin
             // dodato 16.11.2026 (aditivno): stanje dospelosti, razlog i storno/zaduženje
             'state' => $eligibility['state'],
             'state_label' => $eligibility['state_label'],
             'payable_code' => $eligibility['code'],
             'payable_reason' => $eligibility['reason'],
             'reversed_eur' => (float) $commission->adjustmentSumEur('reversal'),
-            'owed_eur' => (float) $commission->adjustmentSumEur('debit'),
+            'owed_eur' => (float) $commission->openDebitEur(),
             'proposed_debit_eur' => (float) $commission->adjustmentSumEur('debit', ['proposed']),
             'status_updated_at' => optional($commission->status_updated_at)->toIso8601String(),
             'created_at' => optional($commission->created_at)->toIso8601String(),
@@ -408,8 +408,8 @@ final class CommissionController extends Controller
     {
         return match ($status) {
             'pending' => ['cancelled'], // odobravanje je automatsko (16.11.2026)
-            'approved' => ['paid', 'cancelled'],
-            'paid' => $actor->hasRole('superadmin') ? ['cancelled'] : [],
+            'approved' => $actor->hasRole('superadmin') ? ['paid', 'cancelled'] : ['cancelled'],
+            'paid' => [], // isplaćena se ne otkazuje ručno: "Storniraj proviziju" beleži zaduženje
             'cancelled' => $actor->hasRole('superadmin') ? ['pending'] : [],
             default => [],
         };

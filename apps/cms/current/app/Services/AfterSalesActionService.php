@@ -236,10 +236,16 @@ final class AfterSalesActionService
         if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
             // Refundacija novca sama ne menja proviziju: odluka je ručna. Obaveštenje vodi na proviziju te porudžbine.
             try {
+                // Refundacija upisuje negativnu uplatu: ako porudžbina time prestane da bude plaćena (a nije isporučena), automatski
+                // odobrena provizija se sama vraća na "Na čekanju". Poruka kaže šta se zaista desilo.
+                $commissionStatus = (string) \App\Models\OrderCommission::query()->where('order_id', $completed->case?->order_id)->value('status');
+                $orderNumber = $completed->case?->order?->order_number ?? '';
                 $this->notifications->send($actor, [
                     'event' => 'after_sales_refund_commission_check',
                     'title' => 'Proveri proviziju posle refundacije',
-                    'message' => 'Refundacija je evidentirana. Provizija porudžbine '.($completed->case?->order?->order_number ?? '').' nije promenjena; ako treba, koristi "Storniraj proviziju".',
+                    'message' => $commissionStatus === 'pending'
+                        ? 'Refundacija je evidentirana. Provizija porudžbine '.$orderNumber.' je na čekanju jer porudžbina više nije u potpunosti plaćena ni isporučena. Iznos nije menjan; ako treba, koristi "Storniraj proviziju".'
+                        : 'Refundacija je evidentirana. Iznos i status provizije porudžbine '.$orderNumber.' nisu menjani; ako treba, koristi "Storniraj proviziju".',
                     'url' => route('admin.commissions.index', ['q' => $completed->case?->order?->order_number]),
                     'action_label' => 'Otvori provizije',
                     'icon' => 'wallet',
