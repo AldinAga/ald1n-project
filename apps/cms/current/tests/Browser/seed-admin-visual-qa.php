@@ -251,7 +251,8 @@ $qaOrder = function (string $tag, array $attrs, array $lines, string $stamp) use
     }
     $row = Order::query()->create($attrs + [
         'source_system' => 'laravel',
-        'order_number' => 'ADMIN-VISUAL-'.$tag,
+        // Production number format APC-YYYYMMDD-NNNNNNNN (21 characters), never longer.
+        'order_number' => 'APC-20251202-'.str_pad((string) (900 + (crc32($tag) % 99999)), 8, '0', STR_PAD_LEFT),
         'user_id' => $customer->id,
         'supplier_user_id' => $admin->id,
         'supplier_name_snapshot' => 'Test SuperAdmin',

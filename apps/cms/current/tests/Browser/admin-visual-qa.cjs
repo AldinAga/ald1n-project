@@ -274,7 +274,7 @@ const PAGES = [
   { module: 'orders', key: 'orders-create', path: '/order/new', persona: 'customer', widths: ORDERS_WIDTHS },
   { module: 'orders', key: 'orders-customer-index', path: '/orders', persona: 'customer', widths: ORDERS_WIDTHS },
   { module: 'orders', key: 'orders-customer-show', path: (i) => `/orders/${i.order}`, persona: 'customer', widths: ORDERS_WIDTHS_4 },
-  { module: 'orders', key: 'orders-index-filtered', path: '/admin/orders?status=new&payment_status=pending&source_system=laravel&q=ADMIN-VISUAL-F0&date_from=2025-01-01&date_to=2026-12-31', widths: ORDERS_WIDTHS_4 },
+  { module: 'orders', key: 'orders-index-filtered', path: '/admin/orders?status=new&payment_status=pending&source_system=laravel&q=APC-20260114&date_from=2025-01-01&date_to=2026-12-31', widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-index-empty', path: '/admin/orders?q=nema-takvog-broja-vizuelni-qa', widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-index-page2', path: '/admin/orders?page=2', widths: ORDERS_WIDTHS_PAGE2 },
   { module: 'orders', key: 'orders-archived', path: '/admin/orders/archived', widths: ORDERS_WIDTHS_4 },
