@@ -99,13 +99,15 @@
         </div>
         {{-- "Dodaj artikal", "Izveštaji" and the main sale action live once in "Brze akcije" or here, never in both. --}}
         <div class="a1-hero__actions">
-            @if($isSuper)
-                <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('catalog.index') }}" title="Izaberi artikal i evidentiraj prodaju"><x-icon name="plus-circle" :size="20" :shell="true" /> Direktna prodaja</a>
-            @else
+            {{-- Direktna prodaja stays in the catalog (product page); the band offers the product-create action to whoever may create products. --}}
+            @can('catalog.manage_products')
+                <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.products.create') }}" title="Unesi novi artikal u katalog"><x-icon name="plus-circle" :size="20" :shell="true" /> Dodaj artikal</a>
+            @endcan
+            @unless($isSuper)
                 @can('orders.create')
-                    <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('orders.create') }}" title="Kreiraj i rezerviši lager"><x-icon name="plus-circle" :size="20" :shell="true" /> Nova porudžbina</a>
+                    <a class="a1-btn{{ $user->can('catalog.manage_products') ? '' : ' a1-btn--primary' }} a1-btn--sm" href="{{ route('orders.create') }}" title="Kreiraj i rezerviši lager"><x-icon name="plus-circle" :size="20" :shell="true" /> Nova porudžbina</a>
                 @endcan
-            @endif
+            @endunless
             @can('catalog.view')
                 <a class="a1-btn a1-btn--sm" href="{{ route('catalog.index') }}"><x-icon name="grid" :size="20" :shell="true" /> Katalog</a>
             @endcan
@@ -205,6 +207,24 @@
     </a>
 </section>
 <p class="a1-text">Finansijski pokazatelji i grafikon prate izabrane datume. Lager i potraživanja prikazuju trenutno stanje.</p>
+@if(is_array($earnings = $reportStats['earnings'] ?? null))
+{{-- SuperAdmin only: the controller passes null to every other role, so the numbers are never in their response. --}}
+<section class="a1-kpis a1-kpis--4" data-dashboard-earnings aria-label="Zarada za izabrani period">
+    @foreach([
+        'revenue' => ['Ukupan promet', 'revenue_rsd', 'Završene porudžbine'],
+        'commission' => ['Provizija', 'commissions_rsd', 'Bez otkazanih provizija'],
+        'gross' => ['Bruto zarada', 'gross_rsd', 'Stavke sa nabavnom cenom'],
+        'net' => ['Neto zarada', 'net_rsd', 'Bruto zarada minus provizija'],
+    ] as $earningKey => $earningDef)
+        <div class="a1-kpi" data-dashboard-earnings-kpi="{{ $earningKey }}">
+            <span class="a1-kpi__label">{{ $earningDef[0] }}</span>
+            <span class="a1-kpi__value a1-num">{{ number_format((float) $earnings[$earningDef[1]], 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span>
+            <span class="a1-kpi__note">{{ $earningDef[2] }}</span>
+        </div>
+    @endforeach
+</section>
+<p class="a1-text" data-dashboard-earnings-caption>Promet: prihod završenih porudžbina. Provizija: provizije tih porudžbina bez otkazanih. Bruto zarada: promet minus nabavna cena stavki koje je imaju. Neto zarada: bruto zarada minus provizija.</p>
+@endif
 @else
 <section class="a1-kpis a1-kpis--4" aria-label="Glavni pokazatelji">
     @if($customerFocused)
@@ -239,49 +259,72 @@
             </div>
             @if(($reportStats['ready'] ?? false) && $trend->isNotEmpty())
                 @php
-                    $trendScale = max(1, ...$trend->flatMap(static fn ($point) => [abs((float) ($point['revenue_rsd'] ?? 0)), abs((float) ($point['gross_profit_rsd'] ?? 0))])->all());
+                    $tsum = \App\Support\DashboardTrendSummary::build($trend->all(), (string) $dashboardPeriod['date_from'], (string) $dashboardPeriod['date_to']);
+                    // Provizija is a SuperAdmin figure (same as the earnings cards); other roles get the other three series.
+                    $seriesKeys = $isSuper ? ['rev', 'gross', 'comm', 'orders'] : ['rev', 'gross', 'orders'];
+                    $seriesOnDefault = ['rev', 'gross'];
+                    $seriesHint = [
+                        'rev' => 'Ukupan prihod od završenih porudžbina u izabranom periodu',
+                        'gross' => 'Bruto dobit samo za stavke sa poznatom nabavnom cenom, pre ostalih troškova',
+                        'comm' => 'Provizije završenih porudžbina bez otkazanih provizija',
+                        'orders' => 'Broj završenih porudžbina, na posebnoj skali',
+                    ];
                     $labelStep = max(1, (int) ceil($trend->count() / 6));
                     // Bucket label as the rest of the UI prints dates: dd.mm.yyyy. (daily) or mm.yyyy. (monthly).
-                    $periodText = static fn (string $p): string => preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $p, $m) === 1 ? $m[3].'.'.$m[2].'.'.$m[1].'.' : (preg_match('/^(\d{4})-(\d{2})$/', $p, $m) === 1 ? $m[2].'.'.$m[1].'.' : $p);
+                    $periodText = static fn (string $p): string => \App\Support\DashboardTrendSummary::periodText($p);
+                    $money = static fn (float $v): string => number_format($v, 2, ',', '.');
+                    $bucketWord = $tsum['daily'] ? 'dan' : 'mesec';
+                    $trendScale = $tsum['moneyScale'];
                 @endphp
-                <p class="a1-sr">Trend prihoda i bruto dobiti po periodima. Najviša vrednost na skali: {{ number_format($trendScale, 2, ',', '.') }} RSD. Tačne vrednosti su u tabeli ispod grafikona.</p>
+                <div class="a1-trendpanel" data-dashboard-trend-panel data-trend-off="{{ implode(' ', array_values(array_diff($seriesKeys, $seriesOnDefault))) }}">
+                <p class="a1-sr">Trend prihoda, bruto dobiti{{ $isSuper ? ', provizije' : '' }} i broja porudžbina po periodima. Najviša vrednost na skali: {{ $money($trendScale) }} RSD. Tačne vrednosti su u tabeli ispod grafikona.</p>
+                <ul class="a1-chart-legend" aria-label="Legenda trenda prodaje">
+                    @foreach($seriesKeys as $sk)
+                        <li><button type="button" class="a1-tgl" data-trend-series="{{ $sk }}" aria-pressed="{{ in_array($sk, $seriesOnDefault, true) ? 'true' : 'false' }}" title="{{ $seriesHint[$sk] }}"><span class="a1-swatch a1-swatch--{{ $sk }}" aria-hidden="true"></span>{{ $tsum['series'][$sk]['label'] }}</button></li>
+                    @endforeach
+                    <li class="a1-chart-legend__scale" title="Najviša vrednost na skali grafikona; broj porudžbina ima svoju skalu">Skala: {{ $money($trendScale) }} RSD · Porudžbine: do {{ number_format($tsum['ordersScale'], 0, ',', '.') }}</li>
+                </ul>
+                <span class="a1-sr" role="status" aria-live="polite" data-trend-live></span>
                 <ol class="a1-trend" aria-hidden="true" data-dashboard-trend>
                     @foreach($trend as $point)
-                        @php
-                            $revenueHeight = max(0, min(100, round(abs((float) $point['revenue_rsd']) / $trendScale * 100)));
-                            $grossHeight = max(0, min(100, round(abs((float) $point['gross_profit_rsd']) / $trendScale * 100)));
-                        @endphp
                         <li>
-                            <span class="a1-trend__pair" title="{{ $periodText((string) $point['period']) }}: prihod {{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }} RSD; bruto dobit {{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }} RSD">
-                                <span class="a1-trend__bar a1-trend__bar--rev" style="--a1c-value:{{ $revenueHeight }}"></span>
-                                <span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ $grossHeight }}"></span>
+                            <span class="a1-trend__pair" title="{{ $periodText((string) $point['period']) }}: prihod {{ $money((float) $point['revenue_rsd']) }} RSD; bruto dobit {{ $money((float) $point['gross_profit_rsd']) }} RSD{{ $isSuper ? '; provizija '.$money((float) $point['commissions_rsd']).' RSD' : '' }}; porudžbina {{ (int) $point['orders_count'] }}">
+                                <span class="a1-trend__bar a1-trend__bar--rev" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['revenue_rsd'], $tsum['moneyScale']) }}"></span>
+                                <span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['gross_profit_rsd'], $tsum['moneyScale']) }}"></span>
+                                @if($isSuper)<span class="a1-trend__bar a1-trend__bar--comm" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['commissions_rsd'], $tsum['moneyScale']) }}"></span>@endif
+                                <span class="a1-trend__bar a1-trend__bar--orders" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['orders_count'], $tsum['ordersScale']) }}"></span>
                             </span>
                             <span class="a1-trend__label">{{ ($loop->last || ($loop->index % $labelStep === 0 && $loop->remaining >= $labelStep)) ? substr((string) $point['period'], -5) : '' }}</span>
                         </li>
                     @endforeach
                 </ol>
-                <ul class="a1-chart-legend" aria-label="Legenda trenda prodaje">
-                    <li title="Ukupan prihod od završenih porudžbina u izabranom periodu"><span class="a1-swatch a1-swatch--rev" aria-hidden="true"></span>Prihod</li>
-                    <li title="Bruto dobit samo za stavke sa poznatom nabavnom cenom, pre ostalih troškova"><span class="a1-swatch a1-swatch--gross" aria-hidden="true"></span>Bruto dobit</li>
-                    <li class="a1-chart-legend__scale" title="Najviša vrednost na skali grafikona">Skala: {{ number_format($trendScale, 2, ',', '.') }} RSD</li>
-                </ul>
-                <p class="a1-text">Puna traka: prihod završenih porudžbina. Šrafirana traka: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa.</p>
+                <p class="a1-text">Puna traka: prihod završenih porudžbina. Šrafirana traka: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa.@if($isSuper) Tačkasta traka: provizija.@endif Isprekidana ivica: broj porudžbina, na svojoj skali.</p>
+                <div class="a1-trendsum" data-trend-summaries>
+                    @foreach($seriesKeys as $sk)
+                        @php
+                            $s = $tsum['series'][$sk];
+                            $fmt = static fn (float $v, int $dec): string => number_format($v, $dec, ',', '.').($s['money'] ? ' RSD' : '');
+                        @endphp
+                        <p class="a1-text" data-trend-summary="{{ $sk }}"><b>{{ $s['label'] }}</b> · Ukupno {{ $fmt($s['total'], $s['money'] ? 2 : 0) }} · Prosek po danu {{ $fmt($s['average_per_day'], 2) }} · Najbolji {{ $bucketWord }} {{ $s['best_period'] !== null ? $periodText($s['best_period']) : '—' }} ({{ $fmt($s['best_value'], $s['money'] ? 2 : 0) }})</p>
+                    @endforeach
+                </div>
                 <details class="a1-acc">
                     <summary>Tačne vrednosti po periodima</summary>
                     <div class="a1-acc__body">
                         <div class="a1-tablewrap" role="region" aria-label="Tačne vrednosti po periodima" tabindex="0">
                             <table class="a1-table">
                                 <caption class="a1-sr">Tačne vrednosti po periodima</caption>
-                                <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th><th scope="col" class="a1-table__num">Bruto dobit (RSD)</th></tr></thead>
+                                <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th><th scope="col" class="a1-table__num">Bruto dobit (RSD)</th>@if($isSuper)<th scope="col" class="a1-table__num">Provizija (RSD)</th>@endif<th scope="col" class="a1-table__num">Broj porudžbina</th></tr></thead>
                                 <tbody>
                                     @foreach($trend as $point)
-                                        <tr><th scope="row">{{ $periodText((string) $point['period']) }}</th><td class="a1-table__num">{{ number_format((float) $point['revenue_rsd'], 2, ',', '.') }}</td><td class="a1-table__num">{{ number_format((float) $point['gross_profit_rsd'], 2, ',', '.') }}</td></tr>
+                                        <tr><th scope="row">{{ $periodText((string) $point['period']) }}</th><td class="a1-table__num">{{ $money((float) $point['revenue_rsd']) }}</td><td class="a1-table__num">{{ $money((float) $point['gross_profit_rsd']) }}</td>@if($isSuper)<td class="a1-table__num">{{ $money((float) $point['commissions_rsd']) }}</td>@endif<td class="a1-table__num">{{ number_format((int) $point['orders_count'], 0, ',', '.') }}</td></tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </details>
+                </div>
             @else
                 <div class="a1-empty">
                     <span class="a1-empty__icon"><x-icon name="chart" :size="28" :shell="true" /></span>
@@ -305,12 +348,18 @@
                 <button type="button" class="a1-seg__opt" data-d3-mode="revenue" aria-pressed="true">Promet (RSD)</button>
                 <button type="button" class="a1-seg__opt" data-d3-mode="units" aria-pressed="false">Komadi</button>
             </div>
+            <div class="a1-seg" role="group" aria-label="Broj prikazanih brendova">
+                <button type="button" class="a1-seg__opt" data-d3-topn="5" aria-pressed="true">Top 5</button>
+                <button type="button" class="a1-seg__opt" data-d3-topn="10" aria-pressed="false">Top 10</button>
+            </div>
             @foreach(['revenue' => 'Promet (RSD)', 'units' => 'Komadi'] as $metric => $metricLabel)
+              @foreach([5 => '', 10 => '_top10'] as $topN => $topSuffix)
                 @php
-                    $mix = $dashboardBrandMix[$metric] ?? ['total' => 0, 'slices' => []];
+                    $mix = $dashboardBrandMix[$metric.$topSuffix] ?? ['total' => 0, 'slices' => []];
                     $cursor = 0.0;
+                    $viewHidden = $metric !== 'revenue' || $topN !== 5;
                 @endphp
-                <div data-d3-view="{{ $metric }}" @if($metric !== 'revenue') hidden @endif>
+                <div data-d3-view="{{ $metric }}" @if($viewHidden)hidden @endif data-d3-top="{{ $topN }}">
                     @if(!empty($mix['slices']))
                         <div class="a1-mix" role="group" aria-label="Udeo prodaje po brendovima: {{ $metricLabel }}">
                             <svg class="a1-donut a1-donut--mix" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
@@ -327,7 +376,7 @@
                             </svg>
                             <ol class="a1-mix__list">
                                 @foreach($mix['slices'] as $idx => $slice)
-                                <li><span class="a1-swatch a1-swatch--{{ ($idx % 6) + 1 }}" aria-hidden="true"></span><span class="a1-mix__label">{{ $slice['label'] }}</span><span class="a1-mix__value">{{ number_format((float) $slice['value'], $metric === 'units' ? 0 : 2, ',', '.') }}{{ $metric === 'revenue' ? ' RSD' : '' }}</span><span class="a1-mix__pct">{{ number_format((float) $slice['percent'], 1, ',', '.') }}%</span></li>
+                                <li><span class="a1-swatch a1-swatch--{{ ($idx % 6) + 1 }}{{ $idx >= 6 ? ' a1-swatch--alt' : '' }}" aria-hidden="true"></span><span class="a1-mix__label">{{ $slice['label'] }}</span><span class="a1-mix__value">{{ number_format((float) $slice['value'], $metric === 'units' ? 0 : 2, ',', '.') }}{{ $metric === 'revenue' ? ' RSD' : '' }}</span><span class="a1-mix__pct">{{ number_format((float) $slice['percent'], 1, ',', '.') }}%</span></li>
                                 @endforeach
                             </ol>
                         </div>
@@ -338,19 +387,21 @@
                         </div>
                     @endif
                 </div>
+              @endforeach
             @endforeach
         </section>
         @endif
     </div>
 
-    <div>
-        <section class="a1-card" aria-labelledby="dash-recent-title">
+    {{-- Recent orders and quick actions side by side on desktop: the order rows stay one compact block instead of stretching over the full width. --}}
+    <div class="a1-g12">
+        <section class="a1-card a1-lg-7" aria-labelledby="dash-recent-title">
             <div class="a1-card__head">
                 <div class="a1-card__title"><span class="a1-eyebrow">Najnovije promene</span><h2 class="a1-h2" id="dash-recent-title">Poslednje porudžbine</h2></div>
                 <a class="a1-link" href="{{ $orderIndex }}">Prikaži sve <x-icon name="arrow-right" :size="16" :shell="true" /></a>
             </div>
             @if(count($recentOrders) > 0)
-                <ul class="a1-list">
+                <ul class="a1-list a1-list--recent">
                     @foreach($recentOrders as $order)
                         <li><a href="{{ $order['url'] }}" class="a1-item a1-item--order" data-order-product><span class="a1-item__main"><span class="a1-item__title">{{ $order['product_name'] }}@if($order['other_products'] > 0)<span data-order-extra-products="{{ $order['other_products'] }}"><span aria-hidden="true"> + {{ $order['other_products'] }}</span><span class="a1-sr"> Još stavki: {{ $order['other_products'] }}</span></span>@endif</span><span class="a1-item__sub">{{ $order['number'] }} · {{ $order['updated_at']?->format('d.m.Y H:i') }}</span></span><span class="a1-item__status"><span class="a1-pill a1-pill--{{ $statusTone($order['status']) }}">{{ $order['status_label'] }}</span></span><span class="a1-item__end"><span class="a1-item__money">{{ number_format((float) $order['total_rsd'], 2, ',', '.') }} RSD</span>@if($order['remaining_rsd'] > 0)<span class="a1-item__sub">Preostalo {{ number_format((float) $order['remaining_rsd'], 2, ',', '.') }}</span>@else<span class="a1-item__sub">Plaćeno / zatvoreno</span>@endif</span><x-icon class="a1-item__go" name="arrow-right" :size="16" :shell="true" /></a></li>
                     @endforeach
@@ -362,18 +413,17 @@
                 </div>
             @endif
         </section>
-    </div>
 
-    <section class="a1-card" aria-labelledby="dash-actions-title">
+    <section class="a1-card a1-lg-5" aria-labelledby="dash-actions-title">
         <div class="a1-card__head"><div class="a1-card__title"><span class="a1-eyebrow">Radni tokovi</span><h2 class="a1-h2" id="dash-actions-title">Brze akcije</h2></div></div>
         <div class="a1-tiles">
-            @can('catalog.manage_products')<a class="a1-tile" href="{{ route('admin.products.create') }}"><span class="a1-item__icon"><x-icon name="cube" :size="20" :shell="true" /></span><span class="a1-item__title">Dodaj artikal</span><span class="a1-item__sub">Novi proizvod ili konfiguracija</span></a>@endcan
             @can('catalog.manage_products')<a class="a1-tile" href="{{ route('admin.products.bulk') }}"><span class="a1-item__icon a1-item__icon--warning"><x-icon name="sliders" :size="20" :shell="true" /></span><span class="a1-item__title">Bulk izmena</span><span class="a1-item__sub">Masovna promena kataloga</span></a>@endcan
             @can('receivables.manage')<a class="a1-tile" href="{{ route('admin.receivables.index') }}"><span class="a1-item__icon a1-item__icon--danger"><x-icon name="wallet" :size="20" :shell="true" /></span><span class="a1-item__title">Potraživanja</span><span class="a1-item__sub">Aging i planovi otplate</span></a>@endcan
             @can('after_sales.manage')<a class="a1-tile" href="{{ route('admin.after-sales.index') }}"><span class="a1-item__icon a1-item__icon--ok"><x-icon name="shield" :size="20" :shell="true" /></span><span class="a1-item__title">Postprodaja</span><span class="a1-item__sub">Reklamacije i servis</span></a>@endcan
             @can('reports.view')<a class="a1-tile" href="{{ route('admin.reports.index') }}"><span class="a1-item__icon"><x-icon name="chart" :size="20" :shell="true" /></span><span class="a1-item__title">Analitika</span><span class="a1-item__sub">Profitabilnost i KPI</span></a>@endcan
         </div>
     </section>
+    </div>
 @endif
 
 @if($isSuper && $access['orders_manage'])
@@ -435,17 +485,68 @@
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-dashboard-d3]').forEach(function (panel) {
+    // Two independent choices: the measure (revenue / units) and how many brands (Top 5 / Top 10).
+    var state = { mode: 'revenue', top: '5' };
+    var show = function () {
+      panel.querySelectorAll('[data-d3-view]').forEach(function (view) {
+        view.hidden = view.getAttribute('data-d3-view') !== state.mode || view.getAttribute('data-d3-top') !== state.top;
+      });
+    };
     panel.querySelectorAll('[data-d3-mode]').forEach(function (button) {
       button.addEventListener('click', function () {
-        var mode = button.getAttribute('data-d3-mode');
+        state.mode = button.getAttribute('data-d3-mode');
         panel.querySelectorAll('[data-d3-mode]').forEach(function (b) {
           b.setAttribute('aria-pressed', String(b === button));
         });
-        panel.querySelectorAll('[data-d3-view]').forEach(function (view) {
-          view.hidden = view.getAttribute('data-d3-view') !== mode;
-        });
+        show();
       });
     });
+    panel.querySelectorAll('[data-d3-topn]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        state.top = button.getAttribute('data-d3-topn');
+        panel.querySelectorAll('[data-d3-topn]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === button));
+        });
+        show();
+      });
+    });
+  });
+
+  // Trend chart: which series are drawn. At least one stays on; the choice is remembered on this device.
+  document.querySelectorAll('[data-dashboard-trend-panel]').forEach(function (panel) {
+    var storageKey = 'ald1n-dash-trend-series';
+    var buttons = Array.prototype.slice.call(panel.querySelectorAll('[data-trend-series]'));
+    var all = buttons.map(function (b) { return b.getAttribute('data-trend-series'); });
+    var on = buttons.filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return b.getAttribute('data-trend-series'); });
+    try {
+      var saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
+      if (Array.isArray(saved)) {
+        var valid = saved.filter(function (key) { return all.indexOf(key) !== -1; });
+        if (valid.length > 0) on = valid;
+      }
+    } catch (e) { /* storage blocked or unreadable: keep the defaults */ }
+    var live = panel.querySelector('[data-trend-live]');
+    var apply = function (message) {
+      panel.setAttribute('data-trend-off', all.filter(function (key) { return on.indexOf(key) === -1; }).join(' '));
+      buttons.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(on.indexOf(b.getAttribute('data-trend-series')) !== -1));
+      });
+      if (live && message) live.textContent = message;
+    };
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        var key = button.getAttribute('data-trend-series');
+        var at = on.indexOf(key);
+        if (at !== -1 && on.length === 1) {
+          if (live) live.textContent = 'Bar jedna serija mora ostati prikazana.';
+          return;
+        }
+        if (at !== -1) on.splice(at, 1); else on.push(key);
+        try { window.localStorage.setItem(storageKey, JSON.stringify(on)); } catch (e) { /* not persisted */ }
+        apply((at !== -1 ? 'Skriveno: ' : 'Prikazano: ') + button.textContent.trim());
+      });
+    });
+    apply('');
   });
 });
 </script>

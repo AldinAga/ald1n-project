@@ -859,3 +859,80 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-table th[aria-sort=ascending] .a1-sbs-sort::after{content:" \25B2" / ""}
 .a1-table th[aria-sort=descending] .a1-sbs-sort::after{content:" \25BC" / ""}
 .a1-sbs-total td{font-weight:var(--a1-typography-font-weight-bold);background-color:var(--a1-glass-fill-strong)}
+
+/* ==========================================================================
+   Dashboard + shell owner feedback (2026-11-16). One block, appended; tokens only.
+   Shell: centered desktop search with the icon on the right, avatar + theme icon + rate card on phones.
+   Dashboard: compact recent-orders rows, earnings cards, trend series toggles, Top 5/10 brand list.
+   ========================================================================== */
+
+/* Desktop search: centered between the logo and the right-hand controls, label left, magnifier right. */
+@media (min-width:1200px){
+  .a1-header .a1-brand{margin-right:0}
+  .a1-header__search.a1-searchbtn{margin-inline:auto;justify-content:space-between}
+  .a1-header .a1-header__theme{display:none}
+  .a1-rate__src{display:none}
+}
+
+/* Phones and tablets (sheet menu): avatar button left of the hamburger, one theme icon right of the search icon. */
+.a1-header__theme{order:2}
+.a1-header__theme-ico{display:none;place-items:center}
+html[data-theme-mode=auto] .a1-header__theme-ico[data-theme-ico=auto],
+html[data-theme-mode=light] .a1-header__theme-ico[data-theme-ico=light],
+html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:inline-grid}
+@media (max-width:1199px){
+  .a1-header__bar{column-gap:var(--a1-space-8);position:relative}
+  .a1-header .a1-brand__logo{max-width:clamp(48px,calc(100vw - 300px),260px)}
+  .a1-header__user{order:3}
+  .a1-header .a1-header__user{position:static}
+  .a1-header__user>.a1-user{justify-content:center;min-width:var(--a1-size-touch-target);padding:var(--a1-space-4)}
+  .a1-header__user>.a1-user .a1-user__label,.a1-header__user>summary::after{display:none}
+  .a1-header__user>.a1-nav-dd__panel{position:absolute;z-index:var(--a1x-z-menu);top:calc(100% + var(--a1-space-4));right:0;width:min(320px,100%);max-height:calc(100dvh - 96px);overflow-y:auto;padding:var(--a1-space-8);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);box-shadow:var(--a1-shadow-card-hover)}
+  /* The theme switch leaves the drawer (the icon button in the bar replaces it); the rate becomes a card above the menu items. */
+  .a1-header__panel>.a1-theme{display:none}
+  .a1-header__panel>.a1-rate{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px var(--a1-space-12);justify-self:stretch;width:100%;padding:var(--a1-space-12) var(--a1-space-16);border-radius:var(--a1-radius-md);white-space:normal;text-align:left}
+  .a1-header__panel>.a1-rate b{font-size:var(--a1-typography-font-size-lg);text-align:right}
+  .a1-header__panel>.a1-rate .a1-rate__src{display:block;grid-column:1/-1;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm);overflow-wrap:anywhere}
+}
+
+/* Recent orders: one compact block, aligned columns (item + number/date, status, amount, arrow). */
+.a1-list--recent{gap:var(--a1-space-4)}
+@media (min-width:768px){
+  .a1-list--recent .a1-item--order{grid-template-columns:minmax(0,1fr) 7.5rem minmax(9.5rem,max-content) 1rem;column-gap:var(--a1-space-12);min-height:52px;padding-block:var(--a1-space-8)}
+}
+
+/* Earnings cards: plain tiles with a caption under them. */
+[data-dashboard-earnings] .a1-kpi__note{color:var(--a1-text-secondary)}
+
+/* Trend: series toggles (44px targets), two more bar styles that do not rely on colour, per-series summary. */
+.a1-tgl{display:inline-flex;align-items:center;gap:var(--a1-space-8);min-width:var(--a1-size-touch-target);min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-16);border:var(--a1x-border-width) dashed var(--a1-border-strong);border-radius:var(--a1-radius-pill);background:transparent;color:var(--a1-text-secondary);font:var(--a1-typography-font-weight-nav) var(--a1-typography-font-size-sm-plus)/1 var(--a1-typography-font-family-sans);cursor:pointer}
+.a1-tgl:hover{background:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
+.a1-tgl[aria-pressed=true]{border-style:solid;border-color:var(--a1-border-strong);background:var(--a1-surface-solid);color:var(--a1-text-primary);font-weight:var(--a1-typography-font-weight-bold);box-shadow:0 1px 0 var(--a1-edge-light) inset}
+.a1-tgl[aria-pressed=false] .a1-swatch{opacity:.5}
+.a1-tgl:focus-visible{outline-offset:1px}
+.a1-trend__bar--comm{border:var(--a1x-border-width-strong) solid var(--a1-status-warning-dot);border-bottom:0;background-color:transparent;background-image:radial-gradient(var(--a1-status-warning-dot) 1.2px,transparent 1.6px);background-size:5px 5px}
+.a1-trend__bar--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);border-bottom:0;background-color:var(--a1-button-ghost-hover)}
+.a1-swatch--comm{border:var(--a1x-border-width-strong) solid var(--a1-status-warning-dot);background-color:transparent;background-image:radial-gradient(var(--a1-status-warning-dot) 1.2px,transparent 1.6px);background-size:5px 5px}
+.a1-swatch--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);background-color:var(--a1-button-ghost-hover)}
+.a1-trendpanel{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-trendsum{display:grid;gap:var(--a1-space-4)}
+.a1-trendsum .a1-text{font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+.a1-trendpanel[data-trend-off~=rev] .a1-trend__bar--rev,
+.a1-trendpanel[data-trend-off~=rev] [data-trend-summary=rev],
+.a1-trendpanel[data-trend-off~=gross] .a1-trend__bar--gross,
+.a1-trendpanel[data-trend-off~=gross] [data-trend-summary=gross],
+.a1-trendpanel[data-trend-off~=comm] .a1-trend__bar--comm,
+.a1-trendpanel[data-trend-off~=comm] [data-trend-summary=comm],
+.a1-trendpanel[data-trend-off~=orders] .a1-trend__bar--orders,
+.a1-trendpanel[data-trend-off~=orders] [data-trend-summary=orders]{display:none}
+
+/* Brand list: from the seventh entry the colour ramp repeats, so those swatches get a hatch as a second cue. */
+.a1-swatch--alt{background-image:repeating-linear-gradient(135deg,var(--a1-surface-solid) 0 2px,transparent 2px 5px)}
+
+@media (forced-colors:active){
+  .a1-trend__bar--comm,.a1-swatch--comm{background:Canvas;border:var(--a1x-border-width-strong) solid CanvasText}
+  .a1-trend__bar--orders,.a1-swatch--orders{background:Canvas;border:var(--a1x-border-width-strong) dashed CanvasText}
+  .a1-swatch--alt{forced-color-adjust:none}
+  .a1-tgl{border-color:ButtonText;color:ButtonText;background:ButtonFace}
+  .a1-tgl[aria-pressed=true]{border:3px solid Highlight;color:Highlight}
+}

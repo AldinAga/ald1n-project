@@ -276,8 +276,11 @@ async function mobileSheetSmoke(page, label, width) {
       return match ? Number(match[1] ?? '1') : 1;
     };
     return {
-      panel: bounds(panel), nav: bounds(panel?.querySelector('.a1-header__nav')), theme: bounds(panel?.querySelector('.a1-theme')),
-      rate: bounds(panel?.querySelector('.a1-rate')), user: bounds(panel?.querySelector('.a1-header__user')),
+      // Owner feedback 2026-11-16: the theme switch left the drawer (icon button in the bar), the account menu is the avatar button
+      // in the bar (left of the hamburger), the rate is a card above the menu items inside the drawer.
+      panel: bounds(panel), nav: bounds(panel?.querySelector('.a1-header__nav')), themeInDrawer: bounds(panel?.querySelector('.a1-theme')),
+      theme: bounds(header?.querySelector('[data-theme-cycle]')),
+      rate: bounds(panel?.querySelector('.a1-rate')), user: bounds(header?.querySelector('.a1-header__user > summary')),
       panelScrollWidth: panel?.scrollWidth || 0, panelClientWidth: panel?.clientWidth || 0,
       opaqueHeader: alpha(header),
       locked: document.documentElement.classList.contains('a1-lock'),
@@ -293,7 +296,9 @@ async function mobileSheetSmoke(page, label, width) {
   check(pre.panelScrollWidth <= pre.panelClientWidth + 2 && pre.overflow <= 1, 'MOBILE_SHEET_NO_X_SCROLL', tag + ' ' + JSON.stringify(pre));
   check(pre.opaqueHeader >= .99, 'MOBILE_SHEET_OPAQUE_READING_SURFACE', tag + ' ' + JSON.stringify(pre));
   check(pre.locked && pre.pageInert && pre.scrimShown, 'MOBILE_SHEET_SCROLL_LOCK_INERT_SCRIM', tag + ' ' + JSON.stringify(pre));
-  check(await page.locator('[data-mobile-menu] [data-theme-mode-option="dark"]').isVisible(), 'MOBILE_SHEET_THEME_CONTROL', tag);
+  check(pre.themeInDrawer === null || pre.themeInDrawer.width === 0, 'MOBILE_SHEET_NO_THEME_SWITCH', tag + ' ' + JSON.stringify(pre.themeInDrawer));
+  check(pre.rate && pre.nav && pre.rate.bottom <= pre.nav.top + 1, 'MOBILE_SHEET_RATE_ABOVE_MENU', tag + ' ' + JSON.stringify({ rate: pre.rate, nav: pre.nav }));
+  check(await page.locator('[data-theme-cycle]').isVisible(), 'MOBILE_THEME_CYCLE_BUTTON', tag);
   const firstGroup = page.locator('[data-mobile-menu] details.a1-nav-dd').first();
   if (await firstGroup.count()) {
     await firstGroup.locator(':scope > summary').click();

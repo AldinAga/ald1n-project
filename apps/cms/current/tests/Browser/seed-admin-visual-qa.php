@@ -180,6 +180,36 @@ foreach ([
     DB::table('orders')->where('id', $done->id)->update(['status' => 'shipped', 'completed_at' => $completedAt, 'archived_at' => '2026-01-25 09:00:00']);
 }
 
+// Owner feedback 2026-11-16: ONE delivered order that is NOT archived, so the recent-orders list shows the green "Isporučena" chip.
+// Completed in November 2025: outside the default month, January 2026 and the December 2025 comparison window of the cells.
+$delivered = Order::query()->create([
+    'source_system' => 'laravel',
+    'order_number' => 'ADMIN-VISUAL-DELIVERED-001',
+    'user_id' => $admin->id,
+    'supplier_user_id' => $admin->id,
+    'supplier_name_snapshot' => 'Test SuperAdmin',
+    'supplier_role_snapshot' => 'SuperAdministrator',
+    'status' => 'new',
+    'inventory_state' => 'reserved',
+    'shipping_full_name' => 'Samo Test Kupac',
+    'shipping_address' => 'Testna adresa 1',
+    'shipping_city' => 'Test Grad',
+    'shipping_postal_code' => '11000',
+    'shipping_phone' => '0600000000',
+    'subtotal_rsd' => 18000,
+    'eur_rsd_rate' => 117.78,
+    'payment_method' => 'deferred_payment',
+    'payment_status' => 'pending',
+    'payment_state' => 'unpaid',
+    'paid_total_rsd' => 18000,
+]);
+$delivered->items()->create([
+    'product_id' => $product->id, 'product_sku' => $product->sku, 'product_name' => $product->name,
+    'quantity' => 1, 'unit_price_original' => 18000, 'original_currency' => 'RSD',
+    'unit_price_rsd' => 18000, 'line_total_rsd' => 18000,
+]);
+DB::table('orders')->where('id', $delivered->id)->update(['status' => 'shipped', 'completed_at' => '2025-11-20 12:00:00']);
+
 // Fixed timestamps so two runs render the same dates.
 foreach (['users', 'products', 'orders', 'order_items', 'product_warranties', 'receivable_cases'] as $table) {
     $set = [];
@@ -207,4 +237,4 @@ if (file_put_contents($dest, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PR
     exit(4);
 }
 chmod($dest, 0600);
-echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=4products=1 orders=1 archived_completed_orders=5 warranties=1\n";
+echo "ADMIN_VISUAL_SYNTHETIC_FIXTURES=READY users=4products=1 orders=2 archived_completed_orders=5 delivered_open_orders=1 warranties=1\n";
