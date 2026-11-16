@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\CommissionAdjustment;
 use App\Models\OrderCommission;
 use App\Models\User;
 use App\Services\Pdf\CommissionReportPdfService;
@@ -17,6 +18,7 @@ final class CommissionReportService
     public function __construct(
         private readonly SettingsService $settings,
         private readonly CommissionReportPdfService $pdf,
+        private readonly CommissionEligibilityService $eligibility,
     ) {}
 
     /** @param array<string,mixed> $filters */
@@ -142,6 +144,7 @@ final class CommissionReportService
             });
         }
         if (in_array($filters['status'] ?? null, ['pending', 'approved', 'paid', 'cancelled'], true)) $query->where('status', $filters['status']);
+        if (in_array($filters['state'] ?? null, CommissionEligibilityService::STATES, true)) $this->eligibility->scopeState($query, (string) $filters['state']);
         if (!empty($filters['date_from'])) $query->whereDate('created_at', '>=', $filters['date_from']);
         if (!empty($filters['date_to'])) $query->whereDate('created_at', '<=', $filters['date_to']);
         if ($allowUserSupplier && !empty($filters['user_id'])) $query->where('user_id', (int) $filters['user_id']);
@@ -153,7 +156,23 @@ final class CommissionReportService
     private function summary(Builder $query): array
     {
         $rows = (clone $query)->reorder()->selectRaw('status, COUNT(*) AS total_count, SUM(total_eur) AS total_eur')->groupBy('status')->get()->keyBy('status');
+        $group = function (string $state) use ($query): array {
+            $row = $this->eligibility->scopeState((clone $query)->reorder(), $state)->selectRaw('COUNT(*) AS c, COALESCE(SUM(order_commissions.total_eur),0) AS s')->first();
+            return ['count' => (int) ($row->c ?? 0), 'eur' => (float) ($row->s ?? 0)];
+        };
+        $ids = (clone $query)->reorder()->select('order_commissions.id');
+        $hasAdjustments = Schema::hasTable('commission_adjustments'); // stranica radi i pre migracije
+        $adjusted = static fn (string $kind): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->whereIn('commission_id', $ids)->sum('amount_eur');
+        $due = $group('due');
+        $notDue = $group('not_due');
+
         return [
+            'due_count' => $due['count'],
+            'due_eur' => $due['eur'],
+            'not_due_count' => $notDue['count'],
+            'not_due_eur' => $notDue['eur'],
+            'reversed_eur' => $adjusted('reversal'),
+            'owed_eur' => $adjusted('debit'),
             'count' => (int) $rows->sum('total_count'),
             'pending_count' => (int) ($rows['pending']->total_count ?? 0),
             'pending_eur' => (float) ($rows['pending']->total_eur ?? 0),

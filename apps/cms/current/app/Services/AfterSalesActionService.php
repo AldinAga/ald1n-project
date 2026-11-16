@@ -26,6 +26,7 @@ final class AfterSalesActionService
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
         private readonly FieldWorkOrderPlanner $fieldWorkOrders,
+        private readonly CommissionReversalService $commissionReversal,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -208,6 +209,10 @@ final class AfterSalesActionService
                 $locked->payment_id = $payment->id;
             } elseif ($locked->inventory_handling === 'automatic') {
                 $this->applyInventoryEffects($locked, $order, $actor);
+            }
+            if ($locked->action_type === 'return_receipt') {
+                // Povrat artikla stornira proporcionalni deo provizije (ista transakcija, idempotentno po stavci radnje).
+                $this->commissionReversal->reverseForReturnAction($locked, $actor);
             }
 
             $before = $locked->toArray();

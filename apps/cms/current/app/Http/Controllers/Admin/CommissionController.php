@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\OrderCommission;
 use App\Models\User;
+use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReportService;
+use App\Services\CommissionReversalService;
 use App\Services\CommissionWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,8 +67,30 @@ final class CommissionController extends Controller
             'payment_reference' => ['nullable', 'string', 'max:190'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
-        $batch = $workflow->markPaidBulk(array_map('intval', $data['commission_ids']), $request->user(), $data);
-        return back()->with('status', sprintf('Isplaćeno %d provizija u batch-u %s, ukupno %s EUR.', $batch->commission_count, $batch->batch_number, number_format((float) $batch->total_eur, 2, ',', '.')));
+        $skipped = [];
+        $batch = $workflow->markPaidBulk(array_map('intval', $data['commission_ids']), $request->user(), $data, $skipped);
+        return back()->with('status', sprintf('Isplaćeno %d provizija u batch-u %s, ukupno %s EUR.', $batch->commission_count, $batch->batch_number, number_format((float) $batch->total_eur, 2, ',', '.')))
+            ->with('commission_bulk_results', $skipped);
+    }
+
+    public function reverse(Request $request, OrderCommission $commission, CommissionReportService $reports, CommissionReversalService $reversal): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+            'amount_eur' => ['nullable', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'],
+            'order_item_id' => ['nullable', 'integer'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+        ]);
+        $scoped = $reports->managedQuery($request->user(), [])->whereKey($commission->id)->firstOrFail();
+        $adjustment = $reversal->reverse(
+            $scoped,
+            $request->user(),
+            (string) $data['reason'],
+            $data['amount_eur'] ?? null,
+            isset($data['order_item_id']) ? (int) $data['order_item_id'] : null,
+            isset($data['quantity']) ? (int) $data['quantity'] : null,
+        );
+        return back()->with('status', ($adjustment->kind === 'debit' ? 'Zaduženje ' : 'Storno ').number_format((float) $adjustment->amount_eur, 2, ',', '.').' EUR je evidentirano.');
     }
 
     public function csv(Request $request, CommissionReportService $reports): Response
@@ -98,6 +122,7 @@ final class CommissionController extends Controller
         return $request->validate([
             'q' => ['nullable', 'string', 'max:190'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'paid', 'cancelled'])],
+            'state' => ['nullable', Rule::in(CommissionEligibilityService::STATES)],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'supplier_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],

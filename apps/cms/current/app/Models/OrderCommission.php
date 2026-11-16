@@ -42,6 +42,11 @@ final class OrderCommission extends Model
         return $this->hasMany(CommissionStatusHistory::class, 'commission_id')->latest('created_at');
     }
 
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(CommissionAdjustment::class, 'commission_id')->latest('id');
+    }
+
     public function paymentBatch(): BelongsTo
     {
         return $this->belongsTo(CommissionPaymentBatch::class, 'payment_batch_id');

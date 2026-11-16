@@ -18,6 +18,7 @@ final class CommissionController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:190'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'paid', 'cancelled'])],
+            'state' => ['nullable', Rule::in(\App\Services\CommissionEligibilityService::STATES)],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ]);

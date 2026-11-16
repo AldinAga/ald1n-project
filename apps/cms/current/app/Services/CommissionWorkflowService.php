@@ -18,6 +18,7 @@ final class CommissionWorkflowService
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
+        private readonly CommissionEligibilityService $eligibility,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -33,6 +34,12 @@ final class CommissionWorkflowService
                 return $locked;
             }
 
+            if ($oldStatus === 'pending' && $newStatus === 'approved') {
+                throw ValidationException::withMessages(['status' => 'Odobravanje je automatsko: provizija postaje "Za isplatu" čim je porudžbina u potpunosti plaćena ili isporučena. '.$this->eligibility->evaluate($locked)['reason']]);
+            }
+            if ($oldStatus === 'pending' && $newStatus === 'paid') {
+                throw ValidationException::withMessages(['status' => 'Isplata je moguća samo za proviziju "Za isplatu". '.$this->eligibility->evaluate($locked)['reason']]);
+            }
             $this->assertTransition($oldStatus, $newStatus, $actor);
             $note = trim((string) ($data['note'] ?? ''));
             if ($newStatus === 'cancelled' && $note === '') {
@@ -85,6 +92,10 @@ final class CommissionWorkflowService
                 metadata: ['note' => $note] + $metadata,
                 user: $actor,
             );
+            if ($newStatus === 'pending' && $locked->order instanceof Order) {
+                // "Vrati na čekanje" ponovo procenjuje uslov: ako važi, provizija odmah ide "Za isplatu".
+                app(CommissionAutoApprovalService::class)->syncForOrder($locked->order, 'restored_to_pending', false);
+            }
 
             return $locked->fresh(['order', 'user', 'history.actor', 'paymentBatch']);
         }, 5);
@@ -94,7 +105,7 @@ final class CommissionWorkflowService
     }
 
     /** @param list<int> $commissionIds @param array<string,mixed> $data */
-    public function markPaidBulk(array $commissionIds, User $actor, array $data): CommissionPaymentBatch
+    public function markPaidBulk(array $commissionIds, User $actor, array $data, array &$skipped = []): CommissionPaymentBatch
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $commissionIds), static fn (int $id): bool => $id > 0)));
         if ($ids === []) {
@@ -105,7 +116,7 @@ final class CommissionWorkflowService
         $note = trim((string) ($data['note'] ?? ''));
         $paidCommissions = collect();
 
-        $batch = DB::transaction(function () use ($ids, $actor, $method, $reference, $note, &$paidCommissions): CommissionPaymentBatch {
+        $batch = DB::transaction(function () use ($ids, $actor, $method, $reference, $note, &$paidCommissions, &$skipped): CommissionPaymentBatch {
             $query = OrderCommission::query()->with(['order', 'user'])->whereIn('id', $ids)->orderBy('id')->lockForUpdate();
             $this->applyActorScope($query, $actor);
             /** @var Collection<int,OrderCommission> $commissions */
@@ -113,9 +124,17 @@ final class CommissionWorkflowService
             if ($commissions->count() !== count($ids)) {
                 throw ValidationException::withMessages(['commissions' => 'Jedna ili više provizija nisu dostupne za obradu.']);
             }
-            $invalid = $commissions->first(static fn (OrderCommission $row): bool => $row->status !== 'approved');
-            if ($invalid !== null) {
-                throw ValidationException::withMessages(['commissions' => 'Masovna isplata je dozvoljena samo za odobrene provizije.']);
+            // Samo odobrene (a odobrena je uvek prošla pravilo dospelosti ili je nasleđena): ostale se preskaču i prijavljuju.
+            $skipped = [];
+            foreach ($commissions->filter(static fn (OrderCommission $row): bool => $row->status !== 'approved') as $row) {
+                $check = $this->eligibility->evaluate($row);
+                $skipped[] = ['id' => (int) $row->id, 'ok' => false, 'message' => $row->status === 'pending'
+                    ? 'Preskočena: nije za isplatu. '.$check['reason']
+                    : 'Preskočena: isplata je dozvoljena samo za odobrene provizije.'];
+            }
+            $commissions = $commissions->filter(static fn (OrderCommission $row): bool => $row->status === 'approved')->values();
+            if ($commissions->isEmpty()) {
+                throw ValidationException::withMessages(['commissions' => 'Nijedna izabrana provizija nije odobrena za isplatu. '.($skipped[0]['message'] ?? '')]);
             }
 
             $batch = CommissionPaymentBatch::query()->create([
@@ -180,7 +199,8 @@ final class CommissionWorkflowService
                 'items' => 'Stavke se ne mogu menjati preko isplaćene ili stornirane provizije. Obrati se SuperAdministratoru.',
             ]);
         }
-        $total = round((float) DB::table('order_items')->where('order_id', $order->id)->sum('commission_total_eur_snapshot'), 2);
+        $reversed = (float) DB::table('commission_adjustments')->where('commission_id', $commission->id)->where('kind', 'reversal')->sum('amount_eur');
+        $total = max(0.0, round((float) DB::table('order_items')->where('order_id', $order->id)->sum('commission_total_eur_snapshot') - $reversed, 2));
         $changes = ['total_eur' => $total, 'status_updated_at' => now()];
         if ($oldStatus === 'approved') {
             $changes += [
@@ -210,7 +230,7 @@ final class CommissionWorkflowService
         );
     }
 
-    private function authorize(OrderCommission $commission, User $actor): void
+    public function authorize(OrderCommission $commission, User $actor): void
     {
         if ($actor->hasRole('superadmin')) return;
         if ($actor->hasRole('admin') && (int) $commission->order?->supplier_user_id === (int) $actor->id) return;
@@ -227,7 +247,7 @@ final class CommissionWorkflowService
     private function assertTransition(string $old, string $new, User $actor): void
     {
         $allowed = [
-            'pending' => ['approved', 'cancelled'],
+            'pending' => ['cancelled'],
             'approved' => ['paid', 'cancelled'],
             'paid' => $actor->hasRole('superadmin') ? ['cancelled'] : [],
             'cancelled' => $actor->hasRole('superadmin') ? ['pending'] : [],
@@ -264,7 +284,7 @@ final class CommissionWorkflowService
     {
         $user = $commission->user;
         if (!$user instanceof User) return;
-        $labels = ['pending' => 'na čekanju', 'approved' => 'odobrena', 'paid' => 'isplaćena', 'cancelled' => 'stornirana'];
+        $labels = ['pending' => 'na čekanju', 'approved' => 'za isplatu', 'paid' => 'isplaćena', 'cancelled' => 'stornirana'];
         $this->notifications->commission(
             $user,
             'commission.'.$commission->status,

@@ -476,6 +476,7 @@ final class OrderWorkflowService
                 'reopen_reason' => $reason,
                 'updated_by' => $actor->id,
             ]);
+            app(CommissionAutoApprovalService::class)->syncForOrder($locked, 'order_reopened');
 
             $this->audit->log(
                 'order.reopened',

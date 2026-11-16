@@ -68,6 +68,8 @@ final class OrderFinancialStateService
         if ($order->isDirty(['paid_total_rsd', 'payment_state', 'payment_status', 'payment_verified_at'])) {
             $order->save();
         }
+        // Provizija sama prelazi u "Za isplatu" (ili se vraća) u istoj transakciji kao finansijski/isporuka događaj.
+        app(CommissionAutoApprovalService::class)->syncForOrder($order, 'financial_projection');
         return $order;
     }
 

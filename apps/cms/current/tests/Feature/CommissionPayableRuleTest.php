@@ -11,12 +11,15 @@ use App\Models\AuditLog;
 use App\Models\CommissionAdjustment;
 use App\Models\Order;
 use App\Models\OrderCommission;
+use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AfterSalesActionService;
+use App\Services\CommissionAutoApprovalService;
 use App\Services\CommissionEligibilityService;
 use App\Services\CommissionReversalService;
+use App\Services\OrderFinancialStateService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -26,8 +29,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * Pravilo vlasnika 16.11.2026: provizija je dospela posle pune naplate ILI potvrde isporuke (šta prvo nastupi);
- * povrat artikla stornira proviziju. Obračun u testovima: 2 komada x 10,00 EUR = 20,00 EUR.
+ * Pravilo vlasnika 16.11.2026: provizija sama postaje "Za isplatu" (status approved) kad je porudžbina u potpunosti
+ * plaćena ILI isporučena (šta prvo nastupi); nema ručnog "Odobri". Povrat artikla stornira proviziju.
+ * Obračun u testovima: 2 komada x 10,00 EUR = 20,00 EUR.
  */
 final class CommissionPayableRuleTest extends TestCase
 {
@@ -63,7 +67,7 @@ final class CommissionPayableRuleTest extends TestCase
         if (($orderState['completed_at'] ?? null) === 'now') {
             $orderState['completed_at'] = now();
         }
-        $order->forceFill($orderState)->save();
+        $order->forceFill($orderState)->save(); // bez događaja: proverava samo pravilo, ne automatiku
 
         $service = app(CommissionEligibilityService::class);
         $result = $service->evaluate($commission->fresh());
@@ -71,67 +75,145 @@ final class CommissionPayableRuleTest extends TestCase
         self::assertSame($payable, $result['payable']);
         self::assertSame($code, $result['code']);
         self::assertSame($payable ? 'due' : 'not_due', $result['state']);
-        self::assertNotSame('', $result['reason']);
-        // SQL filter (lista i zbirovi) mora dati isti odgovor kao PHP pravilo
+        self::assertSame($payable, $service->orderMeetsCondition($order->fresh()));
         self::assertSame($payable, $service->scopeState(OrderCommission::query()->whereKey($commission->id), 'due')->exists());
         self::assertSame(!$payable, $service->scopeState(OrderCommission::query()->whereKey($commission->id), 'not_due')->exists());
     }
 
-    public function test_approve_is_rejected_server_side_when_not_payable_and_allowed_when_delivered(): void
+    public function test_full_payment_moves_commission_to_payout_automatically_and_is_idempotent(): void
     {
-        [, $admin, $order, $commission] = $this->scenario();
+        [$sub, , $order, $commission] = $this->scenario();
+        self::assertSame('pending', $commission->status);
+
+        $noticesBefore = $this->approvedNotices($sub);
+        $this->pay($order);
+
+        $fresh = $commission->fresh();
+        self::assertSame('approved', $fresh->status);
+        self::assertNull($fresh->approved_by); // automatski, ne ručno
+        self::assertNotNull($fresh->approved_at);
+        self::assertSame(1, DB::table('commission_status_history')->where('commission_id', $commission->id)->where('new_status', 'approved')->count());
+        self::assertTrue(AuditLog::query()->where('action', 'commission.auto_approved')->exists());
+        self::assertSame($noticesBefore + 1, $this->approvedNotices($sub));
+
+        // ponovljen događaj ne pravi novi prelaz, istoriju ni obaveštenje
+        app(OrderFinancialStateService::class)->project($order);
+        app(OrderFinancialStateService::class)->project($order);
+        self::assertSame(1, DB::table('commission_status_history')->where('commission_id', $commission->id)->count());
+        self::assertSame($noticesBefore + 1, $this->approvedNotices($sub));
+    }
+
+    public function test_delivery_alone_moves_commission_to_payout(): void
+    {
+        [, , $order, $commission] = $this->scenario();
+
+        $this->deliver($order);
+
+        self::assertSame('approved', $commission->fresh()->status);
+        self::assertSame('unpaid', $order->fresh()->payment_state); // isporuka je odvojena od naplate
+    }
+
+    public function test_both_event_orders_end_in_one_transition(): void
+    {
+        [, , $paidFirst, $first] = $this->scenario();
+        $this->pay($paidFirst);
+        $this->deliver($paidFirst);
+        [, , $deliveredFirst, $second] = $this->scenario();
+        $this->deliver($deliveredFirst);
+        $this->pay($deliveredFirst);
+
+        foreach ([$first, $second] as $commission) {
+            self::assertSame('approved', $commission->fresh()->status);
+            self::assertSame(1, DB::table('commission_status_history')->where('commission_id', $commission->id)->where('new_status', 'approved')->count());
+        }
+    }
+
+    public function test_commission_returns_to_pending_when_condition_is_lost_before_payout(): void
+    {
+        [, , $order, $commission] = $this->scenario();
+        $payment = $this->pay($order);
+        self::assertSame('approved', $commission->fresh()->status);
+
+        // uplata poništena, nije isporučeno -> uslov više ne važi
+        $payment->forceFill(['status' => 'voided'])->save();
+        app(OrderFinancialStateService::class)->project($order);
+        self::assertSame('pending', $commission->fresh()->status);
+        self::assertNull($commission->fresh()->approved_at);
+
+        // isporuka pa ponovno otvaranje porudžbine
+        $this->deliver($order);
+        self::assertSame('approved', $commission->fresh()->status);
+        $order->forceFill(['completed_at' => null])->save();
+        app(CommissionAutoApprovalService::class)->syncForOrder($order->fresh(), 'order_reopened');
+        self::assertSame('pending', $commission->fresh()->status);
+    }
+
+    public function test_paid_and_manually_approved_commissions_are_never_changed_automatically(): void
+    {
+        [$sub, $admin, $paidOrder, $paid] = $this->scenario();
+        $paid->forceFill(['status' => 'paid', 'paid_at' => now(), 'approved_by' => $admin->id])->save();
+        $legacyOrder = $this->extraOrder($sub, $admin);
+        $legacy = OrderCommission::query()->where('order_id', $legacyOrder->id)->firstOrFail();
+        $legacy->forceFill(['status' => 'approved', 'approved_by' => $admin->id, 'approved_at' => now()])->save();
+
+        // događaji koji bi vratili automatsku proviziju na pending ne diraju ni isplaćenu ni ručno odobrenu
+        app(OrderFinancialStateService::class)->project($paidOrder);
+        app(OrderFinancialStateService::class)->project($legacyOrder);
+        $paidOrder->forceFill(['status' => 'cancelled'])->save();
+        app(CommissionAutoApprovalService::class)->syncForOrder($paidOrder->fresh(), 'test');
+
+        self::assertSame('paid', $paid->fresh()->status);
+        self::assertSame('20.00', $paid->fresh()->total_eur);
+        self::assertSame('approved', $legacy->fresh()->status);
+        self::assertSame($admin->id, (int) $legacy->fresh()->approved_by);
+
+        // nasleđena odobrena provizija na neisporučenoj porudžbini se i dalje može isplatiti
+        $this->actingAs($admin)->patch('/admin/commissions/'.$legacy->id.'/status', ['status' => 'paid', 'payment_method' => 'bank_transfer'])
+            ->assertSessionHasNoErrors();
+        self::assertSame('paid', $legacy->fresh()->status);
+    }
+
+    public function test_manual_approve_and_pay_of_pending_are_rejected_server_side(): void
+    {
+        [, $admin, , $commission] = $this->scenario();
 
         $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'approved'])
             ->assertSessionHasErrors('status');
+        self::assertStringContainsString('automatsko', session('errors')->first('status'));
+        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'paid', 'payment_method' => 'cash'])
+            ->assertSessionHasErrors('status');
         self::assertSame('pending', $commission->fresh()->status);
-        self::assertStringContainsString('Nije dospela', session('errors')->first('status'));
-
-        // pending -> paid se ne dozvoljava ni preko izričitog zahteva
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-            'status' => 'paid', 'payment_method' => 'cash',
-        ])->assertSessionHasErrors('status');
-        self::assertSame('pending', $commission->fresh()->status);
-
-        $order->forceFill(['completed_at' => now()])->save();
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'approved'])
-            ->assertSessionHasNoErrors();
-        self::assertSame('approved', $commission->fresh()->status);
+        self::assertFalse(\Illuminate\Support\Facades\Route::has('admin.commissions.bulk-approve'));
     }
 
-    public function test_fully_paid_order_makes_commission_payable_without_delivery(): void
+    public function test_backfill_moves_existing_pending_rows_whose_order_qualifies_and_is_idempotent(): void
     {
-        [, $admin, $order, $commission] = $this->scenario();
-        $order->forceFill(['payment_state' => 'paid'])->save();
+        [$sub, $admin, $paidOrder, $byPayment] = $this->scenario();
+        $paidOrder->forceFill(['payment_state' => 'paid'])->save();
+        $deliveredOrder = $this->extraOrder($sub, $admin);
+        $deliveredOrder->forceFill(['completed_at' => now()])->save();
+        $notDueOrder = $this->extraOrder($sub, $admin);
+        $legacyPaidOrder = $this->extraOrder($sub, $admin);
+        $legacyPaid = OrderCommission::query()->where('order_id', $legacyPaidOrder->id)->firstOrFail();
+        $legacyPaid->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        $byDelivery = OrderCommission::query()->where('order_id', $deliveredOrder->id)->firstOrFail();
+        $notDue = OrderCommission::query()->where('order_id', $notDueOrder->id)->firstOrFail();
 
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'approved'])
-            ->assertSessionHasNoErrors();
-        self::assertSame('approved', $commission->fresh()->status);
-    }
+        $noticesBeforeBackfill = $this->approvedNotices($sub);
+        self::assertSame(2, app(CommissionAutoApprovalService::class)->backfill());
 
-    public function test_bulk_approve_skips_and_reports_non_payable_rows(): void
-    {
-        [$sub, $admin, $due] = $this->scenario();
-        $due->forceFill(['completed_at' => now()])->save();
-        $notDue = $this->extraOrder($sub, $admin);
-        $paid = $this->extraOrder($sub, $admin);
-        $paid->forceFill(['payment_state' => 'paid'])->save();
-        $ids = OrderCommission::query()->orderBy('id')->pluck('id')->all();
-        $notDueCommissionId = (int) OrderCommission::query()->where('order_id', $notDue->id)->value('id');
-
-        $this->actingAs($admin)->post('/admin/commissions/bulk-approve', ['approve_ids' => $ids])
-            ->assertSessionHas('status', 'Odobreno 2 od 3 izabranih provizija.')
-            ->assertSessionHas('commission_bulk_results', fn (array $rows): bool => count($rows) === 1
-                && $rows[0]['id'] === $notDueCommissionId && $rows[0]['ok'] === false && str_contains($rows[0]['message'], 'Nije dospela'));
-
-        self::assertSame(2, OrderCommission::query()->where('status', 'approved')->count());
-        self::assertSame('pending', OrderCommission::query()->findOrFail($notDueCommissionId)->status);
+        self::assertSame('approved', $byPayment->fresh()->status);
+        self::assertSame('approved', $byDelivery->fresh()->status);
+        self::assertSame('pending', $notDue->fresh()->status);
+        self::assertSame('paid', $legacyPaid->fresh()->status);
+        self::assertSame(0, app(CommissionAutoApprovalService::class)->backfill());
+        self::assertSame($noticesBeforeBackfill, $this->approvedNotices($sub)); // bez obaveštenja pri prenosu
     }
 
     public function test_bulk_pay_pays_approved_and_reports_skipped_pending(): void
     {
         [$sub, $admin, $order, $commission] = $this->scenario();
-        $order->forceFill(['completed_at' => now()])->save();
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'approved']);
+        $this->pay($order);
         $pendingOrder = $this->extraOrder($sub, $admin);
         $pending = OrderCommission::query()->where('order_id', $pendingOrder->id)->firstOrFail();
 
@@ -147,40 +229,19 @@ final class CommissionPayableRuleTest extends TestCase
         ])->assertSessionHasErrors('commissions');
     }
 
-    public function test_legacy_approved_and_paid_commissions_are_not_touched_by_the_new_rule(): void
-    {
-        [$sub, $admin, $order, $commission] = $this->scenario(); // neisporučena, neplaćena
-        $commission->forceFill(['status' => 'approved', 'approved_at' => now()])->save();
-        $legacyPaidOrder = $this->extraOrder($sub, $admin);
-        $legacyPaid = OrderCommission::query()->where('order_id', $legacyPaidOrder->id)->firstOrFail();
-        $legacyPaid->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
-
-        $service = app(CommissionEligibilityService::class);
-        self::assertSame('approved', $service->evaluate($commission->fresh())['state']);
-        self::assertSame('paid', $service->evaluate($legacyPaid->fresh())['state']);
-
-        // odobrena provizija na neisporučenoj porudžbini se i dalje može isplatiti
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-            'status' => 'paid', 'payment_method' => 'bank_transfer',
-        ])->assertSessionHasNoErrors();
-        self::assertSame('paid', $commission->fresh()->status);
-        self::assertSame('paid', $legacyPaid->fresh()->status);
-        self::assertSame('20.00', $legacyPaid->fresh()->total_eur);
-    }
-
-    public function test_admin_list_filters_and_totals_per_state(): void
+    public function test_admin_list_filters_totals_and_has_no_approve_action(): void
     {
         [$sub, $admin, $due] = $this->scenario();
-        $due->forceFill(['completed_at' => now()])->save();
+        $this->deliver($due);
         $notDue = $this->extraOrder($sub, $admin);
 
-        $this->actingAs($admin)->get('/admin/commissions?state=due')->assertOk()
-            ->assertSee($due->order_number)->assertDontSee($notDue->order_number);
+        $this->actingAs($admin)->get('/admin/commissions?state=approved')->assertOk()
+            ->assertSee($due->order_number)->assertDontSee($notDue->order_number)->assertSee('Za isplatu');
         $this->actingAs($admin)->get('/admin/commissions?state=not_due')->assertOk()
-            ->assertSee($notDue->order_number)->assertDontSee($due->order_number)
-            ->assertSee('Nije dospela');
+            ->assertSee($notDue->order_number)->assertDontSee($due->order_number)->assertSee('Nije dospela');
         $this->actingAs($admin)->get('/admin/commissions')->assertOk()
-            ->assertSee('Dospele · 1', false)->assertSee('Nisu dospele · 1', false)->assertSee('Odobri izabrane');
+            ->assertSee('Nisu dospele · 1', false)->assertSee('Za isplatu · 1', false)
+            ->assertDontSee('Odobri izabrane')->assertDontSee('>Odobri<', false);
     }
 
     public function test_manual_storno_requires_reason_and_supports_partial_and_full_amounts(): void
@@ -231,7 +292,6 @@ final class CommissionPayableRuleTest extends TestCase
         $super = $this->user('super-storno', 'superadmin');
         $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
 
-        // običan admin ne sme da menja isplaćenu proviziju
         $this->actingAs($admin)->post('/admin/commissions/'.$commission->id.'/reverse', ['reason' => 'Povrat', 'amount_eur' => '4'])
             ->assertSessionHasErrors('reason');
         self::assertSame(0, CommissionAdjustment::query()->count());
@@ -241,7 +301,6 @@ final class CommissionPayableRuleTest extends TestCase
         $adjustment = CommissionAdjustment::query()->sole();
         self::assertSame('debit', $adjustment->kind);
         self::assertSame('4.00', $adjustment->amount_eur);
-        // istorija se ne menja: provizija ostaje isplaćena u punom iznosu
         self::assertSame('paid', $commission->fresh()->status);
         self::assertSame('20.00', $commission->fresh()->total_eur);
 
@@ -263,7 +322,6 @@ final class CommissionPayableRuleTest extends TestCase
         self::assertSame(1, (int) $adjustment->quantity);
         self::assertTrue(AuditLog::query()->where('action', 'commission.reversed')->exists());
 
-        // isti povrat ne stornira dva puta: ni ponovnim završavanjem, ni direktnim pozivom
         app(AfterSalesActionService::class)->complete($case, $action->fresh(), $admin, [], true);
         self::assertSame(0, app(CommissionReversalService::class)->reverseForReturnAction($action->fresh(), $admin));
         self::assertSame(1, CommissionAdjustment::query()->count());
@@ -288,52 +346,47 @@ final class CommissionPayableRuleTest extends TestCase
     public function test_authorization_matrix(): void
     {
         [$sub, $admin, $order, $commission] = $this->scenario();
-        $order->forceFill(['completed_at' => now()])->save();
+        $this->pay($order); // provizija je "Za isplatu"
         $otherSub = $this->user('other-sub', 'user');
         $otherAdmin = $this->user('other-admin', 'admin');
         $customer = $this->user('kupac', 'customer');
         $super = $this->user('super-auth', 'superadmin');
         $reverseUrl = '/admin/commissions/'.$commission->id.'/reverse';
         $statusUrl = '/admin/commissions/'.$commission->id.'/status';
+        $payBody = ['commission_ids' => [$commission->id], 'payment_method' => 'cash'];
 
-        // gost
         $this->get('/admin/commissions')->assertRedirect();
         $this->post($reverseUrl, ['reason' => 'x'])->assertRedirect();
-        $this->patch($statusUrl, ['status' => 'approved'])->assertRedirect();
-        $this->post('/admin/commissions/bulk-approve', ['approve_ids' => [$commission->id]])->assertRedirect();
+        $this->patch($statusUrl, ['status' => 'paid', 'payment_method' => 'cash'])->assertRedirect();
+        $this->post('/admin/commissions/bulk-pay', $payBody)->assertRedirect();
 
-        // Kupac i SubAgent nemaju pristup admin rutama
         foreach ([$customer, $sub, $otherSub] as $user) {
             $this->actingAs($user)->get('/admin/commissions')->assertForbidden();
             $this->actingAs($user)->post($reverseUrl, ['reason' => 'x'])->assertForbidden();
-            $this->actingAs($user)->patch($statusUrl, ['status' => 'approved'])->assertForbidden();
-            $this->actingAs($user)->post('/admin/commissions/bulk-approve', ['approve_ids' => [$commission->id]])->assertForbidden();
-            $this->actingAs($user)->post('/admin/commissions/bulk-pay', ['commission_ids' => [$commission->id], 'payment_method' => 'cash'])->assertForbidden();
+            $this->actingAs($user)->patch($statusUrl, ['status' => 'paid', 'payment_method' => 'cash'])->assertForbidden();
+            $this->actingAs($user)->post('/admin/commissions/bulk-pay', $payBody)->assertForbidden();
         }
-        self::assertSame('pending', $commission->fresh()->status);
+        self::assertSame('approved', $commission->fresh()->status);
         self::assertSame(0, CommissionAdjustment::query()->count());
 
         // admin koji nije odgovorno lice: nema pristupa tuđoj proviziji (IDOR)
         $this->actingAs($otherAdmin)->post($reverseUrl, ['reason' => 'x', 'amount_eur' => '1'])->assertNotFound();
-        $this->actingAs($otherAdmin)->patch($statusUrl, ['status' => 'approved'])->assertNotFound();
-        $this->actingAs($otherAdmin)->post('/admin/commissions/bulk-approve', ['approve_ids' => [$commission->id]])
-            ->assertSessionHas('status', 'Odobreno 0 od 1 izabranih provizija.');
-        self::assertSame('pending', $commission->fresh()->status);
+        $this->actingAs($otherAdmin)->patch($statusUrl, ['status' => 'paid', 'payment_method' => 'cash'])->assertNotFound();
+        $this->actingAs($otherAdmin)->post('/admin/commissions/bulk-pay', $payBody)->assertSessionHasErrors('commissions');
+        self::assertSame('approved', $commission->fresh()->status);
 
-        // subagent vidi samo svoje
         $this->actingAs($sub)->get('/commissions')->assertOk()->assertSee($order->order_number);
         $this->actingAs($otherSub)->get('/commissions')->assertOk()->assertDontSee($order->order_number);
 
-        // odgovorni admin i superadmin mogu
-        $this->actingAs($admin)->post('/admin/commissions/bulk-approve', ['approve_ids' => [$commission->id]])
-            ->assertSessionHas('status', 'Odobreno 1 od 1 izabranih provizija.');
-        $this->actingAs($super)->post($reverseUrl, ['reason' => 'Povrat', 'amount_eur' => '1'])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($reverseUrl, ['reason' => 'Povrat', 'amount_eur' => '1'])->assertSessionHasNoErrors();
         self::assertSame('19.00', $commission->fresh()->total_eur);
+        $this->actingAs($super)->patch($statusUrl, ['status' => 'paid', 'payment_method' => 'cash'])->assertSessionHasNoErrors();
+        self::assertSame('paid', $commission->fresh()->status);
     }
 
-    public function test_mobile_api_exposes_new_fields_and_keeps_old_ones(): void
+    public function test_mobile_api_exposes_states_and_rejects_manual_approve(): void
     {
-        [$sub, $admin, , $commission] = $this->scenario();
+        [$sub, $admin, $order, $commission] = $this->scenario();
 
         Sanctum::actingAs($sub, ['*']);
         $own = $this->getJson('/api/v1/commissions')->assertOk();
@@ -344,19 +397,21 @@ final class CommissionPayableRuleTest extends TestCase
             ->assertJsonPath('data.0.state', 'not_due')
             ->assertJsonPath('data.0.payable_code', 'waiting_delivery_or_payment')
             ->assertJsonPath('data.0.owed_eur', 0.0)
-            ->assertJsonStructure(['summary' => ['pending_eur', 'approved_eur', 'paid_eur', 'count', 'due_eur', 'not_due_eur', 'owed_eur']]);
+            ->assertJsonStructure(['summary' => ['pending_eur', 'approved_eur', 'paid_eur', 'count', 'not_due_eur', 'owed_eur']]);
 
         Sanctum::actingAs($admin, ['*']);
         $row = $this->getJson('/api/v1/admin/commissions/'.$commission->id)->assertOk()->json('data');
         foreach (['id', 'order', 'user', 'responsible_name', 'total_eur', 'status', 'status_label', 'allowed_transitions', 'bulk_pay_eligible'] as $key) {
             self::assertArrayHasKey($key, $row);
         }
-        self::assertFalse($row['can_approve']);
         self::assertSame(['cancelled'], $row['allowed_transitions']);
-        $this->patchJson('/api/v1/admin/commissions/'.$commission->id.'/status', ['status' => 'approved'])->assertStatus(422);
+        // postojeća ruta ostaje, ali odbija ručno odobravanje jasnom porukom
+        $this->patchJson('/api/v1/admin/commissions/'.$commission->id.'/status', ['status' => 'approved'])
+            ->assertStatus(422)->assertJsonValidationErrors('status');
 
-        Order::query()->whereKey($commission->order_id)->update(['completed_at' => now()]);
-        $this->getJson('/api/v1/admin/commissions/'.$commission->id)->assertJsonPath('data.can_approve', true)->assertJsonPath('data.state', 'due');
+        $this->pay($order);
+        $this->getJson('/api/v1/admin/commissions/'.$commission->id)
+            ->assertJsonPath('data.state', 'approved')->assertJsonPath('data.state_label', 'Za isplatu')->assertJsonPath('data.bulk_pay_eligible', true);
         $this->postJson('/api/v1/admin/commissions/'.$commission->id.'/reverse', ['reason' => 'API storno', 'amount_eur' => '2.5'])
             ->assertOk()->assertJsonPath('data.reversed_eur', 2.5);
     }
@@ -377,6 +432,26 @@ final class CommissionPayableRuleTest extends TestCase
         return $this->placeOrder($sub, $admin);
     }
 
+    /** Verifikovana uplata u punom iznosu + projekcija (isti put kao OrderPaymentService). */
+    private function pay(Order $order): OrderPayment
+    {
+        $payment = OrderPayment::query()->create([
+            'order_id' => $order->id, 'payment_number' => 'UPL-CPR-'.++$this->seq, 'entry_type' => 'payment', 'status' => 'verified',
+            'amount_rsd' => $order->fresh()->subtotal_rsd, 'payment_method' => 'bank_transfer', 'paid_at' => now(),
+            'submitted_by' => $order->user_id, 'verified_by' => $order->user_id, 'verified_at' => now(),
+        ]);
+        app(OrderFinancialStateService::class)->project($order);
+
+        return $payment;
+    }
+
+    /** Potvrda isporuke: completed_at + projekcija (OrderWorkflowService::complete poziva isti projectLocked). */
+    private function deliver(Order $order): void
+    {
+        $order->forceFill(['status' => 'shipped', 'completed_at' => now()])->save();
+        app(OrderFinancialStateService::class)->project($order);
+    }
+
     private function placeOrder(User $sub, User $admin): Order
     {
         $n = ++$this->seq;
@@ -391,7 +466,6 @@ final class CommissionPayableRuleTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 1]],
         ])->assertRedirect();
         $order = Order::query()->latest('id')->firstOrFail();
-        // fiksni obračun nezavisan od kursa: 2 komada x 10,00 EUR
         DB::table('order_items')->where('order_id', $order->id)->update([
             'quantity' => 2, 'commission_unit_eur_snapshot' => '10.00', 'commission_total_eur_snapshot' => '20.00',
         ]);
@@ -403,7 +477,7 @@ final class CommissionPayableRuleTest extends TestCase
     /** @return array{0:AfterSalesAction,1:AfterSalesCase} */
     private function returnAction(User $sub, User $admin, Order $order, int $quantity): array
     {
-        $order->forceFill(['status' => 'shipped'])->save(); // povrat se prijavljuje posle slanja; ne menja naplatu ni isporuku
+        $order->forceFill(['status' => 'shipped'])->save();
         $orderItem = $order->items()->firstOrFail();
         $case = AfterSalesCase::query()->create([
             'case_number' => 'PS-CPR-'.++$this->seq, 'order_id' => $order->id, 'opened_by' => $sub->id,
@@ -421,6 +495,11 @@ final class CommissionPayableRuleTest extends TestCase
         ])->assertRedirect()->assertSessionHas('status');
 
         return [AfterSalesAction::query()->latest('id')->firstOrFail(), $case];
+    }
+
+    private function approvedNotices(User $user): int
+    {
+        return $user->notifications()->count();
     }
 
     private function user(string $username, string $role): User

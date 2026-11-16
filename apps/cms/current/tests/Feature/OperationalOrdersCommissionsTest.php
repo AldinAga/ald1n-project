@@ -34,7 +34,6 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $product = $this->product($admin, 'COMM-ITEM', 10);
         $order = $this->createOrder($customer, $admin, $product, 'commission-flow-1');
         $commission = OrderCommission::query()->where('order_id', $order->id)->sole();
-        $order->forceFill(['completed_at' => now()])->save(); // provizija je dospela tek posle isporuke ili pune naplate
 
         $this->actingAs($customer)
             ->get('/commissions')
@@ -43,10 +42,10 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertSee('Podrazumevana provizija je 10% vrednosti artikla po komadu.')
             ->assertDontSee('maksimum');
 
-        $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-            'status' => 'approved',
-            'note' => 'Provizija proverena.',
-        ])->assertRedirect();
+        // isporuka potvrđena -> provizija sama postaje "Za isplatu" (nema ručnog odobravanja)
+        $order->forceFill(['completed_at' => now()])->save();
+        app(\App\Services\OrderFinancialStateService::class)->project($order);
+        self::assertSame('approved', $commission->fresh()->status);
 
         $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
             'status' => 'paid',
@@ -129,12 +128,9 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $firstOrder = $this->createOrder($first, $admin, $product, 'batch-flow-a');
         $secondOrder = $this->createOrder($second, $admin, $product, 'batch-flow-b');
         $commissions = OrderCommission::query()->whereIn('order_id', [$firstOrder->id, $secondOrder->id])->orderBy('id')->get();
-        Order::query()->whereIn('id', [$firstOrder->id, $secondOrder->id])->update(['completed_at' => now()]);
-
-        foreach ($commissions as $commission) {
-            $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
-                'status' => 'approved',
-            ])->assertRedirect();
+        foreach ([$firstOrder, $secondOrder] as $delivered) {
+            $delivered->forceFill(['completed_at' => now()])->save();
+            app(\App\Services\OrderFinancialStateService::class)->project($delivered);
         }
 
         $this->actingAs($admin)->post('/admin/commissions/bulk-pay', [

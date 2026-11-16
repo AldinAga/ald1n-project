@@ -117,6 +117,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::middleware('permission:commissions.manage')->group(function (): void {
                     Route::get('/commissions', [AdminCommissionController::class, 'index'])->name('commissions.index');
                     Route::post('/commissions/bulk-pay', [AdminCommissionController::class, 'bulkPay'])->name('commissions.bulk-pay');
+                    Route::post('/commissions/{commission}/reverse', [AdminCommissionController::class, 'reverse'])->whereNumber('commission')->name('commissions.reverse');
                     Route::get('/commissions.csv', [AdminCommissionController::class, 'csv'])->middleware('throttle:exports')->name('commissions.csv');
                     Route::get('/commissions.pdf', [AdminCommissionController::class, 'pdf'])->middleware('throttle:exports')->name('commissions.pdf');
                     Route::get('/commissions/{commission}', [AdminCommissionController::class, 'show'])->whereNumber('commission')->name('commissions.show');

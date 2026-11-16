@@ -481,6 +481,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/commissions', [CommissionController::class, 'index'])->name('commissions.index');
             Route::patch('/commissions/{commission}/status', [CommissionController::class, 'transition'])->name('commissions.transition');
             Route::post('/commissions/bulk-pay', [CommissionController::class, 'bulkPay'])->name('commissions.bulk-pay');
+            Route::post('/commissions/{commission}/reverse', [CommissionController::class, 'reverse'])->whereNumber('commission')->name('commissions.reverse');
             Route::get('/commissions.csv', [CommissionController::class, 'csv'])->middleware('throttle:exports')->name('commissions.csv');
             Route::get('/commissions.pdf', [CommissionController::class, 'pdf'])->middleware('throttle:exports')->name('commissions.pdf');
         });
