@@ -123,14 +123,14 @@ final class OrdersModuleThreeListsTest extends TestCase
 
         preg_match_all('/<th\b[^>]*>(.*?)<\/th>/s', $page, $heads);
         $columns = array_map(static fn (string $h): string => trim(strip_tags($h)), $heads[1]);
-        self::assertCount(9, $columns, 'positive control: the header row was found');
+        self::assertCount(8, $columns, 'positive control: the header row was found');
 
         preg_match('/<tbody.*?<\/tbody>/s', $page, $body);
         self::assertNotEmpty($body, 'positive control: the table body was found');
         preg_match_all('/<td\b[^>]*>/', $body[0], $cells);
         preg_match_all('/<td\b[^>]*\bdata-label="([^"]+)"[^>]*>/', $body[0], $labelled);
-        self::assertCount(18, $cells[0], 'two rows of nine cells');
-        self::assertCount(18, $labelled[0], 'every td carries a data-label');
+        self::assertCount(16, $cells[0], 'two rows of eight cells');
+        self::assertCount(16, $labelled[0], 'every td carries a data-label');
         self::assertSame($columns, array_values(array_unique($labelled[1])), 'the card labels are exactly the column headers, in order');
         // Nothing is switched off for phones: the old late-column class only reordered cards, it never hid a cell.
         self::assertStringNotContainsString('hidden-mobile', $page);
