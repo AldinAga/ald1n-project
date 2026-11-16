@@ -42,7 +42,7 @@ final class CommissionController extends Controller
         } catch (Throwable $exception) {
             $incident = substr(hash('sha256', $exception::class.'|'.$exception->getMessage().'|'.microtime(true)), 0, 12);
             try { Log::error('Commission page render failed.', ['incident' => $incident, 'exception' => $exception]); } catch (Throwable) {}
-            return response(view('commissions.unavailable', ['issues' => ['Stranica nije mogla biti renderovana.'], 'incident' => $incident, 'isAdmin' => true])->render(), 200);
+            return response(view('commissions.unavailable', ['issues' => ['Stranica nije mogla biti renderovana.'.(app()->runningUnitTests() ? ' DIAG '.$exception->getMessage().' @ '.$exception->getFile().':'.$exception->getLine() : '')], 'incident' => $incident, 'isAdmin' => true])->render(), 200);
         }
     }
 

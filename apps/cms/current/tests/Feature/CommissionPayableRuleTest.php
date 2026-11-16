@@ -355,6 +355,7 @@ final class CommissionPayableRuleTest extends TestCase
         $statusUrl = '/admin/commissions/'.$commission->id.'/status';
         $payBody = ['commission_ids' => [$commission->id], 'payment_method' => 'cash'];
 
+        \Illuminate\Support\Facades\Auth::logout(); // actingAs iz pripreme bi inače ostao prijavljen
         $this->get('/admin/commissions')->assertRedirect();
         $this->post($reverseUrl, ['reason' => 'x'])->assertRedirect();
         $this->patch($statusUrl, ['status' => 'paid', 'payment_method' => 'cash'])->assertRedirect();
@@ -396,11 +397,12 @@ final class CommissionPayableRuleTest extends TestCase
         $own->assertJsonPath('data.0.status', 'pending')
             ->assertJsonPath('data.0.state', 'not_due')
             ->assertJsonPath('data.0.payable_code', 'waiting_delivery_or_payment')
-            ->assertJsonPath('data.0.owed_eur', 0.0)
             ->assertJsonStructure(['summary' => ['pending_eur', 'approved_eur', 'paid_eur', 'count', 'not_due_eur', 'owed_eur']]);
 
+        self::assertEquals(0, $own->json('data.0.owed_eur'));
+
         Sanctum::actingAs($admin, ['*']);
-        $row = $this->getJson('/api/v1/admin/commissions/'.$commission->id)->assertOk()->json('data');
+        $row =$this->getJson('/api/v1/admin/commissions/'.$commission->id)->assertOk()->json('data');
         foreach (['id', 'order', 'user', 'responsible_name', 'total_eur', 'status', 'status_label', 'allowed_transitions', 'bulk_pay_eligible'] as $key) {
             self::assertArrayHasKey($key, $row);
         }

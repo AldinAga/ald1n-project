@@ -21,10 +21,16 @@ final class CommissionReportService
         private readonly CommissionEligibilityService $eligibility,
     ) {}
 
+    /** Eager load (lazy loading je zabranjen); adjustments samo kad migracija postoji. @param list<string> $relations @return list<string> */
+    private function relations(array $relations): array
+    {
+        return Schema::hasTable('commission_adjustments') ? [...$relations, 'adjustments'] : $relations;
+    }
+
     /** @param array<string,mixed> $filters */
     public function managedQuery(User $actor, array $filters): Builder
     {
-        $query = OrderCommission::query()->with(['order.supplier', 'user', 'paymentBatch'])->latest('id');
+        $query = OrderCommission::query()->with($this->relations(['order.supplier', 'order.items', 'user', 'paymentBatch']))->latest('id');
         if (!$actor->hasRole('superadmin')) {
             $query->whereHas('order', static fn (Builder $order): Builder => $order->where('supplier_user_id', $actor->id));
         }
@@ -35,7 +41,7 @@ final class CommissionReportService
     public function ownQuery(User $user, array $filters): Builder
     {
         return $this->filters(
-            OrderCommission::query()->with(['order.supplier', 'paymentBatch'])->where('user_id', $user->id)->latest('id'),
+            OrderCommission::query()->with($this->relations(['order.supplier', 'paymentBatch']))->where('user_id', $user->id)->latest('id'),
             $filters,
             false,
         );
