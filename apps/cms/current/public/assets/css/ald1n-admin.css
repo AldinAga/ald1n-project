@@ -1368,3 +1368,10 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-table th[aria-sort=ascending] .a1-sbs-sort::after{content:" \25B2" / ""}
 .a1-table th[aria-sort=descending] .a1-sbs-sort::after{content:" \25BC" / ""}
 .a1-sbs-total td{font-weight:var(--a1-typography-font-weight-bold);background-color:var(--a1-glass-fill-strong)}
+
+/* M3 sub-block: admin orders list, one-line sub text and tighter cells so rows stay compact at 1200 to 1440 */
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table{font-size:var(--a1-typography-font-size-sm-plus)}
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{display:block;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a1-ops .a1-ol-table th,.a1-ops .a1-ol-table td{padding-inline:var(--a1-space-8)}
+}

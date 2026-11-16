@@ -239,7 +239,7 @@
                                     $rowActions[] = 'confirmed';
                                 }
                                 if (!$order->completed_at && in_array($order->status, ['confirmed', 'shipped'], true) && ($order->payment_method === 'cash_on_delivery' || $order->payment_status === 'paid')) {
-                                    $rowActions[] = 'complete';
+                                    $rowActions[] = 'complete'; // label "Evidentiraj isporuku" lives in partials/row-action
                                 }
                             @endphp
                             <tr role="row" class="{{ $isOverdue ? 'a1-ol-row--over' : '' }}">
