@@ -100,7 +100,7 @@
         .exchange-rate-settings-sync{border:1px solid var(--line);color:inherit}
     </style>
     {{-- JavaScript off: no toggle (it would do nothing); the sheet content stays in normal flow so navigation and logout remain reachable on phones. --}}
-    <noscript><style>@media (max-width:1199px){.a1-menu-btn,.a1-header__theme{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
+    <noscript><style>.a1-bell__btn{display:none}@media (max-width:1199px){.a1-menu-btn,.a1-header__theme{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
 </head>
 <body class="a1-body">
@@ -136,10 +136,23 @@
         @endcan
         @if($moduleVisibility->enabled('notifications'))
         @can('notifications.view')
-        <a class="a1-btn a1-btn--icon a1-btn--sm a1-header__quick" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja">
-            <x-icon name="bell" :size="20" :shell="true" />
-            @if(($siteHeaderUnreadNotifications ?? 0) > 0)<span class="a1-count a1-count--float" aria-hidden="true">{{ min(99, (int) $siteHeaderUnreadNotifications) }}</span>@endif
-        </a>
+        {{-- Bell: a button that opens the last 10 notifications; without JavaScript the plain link inside noscript opens the full page. --}}
+        <div class="a1-bell a1-header__quick" data-bell data-bell-url="{{ route('notifications.recent') }}" data-bell-read-all-url="{{ route('notifications.read-all') }}">
+            <button type="button" class="a1-btn a1-btn--icon a1-btn--sm a1-bell__btn" data-bell-toggle aria-expanded="false" aria-controls="a1BellPanel" aria-label="Obaveštenja{{ ($siteHeaderUnreadNotifications ?? 0) > 0 ? ': '.(int) $siteHeaderUnreadNotifications.' nepročitanih' : '' }}" title="Obaveštenja">
+                <x-icon name="bell" :size="20" :shell="true" />
+                @if(($siteHeaderUnreadNotifications ?? 0) > 0)<span class="a1-count a1-count--float" data-bell-count aria-hidden="true">{{ min(99, (int) $siteHeaderUnreadNotifications) }}</span>@endif
+            </button>
+            <noscript><a class="a1-btn a1-btn--icon a1-btn--sm" href="{{ route('notifications.index') }}" aria-label="Obaveštenja" title="Obaveštenja"><x-icon name="bell" :size="20" :shell="true" /></a></noscript>
+            <div class="a1-bell__panel" id="a1BellPanel" role="region" aria-label="Poslednja obaveštenja" hidden>
+                <div class="a1-bell__head"><strong>Obaveštenja</strong><span data-bell-unread class="a1-bell__unread"></span></div>
+                <ul class="a1-bell__list" data-bell-list></ul>
+                <p class="a1-bell__empty" data-bell-empty hidden>Nema obaveštenja.</p>
+                <div class="a1-bell__foot">
+                    <button type="button" class="a1-btn a1-btn--sm" data-bell-read-all>Označi sve kao pročitano</button>
+                    <a class="a1-btn a1-btn--sm a1-btn--quiet" href="{{ route('notifications.index') }}">Prikaži sva</a>
+                </div>
+            </div>
+        </div>
         @endcan
         @endif
         <span class="a1-sr" data-exchange-rate-sync-status aria-live="polite"></span>
@@ -1130,6 +1143,82 @@ const loadProductSearch = async (term) => {
     });
     mobileMenuQuery.addEventListener?.('change', () => { closeDropdowns(); setMobileMenu(false); });
     desktopHoverQuery.addEventListener?.('change', () => closeDropdowns());
+
+    // Notification bell: button + dropdown with the last 10 notifications (JSON from notifications.recent), Escape closes and returns focus.
+    document.querySelectorAll('[data-bell]').forEach((bell) => {
+        const toggle = bell.querySelector('[data-bell-toggle]');
+        const panel = bell.querySelector('.a1-bell__panel');
+        const list = bell.querySelector('[data-bell-list]');
+        const empty = bell.querySelector('[data-bell-empty]');
+        const unread = bell.querySelector('[data-bell-unread]');
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        if (!toggle || !panel || !list) return;
+        const setCount = (n) => {
+            let badge = bell.querySelector('[data-bell-count]');
+            if (n > 0 && !badge) {
+                badge = document.createElement('span');
+                badge.className = 'a1-count a1-count--float';
+                badge.setAttribute('data-bell-count', '');
+                badge.setAttribute('aria-hidden', 'true');
+                toggle.appendChild(badge);
+            }
+            if (badge) { if (n > 0) badge.textContent = String(Math.min(99, n)); else badge.remove(); }
+            toggle.setAttribute('aria-label', n > 0 ? 'Obaveštenja: ' + n + ' nepročitanih' : 'Obaveštenja');
+            if (unread) unread.textContent = n > 0 ? n + ' nepročitanih' : 'Sve pročitano';
+        };
+        const openRead = (item) => {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = item.read_url;
+            const token = document.createElement('input');
+            token.type = 'hidden'; token.name = '_token'; token.value = csrf;
+            form.appendChild(token);
+            document.body.appendChild(form);
+            form.submit();
+        };
+        const render = (data) => {
+            list.textContent = '';
+            (data.items || []).forEach((item) => {
+                const li = document.createElement('li');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'a1-bell__item' + (item.read ? '' : ' is-unread');
+                const title = document.createElement('strong');
+                title.textContent = (item.read ? '' : 'Novo: ') + item.title;
+                const message = document.createElement('span');
+                message.textContent = item.message || '';
+                const time = document.createElement('small');
+                time.textContent = item.time || '';
+                button.append(title, message, time);
+                button.addEventListener('click', () => openRead(item));
+                li.appendChild(button);
+                list.appendChild(li);
+            });
+            if (empty) empty.hidden = (data.items || []).length > 0;
+            setCount(Number(data.unread) || 0);
+        };
+        const load = () => fetch(bell.dataset.bellUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then((response) => response.ok ? response.json() : Promise.reject(new Error('HTTP ' + response.status)))
+            .then(render)
+            .catch(() => { if (empty) { empty.hidden = false; empty.textContent = 'Obaveštenja trenutno nisu dostupna.'; } });
+        const setOpen = (open, returnFocus = false) => {
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) load();
+            else if (returnFocus) toggle.focus();
+        };
+        toggle.addEventListener('click', () => setOpen(panel.hidden));
+        bell.querySelector('[data-bell-read-all]')?.addEventListener('click', () => {
+            fetch(bell.dataset.bellReadAllUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
+                .then(load).catch(() => {});
+        });
+        bell.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !panel.hidden) { event.stopPropagation(); setOpen(false, true); }
+        });
+        document.addEventListener('click', (event) => {
+            if (!panel.hidden && event.target instanceof Node && !bell.contains(event.target)) setOpen(false);
+        });
+    });
 
     const filterForms = Array.from(document.querySelectorAll('form.filter-panel'));
     filterForms.forEach((form, index) => {

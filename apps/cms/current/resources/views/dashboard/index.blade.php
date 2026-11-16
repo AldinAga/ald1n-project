@@ -196,6 +196,7 @@
 @include('dashboard.partials.priorities', ['strip' => true])
 @endif
 @else
+@include('dashboard.partials.subagent')
 <section class="a1-kpis a1-kpis--4" aria-label="Glavni pokazatelji">
     @if($customerFocused)
         <a class="a1-kpi a1-kpi--link" href="{{ route('orders.index') }}"><span class="a1-kpi__label">Ukupno porudžbina</span><span class="a1-kpi__value a1-num">{{ number_format((int) ($portalSummary['orders_total'] ?? 0), 0, ',', '.') }}</span><span class="a1-kpi__note">Kompletna istorija porudžbina</span></a>
@@ -203,9 +204,10 @@
         <a class="a1-kpi a1-kpi--link" href="{{ route('orders.index') }}"><span class="a1-kpi__label">Preostalo za uplatu</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($portalSummary['outstanding_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__note">Otvorene finansijske obaveze</span></a>
         <a class="a1-kpi a1-kpi--link" href="{{ route('portal.messages.index') }}"><span class="a1-kpi__label">Otvorene teme</span><span class="a1-kpi__value a1-num">{{ number_format((int) ($portalSummary['open_conversations'] ?? 0), 0, ',', '.') }}</span><span class="a1-kpi__note">{{ number_format((int) ($portalSummary['unread_messages'] ?? 0), 0, ',', '.') }} novih poruka</span></a>
     @elseif($reportStats['ready'] ?? false)
-        <a class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}"><span class="a1-kpi__label">Prihod ovog meseca</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__note">{{ number_format((int) ($reportSummary['orders_count'] ?? 0), 0, ',', '.') }} završenih porudžbina</span></a>
-        <a class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}"><span class="a1-kpi__label">Bruto dobit</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($reportSummary['gross_profit_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__note">Marža {{ number_format((float) ($reportSummary['gross_margin_percent'] ?? 0), 1, ',', '.') }}%</span></a>
-        <a class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}"><span class="a1-kpi__label">Neto doprinos</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($reportSummary['net_contribution_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__note">Pokrivenost troška {{ number_format((float) ($reportSummary['cost_coverage_percent'] ?? 0), 1, ',', '.') }}%</span></a>
+        <a class="a1-kpi a1-kpi--link" href="{{ route('admin.reports.index') }}"><span class="a1-kpi__label">Prihod ovog meseca</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($reportSummary['revenue_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__eur">{{ number_format((float) ($reportSummary['revenue_eur'] ?? 0), 2, ',', '.') }} EUR</span><span class="a1-kpi__note">{{ number_format((int) ($reportSummary['orders_count'] ?? 0), 0, ',', '.') }} završenih porudžbina</span></a>
+        {{-- Administrator (odgovorno lice): revenue and operations only; commission, gross and net profit are not part of this role's dashboard. --}}
+        <a class="a1-kpi a1-kpi--link" href="{{ $orderIndex }}"><span class="a1-kpi__label">Nove porudžbine</span><span class="a1-kpi__value a1-num">{{ number_format((int) $orderStats['new'], 0, ',', '.') }}</span><span class="a1-kpi__note">Čekaju potvrdu</span></a>
+        <a class="a1-kpi a1-kpi--link" href="{{ $orderIndex }}"><span class="a1-kpi__label">U obradi</span><span class="a1-kpi__value a1-num">{{ number_format((int) $orderStats['processing'], 0, ',', '.') }}</span><span class="a1-kpi__note">Potvrđene i u pripremi · {{ number_format((int) $orderStats['shipped'], 0, ',', '.') }} poslato</span></a>
         <a class="a1-kpi a1-kpi--link" href="{{ $access['receivables_manage'] ? route('admin.receivables.index') : $orderIndex }}"><span class="a1-kpi__label">Otvoreno potraživanje</span><span class="a1-kpi__value a1-num">{{ number_format((float) ($reportSummary['outstanding_rsd'] ?? 0), 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span><span class="a1-kpi__note">{{ number_format((int) $receivableStats['active'], 0, ',', '.') }} aktivnih predmeta</span></a>
     @else
         <a class="a1-kpi a1-kpi--link" href="{{ $orderIndex }}"><span class="a1-kpi__label">Nove porudžbine</span><span class="a1-kpi__value a1-num">{{ number_format((int) $orderStats['new'], 0, ',', '.') }}</span><span class="a1-kpi__note">Čekaju obradu</span></a>
@@ -231,8 +233,8 @@
                 @php
                     $tsum = \App\Support\DashboardTrendSummary::build($trend->all(), (string) $dashboardPeriod['date_from'], (string) $dashboardPeriod['date_to']);
                     // Provizija is a SuperAdmin figure (same as the earnings cards); other roles get the other three series.
-                    $seriesKeys = $isSuper ? ['rev', 'gross', 'comm', 'orders'] : ['rev', 'gross', 'orders'];
-                    $seriesOnDefault = ['rev', 'gross'];
+                    $seriesKeys = $isSuper ? ['rev', 'gross', 'comm', 'orders'] : ['rev', 'orders'];
+                    $seriesOnDefault = $isSuper ? ['rev', 'gross'] : ['rev'];
                     $seriesHint = [
                         'rev' => 'Ukupan prihod od završenih porudžbina u izabranom periodu',
                         'gross' => 'Bruto dobit samo za stavke sa poznatom nabavnom cenom, pre ostalih troškova',
@@ -247,7 +249,7 @@
                     $trendScale = $tsum['moneyScale'];
                 @endphp
                 <div class="a1-trendpanel" data-dashboard-trend-panel data-trend-off="{{ implode(' ', array_values(array_diff($seriesKeys, $seriesOnDefault))) }}">
-                <p class="a1-sr">Trend prihoda, bruto dobiti{{ $isSuper ? ', provizije' : '' }} i broja porudžbina po periodima. Najviša vrednost na skali: {{ $money($trendScale) }} RSD. Tačne vrednosti su u tabeli ispod grafikona.</p>
+                <p class="a1-sr">Trend prihoda{{ $isSuper ? ', bruto dobiti, provizije' : '' }} i broja porudžbina po periodima. Najviša vrednost na skali: {{ $money($trendScale) }} RSD. Tačne vrednosti su u tabeli ispod grafikona.</p>
                 <ul class="a1-chart-legend" aria-label="Legenda trenda prodaje">
                     @foreach($seriesKeys as $sk)
                         <li><button type="button" class="a1-tgl" data-trend-series="{{ $sk }}" aria-pressed="{{ in_array($sk, $seriesOnDefault, true) ? 'true' : 'false' }}" title="{{ $seriesHint[$sk] }}"><span class="a1-swatch a1-swatch--{{ $sk }}" aria-hidden="true"></span>{{ $tsum['series'][$sk]['label'] }}</button></li>
@@ -258,9 +260,9 @@
                 <ol class="a1-trend" aria-hidden="true" data-dashboard-trend>
                     @foreach($trend as $point)
                         <li>
-                            <span class="a1-trend__pair" title="{{ $periodText((string) $point['period']) }}: prihod {{ $money((float) $point['revenue_rsd']) }} RSD; bruto dobit {{ $money((float) $point['gross_profit_rsd']) }} RSD{{ $isSuper ? '; provizija '.$money((float) $point['commissions_rsd']).' RSD' : '' }}; porudžbina {{ (int) $point['orders_count'] }}">
+                            <span class="a1-trend__pair" title="{{ $periodText((string) $point['period']) }}: prihod {{ $money((float) $point['revenue_rsd']) }} RSD{{ $isSuper ? '; bruto dobit '.$money((float) $point['gross_profit_rsd']).' RSD; provizija '.$money((float) $point['commissions_rsd']).' RSD' : '' }}; porudžbina {{ (int) $point['orders_count'] }}">
                                 <span class="a1-trend__bar a1-trend__bar--rev" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['revenue_rsd'], $tsum['moneyScale']) }}"></span>
-                                <span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['gross_profit_rsd'], $tsum['moneyScale']) }}"></span>
+                                @if($isSuper)<span class="a1-trend__bar a1-trend__bar--gross" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['gross_profit_rsd'], $tsum['moneyScale']) }}"></span>@endif
                                 @if($isSuper)<span class="a1-trend__bar a1-trend__bar--comm" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['commissions_rsd'], $tsum['moneyScale']) }}"></span>@endif
                                 <span class="a1-trend__bar a1-trend__bar--orders" style="--a1c-value:{{ \App\Support\DashboardTrendSummary::height((float) $point['orders_count'], $tsum['ordersScale']) }}"></span>
                             </span>
@@ -268,7 +270,7 @@
                         </li>
                     @endforeach
                 </ol>
-                <p class="a1-text">Puna traka: prihod završenih porudžbina. Šrafirana traka: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa.@if($isSuper) Tačkasta traka: provizija.@endif Isprekidana ivica: broj porudžbina, na svojoj skali.</p>
+                <p class="a1-text">Puna traka: prihod završenih porudžbina.@if($isSuper) Šrafirana traka: bruto dobit samo za stavke sa evidentiranom nabavnom cenom, pre provizija, povraćaja i troškova servisa. Tačkasta traka: provizija.@endif Isprekidana ivica: broj porudžbina, na svojoj skali.</p>
                 <div class="a1-trendsum" data-trend-summaries>
                     @foreach($seriesKeys as $sk)
                         @php
@@ -284,10 +286,10 @@
                         <div class="a1-tablewrap" role="region" aria-label="Tačne vrednosti po periodima" tabindex="0">
                             <table class="a1-table">
                                 <caption class="a1-sr">Tačne vrednosti po periodima</caption>
-                                <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th><th scope="col" class="a1-table__num">Bruto dobit (RSD)</th>@if($isSuper)<th scope="col" class="a1-table__num">Provizija (RSD)</th>@endif<th scope="col" class="a1-table__num">Broj porudžbina</th></tr></thead>
+                                <thead><tr><th scope="col">Period</th><th scope="col" class="a1-table__num">Prihod (RSD)</th>@if($isSuper)<th scope="col" class="a1-table__num">Bruto dobit (RSD)</th><th scope="col" class="a1-table__num">Provizija (RSD)</th>@endif<th scope="col" class="a1-table__num">Broj porudžbina</th></tr></thead>
                                 <tbody>
                                     @foreach($trend as $point)
-                                        <tr><th scope="row">{{ $periodText((string) $point['period']) }}</th><td class="a1-table__num">{{ $money((float) $point['revenue_rsd']) }}</td><td class="a1-table__num">{{ $money((float) $point['gross_profit_rsd']) }}</td>@if($isSuper)<td class="a1-table__num">{{ $money((float) $point['commissions_rsd']) }}</td>@endif<td class="a1-table__num">{{ number_format((int) $point['orders_count'], 0, ',', '.') }}</td></tr>
+                                        <tr><th scope="row">{{ $periodText((string) $point['period']) }}</th><td class="a1-table__num">{{ $money((float) $point['revenue_rsd']) }}</td>@if($isSuper)<td class="a1-table__num">{{ $money((float) $point['gross_profit_rsd']) }}</td><td class="a1-table__num">{{ $money((float) $point['commissions_rsd']) }}</td>@endif<td class="a1-table__num">{{ number_format((int) $point['orders_count'], 0, ',', '.') }}</td></tr>
                                     @endforeach
                                 </tbody>
                             </table>

@@ -243,6 +243,157 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         self::assertStringNotContainsString('Marka2<', $top10[1]);
     }
 
+    public function test_subagent_dashboard_shows_own_commission_by_status_and_own_orders_only(): void
+    {
+        $sub = $this->person('user');
+        $other = $this->person('user', 'other');
+        // Own orders (rate 117): commission pending 10 EUR, approved 20 EUR, paid 30 EUR, cancelled 99 EUR (ignored); one cancelled order is not counted.
+        foreach ([['A', 10000.0, 'pending', 10], ['B', 20000.0, 'approved', 20], ['C', 30000.0, 'paid', 30], ['D', 40000.0, 'cancelled', 99]] as [$n, $value, $status, $eur]) {
+            $order = $this->order($sub, 'SA-'.$n, $value, 5555.0, (float) $eur, null, 'new');
+            DB::table('order_commissions')->insert(['order_id' => $order->id, 'user_id' => $sub->id, 'total_eur' => $eur, 'status' => $status, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $this->order($sub, 'SA-X', 50000.0, 1.0, 5.0, null, 'cancelled');
+        // Somebody else's order and commission: nothing of it may show.
+        $foreign = $this->order($other, 'SA-OTHER', 12345.67, 777.0, 777.0, null, 'new');
+        DB::table('order_commissions')->insert(['order_id' => $foreign->id, 'user_id' => $other->id, 'total_eur' => 777, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now()]);
+
+        $response = $this->actingAs($sub)->get('/')->assertOk();
+        $html = (string) $response->getContent();
+        $dash = $this->dashboard($html);
+
+        foreach (['pending' => ['1.170,00', '10,00'], 'approved' => ['2.340,00', '20,00'], 'paid' => ['3.510,00', '30,00']] as $status => [$rsd, $eur]) {
+            self::assertMatchesRegularExpression('/data-subagent-commission="'.$status.'">\s*<span class="a1-kpi__label">[^<]+<\/span>\s*<span class="a1-kpi__value a1-num">'.preg_quote($rsd, '/').' <span class="a1-kpi__unit">RSD<\/span><\/span>\s*<span class="a1-kpi__eur">'.preg_quote($eur, '/').' EUR</', $dash, $status);
+        }
+        self::assertStringContainsString('>Za isplatu<', $dash);
+        // Own orders in the period: A + B + C + D = 100.000 RSD (854,70 EUR at the stored rate), the cancelled order is out.
+        self::assertStringContainsString('4 porudžbina u periodu', $dash);
+        self::assertStringContainsString('data-subagent-orders-value>100.000,00 RSD</b> · 854,70 EUR', $dash);
+        self::assertStringContainsString('SA-A', $dash);
+        self::assertStringContainsString('a1-pill a1-pill--warning">Nova<', $dash);
+        self::assertStringContainsString('href="'.route('orders.create').'"', $dash);
+        // None of: purchase prices, company profit, other users' data.
+        foreach (['12.345,67', '777,00', '5.555,00', 'Bruto', 'nabavn', 'data-dashboard-earnings', 'data-trend-series'] as $absent) {
+            self::assertStringNotContainsString($absent, $dash, 'SubAgent must not receive '.$absent);
+        }
+        self::assertNull($response->viewData('reportStats')['earnings'] ?? null);
+    }
+
+    public function test_administrator_dashboard_has_revenue_and_tasks_but_no_commission_gross_or_net(): void
+    {
+        $admin = $this->person('admin');
+        $other = $this->person('admin', 'other');
+        $now = now()->format('Y-m-d H:i:s');
+        $this->order($admin, 'AD-OWN-1', 10000.0, 6000.0, 20.0, $now);
+        $this->order($admin, 'AD-OWN-NEW', 4000.0, 1000.0, 0.0, null, 'new');
+        $this->order($other, 'AD-FOREIGN', 7777.0, 1000.0, 33.0, $now);
+
+        $response = $this->actingAs($admin)->get('/')->assertOk();
+        $html = (string) $response->getContent();
+        $dash = $this->dashboard($html);
+
+        self::assertStringContainsString('Prihod ovog meseca', $dash);
+        self::assertStringContainsString('10.000,00', $dash);
+        self::assertStringContainsString('85,47 EUR', $dash);
+        self::assertStringNotContainsString('7.777,00', $html);
+        foreach (['data-dashboard-earnings', 'Bruto zarada', 'Neto zarada', 'Bruto dobit', 'Neto doprinos', 'Provizija (RSD)', 'Ukupan promet', 'data-trend-series="gross"', 'data-trend-series="comm"'] as $absent) {
+            self::assertStringNotContainsString($absent, $dash, 'Administrator must not receive '.$absent);
+        }
+        // His task counter: only his own new order counts (the foreign one is another administrator's).
+        self::assertSame(1, preg_match('/a1-item__title">Nove porudžbine za potvrdu<\/span>.*?a1-item__count">(\d+)</s', $dash, $m));
+        self::assertSame('1', $m[1]);
+        self::assertStringNotContainsString('Provizije za isplatu', $dash);
+        self::assertStringNotContainsString('Nalozi na čekanju', $dash);
+    }
+
+    public function test_priority_counters_scope_link_and_hide_at_zero(): void
+    {
+        $admin = $this->person('superadmin');
+        // Empty system: no counters, the calm state is shown.
+        $empty = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
+        self::assertStringContainsString('Nema hitnih stavki', $empty);
+        self::assertStringNotContainsString('a1-item__count', $empty);
+
+        $this->order($admin, 'PR-NEW-1', 1000.0, 1.0, 0.0, null, 'new');
+        $this->order($admin, 'PR-NEW-2', 1000.0, 1.0, 0.0, null, 'new');
+        $payOrder = $this->order($admin, 'PR-PAY-1', 1000.0, 1.0, 0.0, null, 'processing');
+        DB::table('order_payments')->insert(['order_id' => $payOrder->id, 'payment_number' => 'PR-PAY-N1', 'status' => 'submitted', 'amount_rsd' => 1000, 'payment_method' => 'bank', 'created_at' => now(), 'updated_at' => now()]);
+        $late = $this->order($admin, 'PR-CONF-LATE', 1000.0, 1.0, 0.0, null, 'confirmed');
+        DB::table('orders')->where('id', $late->id)->update(['updated_at' => now()->subDays(5)]);
+        $this->order($admin, 'PR-CONF-FRESH', 1000.0, 1.0, 0.0, null, 'confirmed');
+        $commissioned = $this->order($admin, 'PR-COM-1', 1000.0, 1.0, 5.0, null, 'shipped');
+        DB::table('order_commissions')->insert(['order_id' => $commissioned->id, 'user_id' => $admin->id, 'total_eur' => 5, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now()]);
+        User::query()->create(['role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'), 'user_group_id' => 1, 'username' => 'pending-one', 'email' => 'pending-one@example.test', 'password_hash' => Hash::make('TestOnlyOF1116!'), 'status' => 'pending']);
+
+        $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
+        $count = static function (string $title) use ($dash): ?string {
+            return preg_match('/a1-item__title">'.preg_quote($title, '/').'<\/span>.*?a1-item__count">(\d+)</s', $dash, $m) === 1 ? $m[1] : null;
+        };
+        self::assertSame('2', $count('Nove porudžbine za potvrdu'));
+        self::assertSame('1', $count('Uplate čekaju potvrdu'));
+        self::assertSame('1', $count('Potvrđene, a neposlate'));
+        self::assertSame('1', $count('Provizije za isplatu'));
+        self::assertSame('1', $count('Nalozi na čekanju'));
+        self::assertNull($count('Otvorene reklamacije'), 'a zero counter is hidden');
+        self::assertStringNotContainsString('Nema hitnih stavki', $dash);
+        foreach ([
+            route('admin.orders.index', ['status' => 'new']), route('admin.orders.index', ['payment_status' => 'pending']),
+            route('admin.orders.index', ['status' => 'confirmed']), route('admin.commissions.index', ['status' => 'approved']),
+            route('admin.users.index', ['status' => 'pending']),
+        ] as $href) {
+            self::assertStringContainsString('href="'.e($href).'"', $dash);
+        }
+    }
+
+    public function test_confirmed_ship_days_setting_is_superadmin_only_validated_and_drives_the_counter(): void
+    {
+        $admin = $this->person('superadmin');
+        $order = $this->order($admin, 'SD-CONF', 1000.0, 1.0, 0.0, null, 'confirmed');
+        DB::table('orders')->where('id', $order->id)->update(['updated_at' => now()->subDays(3)]);
+        $late = static fn (string $dash): bool => str_contains($dash, 'Potvrđene, a neposlate');
+
+        // Default 2 days: three days old is late.
+        self::assertTrue($late($this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent())));
+
+        $this->actingAs($admin)->put(route('admin.settings.modules.operations'), ['dashboard_confirmed_ship_days' => 5])->assertSessionHasNoErrors();
+        self::assertSame('5', app(\App\Services\SettingsService::class)->get('dashboard_confirmed_ship_days'));
+        self::assertFalse($late($this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent())), 'N = 5: three days is not late');
+
+        foreach ([0, 31, 'abc', ''] as $bad) {
+            $this->actingAs($admin)->put(route('admin.settings.modules.operations'), ['dashboard_confirmed_ship_days' => $bad])->assertSessionHasErrors('dashboard_confirmed_ship_days');
+        }
+        self::assertSame('5', app(\App\Services\SettingsService::class)->get('dashboard_confirmed_ship_days'));
+
+        $this->actingAs($this->person('admin'))->put(route('admin.settings.modules.operations'), ['dashboard_confirmed_ship_days' => 1])->assertForbidden();
+        self::assertSame('5', app(\App\Services\SettingsService::class)->get('dashboard_confirmed_ship_days'));
+        $this->actingAs($admin)->get(route('admin.settings.modules.index'))->assertOk()->assertSee('name="dashboard_confirmed_ship_days"', false);
+    }
+
+    public function test_bell_endpoint_returns_the_last_ten_notifications_and_the_header_has_a_button(): void
+    {
+        $admin = $this->person('superadmin');
+        foreach (range(1, 12) as $i) {
+            DB::table('notifications')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'test', 'notifiable_type' => $admin->getMorphClass(), 'notifiable_id' => $admin->id,
+                'data' => json_encode(['title' => 'Naslov '.$i, 'message' => 'Poruka '.$i]), 'read_at' => $i <= 2 ? now() : null,
+                'created_at' => now()->subMinutes(100 - $i), 'updated_at' => now(),
+            ]);
+        }
+
+        $json = $this->actingAs($admin)->getJson(route('notifications.recent'))->assertOk()->json();
+        self::assertSame(10, $json['unread'] === 10 ? count($json['items']) : -1, 'ten unread of twelve');
+        self::assertSame('Naslov 12', $json['items'][0]['title']);
+        self::assertSame('Naslov 3', $json['items'][9]['title']);
+        self::assertFalse($json['items'][0]['read']);
+
+        $html = (string) $this->actingAs($admin)->get('/')->assertOk()->getContent();
+        self::assertStringContainsString('data-bell-toggle aria-expanded="false" aria-controls="a1BellPanel"', $html);
+        self::assertStringContainsString('Označi sve kao pročitano', $html);
+        self::assertStringContainsString('<noscript><a class="a1-btn a1-btn--icon a1-btn--sm" href="'.e(route('notifications.index')).'"', $html);
+
+        $this->actingAs($admin)->post(route('notifications.read-all'))->assertRedirect();
+        self::assertSame(0, $this->actingAs($admin)->getJson(route('notifications.recent'))->json('unread'));
+    }
+
     /**
      * Four orders in January 2026 and one in February, all with revenue, purchase snapshot, EUR commission snapshot and rate 117:
      * A 10.000 / purchase 6.000 / 20 EUR, B 5.000 / NO purchase price / 10 EUR, C 3.000 / 1.000 / 5 EUR with a CANCELLED commission record,

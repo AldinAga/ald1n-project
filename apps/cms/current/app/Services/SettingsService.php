@@ -33,6 +33,8 @@ final class SettingsService
         'eur_rsd_last_attempt_at' => '',
         'eur_rsd_last_error' => '',
         'site_name' => 'Ald1n CMS',
+        // Dashboard priority counter: a confirmed order that has not shipped for this many days is "late" (1-30, SuperAdmin sets it).
+        'dashboard_confirmed_ship_days' => '2',
         'site_logo_path' => '',
         'site_logo_light_path' => '',
         'site_logo_dark_path' => '',
@@ -219,6 +221,7 @@ final class SettingsService
         foreach (array_keys(self::LOGO_HEIGHTS) as $heightKey) {
             $merged[$heightKey] = (string) self::logoHeight($heightKey, $merged[$heightKey]);
         }
+        $merged['dashboard_confirmed_ship_days'] = (string) max(1, min(30, (int) $merged['dashboard_confirmed_ship_days'] ?: 2));
         $merged['site_footer_show_logo'] = $merged['site_footer_show_logo'] === '1' ? '1' : '0';
         $merged['site_footer_links_new_tab'] = $merged['site_footer_links_new_tab'] === '1' ? '1' : '0';
         $merged['site_footer_layout'] = in_array($merged['site_footer_layout'], ['split', 'centered'], true) ? $merged['site_footer_layout'] : 'split';

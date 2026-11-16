@@ -68,4 +68,25 @@
         </section>
     </aside>
 </form>
+
+<form method="post" action="{{ route('admin.settings.modules.operations') }}" class="admin-form-grid settings-primary-form" data-operations-form>
+    @csrf
+    @method('put')
+    <div class="form-main">
+        <section class="panel form-section">
+            <h2>Operativni prag početne</h2>
+            <p class="muted">Potvrđena porudžbina koja nije poslata duže od ovog broja dana pojavljuje se u prioritetnim aktivnostima.</p>
+            <div class="setting-row">
+                <label for="dashboard_confirmed_ship_days"><strong>Dana do slanja potvrđene porudžbine</strong></label>
+                <input id="dashboard_confirmed_ship_days" name="dashboard_confirmed_ship_days" type="number" min="1" max="30" step="1" required value="{{ old('dashboard_confirmed_ship_days', $confirmedShipDays) }}">
+                @error('dashboard_confirmed_ship_days')<p class="field-error">{{ $message }}</p>@enderror
+            </div>
+        </section>
+    </div>
+    <aside class="form-side">
+        <section class="panel form-section">
+            <button class="button button-primary" type="submit">Sačuvaj prag</button>
+        </section>
+    </aside>
+</form>
 @endsection

@@ -12,12 +12,12 @@
             @endforeach
         </ul>
     @elseif($strip)
-        <p class="a1-strip__empty"><x-icon name="check-circle" :size="20" :shell="true" /><strong>Nema kritičnih aktivnosti</strong><span>Operativne obaveze su trenutno pod kontrolom.</span></p>
+        <p class="a1-strip__empty"><x-icon name="check-circle" :size="20" :shell="true" /><strong>Nema hitnih stavki</strong><span>Sve je pod kontrolom, nema ničega za hitnu reakciju.</span></p>
     @else
         <div class="a1-empty">
             <span class="a1-empty__icon"><x-icon name="check-circle" :size="28" :shell="true" /></span>
-            <h3 class="a1-h3">Nema kritičnih aktivnosti</h3>
-            <p>Operativne obaveze su trenutno pod kontrolom.</p>
+            <h3 class="a1-h3">Nema hitnih stavki</h3>
+            <p>Sve je pod kontrolom, nema ničega za hitnu reakciju.</p>
         </div>
     @endif
 </section>
