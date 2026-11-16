@@ -32,6 +32,24 @@ final class DashboardBrandMixTest extends TestCase
         self::assertStringContainsString('100.000000%', $mix['revenue']['gradient']);
     }
 
+    public function test_top_ten_variant_keeps_ten_brands_and_folds_the_rest_into_others(): void
+    {
+        $rows = [];
+        for ($i = 1; $i <= 12; ++$i) {
+            $rows[] = (object) ['label' => 'M'.$i, 'revenue' => $i * 100, 'units' => 1];
+        }
+        $mix = ManagementReportService::summarizeDashboardBrandRows($rows);
+
+        self::assertCount(6, $mix['revenue']['slices']);
+        self::assertCount(11, $mix['revenue_top10']['slices']);
+        self::assertSame('M12', $mix['revenue_top10']['slices'][0]['label']);
+        self::assertSame('M3', $mix['revenue_top10']['slices'][9]['label']);
+        self::assertSame('Ostali', $mix['revenue_top10']['slices'][10]['label']);
+        self::assertSame(300.0, $mix['revenue_top10']['slices'][10]['value']);
+        self::assertSame(7800.0, $mix['revenue_top10']['total']);
+        self::assertSame(3.8, $mix['revenue_top10']['slices'][10]['percent']);
+    }
+
     public function test_zero_or_negative_totals_never_create_fictional_pie_slices(): void
     {
         $mix = ManagementReportService::summarizeDashboardBrandRows([

@@ -232,10 +232,30 @@ final class DashboardController extends Controller
                 'summary' => $summary,
                 'trend' => $reports->trend($user, $filters),
                 'comparison' => $comparison,
+                // SuperAdmin earnings cards only; every other role gets null and never the numbers.
+                'earnings' => $this->earnings($user, $reports, $filters, $summary),
             ];
         } catch (Throwable $exception) {
             $this->reportDashboardWarning('management_report_stats', $exception);
             return $fallback;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $filters
+     * @param array<string,mixed> $summary
+     * @return array{revenue_rsd:float,commissions_rsd:float,gross_rsd:float,net_rsd:float}|null
+     */
+    private function earnings(User $user, ManagementReportService $reports, array $filters, array $summary): ?array
+    {
+        if (!$user->hasRole('superadmin')) {
+            return null;
+        }
+        try {
+            return $reports->earnings($user, $filters, $summary);
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('earnings', $exception);
+            return null;
         }
     }
 
@@ -293,6 +313,9 @@ final class DashboardController extends Controller
                 $summary = \App\Support\OrderProductSummary::fromNames(
                     $order->relationLoaded('items') ? $order->items->pluck('product_name') : [],
                 );
+                // Display only: delivered (completed_at set, not cancelled) shows as "Isporučena"; the stored status is untouched.
+                $delivered = $order->completed_at !== null && $order->status !== 'cancelled';
+                $displayStatus = $delivered ? 'completed' : (string) $order->status;
                 return [
                     'seller_name' => $order->user?->displayName() ?? '—',
                     'buyer_name' => trim((string) $order->shipping_full_name) ?: '—',
@@ -300,8 +323,8 @@ final class DashboardController extends Controller
                     'product_name' => $summary['product_name'],
                     'other_products' => $summary['other_products'],
                     'number' => $order->order_number,
-                    'status' => $order->status,
-                    'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Završena','cancelled'=>'Otkazana'][$order->status] ?? $order->status,
+                    'status' => $displayStatus,
+                    'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Isporučena','cancelled'=>'Otkazana'][$displayStatus] ?? $displayStatus,
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'remaining_rsd' => max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd),
                     'updated_at' => $order->updated_at,

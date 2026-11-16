@@ -125,7 +125,9 @@ final class DashboardModuleTwoTest extends TestCase
         }
         // Header band and "Brze akcije" never show the same action twice.
         self::assertSame(1, substr_count($dash, 'href="'.route('admin.products.create').'"'));
-        self::assertSame(1, substr_count($dash, 'Direktna prodaja'));
+        // The band now offers "Dodaj artikal"; direct sale stays in the catalog (product page).
+        self::assertSame(1, substr_count($dash, 'Dodaj artikal'));
+        self::assertSame(0, substr_count($dash, 'Direktna prodaja'));
         self::assertMatchesRegularExpression('/<button type="button" class="a1-ratecard a1-ratecard--chip a1-ratecard--action" data-exchange-rate-sync data-exchange-rate-sync-url="[^"]+"/', $dash);
         self::assertStringContainsString('data-exchange-rate-value data-exchange-rate-decimals="2"', $dash);
         self::assertStringContainsString('<details class="a1-acc a1-modules">', $dash);
