@@ -562,7 +562,7 @@ async function ordersLayoutChecks(page, pg, width, base) {
       if (td.getClientRects().length === 0) continue;
       const r = td.getBoundingClientRect();
       const w = td.closest('.a1-tablewrap').getBoundingClientRect();
-      const content = [...td.querySelectorAll('a, button, summary')].filter((e) => e.getClientRects().length > 0).map((e) => e.getBoundingClientRect());
+      const content = [...td.querySelectorAll('a, button, summary')].filter((e) => { const d = e.tagName === 'SUMMARY' ? null : e.closest('details'); return e.getClientRects().length > 0 && !(d && !d.open); }).map((e) => e.getBoundingClientRect());
       const right = Math.max(r.right, ...content.map((c) => c.right));
       const left = Math.min(r.left, ...content.map((c) => c.left));
       if (right > window.innerWidth + 0.5 || right > w.right + 0.5 || left < w.left - 0.5) clipped.push(label(td) + ' right ' + Math.round(right) + ' > card ' + Math.round(w.right) + ' / viewport ' + window.innerWidth);

@@ -1407,3 +1407,8 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:wrap;justify-content:flex-end;white-space:normal}
 }
 @media (min-width:1100px){.a1-ops .a1-ol-table td.a1-table__num{overflow:visible}}
+
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table th:nth-child(1){width:13%}.a1-ops .a1-ol-table th:nth-child(2){width:12.5%}.a1-ops .a1-ol-table th:nth-child(3){width:12%}.a1-ops .a1-ol-table th:nth-child(8){width:19%}
+  .a1-ops .a1-ol-actions{gap:var(--a1-space-4)}.a1-ops .a1-ol-table .a1-table__actions .a1-btn{margin-left:0}
+}
