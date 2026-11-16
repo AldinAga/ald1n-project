@@ -986,7 +986,7 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-header .a1-header__bar:has(>.a1-header__end){display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
   .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
   /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
-  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);transform:translate(-50%,-50%);width:max(220px,min(520px,calc(100% - 880px)));max-width:none;margin:0;justify-content:space-between}
+  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);transform:translate(-50%,-50%);width:max(200px,min(520px,calc(100% - 960px)));max-width:none;margin:0;justify-content:space-between}
   .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
   .a1-header .a1-header__end>.a1-header__quick{order:1}
   .a1-header .a1-header__end>.a1-rate{order:2}
