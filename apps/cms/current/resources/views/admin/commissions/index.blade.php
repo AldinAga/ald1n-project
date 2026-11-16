@@ -99,7 +99,7 @@
                 @if($hasAdj && in_array($row->status,['pending','approved'],true) || ($hasAdj && $row->status==='paid' && $isSuper))
                 <button class="a1-btn a1-btn--danger a1-btn--sm" type="button" data-reverse-open="reverse-{{ $row->id }}">Storniraj proviziju</button>
                 @endif
-                @foreach($hasAdj ? $row->adjustments : [] as $adj)<p class="a1-help">{{ $adj->kind==='debit' ? 'Zaduženje' : 'Storno' }} -{{ number_format((float)$adj->amount_eur,2,',','.') }} EUR · {{ $adj->reason }}</p>@endforeach
+                @php $adjustments = $hasAdj ? $row->adjustments : collect(); @endphp @foreach($adjustments as $adj)<p class="a1-help">{{ $adj->kind==='debit' ? 'Zaduženje' : 'Storno' }} -{{ number_format((float)$adj->amount_eur,2,',','.') }} EUR · {{ $adj->reason }}</p>@endforeach
                 <details class="history-details"><summary>Istorija</summary><div class="mini-timeline">@forelse($row->history as $event)<div><strong>{{ $statusLabels[$event->new_status] ?? $event->new_status }}</strong><small>{{ $event->created_at?->format('d.m.Y H:i') }} · {{ $event->actor?->displayName() ?: 'Sistem' }}</small>@if($event->note)<p>{{ $event->note }}</p>@endif</div>@empty<p class="muted">Nema promena.</p>@endforelse</div></details>
             </div>
         </details>
