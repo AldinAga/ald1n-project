@@ -1377,3 +1377,12 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 
 .a1-ops .a1-dialog p[data-order-purge-retention]{margin-right:var(--a1-space-12)}
+
+/* M3 sub-block: admin orders list fits at 1280, the actions column is always visible, the Jos menu opens inline (no clipping) */
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{max-width:9.5rem}
+  .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:nowrap;white-space:nowrap}
+  .a1-ops .a1-ol-actions .a1-btn:not(.a1-btn--icon){padding-inline:var(--a1-space-8)}
+  .a1-ops .a1-ol-table td.a1-table__actions,.a1-ops .a1-ol-table th:last-child{position:sticky;right:0;z-index:2;background-color:var(--a1-glass-fill-strong)}
+  .a1-ops .a1-ol-more .a1-ol-morepanel{position:static;min-width:0;max-height:none;overflow:visible;margin-top:var(--a1-space-4);padding:var(--a1-space-4);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);box-shadow:none}
+}

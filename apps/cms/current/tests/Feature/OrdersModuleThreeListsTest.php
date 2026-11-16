@@ -81,8 +81,8 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('a1-pill a1-pill--warning">Obrada<', $page);
         self::assertStringContainsString('a1-pill a1-pill--warning">Potvrđena<', $page);
         self::assertStringContainsString('a1-pill a1-pill--info">Poslata<', $page);
-        self::assertStringContainsString('data-label="Plaćanje">Na čekanju</td>', $page);
-        self::assertStringContainsString('data-label="Plaćanje">Plaćeno</td>', $page);
+        self::assertMatchesRegularExpression('~data-label="Plaćanje i rok">\s*<span class="a1-ol-cell">\s*Na čekanju\s*<span class="a1-ol-sub[^"]*">Rok: ~', $page);
+        self::assertMatchesRegularExpression('~data-label="Plaćanje i rok">\s*<span class="a1-ol-cell">\s*Plaćeno\s*<span class="a1-ol-sub~', $page);
 
         // Overdue is marked with text, and only on the one overdue order.
         self::assertSame(1, substr_count($page, 'class="a1-ol-flag"'));

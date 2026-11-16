@@ -199,9 +199,8 @@
                             <th scope="col" role="columnheader">Korisnik</th>
                             <th scope="col" role="columnheader">Odgovorno lice</th>
                             <th scope="col" role="columnheader">Status obrade</th>
-                            <th scope="col" role="columnheader">Plaćanje</th>
+                            <th scope="col" role="columnheader">Plaćanje i rok</th>
                             <th scope="col" role="columnheader" class="a1-table__num">Iznos</th>
-                            <th scope="col" role="columnheader">Rok</th>
                             <th scope="col" role="columnheader">Datum</th>
                             <th scope="col" role="columnheader"><span class="a1-sr">Brze akcije</span></th>
                         </tr>
@@ -264,7 +263,9 @@
                                 <td role="cell" data-label="Status obrade">
                                     <span class="a1-ol-cell">
                                         <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Isporučena' : ($statusLabels[$order->status] ?? $order->status) }}</span>
-                                        <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
+                                        @if($isDirectSale || $order->source_system !== 'laravel')
+                                            <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
+                                        @endif
                                         @if($order->completed_at)
                                             <span class="a1-ol-sub">{{ $order->completed_at->format('d.m.Y H:i') }}</span>
                                         @endif
@@ -273,16 +274,13 @@
                                         @endif
                                     </span>
                                 </td>
-                                <td role="cell" class="a1-ol-late a1-ol-nowrap" data-label="Plaćanje">{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
-                                <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</strong></td>
-                                <td role="cell" class="a1-ol-late a1-ol-nowrap" data-label="Rok">
-                                    @if($order->expected_shipping_at)
-                                        <span class="a1-ol-date {{ $isOverdue ? 'a1-ol-due' : '' }}">{{ $order->expected_shipping_at->format('d.m.Y') }}</span>
-                                        <span class="a1-ol-sub">{{ $order->expected_shipping_at->format('H:i') }}</span>
-                                    @else
-                                        —
-                                    @endif
+                                <td role="cell" class="a1-ol-late a1-ol-nowrap" data-label="Plaćanje i rok">
+                                    <span class="a1-ol-cell">
+                                        {{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}
+                                        <span class="a1-ol-sub {{ $isOverdue ? 'a1-ol-due' : '' }}">Rok: {{ $order->expected_shipping_at ? $order->expected_shipping_at->format('d.m.Y H:i') : '—' }}</span>
+                                    </span>
                                 </td>
+                                <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</strong></td>
                                 <td role="cell" class="a1-ol-nowrap" data-label="Datum">
                                     @if($order->created_at)
                                         <span class="a1-ol-date">{{ $order->created_at->format('d.m.Y') }}</span>
@@ -294,7 +292,7 @@
                                         @if($rowActions !== [])
                                             @include('admin.orders.partials.row-action', ['order' => $order, 'kind' => $rowActions[0], 'menu' => false])
                                         @endif
-                                        <a class="a1-btn a1-btn--quiet a1-btn--sm" href="{{ route('admin.orders.show', $order) }}" aria-label="Detalji: {{ $order->order_number }}">Detalji</a>
+                                        <a class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" href="{{ route('admin.orders.show', $order) }}" aria-label="Detalji: {{ $order->order_number }}" title="Detalji"><x-icon name="arrow-right" :size="18" :shell="true" /></a>
                                         @if(count($rowActions) > 1)
                                             <details class="a1-nav-dd a1-nav-dd--end a1-ol-more">
                                                 <summary class="a1-btn a1-btn--quiet a1-btn--sm" aria-label="Još akcija: {{ $order->order_number }}">Još</summary>

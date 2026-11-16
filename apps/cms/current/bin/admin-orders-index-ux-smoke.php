@@ -10,6 +10,10 @@ $cssPath = $argv[2] ?? ($cmsRoot.'/public/assets/css/ald1n-ui-v2.css');
 $adminCssPath = $argv[3] ?? ($cmsRoot.'/public/assets/css/ald1n-admin.css');
 $blade = @file_get_contents($bladePath);
 $css = @file_get_contents($cssPath);
+// Row actions live in a partial (quick-action forms, routes, CSRF); the contract covers both sources.
+if ($blade !== false && is_file($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php')) {
+    $blade .= "\n".file_get_contents($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php');
+}
 $adminCss = @file_get_contents($adminCssPath);
 if ($blade === false || $css === false || $adminCss === false) {
     fwrite(STDERR, "FAIL: expected admin orders Blade/CSS source is unreadable.\n");
@@ -17,7 +21,7 @@ if ($blade === false || $css === false || $adminCss === false) {
 }
 
 preg_match_all('/<td\s+role="cell"[^>]*data-label="([^"]+)"/', $blade, $cells);
-$expected = ['Broj','Korisnik','Odgovorno lice','Status obrade','Plaćanje','Iznos','Rok','Datum','Brze akcije'];
+$expected = ['Broj','Korisnik','Odgovorno lice','Status obrade','Plaćanje i rok','Iznos','Datum','Brze akcije'];
 $actual = $cells[1] ?? [];
 $filters = ['q','source_system','status','payment_status','supplier_user_id','date_from','date_to'];
 $checkFilters = true;
@@ -49,17 +53,17 @@ $checks = [
            && str_contains($blade, "['attention' => 'overdue']")
            && str_contains($blade, 'a1-ol-tiles'),
     'All original filter names and GET semantics remain'
-        => $checkFilters && str_contains($blade, '<form class="a1-filters" method="get"'),
+        => $checkFilters && str_contains($blade, '<form class="a1-filters a1-ol-filters" method="get"'),
     'Filters have a search landmark without extra form'
         => str_contains($blade, 'role="search" aria-label="Filtriranje porudžbina"')
            && substr_count($blade, '<form') === 4,
     'Data table and headers remain semantically available'
         => str_contains($blade, '<table class="a1-table a1-table--cards a1-ol-table" role="table">')
            && str_contains($blade, 'aria-label="Lista porudžbina"')
-           && substr_count($blade, '<th scope="col"') === 9,
+           && substr_count($blade, '<th scope="col"') === 8,
     'Every data cell has a unique responsive name and label'
-        => count($actual) === 9 && $actual === $expected
-           && count(array_unique($cells[1])) === 9,
+        => count($actual) === 8 && $actual === $expected
+           && count(array_unique($cells[1])) === 8,
     'Order number and status precede actions in accessible DOM order'
         => strpos($blade, 'data-label="Broj"') < strpos($blade, 'data-label="Status obrade"')
            && strpos($blade, 'data-label="Status obrade"') < strpos($blade, 'data-label="Brze akcije"'),
@@ -103,3 +107,4 @@ foreach ($checks as $name => $ok) {
 }
 echo "Admin orders index UX: {$passed}/".count($checks)." successful.\n";
 exit($passed === count($checks) ? 0 : 1);
+
