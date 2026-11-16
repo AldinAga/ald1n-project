@@ -1412,3 +1412,12 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table th:nth-child(1){width:13%}.a1-ops .a1-ol-table th:nth-child(2){width:12.5%}.a1-ops .a1-ol-table th:nth-child(3){width:12%}.a1-ops .a1-ol-table th:nth-child(8){width:19%}
   .a1-ops .a1-ol-actions{gap:var(--a1-space-4)}.a1-ops .a1-ol-table .a1-table__actions .a1-btn{margin-left:0}
 }
+
+/* M3 sub-block: the order number (up to 21 characters, APC-YYYYMMDD-NNNNNNNN) is never cut; second lines end in an ellipsis with the full text in title */
+@media (min-width:561px){.a1-ops .a1-table td[data-label="Broj"]{overflow:visible}}
+@media (min-width:1100px){
+  .a1-ops .a1-ol-table th:nth-child(1){width:16.5%}.a1-ops .a1-ol-table th:nth-child(2){width:11.5%}.a1-ops .a1-ol-table th:nth-child(3){width:11%}.a1-ops .a1-ol-table th:nth-child(4){width:10%}.a1-ops .a1-ol-table th:nth-child(5){width:11%}.a1-ops .a1-ol-table th:nth-child(6){width:13.5%}.a1-ops .a1-ol-table th:nth-child(7){width:8%}.a1-ops .a1-ol-table th:nth-child(8){width:18.5%}
+  .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table .a1-ol-sub{max-width:100%}
+  .a1-ops .a1-ol-table td.a1-ol-primary{overflow:visible;font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+  .a1-ops .a1-ol-table td.a1-ol-primary .a1-link{white-space:nowrap;letter-spacing:0}
+}

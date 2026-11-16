@@ -246,13 +246,13 @@
                                     <a class="a1-link" href="{{ route('admin.orders.show', $order) }}">{{ $order->order_number }}</a>
                                 </td>
                                 <td role="cell" data-label="Korisnik">
-                                    <span class="a1-ol-cell">
+                                    <span class="a1-ol-cell" title="{{ $order->user?->displayName() }} {{ $order->user?->email }}">
                                         {{ $order->user?->displayName() ?? '—' }}
                                         <span class="a1-ol-sub" title="{{ $order->user?->email }}">{{ $order->user?->email }}</span>
                                     </span>
                                 </td>
                                 <td role="cell" class="a1-ol-late" data-label="Odgovorno lice">
-                                    <span class="a1-ol-cell">
+                                    <span class="a1-ol-cell" title="{{ $supplierName }} · {{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}">
                                         {{ $supplierName ?: '—' }}
                                         <span class="a1-ol-sub">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}</span>
                                         @if($isOverdue)

@@ -350,9 +350,10 @@ $qaHistory($orderLongAmount, [[null, 'new', '2025-12-02 09:00:00', null], ['new'
 for ($n = 1; $n <= 36; $n++) {
     $tag = 'F'.str_pad((string) $n, 3, '0', STR_PAD_LEFT);
     $stamp = '2026-01-14 '.sprintf('%02d:%02d:00', 8 + intdiv($n, 60), $n % 60);
-    $filler = $qaOrder($tag, $n % 6 === 0
+    // Production number format APC-YYYYMMDD-NNNNNNNN (21 characters): the number must always be fully readable.
+    $filler = $qaOrder($tag, ['order_number' => sprintf('APC-20260114-%08d', 100 + $n)] + ($n % 6 === 0
         ? $accepted + ['status' => 'processing']
-        : ($n % 9 === 0 ? $accepted + ['status' => 'confirmed'] : []), [['Test artikal '.$n, 1, 1000.0 + $n * 100]], $stamp);
+        : ($n % 9 === 0 ? $accepted + ['status' => 'confirmed'] : [])), [['Test artikal '.$n, 1, 1000.0 + $n * 100]], $stamp);
     $qaHistory($filler, [[null, 'new', $stamp, null]]);
 }
 

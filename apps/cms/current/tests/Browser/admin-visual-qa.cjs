@@ -567,8 +567,19 @@ async function ordersLayoutChecks(page, pg, width, base) {
       const left = Math.min(r.left, ...content.map((c) => c.left));
       if (right > window.innerWidth + 0.5 || right > w.right + 0.5 || left < w.left - 0.5) clipped.push(label(td) + ' right ' + Math.round(right) + ' > card ' + Math.round(w.right) + ' / viewport ' + window.innerWidth);
     }
-    return { scrollers, cells, rows, clipped };
+    // (v) the order number is the key identifier: its text is never cut by the cell (no hidden overflow) and lies inside the cell.
+    const cut = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td[data-label="Broj"]')) {
+      if (td.getClientRects().length === 0) continue;
+      const cr = td.getBoundingClientRect();
+      const rg = document.createRange(); rg.selectNodeContents(td);
+      let right = 0;
+      for (const q of rg.getClientRects()) right = Math.max(right, q.right);
+      if (td.scrollWidth > td.clientWidth + 1 || right > cr.right + 0.5) cut.push('"' + (td.textContent || '').trim().slice(0, 28) + '" text right ' + Math.round(right) + ' > cell ' + Math.round(cr.right) + ', scrollWidth ' + td.scrollWidth + ' > ' + td.clientWidth);
+    }
+    return { scrollers, cells, rows, clipped, cut };
   });
+  if ((width === 1280 || width === 1440) && m.cut.length) out.push({ ...base, rule: 'order-number-clipped', count: m.cut.length, selectors: m.cut.slice(0, 3) });
   if ((width === 1280 || width === 1440) && m.clipped.length) out.push({ ...base, rule: 'action-cell-clipped', count: m.clipped.length, selectors: m.clipped.slice(0, 3) });
   if (m.scrollers.length) out.push({ ...base, rule: 'inner-vertical-scroll', count: m.scrollers.length, selectors: m.scrollers.slice(0, 3) });
   const bad = m.cells.map((c) => ({ ...c, lines: countLines(c.rects) })).filter((c) => c.lines > c.max).map((c) => c.id + ' ' + c.lines + ' lines (max ' + c.max + ')');
@@ -833,7 +844,7 @@ async function runMenuMatrix(browser, state) {
   }
   await browser.close();
   const out = {
-    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'action-cell-clipped', 'horizontal-overflow', 'console-error', 'failed-request'],
+    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'action-cell-clipped', 'order-number-clipped', 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
     infra_failures: infra, selfTests, menuMatrix, foldMetrics, cells, determinism, findings,
   };
