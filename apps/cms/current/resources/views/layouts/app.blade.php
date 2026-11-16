@@ -122,6 +122,8 @@
             <span class="a1-searchbtn__label">Globalna pretraga</span>
             <x-icon name="search" :size="20" :shell="true" />
         </button>
+        {{-- Right-hand controls in ONE box, so the search field can sit in the exact centre of the header (grid 1fr / search / 1fr from 1200px). --}}
+        <div class="a1-header__end">
         {{-- Phones and tablets: one icon button cycles sistem / svetla / tamna (the desktop switch stays in the bar from 1200px). --}}
         <button class="a1-btn a1-btn--icon a1-btn--sm a1-header__theme" type="button" data-theme-cycle aria-label="Tema: prema sistemu. Promeni temu" title="Promeni temu">
             <span class="a1-header__theme-ico" data-theme-ico="auto"><x-icon name="monitor" :size="20" :shell="true" /></span>
@@ -183,23 +185,40 @@
             <svg class="a1-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="a1-menu-btn__bars" d="M4 7h16M4 12h16M4 17h16"/><path class="a1-menu-btn__x" d="M6 6l12 12M18 6L6 18"/></svg>
             <span class="a1-menu-btn__text">Meni</span>
         </button>
+        {{-- Desktop (from 1200px): rate chip and theme switch live in the bar's right-hand box. --}}
+        @can('system.manage_settings')
+        <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
+            <span data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+            <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+        </button>
+        @else
+        <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
+            <span>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+            <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+        </span>
+        @endcan
+        <div class="a1-theme" role="group" aria-label="Tema">
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="auto" aria-pressed="false" aria-label="Tema prema sistemu" title="Tema prema sistemu"><x-icon name="monitor" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="light" aria-pressed="false" aria-label="Svetla tema" title="Svetla tema"><x-icon name="sun" :size="20" :shell="true" /></button>
+                <button class="a1-theme__opt" type="button" data-theme-mode-option="dark" aria-pressed="false" aria-label="Tamna tema" title="Tamna tema"><x-icon name="moon" :size="20" :shell="true" /></button>
+            </div>
+        </div>
 
         <div class="a1-header__panel" id="siteHeaderMenu" data-mobile-menu>
-            {{-- One rate element: a chip in the desktop bar, a compact card above the menu items in the phone drawer (source line shows from the drawer down). --}}
+            {{-- Phones and tablets: the EUR/RSD rate as a compact card above the menu items (the desktop chip sits in the bar). --}}
             @can('system.manage_settings')
-            <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
-                <span data-exchange-rate-header-label>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
-                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
-                <small class="a1-rate__src" data-exchange-rate-source>{{ $exchangeRateSource }}</small>
+            <button class="a1-drawer-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
+                <span>EUR/RSD kurs{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-card-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+                <small data-exchange-rate-source>{{ $exchangeRateSource }}</small>
             </button>
             @else
-            <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
-                <span>EUR/RSD{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
-                <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
-                <small class="a1-rate__src" data-exchange-rate-source>{{ $exchangeRateSource }}</small>
-            </span>
+            <div class="a1-drawer-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}">
+                <span>EUR/RSD kurs{{ $exchangeRateIsStale ? ' · PROVERI' : '' }}</span>
+                <b data-exchange-rate-card-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
+                <small data-exchange-rate-source>{{ $exchangeRateSource }}</small>
+            </div>
             @endcan
-
             <nav class="a1-header__nav" aria-label="Glavna navigacija">
                 <ul class="a1-nav">
                     <li>{{ $navLink(route('dashboard'), 'Početna', request()->routeIs('dashboard', 'portal.messages.*')) }}</li>
@@ -373,11 +392,6 @@
                 </ul>
             </nav>
 
-            <div class="a1-theme" role="group" aria-label="Tema">
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="auto" aria-pressed="false" aria-label="Tema prema sistemu" title="Tema prema sistemu"><x-icon name="monitor" :size="20" :shell="true" /></button>
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="light" aria-pressed="false" aria-label="Svetla tema" title="Svetla tema"><x-icon name="sun" :size="20" :shell="true" /></button>
-                <button class="a1-theme__opt" type="button" data-theme-mode-option="dark" aria-pressed="false" aria-label="Tamna tema" title="Tamna tema"><x-icon name="moon" :size="20" :shell="true" /></button>
-            </div>
 
         </div>
         @endauth
@@ -887,7 +901,7 @@ const loadProductSearch = async (term) => {
         const formattedRate = formatExchangeRate(payload?.rate);
         if (formattedRate === null) throw new Error('Server nije vratio ispravan EUR/RSD kurs.');
 
-        document.querySelectorAll('[data-exchange-rate-value]').forEach((node) => {
+        document.querySelectorAll('[data-exchange-rate-value], [data-exchange-rate-card-value]').forEach((node) => {
             const requestedDecimals = Number.parseInt(node.dataset.exchangeRateDecimals || '4', 10);
             node.textContent = formatExchangeRate(payload?.rate, requestedDecimals) || formattedRate;
         });
@@ -919,7 +933,7 @@ const loadProductSearch = async (term) => {
             });
         }
 
-        document.querySelectorAll('.a1-rate.is-stale').forEach((node) => node.classList.remove('is-stale'));
+        document.querySelectorAll('.a1-rate.is-stale, .a1-drawer-rate.is-stale').forEach((node) => node.classList.remove('is-stale'));
     };
 
     const runExchangeRateSync = async (endpoint) => {

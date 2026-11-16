@@ -101,20 +101,16 @@ final class DashboardController extends Controller
             }
         }
         $recentOrders = $this->recentOrders($user, $access);
-        $shipDays = max(1, min(30, (int) $settings->get('dashboard_confirmed_ship_days', '2')));
+        try {
+            $shipDays = max(1, min(30, (int) $settings->get('dashboard_confirmed_ship_days', '2')));
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('settings', $exception);
+            $shipDays = 2;
+        }
         $attention = $this->attentionCounters($user, $access, $shipDays);
         $priorityActions = $this->priorityActions($access, $orderStats, $productStats, $afterSalesStats, $fieldOperationsStats, $servicePartsStats, $warrantyStats, $receivableStats, $userStats, $attention, $shipDays, $user->hasRole('superadmin'));
         $portal = $this->portalData($user, $access, $portalService);
         $subAgent = $this->subAgentData($user, $dashboardPeriod);
-
-        try {
-            $eurRsdRate = $settings->eurRsdRate();
-            $eurRsdSource = (string) ($settings->get('eur_rsd_source', 'Ručno') ?: 'Ručno');
-        } catch (Throwable $exception) {
-            $this->reportDashboardWarning('settings', $exception);
-            $eurRsdRate = null;
-            $eurRsdSource = 'Nije podešeno';
-        }
 
         return view('dashboard.index', [
             'user' => $user,
@@ -135,8 +131,6 @@ final class DashboardController extends Controller
             'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
             'priorityActions' => $priorityActions,
-            'eurRsdRate' => $eurRsdRate,
-            'eurRsdSource' => $eurRsdSource,
             'portal' => $portal,
             'subAgent' => $subAgent,
         ]);
@@ -257,7 +251,6 @@ final class DashboardController extends Controller
             'period_label' => $periodLabel,
             'summary' => [],
             'trend' => [],
-            'comparison' => null,
         ];
         // Never show a financial snapshot against an invalid selected period.
         if (!($access['reports_view'] ?? false) || $dashboardPeriod['error'] !== null) {
@@ -275,13 +268,11 @@ final class DashboardController extends Controller
                 'group_by' => 'brand',
             ]);
             $summary = $reports->summary($user, $filters);
-            $comparison = $reports->comparison($user, $filters, $summary);
             return [
                 'ready' => true,
                 'period_label' => $periodLabel,
                 'summary' => $summary,
                 'trend' => $reports->trend($user, $filters),
-                'comparison' => $comparison,
                 // SuperAdmin earnings cards only; every other role gets null and never the numbers.
                 'earnings' => $this->earnings($user, $reports, $filters, $summary),
             ];
@@ -413,7 +404,7 @@ final class DashboardController extends Controller
         $push($items, (bool) ($access['orders_manage'] ?? false), (int) ($attention['confirmed_unshipped'] ?? 0), 'Potvrđene, a neposlate', 'Potvrđene više od '.$shipDays.' dana, još nisu poslate.', route('admin.orders.index', ['status'=>'confirmed']), 'danger', 'truck');
         $push($items, (bool) ($access['after_sales_manage'] ?? false), (int) ($afterSalesStats['active'] ?? 0), 'Otvorene reklamacije', 'Reklamacije i servisi koji nisu zatvoreni.', route('admin.after-sales.index'), 'warning', 'alert');
         $push($items, $isSuper && (bool) ($access['manage_users'] ?? false), (int) ($userStats['pending'] ?? 0), 'Nalozi na čekanju', 'Novi nalozi čekaju odobrenje.', route('admin.users.index', ['status'=>'pending']), 'info', 'users');
-        $push($items, (bool) ($access['receivables_manage'] ?? false), (float) $receivableStats['overdue_amount'], 'Dospelo dugovanje', number_format((float) $receivableStats['overdue_amount'], 2, ',', '.').' RSD zahteva pažnju.', route('admin.receivables.index', ['aging'=>'1_7']), 'danger', 'wallet');
+        $push($items, (bool) ($access['receivables_manage'] ?? false), (int) ($receivableStats['overdue_count'] ?? 0), 'Dospelo dugovanje', number_format((float) $receivableStats['overdue_amount'], 2, ',', '.').' RSD zahteva pažnju.', route('admin.receivables.index', ['aging'=>'1_7']), 'danger', 'wallet');
         $push($items, (bool) ($access['after_sales_manage'] ?? false), (int) $afterSalesStats['overdue'], 'Reklamacije preko roka', 'Slučajevi sa probijenim SLA rokom.', route('admin.after-sales.index', ['overdue'=>'1']), 'danger', 'alert');
         $push($items, (bool) ($access['field_operations_view'] ?? false), (int) $fieldOperationsStats['unscheduled'], 'Nalozi bez termina', 'Terenske intervencije treba rasporediti.', route('admin.field-operations.index', ['unscheduled'=>'1']), 'warning', 'truck');
         $push($items, (bool) ($access['catalog_manage_products'] ?? false), (int) $productStats['out_of_stock'], 'Artikli bez lagera', 'Aktivni artikli trenutno nisu raspoloživi.', route('catalog.index', ['stock'=>'out']), 'warning', 'boxes');
@@ -613,7 +604,7 @@ final class DashboardController extends Controller
     /** @param array<string,bool> $access */
     private function receivableStats(User $user, array $access): array
     {
-        $fallback = ['active' => 0, 'overdue_amount' => 0.0, 'promised' => 0, 'plans' => 0];
+        $fallback = ['active' => 0, 'overdue_amount' => 0.0, 'overdue_count' => 0, 'promised' => 0, 'plans' => 0];
         if (!($access['receivables_manage'] ?? false)) return $fallback;
         try {
             if (!$this->tableHasColumns('receivable_cases', ['id','order_id','assigned_to','status']) || !$this->tableHasColumns('orders', ['id','supplier_user_id','subtotal_rsd','paid_total_rsd','payment_due_at'])) return $fallback;
@@ -627,6 +618,7 @@ final class DashboardController extends Controller
             return [
                 'active' => (clone $cases)->where('status','!=','closed')->count(),
                 'overdue_amount' => (float) (clone $orders)->where('payment_due_at','<',today())->selectRaw('COALESCE(SUM(CASE WHEN subtotal_rsd > paid_total_rsd THEN subtotal_rsd-paid_total_rsd ELSE 0 END),0) total')->value('total'),
+                'overdue_count' => (clone $orders)->where('payment_due_at','<',today())->count(),
                 'promised' => (clone $cases)->where('status','promised')->count(),
                 'plans' => (clone $cases)->where('status','installment_plan')->count(),
             ];

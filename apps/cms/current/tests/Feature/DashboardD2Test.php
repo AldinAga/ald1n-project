@@ -21,14 +21,14 @@ final class DashboardD2Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
     }
 
-    public function test_superadmin_has_three_comparison_labels_or_unavailable_report_state(): void
+    public function test_superadmin_has_four_comparison_labels_or_unavailable_report_state(): void
     {
         $html = (string) $this->actingAs($this->person('superadmin'))
             ->get('/?period=7d')->assertOk()->getContent();
 
         self::assertStringContainsString('data-dashboard-d1-grid', $html);
         self::assertTrue(
-            substr_count($html, 'data-dashboard-d2-delta=') === 3
+            substr_count($html, 'data-earnings-delta=') === 4
             || str_contains($html, 'Nije dostupno'),
             'Comparison is shown only when the canonical report is ready.'
         );
@@ -41,7 +41,7 @@ final class DashboardD2Test extends TestCase
             ->assertOk()->getContent();
 
         self::assertStringContainsString('data-dashboard-period-error', $html);
-        self::assertStringNotContainsString('data-dashboard-d2-delta=', $html);
+        self::assertStringNotContainsString('data-earnings-delta=', $html);
     }
 
     public function test_non_superadmin_cannot_read_financial_comparison(): void
@@ -49,7 +49,7 @@ final class DashboardD2Test extends TestCase
         $html = (string) $this->actingAs($this->person('user'))
             ->get('/?period=7d')->assertOk()->getContent();
 
-        self::assertStringNotContainsString('data-dashboard-d2-delta=', $html);
+        self::assertStringNotContainsString('data-earnings-delta=', $html);
         self::assertStringNotContainsString('data-dashboard-d1-kpi=', $html);
     }
 

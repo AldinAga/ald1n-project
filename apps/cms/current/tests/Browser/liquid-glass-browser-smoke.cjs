@@ -280,7 +280,7 @@ async function mobileSheetSmoke(page, label, width) {
       // in the bar (left of the hamburger), the rate is a card above the menu items inside the drawer.
       panel: bounds(panel), nav: bounds(panel?.querySelector('.a1-header__nav')), themeInDrawer: bounds(panel?.querySelector('.a1-theme')),
       theme: bounds(header?.querySelector('[data-theme-cycle]')),
-      rate: bounds(panel?.querySelector('.a1-rate')), user: bounds(header?.querySelector('.a1-header__user > summary')),
+      rate: bounds(panel?.querySelector('.a1-drawer-rate')), user: bounds(header?.querySelector('.a1-header__user > summary')),
       panelScrollWidth: panel?.scrollWidth || 0, panelClientWidth: panel?.clientWidth || 0,
       opaqueHeader: alpha(header),
       locked: document.documentElement.classList.contains('a1-lock'),
@@ -439,11 +439,6 @@ async function dashboardD1Smoke(page, persona, mode) {
       // Owner decision 2026-11-16: greeting, period bar, then the KPI number cards first; priorities and charts follow below the cards.
       const earnings = await page.locator('[data-dashboard-earnings]').boundingBox();
       check(!!earnings && earnings.y + earnings.height <= h, 'D1_EARNINGS_ROW_ABOVE_FOLD_'+w, label+': '+JSON.stringify(earnings));
-      // The six period/stock tiles start right under the earnings row (they carry EUR and comparison lines now); only their top edge must be on screen.
-      for (const key of ['revenue','gross','net']) {
-        const box = await page.locator('[data-dashboard-d1-kpi="'+key+'"]').boundingBox();
-        check(!!box && box.y < h, 'D1_FIRST_KPI_ROW_STARTS_ABOVE_FOLD_'+w, label+' '+key+': '+JSON.stringify(box));
-      }
     }
   }
   await page.setViewportSize({width:390,height:844});
@@ -461,16 +456,17 @@ async function dashboardD1Smoke(page, persona, mode) {
     check(count === 0, 'D1_RBAC_NO_SUPERADMIN_KPI', label+': '+count);
     return;
   }
-  check(count === 6, 'D1_SIX_KPI', label+': '+count);
+  // Owner decision 2026-11-16: four earnings cards replace Prihod / Bruto dobit / Neto doprinos; three stock tiles remain in one row.
+  check(count === 3, 'D1_THREE_STOCK_TILES', label+': '+count);
   const names = await page.locator('[data-dashboard-d1-kpi]').evaluateAll(nodes=>nodes.map(n=>n.dataset.dashboardD1Kpi));
-  check(names.join(',') === 'revenue,gross,net,receivables,purchase,sale',
-    'D1_SIX_KPI_ORDER', label+': '+names.join(','));
+  check(names.join(',') === 'receivables,purchase,sale',
+    'D1_STOCK_TILE_ORDER', label+': '+names.join(','));
   check(await page.locator('[data-dashboard-period="default"]').count() === 1,
     'D1_DEFAULT_MTD', label);
-  check((await page.locator('[data-dashboard-d1-kpi="revenue"]').count()) === 1,
-    'D1_DEFAULT_REVENUE_KPI', label);
+  check((await page.locator('[data-dashboard-earnings-kpi]').count()) === 4,
+    'D1_FOUR_EARNINGS_CARDS', label);
   const defaultChip = page.locator('[data-dashboard-period] .a1-seg__opt[aria-current="true"]');
-  check(await defaultChip.count() === 1 && (await defaultChip.innerText()).trim() === 'Default',
+  check(await defaultChip.count() === 1 && (await defaultChip.innerText()).trim() === 'Ovaj mesec',
     'D1_DEFAULT_CHIP_ACTIVE', label);
   check(await page.locator('[data-dashboard-period] input[type="date"]').count() === 2,
     'D1_CUSTOM_DATE_INPUTS', label);
@@ -499,7 +495,7 @@ async function dashboardD1Smoke(page, persona, mode) {
   await navigate(page,'/?period=custom&date_from=2026-02-30&date_to=2026-03-01','D1_INVALID_GET');
   check(await page.locator('[data-dashboard-period-error][role="alert"]').count() === 1,
     'D1_INVALID_VISIBLE_ERROR', label);
-  check((await page.locator('[data-dashboard-d1-kpi="revenue"] .a1-kpi__value').innerText()).includes('Nije dostupno'),
+  check((await page.locator('[data-dashboard-earnings]').count()) === 0,
     'D1_INVALID_NOT_A_FINANCIAL_ZERO',label);
   const width=await page.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(width <= 1, 'D1_390_NO_OVERFLOW',label+': '+width);

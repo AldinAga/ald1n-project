@@ -49,6 +49,8 @@ const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430,
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
 const DESKTOP_FROM = 1200; // keep in sync with ald1n-admin.css and layouts/app.blade.php
 const HEIGHTS = { 360: 740, 375: 812, 430: 932, 768: 1024, 1200: 800, 1280: 800, 1440: 900 };
+const softWarnings = []; // soft QA checks: reported, never failing
+const pageHeights = []; // measured dashboard-data page heights
 const foldMetrics = []; // measured bottoms (px from the top of the page) of the dashboard's first-look blocks
 const THEMES = ['light', 'dark'];
 const AXE_RULES = ['color-contrast', 'document-title', 'html-has-lang', 'label', 'button-name', 'link-name', 'image-alt'];
@@ -407,17 +409,13 @@ async function ownerShellChecks(page, pg, width, theme) {
       const b = e.getBoundingClientRect();
       return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height };
     };
-    const rightControls = ['.a1-header__quick', '.a1-header > .a1-wrap > .a1-header__panel > .a1-rate', '.a1-header__panel > .a1-rate', '.a1-header__panel > .a1-theme', '.a1-header__user']
-      .map((s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length > 0).map((e) => e.getBoundingClientRect()))
-      .flat();
     const search = box('[data-header-product-search-toggle]');
-    const row = search ? rightControls.filter((b) => b.top < search.b && b.bottom > search.t) : [];
     return {
       desktop: window.innerWidth >= from,
       brand: box('.a1-header .a1-brand'), search, icon: box('[data-header-product-search-toggle] svg'),
-      rightLeft: row.length ? Math.min(...row.map((b) => b.left)) : null,
+      vw: window.innerWidth,
       theme: box('[data-theme-cycle]'), user: box('.a1-header__user > summary'), userLabel: box('.a1-user__label'), menu: box('[data-mobile-menu-toggle]'),
-      themeGroup: box('.a1-header__panel > .a1-theme'), rate: box('.a1-header__panel > .a1-rate'), rateSrc: box('.a1-header__panel > .a1-rate .a1-rate__src'),
+      themeGroup: box('.a1-header__panel .a1-theme'), rate: box('.a1-header__panel > .a1-drawer-rate'), rateSrc: box('.a1-header__panel > .a1-drawer-rate small'),
       nav: box('.a1-header__nav'), sheetOpen: document.querySelector('.a1-header')?.classList.contains('is-open') === true,
       userPanel: (() => { const p = document.querySelector('.a1-header__user[open] > .a1-nav-dd__panel'); if (!p) return null; const b = p.getBoundingClientRect(); return { l: b.left, r: b.right, vw: window.innerWidth }; })(),
       ariaTheme: document.querySelector('[data-theme-cycle]')?.getAttribute('aria-label') || '',
@@ -430,10 +428,10 @@ async function ownerShellChecks(page, pg, width, theme) {
   }
   if (g.desktop) {
     if (pg.key === 'shell-plain') {
-      if (!g.search || !g.brand || !g.icon || g.rightLeft === null) { bad('owner-search-missing', 'search/brand/icon/right controls not measurable'); return out; }
-      const free = (g.brand.r + g.rightLeft) / 2;
+      if (!g.search || !g.brand || !g.icon) { bad('owner-search-missing', 'search/brand/icon not measurable'); return out; }
       const mid = (g.search.l + g.search.r) / 2;
-      if (Math.abs(free - mid) > 4) bad('owner-search-not-centered', `search centre ${Math.round(mid)}px vs free-space centre ${Math.round(free)}px`);
+      if (Math.abs(g.vw / 2 - mid) > 24) bad('owner-search-not-centered', `search centre ${Math.round(mid)}px vs header centre ${Math.round(g.vw / 2)}px`);
+      if (g.search.w > 521) bad('owner-search-too-wide', `search ${Math.round(g.search.w)}px wide`);
       if (g.icon.l < g.search.l + g.search.w / 2) bad('owner-search-icon-not-right', `icon left ${Math.round(g.icon.l)}px, field ${Math.round(g.search.l)}-${Math.round(g.search.r)}px`);
       if (g.theme) bad('owner-theme-cycle-on-desktop', 'the phone theme button is visible on desktop');
     }
@@ -491,7 +489,7 @@ async function dashboardChecks(page, pg, width, theme) {
       .filter((e) => Math.abs(e.getBoundingClientRect().height - 48) > 1)
       .map((e) => 'date ' + Math.round(e.getBoundingClientRect().height) + 'px (control is 48px)');
     const clipped = [...root.querySelectorAll('*')]
-      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap') && !e.matches('input, select, textarea, svg, svg *'))
+      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap, [data-scroll-row]') && !e.matches('input, select, textarea, svg, svg *'))
       .filter((e) => { const o = getComputedStyle(e).overflowX; return o !== 'visible' && e.scrollWidth > e.clientWidth + 1; })
       .map((e) => label(e) + ' ' + e.scrollWidth + '>' + e.clientWidth);
     return { missing: false, small, unlabeled, pressed, dates, clipped, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
@@ -503,17 +501,13 @@ async function dashboardChecks(page, pg, width, theme) {
       const bottom = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().bottom) : null; };
       const top = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; };
       return { vh: window.innerHeight, scrollY: window.scrollY, headerBottom: bottom('.a1-header'),
-        strip: bottom('.a1-strip'), earnings: bottom('[data-dashboard-earnings]'), revenue: bottom('[data-dashboard-d1-kpi="revenue"]'), gross: bottom('[data-dashboard-d1-kpi="gross"]'),
-        net: bottom('[data-dashboard-d1-kpi="net"]'), netTop: top('[data-dashboard-d1-kpi="net"]'), sale: bottom('[data-dashboard-d1-kpi="sale"]') };
+        earnings: bottom('[data-dashboard-earnings]'), stockTop: top('[data-dashboard-d1-grid]'), header: bottom('.a1-header') };
     });
     foldMetrics.push({ browser: browserName, width, theme, ...f });
     console.log('FOLD ' + browserName + ' ' + width + 'x' + f.vh + ' ' + theme + ' ' + JSON.stringify(f));
-    const rowBottom = Math.max(f.revenue || 0, f.gross || 0, f.net || 0);
     const missed = [];
     // Owner decision 2026-11-16: the KPI cards come first (earnings row, then the six); the priorities strip follows them and is no longer part of the first look.
     if (!f.earnings || f.earnings > f.vh) missed.push('earnings cards bottom ' + f.earnings + ' > ' + f.vh);
-    // The six tiles carry EUR and comparison lines now; their first row only has to start on screen.
-    if (!rowBottom || (f.revenue !== null && f.netTop !== null && f.netTop >= f.vh)) missed.push('first KPI row starts at ' + f.netTop + ' >= ' + f.vh);
     if (missed.length) out.push({ ...base, rule: 'above-the-fold', count: missed.length, selectors: missed });
   }
   if (dom.small.length) out.push({ ...base, rule: 'small-target', count: dom.small.length, selectors: dom.small.slice(0, 3) });
@@ -538,7 +532,7 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     const list = document.querySelector('.a1-list--recent');
     return {
       earnings: earnings ? [...earnings.querySelectorAll('[data-dashboard-earnings-kpi]')].map((e) => ({ key: e.dataset.dashboardEarningsKpi, text: text(e) })) : null,
-      caption: document.querySelector('[data-dashboard-earnings-caption]') ? text(document.querySelector('[data-dashboard-earnings-caption]')) : null,
+      caption: document.querySelector('[data-dashboard-earnings-caption]') ? document.querySelector('[data-dashboard-earnings-caption]').textContent.replace(/\s+/g, ' ').trim() : null,
       listWidth: list ? Math.round(list.getBoundingClientRect().width) : null,
       pills: [...document.querySelectorAll('.a1-list--recent .a1-pill')].filter(vis).map((p) => ({ text: p.textContent.trim(), ok: p.classList.contains('a1-pill--ok'), left: Math.round(p.getBoundingClientRect().left) })),
       hero: [...document.querySelectorAll('.a1-hero__actions a')].map((a) => a.textContent.trim()),
@@ -546,8 +540,42 @@ async function ownerDashboardChecks(page, pg, width, theme) {
       series: [...document.querySelectorAll('[data-trend-series]')].map((b) => b.dataset.trendSeries + ':' + b.getAttribute('aria-pressed')),
       summaries: [...document.querySelectorAll('[data-trend-summary]')].filter(vis).map((e) => ({ key: e.dataset.trendSummary, text: text(e) })),
       table: [...document.querySelectorAll('.a1-dash .a1-table thead th')].map((th) => th.textContent.trim()),
+      // Round 2 (owner decisions 2): removed blocks stay removed, period bar is one row, sparkline slot, greeting height, page height, header centre.
+      removed: ['[data-operator-order-center]', '#dash-actions-title', '#dash-modules-title', '[data-dashboard-d1-kpi="revenue"]', '[data-dashboard-d1-kpi="gross"]', '[data-dashboard-d1-kpi="net"]'].filter((s) => document.querySelector(s)),
+      periodRow: (() => {
+        const items = [...document.querySelectorAll('.a1-periodbar .a1-seg__opt')].filter(vis).map((e) => Math.round(e.getBoundingClientRect().top));
+        return { n: items.length, rows: new Set(items).size, labels: [...document.querySelectorAll('.a1-periodbar .a1-seg__opt')].map((e) => e.textContent.trim()) };
+      })(),
+      datesVisible: (() => { const i = document.getElementById('dash-date-from'); return !!i && i.getClientRects().length > 0; })(),
+      customOpen: document.querySelector('.a1-periodbar__custom')?.open === true,
+      spark: [...document.querySelectorAll('[data-dashboard-earnings-kpi]')].map((c) => { const s = c.querySelector('.a1-kpi__spark'); if (!s || s.getClientRects().length === 0) return null; const sb = s.getBoundingClientRect(); const cb = c.getBoundingClientRect(); return { top: Math.round(sb.top - cb.top), right: Math.round(cb.right - sb.right), h: Math.round(sb.height) }; }),
+      greeting: (() => { const g = document.querySelector('.a1-hero__title'); return g ? Math.round(g.getBoundingClientRect().height) : null; })(),
+      pageHeight: Math.round(document.documentElement.scrollHeight),
+      cardWidth: Math.round(document.querySelector('[data-dashboard-earnings-kpi]')?.getBoundingClientRect().width || 0),
+      valueWraps: [...document.querySelectorAll('[data-dashboard-earnings-kpi] .a1-kpi__value')].filter((v) => v.getClientRects().length > 1 || v.getBoundingClientRect().height > 40).length,
+      vw: window.innerWidth,
+      searchMid: (() => { const s = document.querySelector('[data-header-product-search-toggle]'); if (!s || s.getClientRects().length === 0) return null; const b = s.getBoundingClientRect(); return (b.left + b.right) / 2; })(),
     };
   });
+  if (d.removed.length) bad('owner-removed-block-present', d.removed.join(', '));
+  if (pg.persona !== 'customer' && pg.persona !== 'administrator' && d.periodRow.n > 0) {
+    if (d.periodRow.labels.join('|') !== 'Ovaj mesec|7 dana|30 dana|Prilagođeno') bad('owner-period-labels', d.periodRow.labels.join('|'));
+    if (width >= 768 && !d.customOpen && d.periodRow.rows !== 1) bad('owner-period-not-one-row', d.periodRow.rows + ' rows');
+    if (d.customOpen !== d.datesVisible) bad('owner-period-custom-fields', `open ${d.customOpen} fields visible ${d.datesVisible}`);
+    if (pg.key === 'dashboard' && d.datesVisible) bad('owner-period-fields-shown-by-default', 'date fields visible without choosing Prilagođeno');
+  }
+  const sparks = d.spark.filter(Boolean);
+  if (sparks.length > 1 && (new Set(sparks.map((s) => s.top + '/' + s.right + '/' + s.h)).size !== 1)) bad('owner-sparkline-slot', JSON.stringify(sparks));
+  if (pg.key === 'dashboard-data' && width >= 560 && sparks.length < 2) bad('owner-sparkline-missing', JSON.stringify(d.spark));
+  if (width <= 480 && d.greeting !== null && d.greeting > 80) bad('owner-greeting-wraps', `greeting block ${d.greeting}px high`);
+  if (width <= 480 && d.valueWraps > 0 && pg.key !== 'dashboard-long-numbers') bad('owner-kpi-amount-wraps', `${d.valueWraps} amounts wrap at ${width}px`);
+  if (width <= 480 && pg.key === 'dashboard-data' && d.cardWidth > 0 && d.cardWidth > width / 2) bad('owner-kpi-not-2x2', `card ${d.cardWidth}px wide`);
+  if (pg.key === 'dashboard-data') {
+    // Soft check (warns, never fails): the phone page should be well under 4000px.
+    pageHeights.push({ browser: browserName, width, theme, height: d.pageHeight });
+    if (width <= 480 && d.pageHeight > 4000) { softWarnings.push(`dashboard-data ${browserName} ${width} ${theme}: page is ${d.pageHeight}px tall (target 4000)`); console.warn('SOFT ' + softWarnings[softWarnings.length - 1]); }
+  }
+  if (pg.fold && d.searchMid !== null && Math.abs(d.vw / 2 - d.searchMid) > 24) bad('owner-search-not-centered', `search centre ${Math.round(d.searchMid)}px vs header centre ${Math.round(d.vw / 2)}px at ${width}px`);
   const isSuper = pg.persona !== 'administrator' && pg.persona !== 'customer';
   if (pg.persona === 'customer') return out;
   if (isSuper) {
@@ -568,7 +596,7 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
     if (pg.path === DASH_DATA) {
       if (d.series.length !== 4) bad('owner-trend-toggles', JSON.stringify(d.series));
-      for (const col of ['Prihod (RSD)', 'Bruto dobit (RSD)', 'Provizija (RSD)', 'Broj porudžbina']) if (!d.table.includes(col)) bad('owner-trend-table-column', col + ' missing in ' + JSON.stringify(d.table));
+      for (const col of ['Prihod', 'Bruto', 'Provizija', 'Porudžbine']) if (!d.table.includes(col)) bad('owner-trend-table-column', col + ' missing in ' + JSON.stringify(d.table));
     }
   } else {
     if (d.earnings !== null) bad('owner-earnings-visible-for-administrator', 'cards present');
@@ -595,7 +623,7 @@ async function freezeDynamic(page) {
     ];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      if (['SCRIPT', 'STYLE'].includes(n.parentElement?.tagName)) continue;
+      if (['SCRIPT', 'STYLE'].includes(n.parentElement?.tagName) || n.parentElement?.closest('[data-keep-dates]')) continue;
       let t = n.nodeValue;
       for (const [re, to] of rules) t = t.replace(re, to);
       if (t !== n.nodeValue) n.nodeValue = t;
@@ -830,7 +858,7 @@ async function runMenuMatrix(browser, state) {
   const out = {
     browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...AXE_RULES, 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
-    infra_failures: infra, selfTests, menuMatrix, foldMetrics, cells, determinism, findings,
+    infra_failures: infra, selfTests, menuMatrix, foldMetrics, softWarnings, pageHeights, cells, determinism, findings,
   };
   fs.writeFileSync(path.join(artifactDir, `admin-visual-baseline-${browserName}.json`), JSON.stringify(out, null, 1));
   console.log(`ADMIN_VISUAL ${browserName}: cells=${cells.length} findings=${findings.length} infra=${infra.length} minutes=${((Date.now() - started) / 60000).toFixed(1)}`);

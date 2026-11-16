@@ -28,10 +28,8 @@
         @endphp
         <a class="a1-kpi a1-kpi--link" data-dashboard-earnings-kpi="{{ $earningKey }}" href="{{ $card[3] }}">
             <span class="a1-kpi__label">{{ $card[0] }}</span>
-            <span class="a1-kpi__row">
-                <span class="a1-kpi__value a1-num">{{ number_format((float) $earnings[$card[1]], 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span>
-                @if(count($sparkSource[$earningKey]) > 0)<svg class="a1-kpi__spark" viewBox="0 0 96 28" aria-hidden="true" focusable="false"><polyline points="{{ \App\Support\DashboardTrendSummary::sparkline($sparkSource[$earningKey]) }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>@endif
-            </span>
+            <span class="a1-kpi__value a1-num">{{ number_format((float) $earnings[$card[1]], 2, ',', '.') }} <span class="a1-kpi__unit">RSD</span></span>
+            @if(count($sparkSource[$earningKey]) > 1 && max($sparkSource[$earningKey]) != min($sparkSource[$earningKey]))<svg class="a1-kpi__spark" viewBox="0 0 96 28" aria-hidden="true" focusable="false"><polyline points="{{ \App\Support\DashboardTrendSummary::sparkline($sparkSource[$earningKey]) }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>@endif
             <span class="a1-kpi__eur" data-earnings-eur="{{ $earningKey }}">{{ number_format((float) $earnings[$card[2]], 2, ',', '.') }} EUR</span>
             <span class="a1-kpi__delta a1-kpi__delta--{{ $direction }}" data-earnings-delta="{{ $earningKey }}">
                 @if($percent === null)
@@ -49,5 +47,9 @@
         </a>
     @endforeach
 </section>
-<p class="a1-text" data-dashboard-earnings-caption>Promet: prihod završenih porudžbina. Provizija: provizije tih porudžbina bez otkazanih. Bruto zarada: promet minus nabavna cena stavki koje je imaju. Neto zarada: bruto zarada minus provizija. Poređenje je sa prethodnim periodom iste dužine. EUR iznosi koriste kurs zapisan na svakoj porudžbini.</p>
+<p class="a1-text a1-muted-line">Poređenje: prethodni period iste dužine. EUR po kursu zapisanom na porudžbini.</p>
+<details class="a1-acc a1-acc--inline">
+    <summary>Kako se računa</summary>
+    <div class="a1-acc__body"><p class="a1-text" data-dashboard-earnings-caption>Promet: prihod završenih porudžbina. Provizija: provizije tih porudžbina bez otkazanih. Bruto zarada: promet minus nabavna cena stavki koje je imaju. Neto zarada: bruto zarada minus provizija. Poređenje je sa prethodnim periodom iste dužine. EUR iznosi koriste kurs zapisan na svakoj porudžbini.</p></div>
+</details>
 @endif

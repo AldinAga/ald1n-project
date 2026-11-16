@@ -39,9 +39,10 @@ final class DashboardModuleTwoTest extends TestCase
         $dash = $this->dashboard($html);
 
         // Revenue 2.000,00, gross profit 800,00 (revenue minus the purchase snapshot), net 800,00 (no commissions).
-        self::assertMatchesRegularExpression('/data-dashboard-d1-kpi="revenue".{0,900}2\.000,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
-        self::assertMatchesRegularExpression('/data-dashboard-d1-kpi="gross".{0,900}800,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
-        self::assertMatchesRegularExpression('/data-dashboard-d1-kpi="net".{0,900}800,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
+        self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="revenue".{0,500}2\.000,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
+        self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="gross".{0,500}800,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
+        self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="net".{0,500}800,00\s*(?:<[^>]+>\s*)*RSD/s', $dash);
+        self::assertStringNotContainsString('data-dashboard-d1-kpi="revenue"', $dash);
 
         // Trend: one bar pair, a text alternative and the exact-values table.
         self::assertSame(1, substr_count($dash, 'a1-trend__pair'));
@@ -106,9 +107,8 @@ final class DashboardModuleTwoTest extends TestCase
         self::assertSame(3, substr_count($dash, 'class="a1-seg__opt" name="period"'));
         self::assertSame(1, substr_count($dash, 'name="period" value="default" aria-current="true"'));
 
-        // Every KPI tile is an outermost link to the same targets as before.
+        // The three stock tiles are outermost links; the four earnings cards replaced Prihod, Bruto dobit and Neto doprinos.
         foreach ([
-            'revenue' => route('admin.reports.index'), 'gross' => route('admin.reports.index'), 'net' => route('admin.reports.index'),
             'receivables' => route('admin.receivables.index'), 'purchase' => route('admin.products.purchase-costs'),
             'sale' => route('admin.inventory.index'),
         ] as $key => $href) {
@@ -120,10 +120,15 @@ final class DashboardModuleTwoTest extends TestCase
             route('admin.after-sales.index'), route('admin.reports.index'), route('admin.users.index')] as $href) {
             self::assertStringContainsString('href="'.$href.'"', $dash);
         }
-        foreach (['Fokus danas', 'Prioritetne aktivnosti', 'Trend prodaje', 'Najprodavaniji brendovi', 'Poslednje porudžbine', 'Brze akcije', 'Porudžbine korisnika', 'Svi dostupni moduli na jednom mestu'] as $heading) {
+        foreach (['Fokus danas', 'Prioritetne aktivnosti', 'Trend prodaje', 'Najprodavaniji brendovi', 'Poslednje porudžbine'] as $heading) {
             self::assertStringContainsString($heading, $dash);
         }
-        // Header band and "Brze akcije" never show the same action twice.
+        // One orders list only; the bottom action card and the module list are gone.
+        foreach (['Brze akcije', 'Porudžbine korisnika', 'Svi dostupni moduli na jednom mestu', 'data-operator-order-center', 'a1-modules'] as $gone) {
+            self::assertStringNotContainsString($gone, $dash);
+        }
+        self::assertSame(1, substr_count($dash, 'Poslednje porudžbine'));
+        // The product-create action appears once.
         self::assertSame(1, substr_count($dash, 'href="'.route('admin.products.create').'"'));
         // The band now offers "Dodaj artikal"; direct sale stays in the catalog (product page).
         self::assertSame(1, substr_count($dash, 'Dodaj artikal'));
@@ -134,8 +139,6 @@ final class DashboardModuleTwoTest extends TestCase
         // Quick actions: only targets this user may open; no Moj nalog and no Direktna prodaja in the row.
         self::assertStringContainsString('Evidentiraj uplatu', $dash);
         self::assertStringContainsString('Provizije', $dash);
-        self::assertStringContainsString('<details class="a1-acc a1-modules">', $dash);
-        self::assertStringNotContainsString('<details class="a1-acc a1-modules" open', $dash);
     }
 
     public function test_recent_order_row_shows_status_amounts_and_links_to_the_order(): void
@@ -165,16 +168,6 @@ final class DashboardModuleTwoTest extends TestCase
         self::assertStringContainsString('class="a1-kpis a1-kpis--4"', $dash);
         self::assertSame(4, substr_count($dash, 'class="a1-kpi a1-kpi--link"'));
 
-        // Module cards appear exactly when the permission flag is set.
-        foreach ([
-            route('admin.users.index') => (bool) $access['manage_users'],
-            route('admin.receivables.index') => (bool) $access['receivables_manage'],
-            route('admin.field-operations.index') => (bool) $access['field_operations_view'],
-            route('admin.service-parts.index') => (bool) $access['service_parts_view'],
-            route('catalog.index') => (bool) ($access['catalog_view'] || $access['catalog_manage_products']),
-        ] as $href => $allowed) {
-            self::assertSame($allowed, str_contains($dash, 'class="a1-item" href="'.$href.'"'), $href);
-        }
         // The priorities card is part of the business dashboard, not of the customer one.
         self::assertSame($this->hasBusinessAccess($access), str_contains($dash, 'id="d1-priority-heading"'));
         // The customer centre follows the own-orders permission (portal flag), never the business access.
@@ -194,7 +187,6 @@ final class DashboardModuleTwoTest extends TestCase
             self::assertStringNotContainsString($absent, $dash);
         }
         self::assertStringContainsString('href="'.route('portal.messages.index').'"', $dash);
-        self::assertStringContainsString('href="'.route('account.show').'"', $dash);
     }
 
     public function test_dashboard_script_keeps_its_csp_nonce(): void

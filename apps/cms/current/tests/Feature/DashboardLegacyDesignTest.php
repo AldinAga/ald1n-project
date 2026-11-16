@@ -37,13 +37,11 @@ final class DashboardLegacyDesignTest extends TestCase
         }
         $response->assertSee('Ald1n CMS');
         $response->assertSee('Fokus danas');
-        $response->assertSee('Brze akcije');
+        $response->assertDontSee('Brze akcije');
         $response->assertSee('Dodaj artikal');
         $response->assertSee('Porudžbine');
         $response->assertSee('Izveštaji');
-        $response->assertSee('Svi dostupni moduli na jednom mestu');
-        $response->assertSee('Katalog i lager');
-        $response->assertSee('Korisnici');
+        $response->assertDontSee('Svi dostupni moduli na jednom mestu');
     }
 
     public function test_authenticated_layout_has_landmarks_skip_link_menu_toggle_and_icon_theme_switch(): void
@@ -104,7 +102,8 @@ final class DashboardLegacyDesignTest extends TestCase
         self::assertStringContainsString('data-exchange-rate-sync', $html);
         self::assertStringNotContainsString('aria-label="Korpa ·', $html);
         self::assertStringNotContainsString('href="'.route('cart.index').'"', $html);
-        self::assertStringContainsString('data-operator-order-center', $html);
+        self::assertStringNotContainsString('data-operator-order-center', $html);
+        self::assertStringContainsString('Poslednje porudžbine', $html);
     }
 
     public function test_operator_search_menu_and_rate_have_no_personal_cart_placeholder(): void

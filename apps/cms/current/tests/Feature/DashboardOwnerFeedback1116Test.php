@@ -75,7 +75,7 @@ final class DashboardOwnerFeedback1116Test extends TestCase
             'gross' => ['Bruto zarada', '6.000,00', '51,28'],
             'net' => ['Neto zarada', '2.490,00', '21,28'],
         ] as $key => [$label, $value, $eur]) {
-            self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="'.$key.'" href="[^"]+">\s*<span class="a1-kpi__label">'.preg_quote($label, '/').'<\/span>\s*<span class="a1-kpi__row">\s*<span class="a1-kpi__value a1-num">'.preg_quote($value, '/').' /', $section[0], $key);
+            self::assertMatchesRegularExpression('/data-dashboard-earnings-kpi="'.$key.'" href="[^"]+">\s*<span class="a1-kpi__label">'.preg_quote($label, '/').'<\/span>\s*<span class="a1-kpi__value a1-num">'.preg_quote($value, '/').' /', $section[0], $key);
             // EUR line: items at the rate stored on their order (117), commissions as stored in EUR (the cancelled one is out).
             self::assertStringContainsString('data-earnings-eur="'.$key.'">'.$eur.' EUR<', $section[0], $key);
             // No previous period in this fixture: the comparison says so in words.
@@ -88,8 +88,14 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         self::assertStringContainsString('data-dashboard-earnings-kpi="revenue" href="'.$management.'"', $section[0]);
         self::assertStringContainsString('data-dashboard-earnings-kpi="commission" href="'.$subagents.'"', $section[0]);
         self::assertStringContainsString('<svg class="a1-kpi__spark" viewBox="0 0 96 28" aria-hidden="true"', $section[0]);
-        // The period KPI tile carries the same EUR figure.
-        self::assertMatchesRegularExpression('/data-dashboard-d1-kpi="revenue".{0,700}153,85 EUR/s', $dash);
+        // The old Prihod / Bruto dobit / Neto doprinos tiles are gone; the stock tiles stay.
+        foreach (['revenue', 'gross', 'net'] as $old) {
+            self::assertStringNotContainsString('data-dashboard-d1-kpi="'.$old.'"', $dash);
+        }
+        self::assertSame(3, substr_count($dash, 'data-dashboard-d1-kpi='));
+        // Fixed sparkline slot: every series here has three different daily values, so all four cards draw one line.
+        self::assertSame(4, substr_count($section[0], 'class="a1-kpi__spark"'));
+        self::assertSame(0, substr_count($section[0], 'a1-kpi__row'));
         self::assertStringContainsString('Neto zarada: bruto zarada minus provizija.', $dash);
         // Outside the period nothing of the February order shows up (9.000 would change promet to 27.000).
         self::assertStringNotContainsString('27.000,00', $section[0]);
@@ -151,6 +157,88 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         self::assertStringContainsString('data-sbs-eur="avg">51,28 EUR<', $html);
     }
 
+    public function test_sparkline_is_hidden_for_a_single_day_and_for_a_flat_series(): void
+    {
+        $admin = $this->person('superadmin');
+        // One day, one order, no commission: fewer than two points, so no card shows a line.
+        $this->order($admin, 'SP-ONE', 4000.0, 1000.0, 0.0, '2026-01-10 10:00:00');
+        $one = $this->dashboard((string) $this->actingAs($admin)->get(self::JANUARY)->assertOk()->getContent());
+        self::assertSame(0, substr_count($one, 'class="a1-kpi__spark"'));
+
+        // Two days with different revenue but zero commission: revenue gets a line, the flat commission series does not.
+        $this->order($admin, 'SP-TWO', 9000.0, 1000.0, 0.0, '2026-01-12 10:00:00');
+        $two = $this->dashboard((string) $this->actingAs($admin)->get(self::JANUARY)->assertOk()->getContent());
+        preg_match('/data-dashboard-earnings-kpi="commission".*?<\/a>/s', $two, $commission);
+        preg_match('/data-dashboard-earnings-kpi="revenue".*?<\/a>/s', $two, $revenue);
+        self::assertStringNotContainsString('a1-kpi__spark', $commission[0]);
+        self::assertStringContainsString('a1-kpi__spark', $revenue[0]);
+    }
+
+    public function test_overdue_debt_counter_is_a_whole_number_of_cases_and_the_amount_stays_in_the_subtitle(): void
+    {
+        $admin = $this->person('superadmin');
+        foreach (['DEBT-1' => 1000.5, 'DEBT-2' => 2000.0] as $number => $amount) {
+            $order = $this->order($admin, $number, $amount, 1.0, 0.0, null, 'shipped');
+            DB::table('orders')->where('id', $order->id)->update(['payment_due_at' => now()->subDays(3), 'paid_total_rsd' => 0]);
+            DB::table('receivable_cases')->insert(['order_id' => $order->id, 'case_number' => 'RC-'.$number, 'status' => 'monitoring', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        $response = $this->actingAs($admin)->get('/')->assertOk();
+        $item = collect($response->viewData('priorityActions'))->firstWhere('title', 'Dospelo dugovanje');
+        self::assertSame(2, $item['count']);
+        self::assertStringContainsString('3.000,50 RSD', $item['description']);
+        self::assertMatchesRegularExpression('/a1-item__title">Dospelo dugovanje<\/span>.*?a1-item__count">2</s', (string) $response->getContent());
+        self::assertDoesNotMatchRegularExpression('/a1-item__count">[^<]*[,.]/', $this->dashboard((string) $response->getContent()));
+    }
+
+    public function test_period_bar_is_one_row_with_custom_fields_behind_prilagodeno(): void
+    {
+        $admin = $this->person('superadmin');
+        $default = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
+        foreach (['Ovaj mesec', '7 dana', '30 dana', 'Prilagođeno'] as $label) {
+            self::assertStringContainsString('>'.$label.'<', $default);
+        }
+        self::assertStringNotContainsString('>Default<', $default);
+        self::assertMatchesRegularExpression('/<details class="a1-periodbar__custom"\s*>/', $default);
+        self::assertSame(1, substr_count($default, 'Primeni period'));
+
+        $custom = $this->dashboard((string) $this->actingAs($admin)->get(self::JANUARY)->assertOk()->getContent());
+        self::assertMatchesRegularExpression('/<details class="a1-periodbar__custom"\s+open\s*>/', $custom);
+        self::assertStringContainsString('name="date_from" required value="2026-01-01"', $custom);
+    }
+
+    public function test_orders_list_shows_user_and_buyer_names_and_the_removed_blocks_are_gone(): void
+    {
+        $admin = $this->person('superadmin');
+        $seller = $this->person('user', 'seller');
+        $this->order($seller, 'NM-1', 5000.0, 1000.0, 0.0, null, 'new');
+        DB::table('orders')->where('order_number', 'NM-1')->update(['supplier_user_id' => $admin->id, 'shipping_full_name' => 'Petar Petrović']);
+
+        $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
+
+        self::assertMatchesRegularExpression('/NM-1 · [^<]*· Korisnik: [^<]*· Kupac: Petar Petrović</', $dash);
+        self::assertSame(1, substr_count($dash, 'Poslednje porudžbine'));
+        foreach (['Porudžbine korisnika', 'data-operator-order-center', 'Brze akcije', 'Svi dostupni moduli na jednom mestu', 'a1-modules'] as $gone) {
+            self::assertStringNotContainsString($gone, $dash);
+        }
+    }
+
+    public function test_trend_rows_carry_three_different_day_labels_matching_the_axis(): void
+    {
+        $admin = $this->person('superadmin');
+        $this->order($admin, 'TL-1', 1000.0, 100.0, 0.0, '2026-01-05 10:00:00');
+        $this->order($admin, 'TL-2', 2000.0, 100.0, 0.0, '2026-01-17 10:00:00');
+        $this->order($admin, 'TL-3', 3000.0, 100.0, 0.0, '2026-01-29 10:00:00');
+
+        $dash = $this->dashboard((string) $this->actingAs($admin)->get(self::JANUARY)->assertOk()->getContent());
+
+        preg_match_all('/<th scope="row">([^<]*)<\/th><td class="a1-table__num">/', $dash, $rows);
+        preg_match_all('/class="a1-trend__label">([^<]*)</', $dash, $axis);
+        self::assertSame(['05.01.2026.', '17.01.2026.', '29.01.2026.'], $rows[1]);
+        self::assertSame(['01-05', '01-17', '01-29'], $axis[1]);
+        self::assertCount(3, array_unique($rows[1]));
+    }
+
     public function test_trend_table_carries_every_series_per_period(): void
     {
         $admin = $this->person('superadmin');
@@ -158,7 +246,7 @@ final class DashboardOwnerFeedback1116Test extends TestCase
 
         $dash = $this->dashboard((string) $this->actingAs($admin)->get(self::JANUARY)->assertOk()->getContent());
 
-        foreach (['Prihod (RSD)', 'Bruto dobit (RSD)', 'Provizija (RSD)', 'Broj porudžbina'] as $column) {
+        foreach (['Prihod', 'Bruto', 'Provizija', 'Porudžbine'] as $column) {
             self::assertStringContainsString('>'.$column.'<', $dash);
         }
         // Day: revenue | gross | commission | orders.

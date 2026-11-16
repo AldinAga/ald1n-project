@@ -40,7 +40,7 @@ final class LoginDashboardFallbackTest extends TestCase
             ->get('/')
             ->assertOk()
             ->assertSee('Ald1n CMS')
-            ->assertSee('Svi dostupni moduli na jednom mestu');
+            ->assertSee('Prioritetne aktivnosti');
     }
 
     public function test_login_does_not_fail_when_last_login_telemetry_column_is_unavailable(): void

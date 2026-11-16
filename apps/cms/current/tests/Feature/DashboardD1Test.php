@@ -22,13 +22,14 @@ final class DashboardD1Test extends TestCase
         $this->seed(CoreAccessSeeder::class);
     }
 
-    public function test_superadmin_gets_exactly_six_real_kpis_with_current_state_labels(): void
+    public function test_superadmin_gets_three_stock_tiles_and_four_earnings_cards(): void
     {
         $html = $this->actingAs($this->person('superadmin'))->get('/')->assertOk()->getContent();
         self::assertIsString($html);
-        self::assertSame(6, substr_count($html, 'data-dashboard-d1-kpi='));
+        self::assertSame(3, substr_count($html, 'data-dashboard-d1-kpi='));
+        self::assertSame(4, substr_count($html, 'data-dashboard-earnings-kpi='));
         foreach ([
-            'Prihod', 'Bruto dobit', 'Neto doprinos', 'Potraživanja',
+            'Ukupan promet', 'Provizija', 'Bruto zarada', 'Neto zarada', 'Potraživanja',
             'Vrednost po nabavnoj ceni', 'Vrednost po prodajnoj ceni',
             'Trenutno otvoreno', 'Stanje sada',
         ] as $label) {
