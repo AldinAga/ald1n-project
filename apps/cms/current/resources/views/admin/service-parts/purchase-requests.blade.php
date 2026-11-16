@@ -86,8 +86,8 @@
                 <tbody role="rowgroup">
                 @foreach($purchaseRequests as $purchase)
                     <tr role="row">
-                        <td class="a1-table__primary" role="cell" data-label="Broj"><strong class="a1-table__id">{{ $purchase->request_number }}</strong><span class="a1-table__sub">{{ $purchase->created_at?->format('d.m.Y H:i') }}</span></td>
-                        <td role="cell" data-label="Dobavljač">{{ $purchase->supplier?->name ?? 'Nije određen' }}</td>
+                        <td class="a1-table__primary" role="cell" data-label="Broj"><strong class="a1-table__id">{{ $purchase->request_number }}</strong></td>
+                        <td role="cell" data-label="Dobavljač">{{ $purchase->supplier?->name ?? 'Nije određen' }}<span class="a1-table__sub">{{ $purchase->created_at?->format('d.m.Y H:i') }}</span></td>
                         <td role="cell" data-label="Status"><span class="a1-pill{{ $tone($purchase->status) }}">{{ $statuses[$purchase->status] ?? $purchase->status }}</span></td>
                         <td class="a1-table__num" role="cell" data-label="Stavke">{{ $purchase->items->count() }}</td>
                         <td class="a1-table__num" role="cell" data-label="Vrednost">{{ number_format((float)$purchase->total_cost_rsd,2,',','.') }} RSD</td>

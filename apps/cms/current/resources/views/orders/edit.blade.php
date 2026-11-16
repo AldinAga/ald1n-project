@@ -25,6 +25,27 @@
         @method('PATCH')
         <input type="hidden" name="expected_edit_token" value="{{ old('expected_edit_token', $editToken) }}">
         <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', $idempotencyKey) }}">
+        @if($errors->any())
+            @php
+                $errorAnchors = [
+                    'shipping_full_name' => 'oc-edit-name', 'shipping_phone' => 'oc-edit-phone', 'shipping_address' => 'oc-edit-address',
+                    'shipping_city' => 'oc-edit-city', 'shipping_postal_code' => 'oc-edit-postal', 'customer_note' => 'oc-edit-customer-note',
+                ];
+            @endphp
+            <div class="a1-alert a1-alert--danger" role="alert" tabindex="-1" id="oc-edit-errors" aria-labelledby="oc-edit-errors-title">
+                <x-icon name="alert" :size="20" :shell="true" />
+                <div>
+                    <p class="a1-text" id="oc-edit-errors-title"><strong>Porudžbina nije sačuvana. Proveri sledeća polja:</strong></p>
+                    <ul>
+                        @foreach($errors->keys() as $errorKey)
+                            @foreach($errors->get($errorKey) as $errorMessage)
+                                <li><a href="#{{ $errorAnchors[$errorKey] ?? 'oc-edit-items-title' }}">{{ $errorMessage }}</a></li>
+                            @endforeach
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        @endif
         <p class="a1-help">Polja označena zvezdicom su obavezna.</p>
 
         <section class="a1-card" aria-labelledby="oc-edit-items-title">
@@ -49,6 +70,9 @@
                             <button class="a1-btn a1-btn--icon a1-btn--sm" type="button" data-qty-plus aria-label="Povećaj količinu: {{ $item->product_name }}">+</button>
                             <button class="a1-btn a1-btn--danger a1-btn--sm" type="button" data-remove-item aria-label="Ukloni stavku: {{ $item->product_name }}">Ukloni</button>
                         </div>
+                        @foreach(array_merge($errors->get('items.'.$index.'.quantity'), $errors->get('items.'.$index.'.product_id')) as $rowError)
+                            <p class="a1-error" role="alert">{{ $rowError }}</p>
+                        @endforeach
                     </div>
                 @endforeach
             </div>

@@ -959,6 +959,34 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-actions{justify-content:flex-start;width:100%}
 }
 
+/* Desktop compaction (M3 layout gates): no inner vertical scroll, one-line number/amount cells, compact row actions. */
+.a1-ops .a1-tablewrap--sticky{max-height:none;overflow-y:visible}
+.a1-ops .a1-tablewrap--sticky th{position:static}
+.a1-ops .a1-table__num{white-space:nowrap;font-variant-numeric:tabular-nums}
+.a1-ops .a1-ol-table .a1-ol-nowrap,.a1-ops .a1-ol-table .a1-pill{white-space:nowrap}
+.a1-ops .a1-ol-more .a1-ol-inline,.a1-ops .a1-ol-more .a1-ol-inline .a1-nav-dd__item--button{display:flex;width:100%}
+.a1-ops .a1-ol-table .a1-ol-date{display:block}
+.a1-ops .a1-ol-more{position:relative}
+.a1-ops .a1-ol-more>summary{list-style:none}
+.a1-ops .a1-ol-more>summary::-webkit-details-marker{display:none}
+.a1-ops .a1-ol-more .a1-ol-morepanel{min-width:200px;max-height:none;overflow:visible}
+/* Number, date and amount cells stay on one line on tables; phone cards (<= 560px) may wrap. */
+@media (min-width:561px){
+  .a1-ops .a1-table td[data-label="Broj"],.a1-ops .a1-table td[data-label="Datum"],.a1-ops .a1-table td[data-label="Rok"],.a1-ops .a1-table td[data-label="Iznos"]{white-space:nowrap}
+  .a1-ops .a1-table .a1-ol-time{white-space:nowrap}
+}
+@media (min-width:1200px){
+  .a1-ops .a1-ol-table td,.a1-ops .a1-ol-table th{padding-block:var(--a1-space-8);padding-inline:var(--a1-space-12)}
+  .a1-ops .a1-ol-table .a1-ol-actions{flex-wrap:nowrap;align-items:center;white-space:nowrap}
+  .a1-ops .a1-ol-table td:nth-child(2){min-width:12rem}
+  .a1-ops .a1-ol-table td:nth-child(2) .a1-ol-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:20rem}
+  .a1-ops .a1-ol-table tbody tr:nth-last-child(-n+2) .a1-ol-more .a1-ol-morepanel{top:auto;bottom:calc(100% + var(--a1-space-8))}
+  /* Filter buttons share the grid row of the last filter row. */
+  .a1-ops .a1-ol-filters{display:flex;align-items:flex-end;gap:var(--a1-space-16)}
+  .a1-ops .a1-ol-filters .a1-ol-fields{flex:1 1 auto;min-width:0}
+  .a1-ops .a1-ol-filters .a1-filters__actions{flex:0 0 auto;align-self:flex-end;flex-wrap:nowrap}
+}
+
 /* Recovery panel. */
 .a1-ol-recovery{border-color:var(--a1-status-warning-dot)}
 .a1-ol-issues{margin:0;padding-left:var(--a1-space-20);color:var(--a1-text-primary);overflow-wrap:anywhere}

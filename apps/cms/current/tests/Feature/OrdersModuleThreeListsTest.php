@@ -61,7 +61,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringNotContainsString('aria-current="true"', $page);
 
         // Filter bar: same parameter names as before, a visible label for every control.
-        self::assertStringContainsString('<form class="a1-filters" method="get" role="search" aria-label="Filtriranje porudžbina">', $page);
+        self::assertStringContainsString('<form class="a1-filters a1-ol-filters" method="get" role="search" aria-label="Filtriranje porudžbina">', $page);
         foreach (['q', 'source_system', 'status', 'payment_status', 'supplier_user_id', 'date_from', 'date_to'] as $name) {
             self::assertMatchesRegularExpression('/<(?:input|select) class="a1-(?:input|select)" id="(ol-[a-z]+)"[^>]*name="'.$name.'"/', $page, $name);
         }
@@ -110,6 +110,31 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertSame(2, substr_count($page, 'name="_method" value="PATCH"'));
         self::assertSame(1, substr_count($page, '<input type="hidden" name="status" value="processing">'));
         self::assertSame(1, substr_count($page, '<input type="hidden" name="status" value="confirmed">'));
+    }
+
+    public function test_admin_list_phone_cards_label_every_cell_with_its_column_and_hide_nothing(): void
+    {
+        $super = $this->person('superadmin');
+        $buyer = $this->person('user');
+        $this->order($buyer, $super, 'M3L-CARD-001', ['status' => 'new']);
+        $this->order($buyer, $super, 'M3L-CARD-002', ['status' => 'confirmed', 'payment_method' => 'cash_on_delivery']);
+
+        $page = $this->page((string) $this->actingAs($super)->get('/admin/orders')->assertOk()->getContent());
+
+        preg_match_all('/<th\b[^>]*>(.*?)<\/th>/s', $page, $heads);
+        $columns = array_map(static fn (string $h): string => trim(strip_tags($h)), $heads[1]);
+        self::assertCount(9, $columns, 'positive control: the header row was found');
+
+        preg_match('/<tbody.*?<\/tbody>/s', $page, $body);
+        self::assertNotEmpty($body, 'positive control: the table body was found');
+        preg_match_all('/<td\b[^>]*>/', $body[0], $cells);
+        preg_match_all('/<td\b[^>]*\bdata-label="([^"]+)"[^>]*>/', $body[0], $labelled);
+        self::assertCount(18, $cells[0], 'two rows of nine cells');
+        self::assertCount(18, $labelled[0], 'every td carries a data-label');
+        self::assertSame($columns, array_values(array_unique($labelled[1])), 'the card labels are exactly the column headers, in order');
+        // Nothing is switched off for phones: the old late-column class only reordered cards, it never hid a cell.
+        self::assertStringNotContainsString('hidden-mobile', $page);
+        self::assertStringNotContainsString('display:none', $page);
     }
 
     public function test_attention_filter_is_marked_in_words_and_chips_remove_filters(): void

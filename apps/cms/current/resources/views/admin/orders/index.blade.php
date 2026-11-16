@@ -106,7 +106,7 @@
             @endif
         </nav>
 
-        <form class="a1-filters" method="get" role="search" aria-label="Filtriranje porudžbina">
+        <form class="a1-filters a1-ol-filters" method="get" role="search" aria-label="Filtriranje porudžbina">
             <div class="a1-filters__fields a1-ol-fields">
                 <div class="a1-field a1-ol-field-wide">
                     <label class="a1-label" for="ol-q">Pretraga</label>
@@ -154,11 +154,11 @@
                 @endif
                 <div class="a1-field">
                     <label class="a1-label" for="ol-from">Od datuma</label>
-                    <input class="a1-input" id="ol-from" type="date" name="date_from" value="{{ request('date_from') }}">
+                    <input class="a1-input" id="ol-from" type="date" lang="sr-Latn" name="date_from" value="{{ request('date_from') }}">
                 </div>
                 <div class="a1-field">
                     <label class="a1-label" for="ol-to">Do datuma</label>
-                    <input class="a1-input" id="ol-to" type="date" name="date_to" value="{{ request('date_to') }}">
+                    <input class="a1-input" id="ol-to" type="date" lang="sr-Latn" name="date_to" value="{{ request('date_to') }}">
                 </div>
             </div>
             @if(request('attention'))
@@ -190,7 +190,7 @@
                 @endif
             </div>
         @else
-            <div class="a1-tablewrap a1-tablewrap--sticky" role="region" aria-label="Lista porudžbina" tabindex="0">
+            <div class="a1-tablewrap a1-tablewrap--sticky" data-a1-scroll-x role="region" aria-label="Lista porudžbina" tabindex="0">
                 <table class="a1-table a1-table--cards a1-ol-table" role="table">
                     <caption class="a1-sr">Administratorski pregled porudžbina sa statusima, rokovima i dostupnim akcijama.</caption>
                     <thead role="rowgroup">
@@ -228,30 +228,43 @@
                                     'new', 'processing', 'confirmed' => 'warning',
                                     default => '',
                                 };
+                                // Same conditions as before; the first one is the primary button, the rest go into the "Još" menu.
+                                $rowActions = [];
+                                if ($order->source_system === 'laravel' && !$order->accepted_at && in_array($order->status, ['new', 'processing'], true)) {
+                                    $rowActions[] = 'accept';
+                                }
+                                if ($order->source_system === 'laravel' && $order->status === 'new') {
+                                    $rowActions[] = 'processing';
+                                } elseif ($order->source_system === 'laravel' && $order->status === 'processing') {
+                                    $rowActions[] = 'confirmed';
+                                }
+                                if (!$order->completed_at && in_array($order->status, ['confirmed', 'shipped'], true) && ($order->payment_method === 'cash_on_delivery' || $order->payment_status === 'paid')) {
+                                    $rowActions[] = 'complete';
+                                }
                             @endphp
                             <tr role="row" class="{{ $isOverdue ? 'a1-ol-row--over' : '' }}">
-                                <td role="cell" class="a1-table__primary a1-ol-primary" data-label="Broj">
+                                <td role="cell" class="a1-table__primary a1-ol-primary a1-ol-nowrap" data-label="Broj" data-a1-lines="1">
                                     <a class="a1-link" href="{{ route('admin.orders.show', $order) }}">{{ $order->order_number }}</a>
-                                    <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
-                                    @if($isOverdue)
-                                        <span class="a1-ol-flag"><x-icon name="alert" :size="16" :shell="true" /> Prekoračen rok</span>
-                                    @endif
                                 </td>
                                 <td role="cell" data-label="Korisnik">
                                     <span class="a1-ol-cell">
                                         {{ $order->user?->displayName() ?? '—' }}
-                                        <span class="a1-ol-sub">{{ $order->user?->email }}</span>
+                                        <span class="a1-ol-sub" title="{{ $order->user?->email }}">{{ $order->user?->email }}</span>
                                     </span>
                                 </td>
                                 <td role="cell" class="a1-ol-late" data-label="Odgovorno lice">
                                     <span class="a1-ol-cell">
                                         {{ $supplierName ?: '—' }}
                                         <span class="a1-ol-sub">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}</span>
+                                        @if($isOverdue)
+                                            <span class="a1-ol-flag"><x-icon name="alert" :size="16" :shell="true" /> Prekoračen rok</span>
+                                        @endif
                                     </span>
                                 </td>
                                 <td role="cell" data-label="Status obrade">
                                     <span class="a1-ol-cell">
                                         <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Kompletirana' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                                        <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
                                         @if($order->completed_at)
                                             <span class="a1-ol-sub">{{ $order->completed_at->format('d.m.Y H:i') }}</span>
                                         @endif
@@ -260,42 +273,37 @@
                                         @endif
                                     </span>
                                 </td>
-                                <td role="cell" class="a1-ol-late" data-label="Plaćanje">{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
+                                <td role="cell" class="a1-ol-late a1-ol-nowrap" data-label="Plaćanje">{{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
                                 <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</strong></td>
-                                <td role="cell" class="a1-ol-late" data-label="Rok">
+                                <td role="cell" class="a1-ol-late a1-ol-nowrap" data-label="Rok">
                                     @if($order->expected_shipping_at)
-                                        <span class="{{ $isOverdue ? 'a1-ol-due' : '' }}">{{ $order->expected_shipping_at->format('d.m.Y H:i') }}</span>
+                                        <span class="a1-ol-date {{ $isOverdue ? 'a1-ol-due' : '' }}">{{ $order->expected_shipping_at->format('d.m.Y') }}</span>
+                                        <span class="a1-ol-sub">{{ $order->expected_shipping_at->format('H:i') }}</span>
                                     @else
                                         —
                                     @endif
                                 </td>
-                                <td role="cell" data-label="Datum">{{ $order->created_at?->format('d.m.Y H:i') }}</td>
+                                <td role="cell" class="a1-ol-nowrap" data-label="Datum">
+                                    @if($order->created_at)
+                                        <span class="a1-ol-date">{{ $order->created_at->format('d.m.Y') }}</span>
+                                        <span class="a1-ol-sub">{{ $order->created_at->format('H:i') }}</span>
+                                    @endif
+                                </td>
                                 <td role="cell" class="a1-table__actions" data-label="Brze akcije">
                                     <div class="a1-ol-actions" role="group" aria-label="Akcije za porudžbinu {{ $order->order_number }}">
-                                        <a class="a1-btn a1-btn--sm" href="{{ route('admin.orders.show', $order) }}" aria-label="Detalji: {{ $order->order_number }}">Detalji</a>
-                                        @if($order->source_system === 'laravel' && !$order->accepted_at && in_array($order->status, ['new', 'processing'], true))
-                                            <form class="a1-ol-inline" method="post" action="{{ route('admin.orders.accept', $order) }}">
-                                                @csrf
-                                                <button class="a1-btn a1-btn--sm" type="submit" aria-label="Preuzmi: {{ $order->order_number }}">Preuzmi</button>
-                                            </form>
+                                        @if($rowActions !== [])
+                                            @include('admin.orders.partials.row-action', ['order' => $order, 'kind' => $rowActions[0], 'menu' => false])
                                         @endif
-                                        @if($order->source_system === 'laravel' && $order->status === 'new')
-                                            <form class="a1-ol-inline" method="post" action="{{ route('admin.orders.status', $order) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <input type="hidden" name="status" value="processing">
-                                                <button class="a1-btn a1-btn--sm" type="submit" aria-label="U obradu: {{ $order->order_number }}">U obradu</button>
-                                            </form>
-                                        @elseif($order->source_system === 'laravel' && $order->status === 'processing')
-                                            <form class="a1-ol-inline" method="post" action="{{ route('admin.orders.status', $order) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <input type="hidden" name="status" value="confirmed">
-                                                <button class="a1-btn a1-btn--sm" type="submit" aria-label="Potvrdi: {{ $order->order_number }}">Potvrdi</button>
-                                            </form>
-                                        @endif
-                                        @if(!$order->completed_at && in_array($order->status, ['confirmed', 'shipped'], true) && ($order->payment_method === 'cash_on_delivery' || $order->payment_status === 'paid'))
-                                            <a class="a1-btn a1-btn--sm" href="{{ route('admin.orders.show', $order) }}#delivery-completion" aria-label="Evidentiraj isporuku: {{ $order->order_number }}">Evidentiraj isporuku</a>
+                                        <a class="a1-btn a1-btn--quiet a1-btn--sm" href="{{ route('admin.orders.show', $order) }}" aria-label="Detalji: {{ $order->order_number }}">Detalji</a>
+                                        @if(count($rowActions) > 1)
+                                            <details class="a1-nav-dd a1-nav-dd--end a1-ol-more">
+                                                <summary class="a1-btn a1-btn--quiet a1-btn--sm" aria-label="Još akcija: {{ $order->order_number }}">Još</summary>
+                                                <div class="a1-nav-dd__panel a1-ol-morepanel">
+                                                    @foreach(array_slice($rowActions, 1) as $moreKind)
+                                                        @include('admin.orders.partials.row-action', ['order' => $order, 'kind' => $moreKind, 'menu' => true])
+                                                    @endforeach
+                                                </div>
+                                            </details>
                                         @endif
                                     </div>
                                 </td>
