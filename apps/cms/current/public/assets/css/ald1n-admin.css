@@ -914,7 +914,7 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 .a1-trend__bar--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);border-bottom:0;background-color:var(--a1-button-ghost-hover)}
 .a1-swatch--comm{border:var(--a1x-border-width-strong) solid var(--a1-status-warning-dot);background-color:transparent;background-image:radial-gradient(var(--a1-status-warning-dot) 1.2px,transparent 1.6px);background-size:5px 5px}
 .a1-swatch--orders{border:var(--a1x-border-width-strong) dashed var(--a1-text-secondary);background-color:var(--a1-button-ghost-hover)}
-.a1-trendpanel{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-trendpanel{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-12);min-width:0}
 .a1-trendsum{display:grid;gap:var(--a1-space-4)}
 .a1-trendsum .a1-text{font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
 .a1-trendpanel[data-trend-off~=rev] .a1-trend__bar--rev,
