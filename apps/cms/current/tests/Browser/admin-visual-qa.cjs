@@ -556,8 +556,20 @@ async function ordersLayoutChecks(page, pg, width, base) {
       cells.push({ id: label(td) + '[' + (dl || td.cellIndex) + '] "' + (td.textContent || '').trim().slice(0, 20) + '"', max, rects });
     }
     const rows = [...document.querySelectorAll('.a1-tablewrap tbody tr')].filter((r) => r.getClientRects().length > 0).map((r) => r.getBoundingClientRect().height);
-    return { scrollers, cells, rows };
+    // (iv) every row's action cell lies fully inside the viewport and inside its table card (no clipped buttons).
+    const clipped = [];
+    for (const td of document.querySelectorAll('.a1-tablewrap td.a1-table__actions')) {
+      if (td.getClientRects().length === 0) continue;
+      const r = td.getBoundingClientRect();
+      const w = td.closest('.a1-tablewrap').getBoundingClientRect();
+      const content = [...td.querySelectorAll('a, button, summary')].filter((e) => e.getClientRects().length > 0).map((e) => e.getBoundingClientRect());
+      const right = Math.max(r.right, ...content.map((c) => c.right));
+      const left = Math.min(r.left, ...content.map((c) => c.left));
+      if (right > window.innerWidth + 0.5 || right > w.right + 0.5 || left < w.left - 0.5) clipped.push(label(td) + ' right ' + Math.round(right) + ' > card ' + Math.round(w.right) + ' / viewport ' + window.innerWidth);
+    }
+    return { scrollers, cells, rows, clipped };
   });
+  if ((width === 1280 || width === 1440) && m.clipped.length) out.push({ ...base, rule: 'action-cell-clipped', count: m.clipped.length, selectors: m.clipped.slice(0, 3) });
   if (m.scrollers.length) out.push({ ...base, rule: 'inner-vertical-scroll', count: m.scrollers.length, selectors: m.scrollers.slice(0, 3) });
   const bad = m.cells.map((c) => ({ ...c, lines: countLines(c.rects) })).filter((c) => c.lines > c.max).map((c) => c.id + ' ' + c.lines + ' lines (max ' + c.max + ')');
   if (bad.length) out.push({ ...base, rule: 'cell-line-count', count: bad.length, selectors: bad.slice(0, 3) });
@@ -821,7 +833,7 @@ async function runMenuMatrix(browser, state) {
   }
   await browser.close();
   const out = {
-    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'horizontal-overflow', 'console-error', 'failed-request'],
+    browser: browserName, generated_at_ci: new Date().toISOString(), rules: [...new Set([...AXE_RULES, ...ORDERS_AXE_RULES]), 'computed-contrast', 'unlabeled-control', 'orders-structure', 'inner-vertical-scroll', 'cell-line-count', 'row-height', 'action-cell-clipped', 'horizontal-overflow', 'console-error', 'failed-request'],
     widths: WIDTHS, themes: THEMES, pages: PAGES.map((p) => ({ module: p.module, key: p.key, widths: p.widths || WIDTHS })),
     infra_failures: infra, selfTests, menuMatrix, foldMetrics, cells, determinism, findings,
   };
