@@ -12,8 +12,14 @@ foreach ($paths as $path) {
     if (!str_starts_with($path,$prefix)) continue;
     $relative=substr($path,strlen($prefix));
     if (str_starts_with($relative,'tests/') || str_starts_with($relative,'bin/')) continue;
-    if (!is_file($path) || is_link($path)) throw new RuntimeException('Unexpected runtime deletion or symlink.');
+    if (is_link($path)) throw new RuntimeException('Unexpected runtime symlink.');
     $old=trim((string)shell_exec('git rev-parse --verify '.escapeshellarg($base.':'.$path).' 2>/dev/null'));
+    if (!is_file($path)) {
+        // A reviewed removal of an unused runtime file (for example a dashboard partial) is evidence, not an error.
+        if ($old==='' || !preg_match('/^[a-f0-9]{40}$/D',$old)) throw new RuntimeException('Unexpected runtime deletion.');
+        $rows[]=['path'=>$relative,'predecessor_blob'=>$old,'candidate_blob'=>null,'candidate_sha256'=>null,'bytes'=>0,'deleted'=>true];
+        continue;
+    }
     if ($old!=='' && !preg_match('/^[a-f0-9]{40}$/D',$old)) throw new RuntimeException('Invalid predecessor hash.');
     $bytes=file_get_contents($path);
     $rows[]=['path'=>$relative,'predecessor_blob'=>$old!==''?$old:null,
