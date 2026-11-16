@@ -337,11 +337,118 @@ final class CommissionPayableRuleTest extends TestCase
         self::assertSame('10.00', $commission->fresh()->total_eur);
         $this->actingAs($admin)->post($url, $this->k() + ['reason' => 'Još 2', 'order_item_id' => $itemId, 'quantity' => 2])->assertSessionHasErrors('quantity');
         self::assertSame('10.00', $commission->fresh()->total_eur);
-        // isti ključ ponovo: bez dvostrukog storna
-        $key = $this->k();
-        $this->actingAs($admin)->post($url, $key + ['reason' => 'Još 1', 'order_item_id' => $itemId, 'quantity' => 1])->assertSessionHasNoErrors();
-        $this->actingAs($admin)->post($url, $key + ['reason' => 'Još 1', 'order_item_id' => $itemId, 'quantity' => 1]);
-        self::assertSame(2, CommissionAdjustment::query()->count());
+    }
+
+    public function test_idempotency_key_replay_creates_a_single_adjustment_while_quantity_remains(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $itemId = (int) DB::table('order_items')->where('order_id', $order->id)->value('id');
+        $url = '/admin/commissions/'.$commission->id.'/reverse';
+        $body = $this->k() + ['reason' => '1 kom', 'order_item_id' => $itemId, 'quantity' => 1];
+
+        $this->actingAs($admin)->post($url, $body)->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($url, $body)->assertSessionHasNoErrors(); // replay: količina (još 1 kom) bi dozvolila drugi storno
+        self::assertSame(1, CommissionAdjustment::query()->count());
+        self::assertSame('10.00', $commission->fresh()->total_eur);
+    }
+
+    public function test_debit_settlement_never_exceeds_the_debit_and_sequential_payouts_settle_exactly(): void
+    {
+        [$sub, $admin, $first, $c1] = $this->scenario();
+        $super = $this->user('super-lock', 'superadmin');
+        $second = $this->extraOrder($sub, $admin);
+        $c2 = OrderCommission::query()->where('order_id', $second->id)->firstOrFail();
+        $sourceOrder = $this->extraOrder($sub, $admin);
+        $old = OrderCommission::query()->where('order_id', $sourceOrder->id)->firstOrFail();
+        $old->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        $debit = CommissionAdjustment::query()->create(['commission_id' => $old->id, 'order_id' => $sourceOrder->id, 'kind' => 'debit', 'status' => 'confirmed', 'amount_eur' => '30.00', 'reason' => 'Povrat', 'source' => 'manual']);
+        $this->recordPayment($first, $admin);
+        $this->recordPayment($second, $admin);
+
+        $this->actingAs($super)->post('/admin/commissions/bulk-pay', ['commission_ids' => [$c1->id], 'payment_method' => 'cash'])->assertSessionHasNoErrors();
+        $this->actingAs($super)->post('/admin/commissions/bulk-pay', ['commission_ids' => [$c2->id], 'payment_method' => 'cash'])->assertSessionHasNoErrors();
+
+        self::assertSame(3000, (int) round((float) DB::table('commission_debit_settlements')->where('adjustment_id', $debit->id)->sum('amount_eur') * 100));
+        self::assertSame(['20.00', '10.00'], DB::table('commission_debit_settlements')->orderBy('id')->pluck('amount_eur')->all());
+
+        // tvrdo ograničenje: poravnanje ne sme preći iznos zaduženja
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(CommissionReversalService::class)->settleDebit((int) $debit->id, (int) DB::table('commission_payment_batches')->value('id'), 1);
+    }
+
+    public function test_cancelling_order_replaces_open_proposed_debit_with_confirmed_debit_for_the_full_amount(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        $proposed = CommissionAdjustment::query()->create(['commission_id' => $commission->id, 'order_id' => $order->id, 'kind' => 'debit', 'status' => 'proposed', 'amount_eur' => '10.00', 'reason' => 'Povrat', 'source' => 'after_sales_return']);
+
+        app(OrderWorkflowService::class)->changeStatus($order->fresh(), 'cancelled', $admin, 'Otkazano.');
+
+        self::assertSame('20.00', $commission->fresh()->adjustmentSumEur('debit'));
+        self::assertSame(['rejected', 'Zamenjeno otkazivanjem porudžbine'], [$proposed->fresh()->status, $proposed->fresh()->decision_note]);
+        self::assertTrue(AuditLog::query()->where('action', 'commission.debit_rejected')->exists());
+    }
+
+    public function test_return_and_cancellation_do_not_fail_before_the_adjustments_table_exists(): void
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        [$action, $case] = $this->returnAction($sub, $admin, $order, 1);
+        \App\Support\CommissionMoney::$adjustmentsOverride = false; // simulira kod isporučen pre `migrate`
+        try {
+            app(AfterSalesActionService::class)->complete($case, $action, $admin, [], true);
+            self::assertSame('completed', $action->fresh()->status);
+            self::assertSame('20.00', $commission->fresh()->total_eur);
+
+            $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+            app(OrderWorkflowService::class)->changeStatus($order->fresh(), 'cancelled', $admin, 'Otkazano.');
+            self::assertSame('cancelled', $order->fresh()->status);
+            self::assertSame('paid', $commission->fresh()->status);
+        } finally {
+            \App\Support\CommissionMoney::$adjustmentsOverride = null;
+        }
+    }
+
+    public function test_non_superadmin_api_does_not_advertise_payout_and_owed_subtracts_settlements(): void
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('api-super-caps', 'superadmin');
+        $this->recordPayment($order, $admin);
+        $paidOrder = $this->extraOrder($sub, $admin);
+        $paid = OrderCommission::query()->where('order_id', $paidOrder->id)->firstOrFail();
+        $paid->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        $debit = CommissionAdjustment::query()->create(['commission_id' => $paid->id, 'order_id' => $paidOrder->id, 'kind' => 'debit', 'status' => 'confirmed', 'amount_eur' => '30.00', 'reason' => 'Povrat', 'source' => 'manual']);
+        DB::table('commission_payment_batches')->insert(['batch_number' => 'ISPL-T', 'payment_method' => 'cash', 'commission_count' => 1, 'total_eur' => '20.00', 'paid_by' => $super->id, 'paid_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('commission_debit_settlements')->insert(['adjustment_id' => $debit->id, 'batch_id' => DB::table('commission_payment_batches')->value('id'), 'amount_eur' => '20.00', 'created_at' => now(), 'updated_at' => now()]);
+
+        Sanctum::actingAs($admin, ['*']);
+        $this->getJson('/api/v1/admin/commissions')->assertOk()->assertJsonPath('capabilities.bulk_pay', false);
+        $row = $this->getJson('/api/v1/admin/commissions/'.$commission->id)->assertOk()->json('data');
+        self::assertFalse($row['bulk_pay_eligible']);
+        self::assertNotContains('paid', $row['allowed_transitions']);
+        self::assertEquals(10.0, $this->getJson('/api/v1/admin/commissions/'.$paid->id)->json('data.owed_eur')); // 30,00 - 20,00 prebijeno
+        $this->postJson('/api/v1/admin/commissions/adjustments/'.$debit->id.'/confirm')->assertForbidden();
+        $this->postJson('/api/v1/admin/commissions/adjustments/'.$debit->id.'/reject', ['note' => 'x'])->assertForbidden();
+
+        Sanctum::actingAs($super, ['*']);
+        $this->getJson('/api/v1/admin/commissions')->assertJsonPath('capabilities.bulk_pay', true);
+        self::assertTrue($this->getJson('/api/v1/admin/commissions/'.$commission->id)->json('data.bulk_pay_eligible'));
+        self::assertContains('paid', $this->getJson('/api/v1/admin/commissions/'.$commission->id)->json('data.allowed_transitions'));
+    }
+
+    public function test_superadmin_cannot_cancel_a_paid_commission_manually_and_double_confirm_is_rejected(): void
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-nocancel', 'superadmin');
+        $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+
+        $this->actingAs($super)->patch('/admin/commissions/'.$commission->id.'/status', ['status' => 'cancelled', 'note' => 'Greška'])->assertSessionHasErrors('status');
+        self::assertStringContainsString('Storniraj proviziju', session('errors')->first('status'));
+        self::assertSame('paid', $commission->fresh()->status);
+
+        $debit = CommissionAdjustment::query()->create(['commission_id' => $commission->id, 'order_id' => $order->id, 'kind' => 'debit', 'status' => 'proposed', 'amount_eur' => '5.00', 'reason' => 'Povrat', 'source' => 'after_sales_return']);
+        $this->actingAs($super)->post('/admin/commissions/adjustments/'.$debit->id.'/confirm')->assertSessionHasNoErrors();
+        $this->actingAs($super)->post('/admin/commissions/adjustments/'.$debit->id.'/confirm')->assertSessionHasErrors('adjustment');
+        self::assertSame('5.00', $commission->fresh()->adjustmentSumEur('debit'));
     }
 
     public function test_return_after_manual_amount_storno_is_not_reversed_twice(): void
