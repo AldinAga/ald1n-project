@@ -983,9 +983,10 @@ button.a1-drawer-rate{cursor:pointer}
 }
 @media (min-width:1200px){
   /* Logo | search | controls: the two outer tracks stay equal, so the field is in the exact centre of the header. */
-  .a1-header .a1-header__bar{display:grid;grid-template-columns:1fr minmax(220px,520px) 1fr;align-items:center;column-gap:var(--a1-space-12)}
+  .a1-header .a1-header__bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
   .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
-  .a1-header .a1-header__bar>.a1-header__search.a1-searchbtn{grid-column:2;grid-row:1;width:100%;max-width:none;margin:0;justify-content:space-between}
+  /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
+  .a1-header .a1-header__bar>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);transform:translate(-50%,-50%);width:max(220px,min(520px,calc(100% - 880px)));max-width:none;margin:0;justify-content:space-between}
   .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
   .a1-header .a1-header__end>.a1-header__quick{order:1}
   .a1-header .a1-header__end>.a1-rate{order:2}
@@ -995,7 +996,6 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-header .a1-drawer-rate{display:none}
   .a1-header .a1-user__label{display:none}
 }
-@media (min-width:1440px){.a1-header .a1-user__label{display:inline}}
 
 /* Dashboard: period bar in one row, details only after "Prilagođeno". */
 .a1-muted-line{margin:0;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
@@ -1028,3 +1028,6 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-dash .a1-hero .a1-hero__actions{flex-wrap:nowrap;width:100%;padding:var(--a1-space-4);margin:calc(-1 * var(--a1-space-4));overflow-x:auto;scrollbar-width:thin}
   .a1-dash .a1-hero__actions>*{flex:0 0 auto}
 }
+/* Round 2b: phone greeting stays on two lines at most; the orders list keeps a tidy width inside the wide card. */
+.a1-card .a1-list--recent{max-width:62rem}
+@media (max-width:559px){.a1-dash .a1-hero__title .a1-title{font-size:clamp(16px,5vw,20px)}}

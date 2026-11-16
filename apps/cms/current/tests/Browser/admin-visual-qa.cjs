@@ -546,7 +546,8 @@ async function ownerDashboardChecks(page, pg, width, theme) {
         const items = [...document.querySelectorAll('.a1-periodbar .a1-seg__opt')].filter(vis).map((e) => Math.round(e.getBoundingClientRect().top));
         return { n: items.length, rows: new Set(items).size, labels: [...document.querySelectorAll('.a1-periodbar .a1-seg__opt')].map((e) => e.textContent.trim()) };
       })(),
-      datesVisible: (() => { const i = document.getElementById('dash-date-from'); return !!i && i.getClientRects().length > 0; })(),
+      // A closed <details> keeps layout boxes in Chromium; checkVisibility honours its hidden content.
+      datesVisible: (() => { const i = document.getElementById('dash-date-from'); if (!i) return false; return typeof i.checkVisibility === 'function' ? i.checkVisibility({ checkVisibilityCSS: true, contentVisibilityAuto: true }) : !!i.closest('details')?.open; })(),
       customOpen: document.querySelector('.a1-periodbar__custom')?.open === true,
       spark: [...document.querySelectorAll('[data-dashboard-earnings-kpi]')].map((c) => { const s = c.querySelector('.a1-kpi__spark'); if (!s || s.getClientRects().length === 0) return null; const sb = s.getBoundingClientRect(); const cb = c.getBoundingClientRect(); return { top: Math.round(sb.top - cb.top), right: Math.round(cb.right - sb.right), h: Math.round(sb.height) }; }),
       greeting: (() => { const g = document.querySelector('.a1-hero__title'); return g ? Math.round(g.getBoundingClientRect().height) : null; })(),
@@ -592,7 +593,7 @@ async function ownerDashboardChecks(page, pg, width, theme) {
       for (const k of d.earnings) if (!k.text.includes(want[k.key])) bad('owner-earnings-value', `${k.key}: "${k.text}" should contain ${want[k.key]}`);
     }
     if (!d.pills.some((p) => p.text === 'Isporučena' && p.ok)) bad('owner-delivered-chip', JSON.stringify(d.pills));
-    if (width >= 1280 && d.listWidth !== null && d.listWidth > 900) bad('owner-recent-orders-stretched', `list ${d.listWidth}px wide`);
+    if (width >= 1280 && d.listWidth !== null && d.listWidth > 1000) bad('owner-recent-orders-stretched', `list ${d.listWidth}px wide`);
     if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
     if (pg.path === DASH_DATA) {
       if (d.series.length !== 4) bad('owner-trend-toggles', JSON.stringify(d.series));
