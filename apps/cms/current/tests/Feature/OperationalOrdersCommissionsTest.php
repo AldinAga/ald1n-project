@@ -34,6 +34,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $product = $this->product($admin, 'COMM-ITEM', 10);
         $order = $this->createOrder($customer, $admin, $product, 'commission-flow-1');
         $commission = OrderCommission::query()->where('order_id', $order->id)->sole();
+        $order->forceFill(['completed_at' => now()])->save(); // provizija je dospela tek posle isporuke ili pune naplate
 
         $this->actingAs($customer)
             ->get('/commissions')
@@ -128,6 +129,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $firstOrder = $this->createOrder($first, $admin, $product, 'batch-flow-a');
         $secondOrder = $this->createOrder($second, $admin, $product, 'batch-flow-b');
         $commissions = OrderCommission::query()->whereIn('order_id', [$firstOrder->id, $secondOrder->id])->orderBy('id')->get();
+        Order::query()->whereIn('id', [$firstOrder->id, $secondOrder->id])->update(['completed_at' => now()]);
 
         foreach ($commissions as $commission) {
             $this->actingAs($admin)->patch('/admin/commissions/'.$commission->id.'/status', [
