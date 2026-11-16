@@ -218,19 +218,20 @@
         @else
             @php
                 $tiles = array_merge(
-                    [['revenue', 'Promet', $fmt($totals['revenue']).' RSD', true]],
-                    [['gross', 'Zarada (bruto dobit)', $fmt($totals['gross']).' RSD', true]],
-                    [['commission', 'Provizija (obračunata)', $fmt($totals['commission']).' RSD', true]],
-                    [['net', 'Neto posle provizije', $fmt($totals['net']).' RSD', true]],
-                    [['orders', 'Porudžbine', $fmt($totals['orders'], 0), false], ['avg', 'Prosečna porudžbina', $fmt($totals['avg']).' RSD', true]]
+                    [['revenue', 'Promet', $fmt($totals['revenue']).' RSD', true, $fmt($totals['revenue_eur'])]],
+                    [['gross', 'Zarada (bruto dobit)', $fmt($totals['gross']).' RSD', true, $fmt($totals['gross_eur'])]],
+                    [['commission', 'Provizija (obračunata)', $fmt($totals['commission']).' RSD', true, $fmt($totals['commission_eur'])]],
+                    [['net', 'Neto posle provizije', $fmt($totals['net']).' RSD', true, $fmt($totals['net_eur'])]],
+                    [['orders', 'Porudžbine', $fmt($totals['orders'], 0), false, null], ['avg', 'Prosečna porudžbina', $fmt($totals['avg']).' RSD', true, $fmt($totals['avg_eur'])]]
                 );
             @endphp
             <section aria-label="Ukupno za izabrani period">
                 <div class="a1-grid a1-grid--kpi">
-                    @foreach($tiles as [$key, $label, $value, $money])
+                    @foreach($tiles as [$key, $label, $value, $money, $eur])
                         <div class="a1-kpi">
                             <p class="a1-kpi__label">{{ $label }}</p>
                             <p class="a1-kpi__value">{{ $value }}</p>
+                            @if($eur !== null)<p class="a1-kpi__eur" data-sbs-eur="{{ $key }}">{{ $eur }} EUR</p>@endif
                             @if($report['deltas'] && isset($report['deltas'][$key]))
                                 @php $d = $report['deltas'][$key]; $tone = $key === 'commission' || $d['direction'] === 'flat' ? '' : ' a1-kpi__delta--'.$d['direction']; @endphp
                                 <p class="a1-kpi__delta{{ $tone }}"><svg class="a1-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="{{ $arrow[$d['direction']] }}"/></svg><span>{{ $deltaText($d, $money) }}</span></p>

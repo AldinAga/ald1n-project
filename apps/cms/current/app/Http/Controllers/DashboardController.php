@@ -58,6 +58,8 @@ final class DashboardController extends Controller
             'warranties_view_own' => $this->allows($user, 'warranties.view_own'),
             'receivables_manage' => $this->allows($user, 'receivables.manage'),
             'reports_view' => $this->allows($user, 'reports.view'),
+            'commissions_manage' => $this->allows($user, 'commissions.manage'),
+            'commissions_own' => $this->allows($user, 'commissions.view_own'),
         ];
 
         $orderStats = $this->orderStats($user, $access);
@@ -99,17 +101,16 @@ final class DashboardController extends Controller
             }
         }
         $recentOrders = $this->recentOrders($user, $access);
-        $priorityActions = $this->priorityActions($access, $orderStats, $productStats, $afterSalesStats, $fieldOperationsStats, $servicePartsStats, $warrantyStats, $receivableStats);
-        $portal = $this->portalData($user, $access, $portalService);
-
         try {
-            $eurRsdRate = $settings->eurRsdRate();
-            $eurRsdSource = (string) ($settings->get('eur_rsd_source', 'Ručno') ?: 'Ručno');
+            $shipDays = max(1, min(30, (int) $settings->get('dashboard_confirmed_ship_days', '2')));
         } catch (Throwable $exception) {
             $this->reportDashboardWarning('settings', $exception);
-            $eurRsdRate = null;
-            $eurRsdSource = 'Nije podešeno';
+            $shipDays = 2;
         }
+        $attention = $this->attentionCounters($user, $access, $shipDays);
+        $priorityActions = $this->priorityActions($access, $orderStats, $productStats, $afterSalesStats, $fieldOperationsStats, $servicePartsStats, $warrantyStats, $receivableStats, $userStats, $attention, $shipDays, $user->hasRole('superadmin'));
+        $portal = $this->portalData($user, $access, $portalService);
+        $subAgent = $this->subAgentData($user, $dashboardPeriod);
 
         return view('dashboard.index', [
             'user' => $user,
@@ -130,10 +131,53 @@ final class DashboardController extends Controller
             'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
             'priorityActions' => $priorityActions,
-            'eurRsdRate' => $eurRsdRate,
-            'eurRsdSource' => $eurRsdSource,
             'portal' => $portal,
+            'subAgent' => $subAgent,
         ]);
+    }
+
+    /**
+     * SubAgent ("Moja zarada" / "Moje porudžbine"): own commissions by status and own non-cancelled orders created in the period.
+     * Only the user's own rows; nothing about purchase prices or company profit.
+     *
+     * @param array{period:string,date_from:string,date_to:string,error:?string} $period
+     * @return array<string,mixed>|null
+     */
+    private function subAgentData(User $user, array $period): ?array
+    {
+        if (!$user->hasRole('user') || $period['error'] !== null) {
+            return null;
+        }
+        try {
+            $from = $period['date_from'].' 00:00:00';
+            $to = CarbonImmutable::parse($period['date_to'])->addDay()->format('Y-m-d').' 00:00:00';
+            $orders = Order::query()->operational()->where('user_id', $user->id)->where('status', '!=', 'cancelled')
+                ->where('created_at', '>=', $from)->where('created_at', '<', $to)
+                ->selectRaw('COUNT(*) AS orders_count, COALESCE(SUM(subtotal_rsd),0) AS value_rsd, COALESCE(SUM(subtotal_rsd / NULLIF(eur_rsd_rate,0)),0) AS value_eur')->first();
+            $commission = ['pending' => ['rsd' => 0.0, 'eur' => 0.0], 'approved' => ['rsd' => 0.0, 'eur' => 0.0], 'paid' => ['rsd' => 0.0, 'eur' => 0.0]];
+            if (Schema::hasTable('order_commissions')) {
+                $rows = \Illuminate\Support\Facades\DB::table('order_commissions as oc')
+                    ->join('orders as o', 'o.id', '=', 'oc.order_id')
+                    ->where('oc.user_id', $user->id)->whereIn('oc.status', ['pending', 'approved', 'paid'])
+                    ->where('o.created_at', '>=', $from)->where('o.created_at', '<', $to)
+                    ->groupBy('oc.status')
+                    ->selectRaw('oc.status AS status, COALESCE(SUM(oc.total_eur),0) AS eur, COALESCE(SUM(oc.total_eur * COALESCE(o.eur_rsd_rate,0)),0) AS rsd')->get();
+                foreach ($rows as $row) {
+                    $commission[(string) $row->status] = ['rsd' => round((float) $row->rsd, 2), 'eur' => round((float) $row->eur, 2)];
+                }
+            }
+
+            return [
+                'period_label' => CarbonImmutable::parse($period['date_from'])->format('d.m.Y').' – '.CarbonImmutable::parse($period['date_to'])->format('d.m.Y'),
+                'orders_count' => (int) ($orders?->getAttribute('orders_count') ?? 0),
+                'orders_value_rsd' => round((float) ($orders?->getAttribute('value_rsd') ?? 0), 2),
+                'orders_value_eur' => round((float) ($orders?->getAttribute('value_eur') ?? 0), 2),
+                'commission' => $commission,
+            ];
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('subagent', $exception);
+            return null;
+        }
     }
 
     /** @param array<string,bool> $access @return array<string,mixed> */
@@ -207,7 +251,6 @@ final class DashboardController extends Controller
             'period_label' => $periodLabel,
             'summary' => [],
             'trend' => [],
-            'comparison' => null,
         ];
         // Never show a financial snapshot against an invalid selected period.
         if (!($access['reports_view'] ?? false) || $dashboardPeriod['error'] !== null) {
@@ -225,17 +268,35 @@ final class DashboardController extends Controller
                 'group_by' => 'brand',
             ]);
             $summary = $reports->summary($user, $filters);
-            $comparison = $reports->comparison($user, $filters, $summary);
             return [
                 'ready' => true,
                 'period_label' => $periodLabel,
                 'summary' => $summary,
                 'trend' => $reports->trend($user, $filters),
-                'comparison' => $comparison,
+                // SuperAdmin earnings cards only; every other role gets null and never the numbers.
+                'earnings' => $this->earnings($user, $reports, $filters, $summary),
             ];
         } catch (Throwable $exception) {
             $this->reportDashboardWarning('management_report_stats', $exception);
             return $fallback;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $filters
+     * @param array<string,mixed> $summary
+     * @return array{revenue_rsd:float,commissions_rsd:float,gross_rsd:float,net_rsd:float}|null
+     */
+    private function earnings(User $user, ManagementReportService $reports, array $filters, array $summary): ?array
+    {
+        if (!$user->hasRole('superadmin')) {
+            return null;
+        }
+        try {
+            return $reports->earnings($user, $filters, $summary);
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('earnings', $exception);
+            return null;
         }
     }
 
@@ -293,6 +354,9 @@ final class DashboardController extends Controller
                 $summary = \App\Support\OrderProductSummary::fromNames(
                     $order->relationLoaded('items') ? $order->items->pluck('product_name') : [],
                 );
+                // Display only: delivered (completed_at set, not cancelled) shows as "Isporučena"; the stored status is untouched.
+                $delivered = $order->completed_at !== null && $order->status !== 'cancelled';
+                $displayStatus = $delivered ? 'completed' : (string) $order->status;
                 return [
                     'seller_name' => $order->user?->displayName() ?? '—',
                     'buyer_name' => trim((string) $order->shipping_full_name) ?: '—',
@@ -300,10 +364,12 @@ final class DashboardController extends Controller
                     'product_name' => $summary['product_name'],
                     'other_products' => $summary['other_products'],
                     'number' => $order->order_number,
-                    'status' => $order->status,
-                    'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Završena','cancelled'=>'Otkazana'][$order->status] ?? $order->status,
+                    'status' => $displayStatus,
+                    'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Isporučena','cancelled'=>'Otkazana'][$displayStatus] ?? $displayStatus,
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'remaining_rsd' => max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd),
+                    // EUR line: the rate stored on the order itself, never today's rate; null when the order has none.
+                    'total_eur' => (float) $order->eur_rsd_rate > 0 ? round((float) $order->subtotal_rsd / (float) $order->eur_rsd_rate, 2) : null,
                     'updated_at' => $order->updated_at,
                     'url' => $access['orders_manage'] ? route('admin.orders.show', $order) : route('orders.show', $order),
                 ];
@@ -325,22 +391,61 @@ final class DashboardController extends Controller
      * @param array<string,mixed> $receivableStats
      * @return array<int,array<string,mixed>>
      */
-    private function priorityActions(array $access, array $orderStats, array $productStats, array $afterSalesStats, array $fieldOperationsStats, array $servicePartsStats, array $warrantyStats, array $receivableStats): array
+    private function priorityActions(array $access, array $orderStats, array $productStats, array $afterSalesStats, array $fieldOperationsStats, array $servicePartsStats, array $warrantyStats, array $receivableStats, array $userStats = [], array $attention = [], int $shipDays = 2, bool $isSuper = false): array
     {
         $items = [];
         $push = static function (array &$items, bool $allowed, int|float $count, string $title, string $description, string $url, string $tone, string $icon): void {
             if (!$allowed || $count <= 0) return;
             $items[] = compact('count', 'title', 'description', 'url', 'tone', 'icon');
         };
-        $push($items, (bool) ($access['orders_manage'] ?? false), (int) $orderStats['new'], 'Nove porudžbine', 'Čekaju pregled i preuzimanje.', route('admin.orders.index', ['status'=>'new']), 'info', 'orders');
-        $push($items, (bool) ($access['receivables_manage'] ?? false), (float) $receivableStats['overdue_amount'], 'Dospelo dugovanje', number_format((float) $receivableStats['overdue_amount'], 2, ',', '.').' RSD zahteva pažnju.', route('admin.receivables.index', ['aging'=>'1_7']), 'danger', 'wallet');
+        $push($items, (bool) ($access['orders_manage'] ?? false), (int) $orderStats['new'], 'Nove porudžbine za potvrdu', 'Čekaju pregled i potvrdu.', route('admin.orders.index', ['status'=>'new']), 'info', 'orders');
+        $push($items, (bool) ($access['orders_manage'] ?? false), (int) ($attention['payments_waiting'] ?? 0), 'Uplate čekaju potvrdu', 'Poslata potvrda uplate čeka proveru.', route('admin.orders.index', ['payment_status'=>'pending']), 'warning', 'wallet');
+        $push($items, $isSuper && (bool) ($access['commissions_manage'] ?? false), (int) ($attention['commissions_to_pay'] ?? 0), 'Provizije za isplatu', 'Odobrene provizije čekaju isplatu.', route('admin.commissions.index', ['status'=>'approved']), 'info', 'coins');
+        $push($items, (bool) ($access['orders_manage'] ?? false), (int) ($attention['confirmed_unshipped'] ?? 0), 'Potvrđene, a neposlate', 'Potvrđene više od '.$shipDays.' dana, još nisu poslate.', route('admin.orders.index', ['status'=>'confirmed']), 'danger', 'truck');
+        $push($items, (bool) ($access['after_sales_manage'] ?? false), (int) ($afterSalesStats['active'] ?? 0), 'Otvorene reklamacije', 'Reklamacije i servisi koji nisu zatvoreni.', route('admin.after-sales.index'), 'warning', 'alert');
+        $push($items, $isSuper && (bool) ($access['manage_users'] ?? false), (int) ($userStats['pending'] ?? 0), 'Nalozi na čekanju', 'Novi nalozi čekaju odobrenje.', route('admin.users.index', ['status'=>'pending']), 'info', 'users');
+        $push($items, (bool) ($access['receivables_manage'] ?? false), (int) ($receivableStats['overdue_count'] ?? 0), 'Dospelo dugovanje', number_format((float) $receivableStats['overdue_amount'], 2, ',', '.').' RSD zahteva pažnju.', route('admin.receivables.index', ['aging'=>'1_7']), 'danger', 'wallet');
         $push($items, (bool) ($access['after_sales_manage'] ?? false), (int) $afterSalesStats['overdue'], 'Reklamacije preko roka', 'Slučajevi sa probijenim SLA rokom.', route('admin.after-sales.index', ['overdue'=>'1']), 'danger', 'alert');
         $push($items, (bool) ($access['field_operations_view'] ?? false), (int) $fieldOperationsStats['unscheduled'], 'Nalozi bez termina', 'Terenske intervencije treba rasporediti.', route('admin.field-operations.index', ['unscheduled'=>'1']), 'warning', 'truck');
         $push($items, (bool) ($access['catalog_manage_products'] ?? false), (int) $productStats['out_of_stock'], 'Artikli bez lagera', 'Aktivni artikli trenutno nisu raspoloživi.', route('catalog.index', ['stock'=>'out']), 'warning', 'boxes');
         $push($items, (bool) ($access['service_parts_view'] ?? false), (int) $servicePartsStats['low'], 'Servisni delovi ispod minimuma', 'Potrebna provera ili nabavka delova.', route('admin.service-parts.index', ['filter'=>'low']), 'warning', 'cog');
         $push($items, (bool) (($access['warranties_manage'] ?? false) || ($access['warranties_view_own'] ?? false)), (int) $warrantyStats['maintenance_due'], 'Preventivno održavanje', 'Termini dospevaju u narednih sedam dana.', ($access['warranties_manage'] ?? false) ? route('admin.warranties.index') : route('warranties.index'), 'info', 'shield');
         usort($items, static fn (array $a, array $b): int => (['danger'=>0,'warning'=>1,'info'=>2,'success'=>3][$a['tone']] ?? 9) <=> (['danger'=>0,'warning'=>1,'info'=>2,'success'=>3][$b['tone']] ?? 9));
-        return array_slice($items, 0, 7);
+        return array_slice($items, 0, 12);
+    }
+
+    /**
+     * Counters behind "Prioritetne aktivnosti": one aggregate over the orders the role may manage (an administrator only
+     * his own as the responsible person), one count of approved commissions (SuperAdmin only). No per-row queries.
+     *
+     * @param array<string,bool> $access
+     * @return array{payments_waiting:int,confirmed_unshipped:int,commissions_to_pay:int}
+     */
+    private function attentionCounters(User $user, array $access, int $shipDays): array
+    {
+        $out = ['payments_waiting' => 0, 'confirmed_unshipped' => 0, 'commissions_to_pay' => 0];
+        try {
+            if (($access['orders_manage'] ?? false) && $this->tableHasColumns('orders', ['id', 'status', 'updated_at', 'accepted_at', 'supplier_user_id']) && Schema::hasTable('order_payments')) {
+                $orders = Order::query()->operational();
+                if ($user->hasRole('admin')) {
+                    $orders->where('supplier_user_id', $user->id);
+                }
+                $row = $orders->selectRaw(
+                    'COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM order_payments p WHERE p.order_id = orders.id AND p.status = ?) THEN 1 ELSE 0 END),0) AS payments_waiting, '
+                    .'COALESCE(SUM(CASE WHEN orders.status = ? AND orders.completed_at IS NULL AND COALESCE(orders.accepted_at, orders.updated_at) <= ? THEN 1 ELSE 0 END),0) AS confirmed_unshipped',
+                    ['submitted', 'confirmed', now()->subDays($shipDays)->toDateTimeString()],
+                )->first();
+                $out['payments_waiting'] = (int) ($row?->getAttribute('payments_waiting') ?? 0);
+                $out['confirmed_unshipped'] = (int) ($row?->getAttribute('confirmed_unshipped') ?? 0);
+            }
+            if ($user->hasRole('superadmin') && ($access['commissions_manage'] ?? false) && Schema::hasTable('order_commissions')) {
+                $out['commissions_to_pay'] = (int) \Illuminate\Support\Facades\DB::table('order_commissions')->where('status', 'approved')->count();
+            }
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('attention_counters', $exception);
+        }
+
+        return $out;
     }
 
     /** @param array<string,bool> $access */
@@ -499,7 +604,7 @@ final class DashboardController extends Controller
     /** @param array<string,bool> $access */
     private function receivableStats(User $user, array $access): array
     {
-        $fallback = ['active' => 0, 'overdue_amount' => 0.0, 'promised' => 0, 'plans' => 0];
+        $fallback = ['active' => 0, 'overdue_amount' => 0.0, 'overdue_count' => 0, 'promised' => 0, 'plans' => 0];
         if (!($access['receivables_manage'] ?? false)) return $fallback;
         try {
             if (!$this->tableHasColumns('receivable_cases', ['id','order_id','assigned_to','status']) || !$this->tableHasColumns('orders', ['id','supplier_user_id','subtotal_rsd','paid_total_rsd','payment_due_at'])) return $fallback;
@@ -513,6 +618,7 @@ final class DashboardController extends Controller
             return [
                 'active' => (clone $cases)->where('status','!=','closed')->count(),
                 'overdue_amount' => (float) (clone $orders)->where('payment_due_at','<',today())->selectRaw('COALESCE(SUM(CASE WHEN subtotal_rsd > paid_total_rsd THEN subtotal_rsd-paid_total_rsd ELSE 0 END),0) total')->value('total'),
+                'overdue_count' => (clone $orders)->where('payment_due_at','<',today())->count(),
                 'promised' => (clone $cases)->where('status','promised')->count(),
                 'plans' => (clone $cases)->where('status','installment_plan')->count(),
             ];

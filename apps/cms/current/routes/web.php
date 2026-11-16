@@ -307,6 +307,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
 
     Route::middleware('permission:notifications.view')->group(function (): void {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/recent', [NotificationController::class, 'recent'])->name('notifications.recent');
         Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     });
@@ -572,6 +573,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->middleware('throttle:admin-write')->name('public-storefront.legal.reset');
             Route::get('/modules', [ModuleSettingsController::class, 'index'])->name('modules.index');
             Route::put('/modules', [ModuleSettingsController::class, 'update'])->middleware('throttle:admin-write')->name('modules.update');
+            Route::put('/modules/operations', [ModuleSettingsController::class, 'updateOperations'])->middleware('throttle:admin-write')->name('modules.operations');
             Route::get('/automation', [AutomationController::class, 'index'])->middleware('permission:automation.manage')->name('automation.index');
             Route::put('/automation', [AutomationController::class, 'update'])->middleware('permission:automation.manage')->name('automation.update');
             Route::post('/automation/run', [AutomationController::class, 'run'])->middleware('permission:automation.manage')->name('automation.run');
