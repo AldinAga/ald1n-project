@@ -188,12 +188,12 @@
         {{-- Desktop (from 1200px): rate chip and theme switch live in the bar's right-hand box. --}}
         @can('system.manage_settings')
         <button class="a1-rate a1-rate--action{{ $exchangeRateIsStale ? ' is-stale' : '' }}" type="button" data-exchange-rate-sync data-exchange-rate-sync-url="{{ route('admin.settings.exchange.refresh') }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }} · Klikni za automatsko ažuriranje">
-            <span data-exchange-rate-header-label>EUR/RSD@if($exchangeRateIsStale)<span class="a1-sr"> · proveri kurs</span>@endif</span>
+            <span data-exchange-rate-header-label>EUR/RSD{!! $exchangeRateIsStale ? '<span class="a1-sr"> · proveri kurs</span>' : '' !!}</span>
             <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
         </button>
         @else
         <span class="a1-rate{{ $exchangeRateIsStale ? ' is-stale' : '' }}" data-exchange-rate-source-title title="{{ $exchangeRateSource }}">
-            <span>EUR/RSD@if($exchangeRateIsStale)<span class="a1-sr"> · proveri kurs</span>@endif</span>
+            <span>EUR/RSD{!! $exchangeRateIsStale ? '<span class="a1-sr"> · proveri kurs</span>' : '' !!}</span>
             <b data-exchange-rate-value data-exchange-rate-decimals="2">{{ $exchangeRateValue ? number_format((float) $exchangeRateValue, 2, ',', '.') : 'Nije podešen' }}</b>
         </span>
         @endcan
