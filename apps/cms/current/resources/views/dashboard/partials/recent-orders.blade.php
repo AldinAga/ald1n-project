@@ -8,7 +8,7 @@
     </div>
     @if(count($recentOrders) > 0)
         <ul class="a1-list a1-list--recent{{ $stacked ? ' a1-list--stacked' : '' }}">
-            @foreach(array_slice($recentOrders, 0, 6) as $order)
+            @foreach(array_slice($recentOrders, 0, 4) as $order)
                 @php
                     $extra = $order['other_products'] > 0 ? ' + '.$order['other_products'] : '';
                     $who = $access['orders_manage'] ? ($order['is_direct_sale'] ? 'Direktna prodaja' : 'Korisnik: '.$order['seller_name']).' · Kupac: '.$order['buyer_name'] : '';
