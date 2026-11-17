@@ -468,8 +468,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 @media print{.a1-header,.a1-actionbar,.a1-toasts,.a1-tabs{display:none}.a1-app{background:#fff;color:#000}}
 
-/* ==========================================================================
-   Module 1: admin shell on pages whose content still uses the old CSS.
+/* ===================================================================   Module 1: admin shell on pages whose content still uses the old CSS.
    Keep this block contiguous at the end of the file. The shell opts in with
    .a1-shell (header, footer, skip link, search dialog, flash region) and
    .a1-body (body); nothing here restyles old content. See docs/redesign/admin-shell.md.
@@ -604,8 +603,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 @media print{.a1-footer__links,.a1-scrim,.a1-cmd{display:none}}
 
-/* ==========================================================================
-   Module 2: admin dashboard (Početna). Contiguous block, after the shell block.
+/* ===================================================================   Module 2: admin dashboard (Početna). Contiguous block, after the shell block.
    The root is .a1-dash, deliberately NOT .a1-shell: the shell QA cells measure
    .a1-shell only, and the dashboard has its own scope. Everything stays on
    tokens; the only hand-set measures are small pixel sizes (chart height,
@@ -848,8 +846,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-kpi__delta .a1-icon{color:CanvasText}
 }
 
-/* ==========================================================================
-   Module 3: admin orders ("Porudzbine" menu: cart, own and all orders, after-sales,
+/* ===================================================================   Module 3: admin orders ("Porudzbine" menu: cart, own and all orders, after-sales,
    field operations, service parts). Contiguous block, after the dashboard block.
    The root is .a1-ops. Everything stays on tokens. Page-specific rules live in
    the sub-blocks below (prefixes .a1-ol list, .a1-od detail, .a1-of forms, .a1-os service).
@@ -899,8 +896,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 
 /* M3 sub-block: Lists: admin and own orders, archived orders, cart (prefix a1-ol-) */
-/* ==========================================================================
-   Module 3, orders lists (prefix a1-ol-): admin list, archive, "Moje porudzbine", cart.
+/* ===================================================================   Module 3, orders lists (prefix a1-ol-): admin list, archive, "Moje porudzbine", cart.
    Appended by the coordinator after the shared .a1-ops block. Tokens only.
    Author: Ald1n <https://ald1n.com>
    ========================================================================== */
@@ -1041,8 +1037,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 
 /* M3 sub-block: Admin order detail (prefix a1-od-) */
-/* ==========================================================================
-   Module 3, admin order detail (prefix .a1-od-). Appended to ald1n-admin.css by the coordinator.
+/* ===================================================================   Module 3, admin order detail (prefix .a1-od-). Appended to ald1n-admin.css by the coordinator.
    Author: Ald1n <https://ald1n.com>. Tokens only; every base selector is declared once.
    ========================================================================== */
 
@@ -1151,8 +1146,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 }
 
 /* M3 sub-block: Customer order detail, create, edit (prefix a1-oc-) */
-/* ==========================================================================
-   Module 3, customer orders (prefix a1-oc-): own order detail, payments partial,
+/* ===================================================================   Module 3, customer orders (prefix a1-oc-): own order detail, payments partial,
    new order form, order amendment form. Scope: .a1-ops. Tokens only.
    Author: Ald1n <https://ald1n.com>
    ========================================================================== */
@@ -1422,8 +1416,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table td.a1-ol-primary .a1-link{white-space:nowrap;letter-spacing:0}
 }
 
-/* ==========================================================================
-   Dashboard + shell owner feedback (2026-11-16). One block, appended; tokens only.
+/* ===================================================================   Dashboard + shell owner feedback (2026-11-16). One block, appended; tokens only.
    Shell: centered desktop search with the icon on the right, avatar + theme icon + rate card on phones.
    Dashboard: compact recent-orders rows, earnings cards, trend series toggles, Top 5/10 brand list.
    ========================================================================== */
@@ -1548,7 +1541,7 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-header .a1-header__bar:has(>.a1-header__end){display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
   .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
   /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
-  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between}
+  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between;padding-inline:var(--a1-space-16)}
   .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
   .a1-header .a1-header__end>.a1-header__quick{order:1}
   .a1-header .a1-header__end>.a1-rate{order:2;max-width:9.5rem;overflow:hidden}
@@ -1595,6 +1588,26 @@ button.a1-drawer-rate{cursor:pointer}
 .a1-card .a1-list--recent{max-width:62rem}
 @media (max-width:559px){.a1-dash .a1-hero__title .a1-title{font-size:clamp(14px,4.2vw,18px)}}
 
+/* Desktop: recent orders sit in the right column under the brands; the trend card spans both rows and stretches to the same height. */
+@media (min-width:1100px){
+  .a1-g12--stack>.a1-lg-7{grid-row:1/span 2;align-self:start}
+  .a1-g12--stack>[data-dashboard-d3]{grid-column:8/span 5;grid-row:1}
+  .a1-g12--stack>.a1-orders-under{grid-column:8/span 5;grid-row:2}
+}
+.a1-list--stacked.a1-list--recent{max-width:none}
+/* Order card: full-width lines instead of a squeezed text block. */
+.a1-list--stacked .a1-item--order{display:flex;flex-direction:column;align-items:stretch;gap:2px;min-height:0;padding:var(--a1-space-8) var(--a1-space-16)}
+.a1-ordercard__top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-12)}
+.a1-ordercard__title{flex:1 1 auto;min-width:0;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary)}
+.a1-ordercard__top>.a1-pill{flex:0 0 auto}
+.a1-ordercard__num{display:flex;flex-wrap:wrap;gap:0 var(--a1-space-8);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
+.a1-ordercard__no,.a1-ordercard__date{white-space:nowrap}
+.a1-ordercard__who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-ordercard__bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--a1-space-12)}
+.a1-ordercard__note{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
+.a1-ordercard__amount{display:grid;justify-items:end;text-align:right;font-variant-numeric:tabular-nums}
+/* Rows: brands take their own height, the leftover of the tall trend card goes below the orders card (no gap between the two). */
+@media (min-width:1100px){.a1-g12--stack{align-items:start;grid-template-rows:auto 1fr}}
 @media (min-width:1100px){
   .a1-ops .a1-ol-table th:nth-child(1){width:18%}.a1-ops .a1-ol-table th:nth-child(2){width:10.5%}.a1-ops .a1-ol-table th:nth-child(8){width:18%}
 }

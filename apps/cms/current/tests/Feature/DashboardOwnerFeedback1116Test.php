@@ -42,15 +42,25 @@ final class DashboardOwnerFeedback1116Test extends TestCase
 
         $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
 
-        self::assertMatchesRegularExpression('/OF-DELIVERED-1 · [^<]*<\/span><\/span><span class="a1-item__status"><span class="a1-pill a1-pill--ok">Isporučena</', $dash);
-        self::assertMatchesRegularExpression('/OF-SHIPPED-1 · [^<]*<\/span><\/span><span class="a1-item__status"><span class="a1-pill a1-pill--warning">Poslata</', $dash);
-        self::assertMatchesRegularExpression('/OF-CANCELLED-1 · [^<]*<\/span><\/span><span class="a1-item__status"><span class="a1-pill a1-pill--danger">Otkazana</', $dash);
+        // Each order is one card (<li>); its chip is on the first line, the number on the second.
+        $card = static function (string $number) use ($dash): string {
+            foreach (explode('<li>', $dash) as $chunk) {
+                if (str_contains($chunk, 'a1-ordercard__no">'.$number.'<')) {
+                    return explode('</li>', $chunk)[0];
+                }
+            }
+            self::fail('no order card for '.$number);
+        };
+        self::assertStringContainsString('a1-pill a1-pill--ok">Isporučena<', $card('OF-DELIVERED-1'));
+        self::assertStringContainsString('a1-pill a1-pill--warning">Poslata<', $card('OF-SHIPPED-1'));
+        self::assertStringContainsString('a1-pill a1-pill--danger">Otkazana<', $card('OF-CANCELLED-1'));
+        self::assertStringContainsString('class="a1-ordercard__no">OF-DELIVERED-1<', $card('OF-DELIVERED-1'));
         // Display only: the stored status values are what they were.
         self::assertSame('shipped', DB::table('orders')->where('id', $delivered->id)->value('status'));
         self::assertSame('shipped', DB::table('orders')->where('id', $shipped->id)->value('status'));
         self::assertSame('cancelled', DB::table('orders')->where('id', $cancelled->id)->value('status'));
         // The compact list modifier replaces the full-width stretch.
-        self::assertStringContainsString('class="a1-list a1-list--recent"', $dash);
+        self::assertStringContainsString('class="a1-list a1-list--recent', $dash);
     }
 
     public function test_superadmin_earnings_cards_show_the_period_numbers(): void
@@ -137,7 +147,7 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
 
         // 10.000 RSD at the stored rate 117 = 85,47 EUR; today's rate does not enter.
-        self::assertStringContainsString('<span class="a1-item__money">10.000,00 RSD</span><span class="a1-item__eur">85,47 EUR</span>', $dash);
+        self::assertStringContainsString('<span class="a1-item__money">10.000,00 RSD</span><span class="a1-item__eur">85,47 EUR</span></span>', $dash);
     }
 
     public function test_subagent_sales_totals_show_eur_with_the_stored_rates(): void
@@ -216,7 +226,7 @@ final class DashboardOwnerFeedback1116Test extends TestCase
 
         $dash = $this->dashboard((string) $this->actingAs($admin)->get('/')->assertOk()->getContent());
 
-        self::assertMatchesRegularExpression('/NM-1 · [^<]*· Korisnik: [^<]*· Kupac: Petar Petrović</', $dash);
+        self::assertMatchesRegularExpression('/class="a1-ordercard__no">NM-1<.*?class="a1-ordercard__who"[^>]*>Korisnik: [^<]* · Kupac: Petar Petrović</s', $dash);
         self::assertSame(1, substr_count($dash, 'Poslednje porudžbine'));
         foreach (['Porudžbine korisnika', 'data-operator-order-center', 'Brze akcije', 'Svi dostupni moduli na jednom mestu', 'a1-modules'] as $gone) {
             self::assertStringNotContainsString($gone, $dash);

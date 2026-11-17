@@ -537,7 +537,7 @@ async function dashboardChecks(page, pg, width, theme) {
       .filter((e) => Math.abs(e.getBoundingClientRect().height - 48) > 1)
       .map((e) => 'date ' + Math.round(e.getBoundingClientRect().height) + 'px (control is 48px)');
     const clipped = [...root.querySelectorAll('*')]
-      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap, [data-scroll-row]') && !e.matches('input, select, textarea, svg, svg *'))
+      .filter((e) => shown(e) && !e.closest('.a1-sr, .a1-tablewrap, [data-scroll-row], [data-ellipsis]') && !e.matches('input, select, textarea, svg, svg *'))
       .filter((e) => { const o = getComputedStyle(e).overflowX; return o !== 'visible' && e.scrollWidth > e.clientWidth + 1; })
       .map((e) => label(e) + ' ' + e.scrollWidth + '>' + e.clientWidth);
     return { missing: false, small, unlabeled, pressed, dates, clipped, h1: document.querySelectorAll('h1').length, checkedControls: controls.length };
@@ -602,6 +602,11 @@ async function ownerDashboardChecks(page, pg, width, theme) {
       pageHeight: Math.round(document.documentElement.scrollHeight),
       cardWidth: Math.round(document.querySelector('[data-dashboard-earnings-kpi]')?.getBoundingClientRect().width || 0),
       valueWraps: [...document.querySelectorAll('[data-dashboard-earnings-kpi] .a1-kpi__value')].filter((v) => v.getClientRects().length > 1 || v.getBoundingClientRect().height > 40).length,
+      // Recent orders under the brands (right column) from 1100px; the 21-character production-format number is never clipped.
+      layout: (() => { const c = (id) => document.getElementById(id)?.closest('.a1-card')?.getBoundingClientRect(); const t = c('dash-trend-title'); const b = c('dash-brand-title'); const o = c('dash-recent-title'); if (!t || !b || !o) return null; return { tr: t.right, tb: t.bottom, ol: o.left, ot: o.top, bb: b.bottom, ob: o.bottom }; })(),
+      orderNumber: (() => { const s = [...document.querySelectorAll('.a1-list--recent .a1-ordercard__no, .a1-list--recent .a1-item__main .a1-item__sub')].find((e) => /APC-\d{8}-\d{8}/.test(e.textContent)); if (!s) return null; return { clipped: s.scrollWidth > s.clientWidth + 1, overflowX: getComputedStyle(s).overflowX }; })(),
+      stacked: !!document.querySelector('.a1-list--stacked'),
+      rows: [...document.querySelectorAll('.a1-list--stacked .a1-item--order')].map((r) => { const n = r.querySelector('.a1-ordercard__no'); const lh = n ? (parseFloat(getComputedStyle(n).lineHeight) || (parseFloat(getComputedStyle(n).fontSize) * 1.4)) : 0; return { h: Math.round(r.getBoundingClientRect().height), nh: n ? n.getBoundingClientRect().height : 0, lh, clipped: n ? n.scrollWidth > n.clientWidth + 1 : true }; }),
       vw: window.innerWidth,
       searchMid: (() => { const s = document.querySelector('[data-header-product-search-toggle]'); if (!s || s.getClientRects().length === 0) return null; const b = s.getBoundingClientRect(); return (b.left + b.right) / 2; })(),
     };
@@ -624,6 +629,23 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     pageHeights.push({ browser: browserName, width, theme, height: d.pageHeight });
     if (width <= 480 && d.pageHeight > 4000) { softWarnings.push(`dashboard-data ${browserName} ${width} ${theme}: page is ${d.pageHeight}px tall (target 4000)`); console.warn('SOFT ' + softWarnings[softWarnings.length - 1]); }
   }
+  if (pg.persona !== 'customer' && pg.persona !== 'administrator') {
+    if (d.layout && d.vw >= 1200) {
+      if (!(d.layout.ol > d.layout.tr)) bad('owner-orders-not-right-of-trend', `orders left ${Math.round(d.layout.ol)} <= trend right ${Math.round(d.layout.tr)}`);
+      if (!(d.layout.ot >= d.layout.bb - 1)) bad('owner-orders-not-under-brands', `orders top ${Math.round(d.layout.ot)} < brands bottom ${Math.round(d.layout.bb)}`);
+    }
+    if (d.stacked && d.vw >= 1200) {
+      // Strict: every order card is one tidy block, the number sits on ONE line and is never clipped.
+      for (const r of d.rows) {
+        if (r.h > 150) bad('owner-order-row-too-tall', r.h + 'px');
+        if (r.nh > r.lh * 1.6) bad('owner-order-number-wraps', `number block ${Math.round(r.nh)}px vs line ${Math.round(r.lh)}px`);
+        if (r.clipped) bad('owner-order-number-clipped-row', 'scrollWidth > clientWidth');
+      }
+      if (d.rows.length < 2) bad('owner-order-rows-missing', String(d.rows.length));
+    }
+    if (pg.key === 'dashboard' && !d.orderNumber) bad('owner-order-number-missing', 'no production-format APC-YYYYMMDD-NNNNNNNN number listed');
+    if (d.orderNumber && (d.orderNumber.clipped || d.orderNumber.overflowX !== 'visible')) bad('owner-order-number-clipped', JSON.stringify(d.orderNumber));
+  }
   if (pg.fold && d.searchMid !== null && Math.abs(d.vw / 2 - d.searchMid) > 24) bad('owner-search-not-centered', `search centre ${Math.round(d.searchMid)}px vs header centre ${Math.round(d.vw / 2)}px at ${width}px`);
   const isSuper = pg.persona !== 'administrator' && pg.persona !== 'customer';
   if (pg.persona === 'customer') return out;
@@ -642,7 +664,8 @@ async function ownerDashboardChecks(page, pg, width, theme) {
     }
     if (!d.pills.some((p) => p.text === 'Isporučena' && p.ok)) bad('owner-delivered-chip', JSON.stringify(d.pills));
     if (width >= 1280 && d.listWidth !== null && d.listWidth > 1000) bad('owner-recent-orders-stretched', `list ${d.listWidth}px wide`);
-    if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
+    // Right-aligned chips of the stacked list (desktop, under the brands) differ in width by design; only the full-width list aligns on the left edge.
+    if (new Set(d.pills.map((p) => p.left)).size > 1 && width >= 768 && !d.stacked) bad('owner-recent-orders-misaligned', JSON.stringify(d.pills.map((p) => p.left)));
     if (pg.path === DASH_DATA) {
       if (d.series.length !== 4) bad('owner-trend-toggles', JSON.stringify(d.series));
       for (const col of ['Prihod', 'Bruto', 'Provizija', 'Porudžbine']) if (!d.table.includes(col)) bad('owner-trend-table-column', col + ' missing in ' + JSON.stringify(d.table));
