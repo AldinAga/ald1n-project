@@ -1,58 +1,41 @@
 <?php
 declare(strict_types=1);
 /**
- * The real B1155 coordinator (the dashboard, the dropdown navigation, the registration page, the sub-agent report and the pinned redirects) over the real staged 8531-file runtime (ef3f927) in the production topology (active tree with
- * .env and storage symlinks into a retained tree), after the B1145 unclamp, real MariaDB 10.11.19 and real Laravel served
- * by `php -S` with OPcache (validate_timestamps=1, revalidate_freq=2). The production history is replayed for real: the
- * REAL B1146 coordinator installs the legal overlay (shop closed, Report1109), the shop is turned ON (30 synthetic
- * products, one synthetic PNG logo), the REAL B1147 coordinator installs the catalog overlay (Report1112), the REAL B1148
- * coordinator installs the glass overlay (Report1113), the REAL B1149 coordinator installs the storefront rollout
- * (Report1115; a decoy 1114 HOLD report sits beside it), two synthetic product images are added, the REAL B1150 coordinator
- * installs the signed media route (Report1116), the REAL B1151 coordinator installs the e-mail, draft and throttle rollout
- * (Report1117), the REAL B1152 coordinator installs the APP_URL origin pin and the PDF logo guard (its output becomes Report1118), the REAL B1153 coordinator
- * installs the logo sizes, the e-mail logo and the catalog view switch (its output becomes Report1119), the REAL B1154 coordinator installs the admin shell (navigation, CSS and views; its output becomes Report1120, the chain predecessor
- * of this rollout; the tree is then the 8574-file tree of commit ad901a58 and every pre digest of the B1155 plan holds), then B1155 runs with the real payload taken from the built operator ZIP, with the shop ON.
- * Every B1155 case is written in terms of the coded plan (STEPS: 30 files, groups A (9 new) B (3 libraries) C (9) D (bootstrap/app.php) E (6 views) F (routes/web.php) G (the management view)).
- * Explicit doubles: plain loopback HTTP instead of HTTPS, realpath_cache_ttl=10 on the test server (shorter hold), a fixed
- * app-local clock outside the backup window, the shop switch written directly into the fixture database, one CI-only
- * POST /tema per smoke point (the shipped tool never POSTs), CI-only POSTs of /login and /logout with throwaway users (the shipped tool never logs in), CI-only requests with a FORGED Host header (the shipped tool never
- * sends one), the Cloudflare edge played by DashboardReportsFixtureWeb (script injection, e-mail obfuscation outside the email_off pair), the Report1118, Report1119 and Report1120 digests and the B1152, B1153 and B1154 state ids of
- * the fixture (production pins them as constants) and the route count measured on the fixture app (production: 568, after this rollout 570). The password endpoints are never requested by the tool or by this fixture; the one POST that is not a
- * login or a theme is the failed POST /login with a foreign Referer (CI only).
- * HARD LOGIN GATE: the fixture proves over real HTTP, before any run of the B1155 coordinator, that a seeded SuperAdministrator can log in (a real POST /login with a cookie jar and CSRF token), that an authenticated GET of the dashboard
- * works and that the logout works; the proof sets the environment variable AUTHENTICATED_HTTP=1 that every child runner demands. If the gate fails the fixture FAILS (no skip, no soft pass).
- * Proofs after the install, as the superadmin: the dashboard in the new markup (a1-hero--split, a1-strip, a1-card) without a Laravel ERROR line, the sub-agent report and its CSV (200, text/csv), the navigation dropdown (a1-nav-dd__group),
- * the registration page in its new markup (reg-form), the management report with the link "Prodaja po subagentima"; a sub-agent user gets 403 on the report and its CSV; a failed POST /login with the header Referer: https://evil.example/x
- * redirects to the login URL on the pinned origin. After a forced rollback: the old dashboard markup, the report routes 404 for the superadmin, 568 routes, the old registration markup, the B1154 tree.
- * Windows: at EVERY one of the 30 steps of the install and of the rollback (and at every group point) /up and /login answer 200, /katalog or /registracija answer 200 and the AUTHENTICATED dashboard answers 200; at the group points the markup, the
- * report and its CSV, the management link and the registration page are recorded and judged (a window that answers 5xx is a real finding and fails the fixture).
- * Cases: Report1120 missing (a B1155 attempt when only B1152 or B1153 is installed), a decoy 1120 that is not a PASS, two 1120 reports, a wrong report digest, a wrong B1154 state id, a B1154
- * state that is not INSTALLED_PASS, route cache present (HOLD, never touched), APP_URL with a trailing slash or plain http (HOLD, nothing changed),
- * INSIDE THE BACKUP WINDOW (02:30 daily and 03:10 Sunday: HOLD, nothing changed), unknown pre-state (a foreign edit of the first and the last file to replace, and the new directory already there), preflight
- * facts (all 30 B1155 source markers false, every B1154 fact true, the report routes absent, the registration stylesheet absent and not served), shop OFF, doctor failing, census before the backup, nothing applied, time budget,
- * missing JSON-LD and CSP rolled back, the package mutations the coordinator refuses (routes before their controller, routes in group B, the management view before the routes, bootstrap/app.php without its guard group, digests), the order negative
- * controls (the guard groups D, E and F each refused without their proof, with a missing new file, an unreadable class, a stylesheet answered with the wrong type or wrong bytes; the new shop layout alone without its partial; bootstrap/app.php before its library; a broken bootstrap/app.php taking the real site down),
- * install with a smoke after every step and every group (anonymous pages and the authenticated dashboard 200 throughout, the guest admin pages 302, POST /tema 303, the catalog layout queries 200;
- * group order A9,B3,C9,D1,E6,F1,G1; the full measured hold and the web proof before each of D, E and F; the immediate smoke after D and F; route count 568 to 570), idempotent re-run, --rollback in the backup
- * window and with --ignore-schedule (group G first, F, the full hold after each of F, E and D, then C and B, the full hold, the new files and the created directory last), owner rollback with the shop ON and OFF, forced failure, a failing liveness
- * smoke after group B, right after group D (injected 500s and a wrong pinned origin) and right after group F, rolled back at once, a deliberately broken Blade view, 429 transient/persistent/resume/rollback, shop OFF during the
- * acceptance, noindex missing in preflight/installed/rollback, Vary hidden by the edge, SIGKILL after the first file of every guard group, in the middle of group A and after the new directory was created, in all rollback holds, right after group D was
- * restored and in the middle of the rollback, partial rollbacks with the manual block executed as pasted, SIGKILL mid-copy, and stale backup copies after a kill.
- * Usage: php coordinator-fixture.php <b1155 tools> <b1154> <b1153> <b1152> <b1151> <b1150> <b1149> <b1148> <b1147> <b1146> <b1145> <b1144> <b1134> <runtime stage> <payload dir> <runtime-directories.json> <b1146 zip> <b1147 zip> <b1148 zip> <b1149 zip> <b1150 zip> <b1151 zip> <b1152 zip> <b1153 zip> <b1154 zip> <b1155 zip>
+ * The real B1156 coordinator (commissions: automatic payout, reversals and debits; the orders and dashboard UI; two migrations) over the real staged 8531-file runtime (ef3f927) in the production topology (active tree with .env and storage
+ * symlinks into a retained tree), after the B1145 unclamp, real MariaDB 10.11.19 and real Laravel served by `php -S` with OPcache (validate_timestamps=1, revalidate_freq=2). The production history is replayed for real: the REAL B1146 to B1155
+ * coordinators install their overlays one after the other (the output of each becomes its report; Report1121 is the chain predecessor of this rollout and its tree is the 8583-file tree commit d2c07f62 without tests), the shop is ON, then B1156
+ * runs with the real payload taken from the built operator ZIP.
+ * The fixture database starts at the d2c07f62 schema (71 migrations ran) with realistic commissions: a pending commission on a PAID order and on a DELIVERED order (both must be moved), on an unpaid and undelivered order, on a CANCELLED
+ * order (not moved), a paid commission and a legacy manually approved one (untouched). The moved set is hardcoded here from the owner rule, independent of the tool's own census; the notification-like tables are counted before and after.
+ * Explicit doubles: plain loopback HTTP instead of HTTPS, realpath_cache_ttl=10 on the test server, a fixed app-local clock outside the backup window, the shop switch written directly into the fixture database, one CI-only POST /tema per smoke
+ * point, CI-only POSTs of /login and /logout with throwaway users (the shipped tool never logs in), CI-only requests with a FORGED Host header, the Cloudflare edge played by CommissionsFixtureWeb, the Report1118 to Report1121 digests and the B1152 to B1155
+ * state ids of the fixture (production pins them as constants), the route count measured on the fixture app (production: 570, after this rollout 579), and CI-only database inverses of the two migrations between cases (the shipped tool never runs them).
+ * HARD LOGIN GATE: the fixture proves over real HTTP, before any run of the B1156 coordinator, that a seeded SuperAdministrator can log in (a real POST /login with a cookie jar and CSRF token), that an authenticated GET of the dashboard works and
+ * that the logout works; the proof sets AUTHENTICATED_HTTP=1 that every child runner demands. If the gate fails the fixture FAILS.
+ * Windows: at EVERY step of the install and of the rollback the dashboards and commission lists of the SuperAdministrator and of a sub-agent answer 200 (below 500 is the hard limit), /up and /login 200, the catalog 200; at every group point, after the
+ * database backup (all files in place, OLD schema) and after the migration the full set of pages is recorded and judged.
+ * Cases: Report1121 missing (a B1156 attempt when only earlier installers ran), a decoy 1121, two 1121 reports, a wrong report digest, a wrong B1155 state id, a state that is not INSTALLED_PASS, route cache present, APP_URL with a trailing slash or plain http,
+ * INSIDE THE BACKUP WINDOW (02:30 daily and 03:10 Sunday), unknown pre-state, a foreign file at a new path, preflight facts (all 32 B1156 markers false, every B1155 fact true), shop OFF, doctor failing, census before the backup, time budget,
+ * missing JSON-LD and CSP rolled back, the package mutations the coordinator refuses, the guard groups refused without their proof, the install (groups A13 B14 C11 D1 E2 F28, three guard holds, the migration after the files), the migration evidence
+ * (71 ran + exactly two pending before, 73 ran after, schema facts, the moved set, no notification row), the retained orphans, route count 570 to 579, idempotent re-run, owner rollback (files back, migration files kept, schema ahead, old pages with
+ * the backfilled rows served), a re-run after that refused, failures before MIGRATE_INTENT (full rollback), after MIGRATE_INTENT before the command (full rollback), after the command (schema ahead), SIGKILL after MIGRATE_INTENT and after the command
+ * (forward resume), SIGKILL in the middle of the files and after the backup (generic restore), an acceptance failure after the migration (schema ahead), a 429 that stays (acceptance repeated).
+ * NOT re-run in this fixture (they exercise code B1156 does not change): the Vary-hidden-by-the-edge case, the shop turned OFF during the acceptance, the missing noindex header, the SIGKILL partials of the rollback holds.
+ * Usage: php coordinator-fixture.php <b1156 tools> <b1155> <b1154> <b1153> <b1152> <b1151> <b1150> <b1149> <b1148> <b1147> <b1146> <b1145> <b1144> <b1134> <runtime stage> <payload dir> <runtime-directories.json> <b1146 zip> ... <b1155 zip> <b1156 zip>
  * @author Ald1n <https://ald1n.com>
  */
-[$self,$tools,$b1154,$b1153,$b1152,$b1151,$b1150,$b1149,$b1148,$b1147,$b1146,$b1145,$b1144,$b1134,$stage,$payloadDir,$directoryDoc,$zip1146,$zip1147,$zip1148,$zip1149,$zip1150,$zip1151,$zip1152,$zip1153,$zip1154,$zipPath]=$argv;
+[$self,$tools,$b1155,$b1154,$b1153,$b1152,$b1151,$b1150,$b1149,$b1148,$b1147,$b1146,$b1145,$b1144,$b1134,$stage,$payloadDir,$directoryDoc,$zip1146,$zip1147,$zip1148,$zip1149,$zip1150,$zip1151,$zip1152,$zip1153,$zip1154,$zip1155,$zipPath]=$argv;
 require $b1134.'/ReleasePrimitives.php';require $b1134.'/InstallFileOps.php';foreach(['LeanGates','FreshnessProbe','LeanWeb'] as $c)require $b1144.'/'.$c.'.php';require $b1145.'/EnvFlags.php';require $b1145.'/MigrateUnclampCoordinator.php';require $b1146.'/OverlayProbe.php';
 foreach(['CatalogWeb','CatalogOverlayCoordinator','FixtureWeb'] as $c)require $b1147.'/'.$c.'.php';foreach(['GlassWeb','GlassOverlayCoordinator'] as $c)require $b1148.'/'.$c.'.php';require $b1149.'/StorefrontInstallCoordinator.php';foreach(['MediaWeb','MediaInstallCoordinator'] as $c)require $b1150.'/'.$c.'.php';require $b1151.'/LegalAccountInstallCoordinator.php';require $b1152.'/OriginPinInstallCoordinator.php';
-require $b1153.'/LoadProbe.php';require $b1153.'/LogoCatalogInstallCoordinator.php';require $b1154.'/AdminShellInstallCoordinator.php';foreach(['DashboardReportsInstallCoordinator','FixtureWeb'] as $c)require $tools.'/'.$c.'.php';
-const DB='ald1n_b1155_ci';const DB_PASSWORD='isolated-ci-only';const PORT=8155;
-function check(bool $ok,string $name):void{if(!$ok)throw new RuntimeException('B1155_FIXTURE_'.$name);}
+require $b1153.'/LoadProbe.php';require $b1153.'/LogoCatalogInstallCoordinator.php';require $b1154.'/AdminShellInstallCoordinator.php';require $b1155.'/DashboardReportsInstallCoordinator.php';foreach(['CommissionsInstallCoordinator','FixtureWeb'] as $c)require $tools.'/'.$c.'.php';
+const DB='ald1n_b1156_ci';const DB_PASSWORD='isolated-ci-only';const PORT=8156;
+function check(bool $ok,string $name):void{if(!$ok)throw new RuntimeException('B1156_FIXTURE_'.$name);}
 // The edge-script classifier: only Cloudflare's own two shapes are edge scripts; look-alikes are origin (app) scripts.
 foreach(['<script data-src="/cdn-cgi/scripts/a.js" src="//evil.example/x.js"></script>'=>'DATA_SRC_LOOKALIKE','<script src="/cdn-cgi/../evil.js"></script>'=>'DOT_DOT_PATH','<script src="/cdn-cgi/scripts/../../evil.js"></script>'=>'DOT_DOT_UNDER_SCRIPTS','<script src="/cdn-cgi/other/a.js"></script>'=>'OTHER_CDN_CGI_DIRECTORY',
     '<script src="/cdn-cgi/scripts/a.js" src="/evil.js"></script>'=>'TWO_SRC','<script data-src="x">window.__CF$cv$params=1;evil()</script>'=>null,'<script src="/x.js">window.__CF$cv$params=1</script>'=>'SRC_WITH_JSD_BODY','<script src=/cdn-cgi/scripts/a.js></script>'=>'UNQUOTED_SRC'] as $html=>$name)
     if($name!==null)check(MediaWeb::scriptCount($html)===1&&MediaWeb::edgeScriptCount($html)===0,'CLASSIFIER_'.$name.'_IS_AN_APP_SCRIPT');
 check(MediaWeb::edgeScriptCount('<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script nonce="x">a="window.__CF$cv$params={}";</script><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>')===3,'CLASSIFIER_REAL_EDGE_SHAPES');
-function sh(array $args,?string $cwd=null):string{$p=proc_open($args,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$cwd);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);fclose($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[2]);$rc=proc_close($p);if($rc!==0)throw new RuntimeException('B1155_FIXTURE_COMMAND_'.basename($args[0]).'_RC'.$rc.':'.substr($err.$out,-900));return trim((string)$out);}
+function sh(array $args,?string $cwd=null):string{$p=proc_open($args,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$cwd);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);fclose($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[2]);$rc=proc_close($p);if($rc!==0)throw new RuntimeException('B1156_FIXTURE_COMMAND_'.basename($args[0]).'_RC'.$rc.':'.substr($err.$out,-900));return trim((string)$out);}
 function lastLine(string $output,string $key):mixed{return preg_match_all('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m)?json_decode(end($m[1]),true,64,JSON_THROW_ON_ERROR):null;}
 function lastRaw(string $output,string $key):?string{return preg_match_all('/^'.preg_quote($key,'/').'=(.*)$/m',$output,$m)?end($m[1]):null;}
 function allLines(string $output,string $key):array{preg_match_all('/^'.preg_quote($key,'/').'=(.+)$/m',$output,$m);return array_map(static fn($x)=>json_decode($x,true,64,JSON_THROW_ON_ERROR),$m[1]);}
@@ -64,7 +47,7 @@ check(preg_match('/^10\.11\.19-MariaDB/',(string)$pdo()->query('SELECT VERSION()
 $manifest=json_decode((string)file_get_contents($payloadDir.'/runtime-manifest.json'),true,512,JSON_THROW_ON_ERROR);$directories=json_decode((string)file_get_contents($directoryDoc),true,512,JSON_THROW_ON_ERROR)['directories'];check(count($manifest['files'])===8531,'MANIFEST_8531');
 
 // Production topology: active tree from the pinned runtime; .env and storage are symlinks into the retained tree.
-$base=getenv('RUNNER_TEMP').'/b1155';mkdir($base);$base=realpath($base);$home=$base.'/home';$root=$home.'/ald1n-project';foreach([$root.'/incoming',$root.'/apps/cms',$root.'/docs/operations',$home.'/cms-backups'] as $d)mkdir($d,0755,true);
+$base=getenv('RUNNER_TEMP').'/b1156';mkdir($base);$base=realpath($base);$home=$base.'/home';$root=$home.'/ald1n-project';foreach([$root.'/incoming',$root.'/apps/cms',$root.'/docs/operations',$home.'/cms-backups'] as $d)mkdir($d,0755,true);
 $runtime=$home.'/.ald1n-b1134-retained/'.str_repeat('d',32);mkdir($runtime,0755,true);$retained=$runtime.'/retained';$active=$root.'/apps/cms/current';$candidate=$runtime.'/candidate';$old=$runtime.'/old';
 InstallFileOps::candidate($stage,$candidate,$manifest,$directories);if(!is_dir($candidate.'/bootstrap/cache'))mkdir($candidate.'/bootstrap/cache',0755,true);
 foreach(['storage/app/public','storage/logs','storage/framework/sessions','storage/framework/cache/data','storage/framework/views'] as $p)mkdir($old.'/'.$p,0755,true);
@@ -90,40 +73,38 @@ file_put_contents($root.'/docs/operations/1108-B1145-CONTROLLED-MIGRATE-UNCLAMP-
 sh(['git','init','--quiet','-b','main'],$root);sh(['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--allow-empty','-m','fixture','--quiet'],$root);
 
 // All ten operator packages exactly as the owner unzips them (B1146 to B1154 first, then this one), plus the pinned helpers already on the host under their host names.
-foreach([$zip1146,$zip1147,$zip1148,$zip1149,$zip1150,$zip1151,$zip1152,$zip1153,$zip1154,$zipPath] as $z)sh(['unzip','-q','-n',$z,'-d',$root]);$incoming=$root.'/incoming';
+foreach([$zip1146,$zip1147,$zip1148,$zip1149,$zip1150,$zip1151,$zip1152,$zip1153,$zip1154,$zip1155,$zipPath] as $z)sh(['unzip','-q','-n',$z,'-d',$root]);$incoming=$root.'/incoming';
 foreach(['b1134/InstallFileOps.php'=>'b1134-files.php','b1144/LeanGates.php'=>'b1144-gates.php','b1144/FreshnessProbe.php'=>'b1144-probe.php','b1144/LeanWeb.php'=>'b1144-web.php','b1145/EnvFlags.php'=>'b1145-env.php','b1145/AppState.php'=>'b1145-app-state.php','b1145/MigrateUnclampCoordinator.php'=>'b1145-coordinator.php'] as $from=>$to)copy(dirname($tools).'/'.$from,$incoming.'/'.$to);
-$package=json_decode((string)file_get_contents($incoming.'/b1155-package.json'),true,64,JSON_THROW_ON_ERROR);foreach($package['files'] as $n=>$d)check(hash_file('sha256',$incoming.'/'.$n)===$d,'PACKAGE_FILE_'.$n);$plan=DashboardReportsInstallCoordinator::plan($package,$incoming);check(count($plan)===count(DashboardReportsInstallCoordinator::STEPS),'PLAN_MATCHES_STEPS');
-check(count($plan)===30&&count(array_filter($plan,static fn($s)=>$s['kind']==='new'))===9&&implode('',array_column($plan,'group'))==='AAAAAAAAABBBCCCCCCCCCDEEEEEEFG','PLAN_IS_THE_30_FILES_IN_GROUP_ORDER_A9_B3_C9_D1_E6_F1_G1');
-check(implode(',',array_column($plan,'path'))===implode(',',array_map(static fn($s)=>$s[0],DashboardReportsInstallCoordinator::STEPS))&&$plan[0]['path']==='app/Http/Requests/LocalAuthFormRequest.php'&&$plan[8]['path']==='resources/views/admin/reports/subagent-sales.blade.php'&&$plan[21]['path']==='bootstrap/app.php'&&$plan[28]['path']==='routes/web.php'&&end($plan)['path']==='resources/views/admin/reports/management.blade.php','PLAN_ORDER_NEW_FILES_FIRST_BOOTSTRAP_22_ROUTES_29_THE_MANAGEMENT_VIEW_LAST');
-check(array_column($package['overlay'],'source')===array_fill(0,30,DashboardReportsInstallCoordinator::SOURCE_COMMIT)&&$package['baseCommit']===DashboardReportsInstallCoordinator::BASE_COMMIT&&$package['sourceCommit']===DashboardReportsInstallCoordinator::SOURCE_COMMIT,'PAYLOAD_SOURCE_IS_THE_ONE_PINNED_COMMIT');
-check(array_column($plan,'payloadSHA256')===array_map(static fn($s)=>DashboardReportsInstallCoordinator::DIGESTS[$s[0]][1],DashboardReportsInstallCoordinator::STEPS)&&array_column($plan,'preSHA256')===array_map(static fn($s)=>DashboardReportsInstallCoordinator::DIGESTS[$s[0]][0],DashboardReportsInstallCoordinator::STEPS),'PLAN_DIGESTS_ARE_THE_REVIEWED_ONES');
-check(count(DashboardReportsInstallCoordinator::b1154Plan($package))===6&&DashboardReportsInstallCoordinator::installedTreeFiles()===8583&&DashboardReportsInstallCoordinator::B1154_TREE_FILES===8574&&DashboardReportsInstallCoordinator::ROUTES===568&&DashboardReportsInstallCoordinator::ROUTES_AFTER===570,'THE_B1154_OVERLAY_LIST_OF_THE_PACKAGE_IS_THE_PINNED_B1154_SET_AND_THE_TREE_AFTER_IS_8583');
-// docs/openapi.yaml, tests and every path under database, config and composer stay out of the payload and of the runtime manifest.
-check(!str_contains(json_encode($manifest['files']),'docs/openapi.yaml')&&array_filter($plan,static fn($s)=>preg_match('~^(tests/|docs/|database/|config/|composer\.|\.env)~',$s['path'])===1)===[]&&array_filter($plan,static fn($s)=>str_starts_with($s['path'],'routes/')&&$s['path']!=='routes/web.php')===[],'OPENAPI_TESTS_DATABASE_CONFIG_COMPOSER_ARE_NOT_IN_THE_PAYLOAD');
-// The helpers the B1155 package pins are the very bytes the earlier ZIPs delivered (the host copies must match): every name a built earlier package shares with this one carries the same digest, and the two B1154 pins are the git blobs of the B1154 tools.
-foreach(['b1146-probe.php','b1146-app-check.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php','b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1149-web.php','b1149-app-check.php','b1149-coordinator.php','b1150-web.php','b1150-app-check.php','b1150-coordinator.php','b1151-app-check.php','b1151-coordinator.php','b1152-app-check.php','b1152-coordinator.php','b1152-load-probe.php','b1153-app-check.php','b1153-coordinator.php','b1153-load-probe.php','b1154-app-check.php','b1154-coordinator.php'] as $n)check(isset($package['files'][$n]),'PINS_'.$n);
-check($package['files']['b1154-coordinator.php']===hash_file('sha256',$b1154.'/AdminShellInstallCoordinator.php')&&$package['files']['b1154-app-check.php']===hash_file('sha256',$b1154.'/AppCheck.php'),'THE_B1154_PINS_ARE_THE_B1154_TOOLS');
-foreach(['b1154','b1153','b1152','b1151','b1150','b1149','b1148'] as $prev){$pk=json_decode((string)file_get_contents($incoming.'/'.$prev.'-package.json'),true,64,JSON_THROW_ON_ERROR);$shared=0;foreach($pk['files'] as $n=>$d)if(isset($package['files'][$n])){check($package['files'][$n]===$d,strtoupper($prev).'_ZIP_AND_THE_B1155_PIN_AGREE_'.$n);$shared++;}check($shared>=(in_array($prev,['b1154','b1153','b1152'],true)?3:2),strtoupper($prev).'_ZIP_SHARES_PINS_WITH_B1155');}
-$purge=(new ReflectionClass(DashboardReportsInstallCoordinator::class))->newInstanceWithoutConstructor();$purgeStep=$purge->purgeStep();$purgeBack=$purge->purgeStep(true);
+$package=json_decode((string)file_get_contents($incoming.'/b1156-package.json'),true,64,JSON_THROW_ON_ERROR);foreach($package['files'] as $n=>$d)check(hash_file('sha256',$incoming.'/'.$n)===$d,'PACKAGE_FILE_'.$n);$plan=CommissionsInstallCoordinator::plan($package,$incoming);check(count($plan)===count(CommissionsInstallCoordinator::STEPS),'PLAN_MATCHES_STEPS');
+check(count($plan)===69&&count(array_filter($plan,static fn($s)=>$s['kind']==='new'))===13&&implode('',array_column($plan,'group'))===str_repeat('A',13).str_repeat('B',14).str_repeat('C',11).'D'.'EE'.str_repeat('F',28),'PLAN_IS_THE_69_FILES_IN_GROUP_ORDER_A13_B14_C11_D1_E2_F28');
+check(implode(',',array_column($plan,'path'))===implode(',',array_map(static fn($s)=>$s[0],CommissionsInstallCoordinator::STEPS))&&$plan[0]['path']==='app/Models/CommissionAdjustment.php'&&$plan[11]['path']==='database/migrations/2026_11_16_000001_create_commission_adjustments.php'&&$plan[12]['path']==='database/migrations/2026_11_16_000002_backfill_commissions_for_payout.php'&&$plan[37]['path']==='public/assets/css/ald1n-admin.css'&&$plan[38]['path']==='app/Providers/AppServiceProvider.php'&&$plan[39]['path']==='routes/api.php'&&$plan[40]['path']==='routes/web.php','PLAN_ORDER_MIGRATIONS_12_13_CSS_38_PROVIDER_39_ROUTES_40_41');
+check(array_column($package['overlay'],'source')===array_fill(0,69,CommissionsInstallCoordinator::SOURCE_COMMIT)&&$package['baseCommit']===CommissionsInstallCoordinator::BASE_COMMIT&&$package['sourceCommit']===CommissionsInstallCoordinator::SOURCE_COMMIT,'PAYLOAD_SOURCE_IS_THE_ONE_PINNED_COMMIT');
+check(array_column($plan,'payloadSHA256')===array_map(static fn($s)=>CommissionsInstallCoordinator::DIGESTS[$s[0]][1],CommissionsInstallCoordinator::STEPS)&&array_column($plan,'preSHA256')===array_map(static fn($s)=>CommissionsInstallCoordinator::DIGESTS[$s[0]][0],CommissionsInstallCoordinator::STEPS),'PLAN_DIGESTS_ARE_THE_REVIEWED_ONES');
+check(count(CommissionsInstallCoordinator::b1155Plan($package))===30&&CommissionsInstallCoordinator::installedTreeFiles()===8596&&CommissionsInstallCoordinator::B1155_TREE_FILES===8583&&CommissionsInstallCoordinator::ROUTES===570&&CommissionsInstallCoordinator::ROUTES_AFTER===579&&count(CommissionsInstallCoordinator::ORPHANS)===2,'THE_B1155_OVERLAY_LIST_OF_THE_PACKAGE_IS_THE_PINNED_B1155_SET_AND_THE_TREE_AFTER_IS_8596');
+check(array_filter($plan,static fn($s)=>preg_match('~^(tests/|docs/|config/|composer\.|\.env)~',$s['path'])===1)===[]&&array_values(array_map(static fn($s)=>$s['path'],array_filter($plan,static fn($s)=>str_starts_with($s['path'],'database/'))))===CommissionsInstallCoordinator::migrationFiles(),'ONLY_THE_TWO_MIGRATIONS_ARE_UNDER_DATABASE_NOTHING_UNDER_TESTS_DOCS_CONFIG_COMPOSER_ENV');
+foreach(['b1146-probe.php','b1146-app-check.php','b1147-web.php','b1147-app-check.php','b1147-coordinator.php','b1148-web.php','b1148-app-check.php','b1148-coordinator.php','b1149-web.php','b1149-app-check.php','b1149-coordinator.php','b1150-web.php','b1150-app-check.php','b1150-coordinator.php','b1151-app-check.php','b1151-coordinator.php','b1152-app-check.php','b1152-coordinator.php','b1152-load-probe.php','b1153-app-check.php','b1153-coordinator.php','b1153-load-probe.php','b1154-app-check.php','b1154-coordinator.php','b1155-app-check.php','b1155-coordinator.php'] as $n)check(isset($package['files'][$n]),'PINS_'.$n);
+check($package['files']['b1155-coordinator.php']===hash_file('sha256',$b1155.'/DashboardReportsInstallCoordinator.php')&&$package['files']['b1155-app-check.php']===hash_file('sha256',$b1155.'/AppCheck.php')&&$package['files']['b1154-coordinator.php']===hash_file('sha256',$b1154.'/AdminShellInstallCoordinator.php'),'THE_B1155_AND_B1154_PINS_ARE_THE_TOOLS');
+foreach(['b1155','b1154','b1153','b1152','b1151','b1150','b1149','b1148'] as $prev){$pk=json_decode((string)file_get_contents($incoming.'/'.$prev.'-package.json'),true,64,JSON_THROW_ON_ERROR);$shared=0;foreach($pk['files'] as $n=>$d)if(isset($package['files'][$n])){check($package['files'][$n]===$d,strtoupper($prev).'_ZIP_AND_THE_B1156_PIN_AGREE_'.$n);$shared++;}check($shared>=(in_array($prev,['b1155','b1154','b1153','b1152'],true)?3:2),strtoupper($prev).'_ZIP_SHARES_PINS_WITH_B1156');}
+$purge=(new ReflectionClass(CommissionsInstallCoordinator::class))->newInstanceWithoutConstructor();$purgeStep=$purge->purgeStep();$purgeBack=$purge->purgeStep(true);
 check(is_string($purgeStep)&&$purgeStep!==''&&is_string($purgeBack)&&$purgeBack!=='','PURGE_STEPS_ARE_TEXT');
-$markers=DashboardReportsInstallCoordinator::markers($package);
-// The package mutations the coordinator refuses before it touches anything (plan() compares the package with the coded STEPS: paths, kinds, GROUPS, order, digests, sources). The package BUILD refuses the same mutations in CI (the mutation step of the workflow).
-$idx=static function(string $path)use($package):int{$i=array_search($path,array_column($package['overlay'],'path'),true);if(!is_int($i))throw new RuntimeException('B1155_FIXTURE_OVERLAY_PATH_UNKNOWN');return $i;};
+$markers=CommissionsInstallCoordinator::markers($package);
+$idx=static function(string $path)use($package):int{$i=array_search($path,array_column($package['overlay'],'path'),true);if(!is_int($i))throw new RuntimeException('B1156_FIXTURE_OVERLAY_PATH_UNKNOWN');return $i;};
+// The package mutations the coordinator refuses before it touches anything (plan() compares the package with the coded STEPS: paths, kinds, GROUPS, order, digests, sources). The package BUILD refuses the same in CI (the mutation step of the workflow).
 $mutations=[
     'ROUTES_IN_GROUP_B'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('routes/web.php')]['group']='B';},
-    'ROUTES_BEFORE_THEIR_CONTROLLER'=>static function(array &$m)use($idx):void{$i=$idx('routes/web.php');$j=$idx('app/Http/Controllers/Admin/SubagentSalesReportController.php');$r=$m['overlay'][$i];unset($m['overlay'][$i]);array_splice($m['overlay'],$j,0,[$r]);$m['overlay']=array_values($m['overlay']);},
-    'ROUTES_BEFORE_THEIR_LIBRARY_IN_GROUP_B'=>static function(array &$m)use($idx):void{$i=$idx('routes/web.php');$r=$m['overlay'][$i];$r['group']='B';unset($m['overlay'][$i]);array_splice($m['overlay'],$idx('app/Services/ManagementReportService.php'),0,[$r]);$m['overlay']=array_values($m['overlay']);},
-    'MANAGEMENT_VIEW_BEFORE_THE_ROUTES'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('resources/views/admin/reports/management.blade.php')]['group']='E';},
-    'BOOTSTRAP_WITHOUT_ITS_GUARD_GROUP'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('bootstrap/app.php')]['group']='C';},
-    'BOOTSTRAP_BEFORE_THE_LIBRARIES'=>static function(array &$m)use($idx):void{$i=$idx('bootstrap/app.php');$r=$m['overlay'][$i];$r['group']='A';unset($m['overlay'][$i]);array_splice($m['overlay'],0,0,[$r]);$m['overlay']=array_values($m['overlay']);},
-    'PAYLOAD_DIGEST_OF_BOOTSTRAP'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('bootstrap/app.php')]['payloadSHA256']=str_repeat('a',64);},
+    'PROVIDER_WITHOUT_ITS_GUARD_GROUP'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('app/Providers/AppServiceProvider.php')]['group']='C';},
+    'A_MIGRATION_IN_GROUP_B'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('database/migrations/2026_11_16_000001_create_commission_adjustments.php')]['group']='B';},
+    'THE_LAYOUT_BEFORE_THE_ROUTES'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('resources/views/layouts/app.blade.php')]['group']='E';},
+    'ROUTES_BEFORE_THEIR_CONTROLLERS'=>static function(array &$m)use($idx):void{$i=$idx('routes/web.php');$j=$idx('app/Http/Controllers/Admin/CommissionController.php');$r=$m['overlay'][$i];unset($m['overlay'][$i]);array_splice($m['overlay'],$j,0,[$r]);$m['overlay']=array_values($m['overlay']);},
+    'PAYLOAD_DIGEST_OF_THE_PROVIDER'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('app/Providers/AppServiceProvider.php')]['payloadSHA256']=str_repeat('a',64);},
     'PRE_DIGEST_OF_ROUTES'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('routes/web.php')]['preSHA256']=str_repeat('b',64);},
-    'A_NEW_FILE_WITH_A_PRE_DIGEST'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('app/Http/Requests/LocalAuthFormRequest.php')]['preSHA256']=str_repeat('c',64);},
+    'A_NEW_FILE_WITH_A_PRE_DIGEST'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('app/Models/CommissionAdjustment.php')]['preSHA256']=str_repeat('c',64);},
     'A_FILE_DROPPED'=>static function(array &$m):void{array_pop($m['overlay']);},
     'ANOTHER_SOURCE_COMMIT'=>static function(array &$m):void{$m['sourceCommit']=str_repeat('1',40);},
 ];
-foreach($mutations as $name=>$mutate){$m=$package;$mutate($m);try{DashboardReportsInstallCoordinator::plan($m,$incoming);$refused=false;}catch(RuntimeException $e){$refused=preg_match('/^OVERLAY_[A-Z_]+$/D',$e->getMessage())===1;}check($refused,'PACKAGE_MUTATION_IS_REFUSED_BY_THE_COORDINATOR_PLAN_'.$name);}
+foreach($mutations as $name=>$mutate){$m=$package;$mutate($m);try{CommissionsInstallCoordinator::plan($m,$incoming);$refused=false;}catch(RuntimeException $e){$refused=preg_match('/^OVERLAY_[A-Z_]+$/D',$e->getMessage())===1;}check($refused,'PACKAGE_MUTATION_IS_REFUSED_BY_THE_COORDINATOR_PLAN_'.$name);}
 $packageMutations=array_fill_keys(array_keys($mutations),'REFUSED_BEFORE_ANY_FILE');
+
 
 // Database after B1145: all 71 migrations ran, production roles, DB switch absent; one superadmin; the old-code approval signed.
 $artisan=static fn(array $a):string=>sh(array_merge(['php','-d','opcache.enable=0',$active.'/artisan'],$a,['--no-interaction','--no-ansi']),$active);
@@ -136,21 +117,20 @@ $pdo()->prepare("INSERT INTO settings (setting_key,setting_value,created_at,upda
 
 // Real Laravel behind php -S (cli-server SAPI) with OPcache on; requests carry Host: cms.ald1n.com.
 $server=proc_open([PHP_BINARY,'-d','opcache.enable=1','-d','opcache.enable_cli=1','-d','opcache.validate_timestamps=1','-d','opcache.revalidate_freq=2','-d','opcache.file_update_protection=0','-d','realpath_cache_ttl=10','-S','127.0.0.1:'.PORT,'-t',$active.'/public',$active.'/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'],[0=>['pipe','r'],1=>['file',$base.'/server.log','a'],2=>['file',$base.'/server.log','a']],$pipes,$active.'/public',['PATH'=>getenv('PATH'),'HOME'=>$home]);
-$status=static fn(string $target):int=>DashboardReportsFixtureWeb::get(PORT,$target)['status'];$body=static fn(string $target,array $h=[]):string=>DashboardReportsFixtureWeb::get(PORT,$target,$h)['body'];
-$themePost=static fn(string $form):array=>DashboardReportsFixtureWeb::get(PORT,'/tema',['Content-Type: application/x-www-form-urlencoded'],$form);
+$status=static fn(string $target):int=>CommissionsFixtureWeb::get(PORT,$target)['status'];$body=static fn(string $target,array $h=[]):string=>CommissionsFixtureWeb::get(PORT,$target,$h)['body'];
+$themePost=static fn(string $form):array=>CommissionsFixtureWeb::get(PORT,'/tema',['Content-Type: application/x-www-form-urlencoded'],$form);
 for($i=0;$i<60&&$status('/up')!==200;$i++)usleep(500000);check($status('/up')===200&&$status('/katalog')===404&&$status('/pravne-informacije')===404,'REAL_LARAVEL_SERVED_PRE_B1146');
 
-$private=$home.'/.ald1n-b1155-state';$private1154=$home.'/.ald1n-b1154-state';$private1153=$home.'/.ald1n-b1153-state';$private1152=$home.'/.ald1n-b1152-state';$private1151=$home.'/.ald1n-b1151-state';$private1150=$home.'/.ald1n-b1150-state';$private1149=$home.'/.ald1n-b1149-state';$private1148=$home.'/.ald1n-b1148-state';$private1147=$home.'/.ald1n-b1147-state';$private1146=$home.'/.ald1n-b1146-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$stepLog=$base.'/steps.jsonl';$logDir=$retained.'/storage/logs';$configJSON=$base.'/run.json';$safeNow=strtotime('2026-11-11 13:00:00 UTC');
+$private=$home.'/.ald1n-b1156-state';$private1155=$home.'/.ald1n-b1155-state';$private1154=$home.'/.ald1n-b1154-state';$private1153=$home.'/.ald1n-b1153-state';$private1152=$home.'/.ald1n-b1152-state';$private1151=$home.'/.ald1n-b1151-state';$private1150=$home.'/.ald1n-b1150-state';$private1149=$home.'/.ald1n-b1149-state';$private1148=$home.'/.ald1n-b1148-state';$private1147=$home.'/.ald1n-b1147-state';$private1146=$home.'/.ald1n-b1146-state';$secrets=$base.'/probe-secrets';$faultLog=$base.'/faults.log';$stepLog=$base.'/steps.jsonl';$logDir=$retained.'/storage/logs';$configJSON=$base.'/run.json';$safeNow=strtotime('2026-11-11 13:00:00 UTC');
 $switches=[];foreach(['dropCsp','dropJsonLd','dropVaryEdge','dropVaryAll','noHtaccess','rogueScript','rate429','edgeKeepsEmailOff','cssWrongType','cssTamperBody','upFails'] as $k)$switches[$k]=$base.'/switch-'.$k;$busyPidFile=$base.'/busy.pid';$allOutput='';file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','',FILE_APPEND);
 $common=['php'=>PHP_BINARY,'allowedSapis'=>['cli-server'],'censusSeconds'=>20,'minFreeBytes'=>268435456,'scheduleGate'=>true,'fixedNow'=>$safeNow,'incoming'=>$incoming,'port'=>PORT,'secrets'=>$secrets,'faultLog'=>$faultLog,'logDir'=>$logDir,'root'=>$root,'home'=>$home,'stage'=>$stageDir,'b1146'=>$b1146,'b1145'=>$b1145,'b1144'=>$b1144,'b1134'=>$b1134,'busyPidFile'=>$busyPidFile,'db'=>['mysql:host=127.0.0.1;port=3306;dbname='.DB,'root',DB_PASSWORD]];
-// $pin1150, $pin1151, $pin1152, $pin1153: the fixture's own Report1116, Report1117, Report1118 and Report1119 digests, state ids and route counts, for the REAL B1151, B1152, B1153 and B1154 runs; $pin: the same facts of the REAL B1154 run (Report1120),
-// for B1155 (explicit doubles; production pins its own as constants of the coordinators).
-$pin1150=['report'=>str_repeat('0',64),'state'=>str_repeat('0',32),'routes'=>0];$pin1151=$pin1150;$pin1152=$pin1150;$pin1153=$pin1150;$pin=$pin1150;
-$run=static function(array $actions=[],string $mode='install',array $overrides=[],array $extra=[])use($configJSON,$tools,$b1154,$b1153,$b1152,$b1151,$b1150,$b1149,$b1148,$b1147,$private,$private1146,$private1147,$private1148,$private1149,$private1150,$private1151,$private1152,$private1153,$private1154,$incoming,$stepLog,$switches,$common,&$allOutput,&$pin):array{
-    file_put_contents($configJSON,json_encode($common+['overrides'=>$overrides,'switches'=>$switches,'tools'=>$tools,'b1154'=>$b1154,'b1153'=>$b1153,'b1152'=>$b1152,'b1151'=>$b1151,'b1150'=>$b1150,'b1149'=>$b1149,'b1148'=>$b1148,'b1147'=>$b1147,'base'=>$private,'pointer'=>$private.'/current.json','b1146Base'=>$private1146,'b1147Base'=>$private1147,'b1148Base'=>$private1148,'b1149Base'=>$private1149,'b1150Base'=>$private1150,'b1151Base'=>$private1151,'b1152Base'=>$private1152,'b1153Base'=>$private1153,'b1154Base'=>$private1154,'b1154ReportSHA256'=>$pin['report'],'b1154StateId'=>$pin['state'],'expectedRoutes'=>$pin['routes'],'expectedRoutesAfter'=>$pin['routes']+2,
-        'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','featureScript'=>$incoming.'/b1155-app-check.php','mode'=>$mode,'stepLog'=>$stepLog,'actions'=>$actions]+$extra,JSON_UNESCAPED_SLASHES));
+// $pin1150 .. $pin1154: the fixture's own report digests, state ids and route counts of the REAL B1151 to B1155 runs; $pin: the same facts of the REAL B1155 run (Report1121), for B1156 (explicit doubles; production pins its own as constants).
+$pin1150=['report'=>str_repeat('0',64),'state'=>str_repeat('0',32),'routes'=>0];$pin1151=$pin1150;$pin1152=$pin1150;$pin1153=$pin1150;$pin1154=$pin1150;$pin=$pin1150;
+$run=static function(array $actions=[],string $mode='install',array $overrides=[],array $extra=[])use($configJSON,$tools,$b1155,$b1154,$b1153,$b1152,$b1151,$b1150,$b1149,$b1148,$b1147,$private,$private1146,$private1147,$private1148,$private1149,$private1150,$private1151,$private1152,$private1153,$private1154,$private1155,$incoming,$stepLog,$switches,$common,&$allOutput,&$pin):array{
+    file_put_contents($configJSON,json_encode($common+['overrides'=>$overrides,'switches'=>$switches,'tools'=>$tools,'b1155'=>$b1155,'b1154'=>$b1154,'b1153'=>$b1153,'b1152'=>$b1152,'b1151'=>$b1151,'b1150'=>$b1150,'b1149'=>$b1149,'b1148'=>$b1148,'b1147'=>$b1147,'base'=>$private,'pointer'=>$private.'/current.json','b1146Base'=>$private1146,'b1147Base'=>$private1147,'b1148Base'=>$private1148,'b1149Base'=>$private1149,'b1150Base'=>$private1150,'b1151Base'=>$private1151,'b1152Base'=>$private1152,'b1153Base'=>$private1153,'b1154Base'=>$private1154,'b1155Base'=>$private1155,'b1155ReportSHA256'=>$pin['report'],'b1155StateId'=>$pin['state'],'expectedRoutes'=>$pin['routes'],'expectedRoutesAfter'=>$pin['routes']+9,
+        'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','featureScript'=>$incoming.'/b1156-app-check.php','mode'=>$mode,'stepLog'=>$stepLog,'actions'=>$actions]+$extra,JSON_UNESCAPED_SLASHES));
     [$rc,$out,$err]=child(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$tools.'/fixture-run.php',$configJSON]);
-    echo "----- B1155 RUN mode=$mode rc=$rc -----\n".$out.($err!==''?"\nSTDERR=".substr($err,-2000)."\n":'');$allOutput.=$out;return [$rc,$out];
+    echo "----- B1156 RUN mode=$mode rc=$rc -----\n".$out.($err!==''?"\nSTDERR=".substr($err,-2000)."\n":'');$allOutput.=$out;return [$rc,$out];
 };
 $tree=static function()use($plan,$active):string{$pre=true;$inst=true;foreach($plan as $s){$t=$active.'/'.$s['path'];$sha=is_file($t)?hash_file('sha256',$t):null;$pre=$pre&&$sha===$s['preSHA256'];$inst=$inst&&$sha===$s['payloadSHA256'];}return $pre?'PRE':($inst?'INSTALLED':'MIXED');};
 $routeCacheSHA=static function()use($active):?string{$files=glob($active.'/bootstrap/cache/routes-*.php')?:[];sort($files);if($files===[])return null;$h=[];foreach($files as $f)$h[]=basename($f).':'.hash_file('sha256',$f);return hash('sha256',implode("\n",$h));};
@@ -175,11 +155,11 @@ $shopOff=static function()use($pdo,$artisan):void{$pdo()->exec("DELETE FROM sett
 $shopFlag=static fn():?string=>(($v=$pdo()->query("SELECT setting_value FROM settings WHERE setting_key='public_storefront_open'")->fetchColumn())===false?null:(string)$v);
 $shopOn();sleep(3);check($status('/katalog')===200,'SHOP_ON_B1146_CATALOG_SERVED');
 
-// 3. B1155 long before B1154 (no Report1120 yet, the B1147 to B1154 files absent): HOLD before any change. A decoy Report1114
+// 3. B1156 long before B1154 (no Report1120 yet, the B1147 to B1154 files absent): HOLD before any change. A decoy Report1114
 // of B1149 (the HOLD of production, EXIT=2) sits beside the real reports later and must never satisfy a chain gate.
-[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1154_REPORT1120_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'REFUSED_BEFORE_B1154');rmTree($private);
+[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'REFUSED_BEFORE_B1154');rmTree($private);
 $decoy=$root.'/docs/operations/1114-B1149-INSTALLER-20261110-235500.md';file_put_contents($decoy,"B1149_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");
-[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('B1154_REPORT1120_MISSING',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP='),'DECOY_1114_HOLD_REPORT_DOES_NOT_SATISFY_THE_CHAIN');rmTree($private);$results['beforeB1154']='HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED';
+[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP='),'DECOY_1114_HOLD_REPORT_DOES_NOT_SATISFY_THE_CHAIN');rmTree($private);$results['beforeB1154']='HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED';
 
 // 4. The real B1147 coordinator installs the catalog overlay with the shop ON; its output becomes Report1112.
 $cfg1147=$base.'/run1147.json';file_put_contents($cfg1147,json_encode($common+['overrides'=>[],'dropCsp'=>$base.'/drop-csp-1147','dropJsonLd'=>$base.'/drop-json-ld-1147','rate429'=>$base.'/rate-429-1147','noHtaccess'=>$base.'/no-htaccess-1147','tools'=>$b1147,'base'=>$private1147,'pointer'=>$private1147.'/current.json','b1146Base'=>$private1146,
@@ -266,14 +246,14 @@ $pin1152=['report'=>hash_file('sha256',$report1118),'state'=>$ptr1152['id'],'rou
 check(preg_match('/^[a-f0-9]{32}$/D',$pin1152['state'])===1&&is_int($pin1152['routes'])&&$pin1152['routes']>500&&$pin1152['routes']===$pin1151['routes'],'FIXTURE_PINS_READ_FROM_THE_REAL_B1152_RUN');
 sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/admin/settings/documents')===302,'B1152_SERVED');
 $results['chain']+=['b1152'=>'REAL_PASS_REPORT1118'];
-// 5f. A B1155 attempt while only B1152 is installed (no Report1120, no B1154 state): HOLD with B1154_REPORT1120_MISSING, nothing changed (no new file, no backup, no state of this rollout kept).
+// 5f. A B1156 attempt while only B1152 is installed (no Report1120, no B1154 state): HOLD with B1155_REPORT1121_MISSING, nothing changed (no new file, no backup, no state of this rollout kept).
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1154_REPORT1120_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_ONLY_B1152_INSTALLED_NOTHING_CHANGED');rmTree($private);
-$results['beforeB1154']=['onlyB1146'=>'HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED','onlyB1152'=>'HOLD_B1154_REPORT1120_MISSING_NOTHING_CHANGED'];
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_ONLY_B1152_INSTALLED_NOTHING_CHANGED');rmTree($private);
+$results['beforeB1154']=['onlyB1146'=>'HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED','onlyB1152'=>'HOLD_B1155_REPORT1121_MISSING_NOTHING_CHANGED'];
 // The merchant e-mail the legal pages show (support e-mail of the merchant policy), set before the B1153 baseline; the stored approval digest follows it.
 $pdo()->exec("INSERT INTO settings (setting_key,setting_value,created_at,updated_at) VALUES ('public_checkout_support_email','podrska@example.test',NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value='podrska@example.test'");$artisan(['cache:clear']);
 $pdo()->prepare("UPDATE settings SET setting_value=? WHERE setting_key='public_checkout_approval_digest'")->execute([sh(['php','-d','opcache.enable=0',$fingerprintScript,$active])]);$artisan(['cache:clear']);
-$edge=new DashboardReportsFixtureWeb(PORT,$secrets,$switches,$active.'/public/.htaccess');$edgeGet=static fn(string $path):array=>$edge->fetch($path,[],bin2hex(random_bytes(8)));
+$edge=new CommissionsFixtureWeb(PORT,$secrets,$switches,$active.'/public/.htaccess');$edgeGet=static fn(string $path):array=>$edge->fetch($path,[],bin2hex(random_bytes(8)));
 sleep(3);$trader=$edgeGet(AdminShellInstallCoordinator::TRADER_PATH);
 check($trader['status']===200&&AdminShellInstallCoordinator::emailArtifacts($trader['body'])===0&&MediaWeb::edgeScriptCount($trader['body'])===1,'FIXTURE_PREMISE_THE_B1151_LAYOUT_KEEPS_THE_E_MAIL_OUT_OF_THE_OBFUSCATION:'.json_encode([$trader['status'],AdminShellInstallCoordinator::emailArtifacts($trader['body']),MediaWeb::edgeScriptCount($trader['body'])]));
 
@@ -292,12 +272,12 @@ $results['chain']+=['b1153'=>'REAL_PASS_REPORT1119','fixtureRouteCount'=>$pin115
 $trader=$edgeGet(AdminShellInstallCoordinator::TRADER_PATH);
 check($trader['status']===200&&AdminShellInstallCoordinator::emailArtifacts($trader['body'])===0&&MediaWeb::edgeScriptCount($trader['body'])===1,'FIXTURE_PREMISE_STILL_HOLDS_AFTER_B1153:'.json_encode([$trader['status'],AdminShellInstallCoordinator::emailArtifacts($trader['body']),MediaWeb::edgeScriptCount($trader['body'])]));
 
-// 5g2. A B1155 attempt with B1153 installed and B1154 not yet: HOLD with B1154_REPORT1120_MISSING, nothing changed.
+// 5g2. A B1156 attempt with B1153 installed and B1154 not yet: HOLD with B1155_REPORT1121_MISSING, nothing changed.
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1154_REPORT1120_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_B1153_INSTALLED_NOTHING_CHANGED');rmTree($private);$results['beforeB1154']['onlyB1153']='HOLD_B1154_REPORT1120_MISSING_NOTHING_CHANGED';
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_B1153_INSTALLED_NOTHING_CHANGED');rmTree($private);$results['beforeB1154']['onlyB1153']='HOLD_B1155_REPORT1121_MISSING_NOTHING_CHANGED';
 $results['packageMutations']=$packageMutations;
 
-// 5h. The real B1154 coordinator installs the admin shell (navigation, stylesheets and views) with the shop ON; its output becomes Report1120, the chain predecessor of B1155. The B1154 tree is the tree production has today (8574 files, commit ad901a58): every pre digest of the B1155 plan must hold in it.
+// 5h. The real B1154 coordinator installs the admin shell (navigation, stylesheets and views) with the shop ON; its output becomes Report1120, the chain predecessor of B1156. The B1154 tree is the tree production has today (8574 files, commit ad901a58): every pre digest of the B1156 plan must hold in it.
 $cfg1154=$base.'/run1154.json';file_put_contents($cfg1154,json_encode($common+['overrides'=>[],'switches'=>$switches,'tools'=>$b1154,'b1153'=>$b1153,'b1152'=>$b1152,'b1151'=>$b1151,'b1150'=>$b1150,'b1149'=>$b1149,'b1148'=>$b1148,'b1147'=>$b1147,'base'=>$private1154,'pointer'=>$private1154.'/current.json','b1146Base'=>$private1146,'b1147Base'=>$private1147,'b1148Base'=>$private1148,'b1149Base'=>$private1149,'b1150Base'=>$private1150,'b1151Base'=>$private1151,'b1152Base'=>$private1152,'b1153Base'=>$private1153,'b1153ReportSHA256'=>$pin1153['report'],'b1153StateId'=>$pin1153['state'],'expectedRoutes'=>$pin1153['routes'],
     'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','featureScript'=>$incoming.'/b1154-app-check.php','mode'=>'install','stepLog'=>$base.'/steps1154.jsonl','actions'=>[]],JSON_UNESCAPED_SLASHES));
 [$rc,$o1154,$e1154]=child(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$b1154.'/fixture-run.php',$cfg1154]);echo "----- B1154 RUN rc=$rc -----\n".$o1154.($e1154!==''?"\nSTDERR=".substr($e1154,-2000)."\n":'');
@@ -305,45 +285,71 @@ check($rc===0&&lastRaw($o1154,'B1154_FINAL')===AdminShellInstallCoordinator::FIN
 $report1120=$root.'/docs/operations/1120-B1154-INSTALLER-20261115-105942.md';file_put_contents($report1120,"B1154 fixture report\n".$o1154."EXIT=0\nREPORT=".$report1120."\n");
 check(DashboardReportsInstallCoordinator::b1154Facts((string)file_get_contents($report1120),$pin1153['routes'])['phase']==='INSTALLED_PASS','REPORT1120_TERMINAL_PASS');
 $ptr1154=json_decode((string)file_get_contents($private1154.'/current.json'),true,8,JSON_THROW_ON_ERROR);$routes1154=lastLine($o1154,'ROUTES_CHECK');
-$pin=['report'=>hash_file('sha256',$report1120),'state'=>$ptr1154['id'],'routes'=>$routes1154['routeCount']];
-check(preg_match('/^[a-f0-9]{32}$/D',$pin['state'])===1&&is_int($pin['routes'])&&$pin['routes']>500&&$pin['routes']===$pin1153['routes'],'FIXTURE_PINS_READ_FROM_THE_REAL_B1154_RUN');
-check($tree()==='PRE','AFTER_THE_REAL_B1154_EVERY_PRE_DIGEST_OF_THE_B1155_PLAN_HOLDS_THE_TREE_IS_COMMIT_AD901A58');
-sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/registracija')===200&&$status(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)===404,'B1154_SERVED_WITH_THE_NEW_SHELL_AND_NO_REPORT_ROUTE');
-$results['chain']+=['b1154'=>'REAL_PASS_REPORT1120','fixtureRouteCountB1154'=>$pin['routes'],'fixtureRouteCountEquals568'=>$pin['routes']===DashboardReportsInstallCoordinator::ROUTES,'treeAfterB1154'=>'EQUALS_COMMIT_AD901A58_FOR_THE_21_FILES_THE_PAYLOAD_REPLACES'];
+$pin1154=['report'=>hash_file('sha256',$report1120),'state'=>$ptr1154['id'],'routes'=>$routes1154['routeCount']];
+check(preg_match('/^[a-f0-9]{32}$/D',$pin1154['state'])===1&&is_int($pin1154['routes'])&&$pin1154['routes']>500&&$pin1154['routes']===$pin1153['routes'],'FIXTURE_PINS_READ_FROM_THE_REAL_B1154_RUN');
+sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/registracija')===200&&$status('/admin/reports/subagents')===404,'B1154_SERVED_WITH_THE_NEW_SHELL_AND_NO_REPORT_ROUTE');
+$results['chain']+=['b1154'=>'REAL_PASS_REPORT1120','fixtureRouteCountB1154'=>$pin1154['routes']];
 
-// What the plan looks like in the fixture: seven groups, three guard groups (D classes, E assets, F classes), the step numbers the cases below name.
-$groups=array_values(array_unique(array_column($plan,'group')));sort($groups);check($groups===['A','B','C','D','E','F','G'],'SEVEN_GROUPS');
-check(DashboardReportsInstallCoordinator::GUARDS===['D'=>'classes','E'=>'assets','F'=>'classes'],'GUARDS_ARE_D_CLASSES_E_ASSETS_F_CLASSES');
+// 5i. The real B1155 coordinator installs the dashboard, the dropdown menus, the registration page, the sub-agent report and the pinned redirects with the shop ON; its output becomes Report1121, the chain predecessor of THIS rollout.
+// The tree is then the 8583-file tree of commit d2c07f62 (the tree production has today) and every pre digest of the B1156 plan holds in it.
+$cfg1155=$base.'/run1155.json';file_put_contents($cfg1155,json_encode($common+['overrides'=>[],'switches'=>$switches,'tools'=>$b1155,'b1154'=>$b1154,'b1153'=>$b1153,'b1152'=>$b1152,'b1151'=>$b1151,'b1150'=>$b1150,'b1149'=>$b1149,'b1148'=>$b1148,'b1147'=>$b1147,'base'=>$private1155,'pointer'=>$private1155.'/current.json','b1146Base'=>$private1146,'b1147Base'=>$private1147,'b1148Base'=>$private1148,'b1149Base'=>$private1149,'b1150Base'=>$private1150,'b1151Base'=>$private1151,'b1152Base'=>$private1152,'b1153Base'=>$private1153,'b1154Base'=>$private1154,'b1154ReportSHA256'=>$pin1154['report'],'b1154StateId'=>$pin1154['state'],'expectedRoutes'=>$pin1154['routes'],'expectedRoutesAfter'=>$pin1154['routes']+2,
+    'appStateScript'=>$incoming.'/b1145-app-state.php','routesScript'=>$incoming.'/b1146-app-check.php','featureScript'=>$incoming.'/b1155-app-check.php','mode'=>'install','stepLog'=>$base.'/steps1155.jsonl','actions'=>[]],JSON_UNESCAPED_SLASHES));
+[$rc,$o1155,$e1155]=child(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$b1155.'/fixture-run.php',$cfg1155]);echo "----- B1155 RUN rc=$rc -----\n".$o1155.($e1155!==''?"\nSTDERR=".substr($e1155,-2000)."\n":'');
+check($rc===0&&lastRaw($o1155,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS,'REAL_B1155_INSTALLED');
+$report1121=$root.'/docs/operations/1121-B1155-INSTALLER-20261116-052404.md';file_put_contents($report1121,"B1155 fixture report\n".$o1155."EXIT=0\nREPORT=".$report1121."\n");
+check(CommissionsInstallCoordinator::b1155Facts((string)file_get_contents($report1121),$pin1154['routes']+2)['phase']==='INSTALLED_PASS','REPORT1121_TERMINAL_PASS');
+$ptr1155=json_decode((string)file_get_contents($private1155.'/current.json'),true,8,JSON_THROW_ON_ERROR);$routes1155=lastLine($o1155,'ROUTES_CHECK');
+$pin=['report'=>hash_file('sha256',$report1121),'state'=>$ptr1155['id'],'routes'=>$routes1155['routeCount']];
+check(preg_match('/^[a-f0-9]{32}$/D',$pin['state'])===1&&is_int($pin['routes'])&&$pin['routes']>500&&$pin['routes']===$pin1154['routes']+2,'FIXTURE_PINS_READ_FROM_THE_REAL_B1155_RUN');
+$check1155Pre=static function()use($active):bool{foreach(CommissionsInstallCoordinator::STEPS as [$p,$kind]){$t=$active.'/'.$p;$pre=CommissionsInstallCoordinator::DIGESTS[$p][0];$sha=is_file($t)?hash_file('sha256',$t):null;if($sha!==$pre)return false;}return true;};
+check($check1155Pre(),'AFTER_THE_REAL_B1155_EVERY_PRE_DIGEST_OF_THE_B1156_PLAN_HOLDS_THE_TREE_IS_COMMIT_D2C07F62');
+sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/registracija')===200&&$status('/admin/reports/subagents')===302,'B1155_SERVED_WITH_THE_REPORT_ROUTES');
+$results['chain']+=['b1155'=>'REAL_PASS_REPORT1121','fixtureRouteCountB1155'=>$pin['routes'],'fixtureRouteCountEquals570'=>$pin['routes']===CommissionsInstallCoordinator::ROUTES,'treeAfterB1155'=>'EQUALS_COMMIT_D2C07F62_FOR_THE_FILES_THE_PAYLOAD_REPLACES'];
+check($pin['routes']===CommissionsInstallCoordinator::ROUTES,'THE_FIXTURE_APP_HAS_EXACTLY_THE_PRODUCTION_ROUTE_COUNT_570_BEFORE:'.$pin['routes']);
+
+// What the plan looks like in the fixture: six groups, three guard groups (D classes, E classes, F assets), the step numbers the cases below name.
+$groups=array_values(array_unique(array_column($plan,'group')));sort($groups);check($groups===['A','B','C','D','E','F'],'SIX_GROUPS');
+check(CommissionsInstallCoordinator::GUARDS===['D'=>'classes','E'=>'classes','F'=>'assets'],'GUARDS_ARE_D_CLASSES_E_CLASSES_F_ASSETS');
 $byPath=[];foreach($plan as $s)$byPath[$s['path']]=$s;
 $groupSteps=static fn(string $g):array=>array_values(array_filter($plan,static fn($s)=>$s['group']===$g));
-$stepBoot=$byPath['bootstrap/app.php'];$stepRoutes=$byPath['routes/web.php'];$stepMgmt=$byPath['resources/views/admin/reports/management.blade.php'];$stepIndex=$byPath['resources/views/dashboard/index.blade.php'];$stepLayout=$byPath['resources/views/layouts/app.blade.php'];
-$stepShopLayout=$byPath['resources/views/public-shop/layout.blade.php'];$stepRegister=$byPath['resources/views/public-shop/register.blade.php'];$stepAppUrl=$byPath['app/Support/AppUrlOrigin.php'];$stepController=$byPath['app/Http/Controllers/Admin/SubagentSalesReportController.php'];$stepService=$byPath['app/Services/SubagentSalesReportService.php'];
-$stepRegCss=$byPath['public/assets/css/ald1n-public-register.css'];$stepThemeForm=$byPath['resources/views/public-shop/partials/theme-form.blade.php'];$stepAdminCss=$byPath['public/assets/css/ald1n-admin.css'];$stepLastLib=$byPath['app/Services/ManagementReportService.php'];
-check($stepBoot['n']===22&&$groupSteps('E')[0]['n']===23&&count($groupSteps('E'))===6&&$stepRoutes['n']===29&&$stepMgmt['n']===30&&$stepThemeForm['n']===8&&$stepController['n']===4&&$stepService['n']===3&&$stepAppUrl['n']===10&&$stepRegCss['n']===5&&$stepLastLib['n']===12&&$stepLayout['n']===26&&$stepIndex['n']===25&&$stepRegister['n']===28&&$stepShopLayout['n']===27&&$stepAdminCss['n']===20,'THE_STEP_NUMBERS_OF_THE_GUARDS_THE_VIEWS_AND_THE_NEW_DIRECTORY_FILE');
-$newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));check(count($newSteps)===9&&count($modifiedSteps)===21,'NINE_NEW_AND_TWENTY_ONE_MODIFIED_FILES');
+$stepProvider=$byPath['app/Providers/AppServiceProvider.php'];$stepRoutesWeb=$byPath['routes/web.php'];$stepRoutesApi=$byPath['routes/api.php'];$stepLayout=$byPath['resources/views/layouts/app.blade.php'];$stepAdminCss=$byPath['public/assets/css/ald1n-admin.css'];$stepMig1=$byPath['database/migrations/2026_11_16_000001_create_commission_adjustments.php'];$stepMig2=$byPath['database/migrations/2026_11_16_000002_backfill_commissions_for_payout.php'];
+check($stepMig1['n']===12&&$stepMig2['n']===13&&$stepAdminCss['n']===38&&$stepProvider['n']===39&&$stepRoutesApi['n']===40&&$stepRoutesWeb['n']===41&&count($groupSteps('F'))===28&&$groupSteps('F')[0]['n']===42,'THE_STEP_NUMBERS_OF_THE_MIGRATIONS_THE_STYLESHEET_THE_PROVIDER_THE_ROUTES_AND_THE_VIEWS');
+$newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));check(count($newSteps)===13&&count($modifiedSteps)===56,'THIRTEEN_NEW_AND_FIFTY_SIX_MODIFIED_FILES');
 $stateOf=static function(array $s)use($active):string{$t=$active.'/'.$s['path'];if(!is_file($t))return 'absent';$h=hash_file('sha256',$t);return $h===$s['payloadSHA256']?'payload':($h===$s['preSHA256']?'pre':'foreign');};
-$cssUrls=array_keys(DashboardReportsInstallCoordinator::ADMIN_CSS_PATHS);check($cssUrls===['/assets/css/ald1n-admin.css','/assets/css/ald1n-public-register.css']&&array_values(array_map(static fn($s)=>substr($s['path'],6),[$stepAdminCss,$stepRegCss]))===$cssUrls,'THE_TWO_CHANGED_STYLESHEET_URLS_ARE_THE_ADMIN_FILE_AND_THE_NEW_REGISTRATION_FILE');
-$partials=$active.'/resources/views/public-shop/partials';check(!file_exists($partials),'THE_NEW_DIRECTORY_IS_ABSENT_BEFORE_THE_INSTALL');
-
-$reset=static function()use($private,$secrets,$faultLog,$stepLog,$logDir,$artisan,$tree,$status,$switches,$envFile,$envOriginal,$partials):void{
-    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog],array_values($switches),glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');file_put_contents($envFile,$envOriginal);$artisan(['cache:clear']);
-    check($tree()==='PRE'&&!file_exists($partials),'RESET_TREE_PRE_AND_NO_NEW_DIRECTORY');sleep(3);check($status('/login')===200,'RESET_WARM_LOGIN');
+$cssUrls=array_keys(CommissionsInstallCoordinator::ADMIN_CSS_PATHS);check($cssUrls===['/assets/css/ald1n-admin.css']&&substr($stepAdminCss['path'],6)===$cssUrls[0],'THE_CHANGED_STYLESHEET_URL_IS_THE_ADMIN_FILE');
+$undoMigrationPlaceholder=null;
+$seedSnapshot=null;
+$undoMigration=static function()use($pdo,&$seedSnapshot):void{
+    $db=$pdo();
+    foreach(['commission_debit_settlements','commission_adjustments'] as $tb)$db->exec('DROP TABLE IF EXISTS '.$tb);
+    foreach(['order_commissions'=>['auto_approved_at'],'commission_payment_batches'=>['debit_eur','net_eur']] as $tb=>$cols)foreach($cols as $c){$n=(int)$db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='".DB."' AND TABLE_NAME='".$tb."' AND COLUMN_NAME='".$c."'")->fetchColumn();if($n===1)$db->exec('ALTER TABLE '.$tb.' DROP COLUMN '.$c);}
+    $db->exec("DELETE FROM migrations WHERE migration IN ('2026_11_16_000001_create_commission_adjustments','2026_11_16_000002_backfill_commissions_for_payout')");
+    if(is_array($seedSnapshot)){
+        $db->exec('DELETE FROM commission_status_history WHERE id>'.(int)$seedSnapshot['historyMax']);
+        foreach($seedSnapshot['rows'] as $row){$id=$row['id'];unset($row['id']);$set=implode(',',array_map(static fn($c)=>$c.'=?',array_keys($row)));$db->prepare('UPDATE order_commissions SET '.$set.' WHERE id=?')->execute(array_merge(array_values($row),[$id]));}
+    }
+};
+$reset=static function()use($private,$secrets,$faultLog,$stepLog,$logDir,$artisan,$tree,$status,$switches,$envFile,$envOriginal,$undoMigration,$active):void{
+    rmTree($private);foreach(array_merge([$secrets,$faultLog,$stepLog],array_values($switches),glob($logDir.'/laravel*.log')?:[]) as $f)if(file_exists($f))unlink($f);file_put_contents($logDir.'/laravel-'.date('Y-m-d').'.log','');file_put_contents($envFile,$envOriginal);
+    // CI only: the two migration files a schema-ahead rollback keeps are removed and the database is put back to the d2c07f62 schema and rows (the inverse of the two migrations; the shipped tool never does this).
+    foreach(CommissionsInstallCoordinator::migrationFiles() as $mf)if(is_file($active.'/'.$mf))unlink($active.'/'.$mf);$undoMigration();$artisan(['cache:clear']);
+    check($tree()==='PRE','RESET_TREE_PRE');sleep(3);check($status('/login')===200,'RESET_WARM_LOGIN');
 };
 // A smoke at EVERY step of the install (AFTER_STEP_n), at every group boundary (GROUP_DONE_g) and after the invalidation; the same at every step of a rollback (AFTER_RESTORE_n).
 $allSteps=static function()use($plan,$groups):array{$a=[];foreach($plan as $s)$a['AFTER_STEP_'.$s['n']]=['stepSmoke'];foreach($groups as $g)$a['GROUP_DONE_'.$g]=['stepSmoke'];$a['AFTER_INVALIDATE']=['stepSmoke'];return $a;};
 $allRestores=static function()use($plan):array{$a=[];foreach($plan as $s)$a['AFTER_RESTORE_'.$s['n']]=['stepSmoke'];return $a;};
 $stepRows=static fn():array=>array_map(static fn($l)=>json_decode($l,true),array_values(array_filter(explode("\n",(string)@file_get_contents($stepLog)))));
-$stepOf=static function(string $path)use($plan):array{foreach($plan as $s)if($s['path']===$path)return $s;throw new RuntimeException('B1155_FIXTURE_STEP_UNKNOWN');};
+$stepOf=static function(string $path)use($plan):array{foreach($plan as $s)if($s['path']===$path)return $s;throw new RuntimeException('B1156_FIXTURE_STEP_UNKNOWN');};
 $prefix=static function(int $k)use($plan,$active):void{foreach($plan as $s){$t=$active.'/'.$s['path'];$sha=is_file($t)?hash_file('sha256',$t):null;check($sha===($s['n']<=$k?$s['payloadSHA256']:$s['preSHA256']),'PREFIX_'.$k.'_STEP_'.$s['n']);}};
-$block=static function(string $o):array{check(preg_match("/^bash -e <<'B1155_RECOVERY'\n(.*?)\nB1155_RECOVERY$/ms",$o,$m)===1,'RECOVERY_BLOCK_PRESENT');return explode("\n",$m[1]);};
+$block=static function(string $o):array{check(preg_match("/^bash -e <<'B1156_RECOVERY'\n(.*?)\nB1156_RECOVERY$/ms",$o,$m)===1,'RECOVERY_BLOCK_PRESENT');return explode("\n",$m[1]);};
 $kindOf=static function(string $l):?string{$last=preg_match("/'([^']*)'$/",$l,$m)?$m[1]:null;
-    if(in_array($l,['set -euo pipefail','umask 022','echo B1155_MANUAL_RECOVERY_BLOCK_DONE'],true))return null;if(str_starts_with($l,'printf ')&&str_contains($l,'| sha256sum --check --strict --quiet -'))return 'verify';
+    if(in_array($l,['set -euo pipefail','umask 022','echo B1156_MANUAL_RECOVERY_BLOCK_DONE'],true))return null;if(str_starts_with($l,'printf ')&&str_contains($l,'| sha256sum --check --strict --quiet -'))return 'verify';
     if(str_starts_with($l,'install -m ')&&str_contains($l,' -g '))return 'install:'.$last;if(str_starts_with($l,'rm -f -- '))return 'rm:'.$last;if(str_starts_with($l,'rmdir --ignore-fail-on-non-empty -- '))return 'rmdir';if(preg_match('/^sleep [0-9]+$/D',$l))return 'sleep';if(str_contains($l,' artisan view:clear --no-interaction'))return 'view';return 'other';};
 $runBlock=static function(array $lines):array{$p=proc_open(['bash','-e'],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fwrite($pipes[0],implode("\n",$lines)."\n");fclose($pipes[0]);$out=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);return ['rc'=>proc_close($p),'out'=>$out];};
 $conflictNow=(new DateTimeImmutable('2026-11-11 02:10:00',new DateTimeZone('Europe/Belgrade')))->getTimestamp();
 $smokeRows=static function(string $o):array{$s=lastLine($o,'PUBLIC_HTTP_SMOKES');$by=[];foreach($s['rows'] as $r)$by[$r['check']]=$r;return [$s,$by];};
-$rollbackOk=static function(string $what)use($run,$tree,$reset):void{[$rc,$o]=$run([],'rollback');check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE','CLEANUP_ROLLBACK_'.$what);$reset();};
-$cssV=DashboardReportsInstallCoordinator::CSS_PATH.'?v='.$package['cssVersion'];$galV=DashboardReportsInstallCoordinator::GALLERY_CSS_PATH.'?v='.$package['galleryVersion'];
+$rollbackOk=static function(string $what)use($run,$tree,$reset):void{[$rc,$o]=$run([],'rollback');check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE','CLEANUP_ROLLBACK_'.$what);$reset();};
+$cssV=CommissionsInstallCoordinator::CSS_PATH.'?v='.$package['cssVersion'];$galV=CommissionsInstallCoordinator::GALLERY_CSS_PATH.'?v='.$package['galleryVersion'];
 // A smoke row is fine when it passed or was reported as data-dependent INFO (no product image, no logo).
 $rowOk=static fn(array $by,string $k):bool=>isset($by[$k])&&(str_starts_with((string)$by[$k]['result'],'PASS')||str_starts_with((string)$by[$k]['result'],'INFO'));
 // The B1149 storefront and the B1150/B1151 additions the production tree runs today: asserted in the OLD state and again in the INSTALLED state.
@@ -351,14 +357,14 @@ $b1149Intact=static function(array $s,array $by,string $where)use($rowOk):void{
     check($by['/katalog']['originScripts']===1&&$by['/katalog']['edgeInjectedScripts']===1&&$by['/katalog']['cspShape']===true&&$by['/katalog']['layoutMarker']===true&&$by['/katalog']['galleryLink']===true&&$by['/katalog']['cacheControlPrivateNoStore']===true&&$by['/katalog']['jsonLd']==='PASS','B1149_FEATURES_NONCE_GALLERY_PRIVATE_NO_STORE_'.$where);
     // The B1151 layout keeps the page body out of the Cloudflare e-mail obfuscation, so the decoder is not injected: one edge script (the JavaScript-detections loader); the origin script count stays exactly 1.
     check($by['/kolacici']['originScripts']===1&&in_array($by['/kolacici']['edgeInjectedScripts'],[1,2],true)&&$by['/kolacici']['cspShape']===true&&$by['/kolacici']['layoutMarker']===true,'B1149_LEGAL_NONCE_SCRIPT_'.$where);
-    check($by['/admin/settings/smtp']['observed']===302&&$by['/admin/settings/smtp']['location']==='LOGIN'&&$by['GET /tema']['observed']===405&&$by['HEAD /tema']['observed']===405&&$rowOk($by,'SITE_ASSET_LOGO')&&$by[DashboardReportsInstallCoordinator::GALLERY_CSS_PATH]['result']==='PASS','B1149_SMTP_GUEST_302_THEME_405_LOGO_GALLERY_CSS_'.$where);
-    check($by[DashboardReportsInstallCoordinator::MERCHANT_PATH]['observed']===302&&$by[DashboardReportsInstallCoordinator::MERCHANT_PATH]['location']==='LOGIN'&&$by[DashboardReportsInstallCoordinator::MERCHANT_PATH]['result']==='PASS','B1151_MERCHANT_SETTINGS_GUEST_302_'.$where);
+    check($by['/admin/settings/smtp']['observed']===302&&$by['/admin/settings/smtp']['location']==='LOGIN'&&$by['GET /tema']['observed']===405&&$by['HEAD /tema']['observed']===405&&$rowOk($by,'SITE_ASSET_LOGO')&&$by[CommissionsInstallCoordinator::GALLERY_CSS_PATH]['result']==='PASS','B1149_SMTP_GUEST_302_THEME_405_LOGO_GALLERY_CSS_'.$where);
+    check($by[CommissionsInstallCoordinator::MERCHANT_PATH]['observed']===302&&$by[CommissionsInstallCoordinator::MERCHANT_PATH]['location']==='LOGIN'&&$by[CommissionsInstallCoordinator::MERCHANT_PATH]['result']==='PASS','B1151_MERCHANT_SETTINGS_GUEST_302_'.$where);
     // B1150 stays: the signed media route, the accessor and the doctor-facing rows pass in both states (the fixture has two product images with files).
     foreach(['PRODUCT_IMAGE_URL_ACCESSOR','MEDIA_ROUTE_IMAGE','MEDIA_ROUTE_ORIGINAL_HEAD','MEDIA_ROUTE_NOT_MODIFIED','MEDIA_ROUTE_BAD_SIGNATURE','MEDIA_ROUTE_MISSING_SIGNATURE','MEDIA_ROUTE_UNKNOWN_IMAGE'] as $k)check(($by[$k]['result']??'')==='PASS','B1150_MEDIA_ROUTE_ROW_'.$k.'_'.$where.':'.json_encode($by[$k]??null));
 };
 // B1152 stays in both states: the guest admin redirects (the settings pages AND the dashboard /) are on the pinned origin (the pin is live before this rollout, so the plain-http fixture request is redirected to https all the same), the login form is clean.
 $pinRows=static function(array $by,string $where):void{
-    foreach([DashboardReportsInstallCoordinator::SMTP_PATH,DashboardReportsInstallCoordinator::MERCHANT_PATH,DashboardReportsInstallCoordinator::DOCUMENTS_PATH,'/'] as $p)
+    foreach([CommissionsInstallCoordinator::SMTP_PATH,CommissionsInstallCoordinator::MERCHANT_PATH,CommissionsInstallCoordinator::DOCUMENTS_PATH,'/'] as $p)
         check($by[$p]['observed']===302&&$by[$p]['result']==='PASS'&&$by[$p]['location']==='LOGIN'&&$by[$p]['locationOrigin']==='PINNED_ORIGIN','GUEST_REDIRECT_ON_THE_PINNED_ORIGIN_'.$p.'_'.$where.':'.json_encode([$by[$p]['observed']??null,$by[$p]['locationOrigin']??null]));
     check($by['/login']['result']==='PASS'&&($by['/login']['absoluteFormActionsOffOrigin']??-1)===0,'LOGIN_FORM_ACTION_ON_THE_ORIGIN_'.$where);
 };
@@ -376,31 +382,27 @@ $viewRows=static function(array $by,string $where):void{
     $h=$by['SHOP_HEADER_LOGO_HEIGHT'];check($h['result']==='PASS'&&$h['heightAttribute']===32,'B1153_HEADER_LOGO_IMG_HEIGHT_ATTRIBUTE_32_'.$where.':'.json_encode($h));
     check($by['/login']['observed']===200&&$by['/up']['observed']===200,'LOGIN_AND_UP_200_'.$where);
 };
-// The rows only this rollout adds. The two changed stylesheets: installed both 200 text/css with the payload bytes; old: the admin one is served with its pre-state bytes, the registration one is absent on disk and not served (404, never a 5xx);
-// the unchanged tokens stylesheet keeps its B1154 digest in both states.
+// The rows only this rollout adds. The changed admin stylesheet: installed 200 text/css with the payload bytes; old: served with its pre-state bytes; the unchanged tokens stylesheet keeps its B1154 digest in both states.
 $assetRows=static function(array $by,bool $installed,string $where)use($cssUrls):void{
-    foreach($cssUrls as $u){$r=$by['ADMIN_STYLESHEET '.$u]??null;
-        if($installed)check(is_array($r)&&$r['result']==='PASS'&&$r['observed']===200&&$r['contentType']==='text/css'&&$r['sha256EqualsThePayload']===true&&$r['ok']===true,'CHANGED_STYLESHEET_ROW_INSTALLED_'.$u.'_'.$where.':'.json_encode($r));
-        elseif($u===$cssUrls[0])check(is_array($r)&&$r['result']==='PASS'&&$r['observed']===200&&$r['contentType']==='text/css'&&$r['ok']===true,'CHANGED_STYLESHEET_ROW_OLD_SERVES_THE_PRE_STATE_BYTES_'.$u.'_'.$where.':'.json_encode($r));
-        else check(is_array($r)&&$r['result']==='PASS'&&$r['observed']!==200&&is_int($r['observed'])&&$r['observed']<500&&$r['onDisk']===false,'NEW_STYLESHEET_ROW_OLD_ABSENT_AND_NOT_SERVED_'.$u.'_'.$where.':'.json_encode($r));}
-    $t=$by['TOKENS_STYLESHEET '.DashboardReportsInstallCoordinator::TOKENS_CSS_PATH]??null;check(is_array($t)&&$t['result']==='PASS'&&$t['ok']===true,'TOKENS_STYLESHEET_KEEPS_ITS_B1154_DIGEST_'.$where.':'.json_encode($t));
+    $r=$by['ADMIN_STYLESHEET '.$cssUrls[0]]??null;
+    if($installed)check(is_array($r)&&$r['result']==='PASS'&&$r['observed']===200&&$r['contentType']==='text/css'&&$r['sha256EqualsThePayload']===true&&$r['ok']===true,'CHANGED_STYLESHEET_ROW_INSTALLED_'.$where.':'.json_encode($r));
+    else check(is_array($r)&&$r['result']==='PASS'&&$r['observed']===200&&$r['contentType']==='text/css'&&$r['ok']===true,'CHANGED_STYLESHEET_ROW_OLD_SERVES_THE_PRE_STATE_BYTES_'.$where.':'.json_encode($r));
+    $t=$by['TOKENS_STYLESHEET '.CommissionsInstallCoordinator::TOKENS_CSS_PATH]??null;check(is_array($t)&&$t['result']==='PASS'&&$t['ok']===true,'TOKENS_STYLESHEET_KEEPS_ITS_B1154_DIGEST_'.$where.':'.json_encode($t));
 };
-// The sub-agent report URLs for a guest (installed: 302 to the login on the pinned origin; old: no route, never a 5xx), the foreign-Referer request (installed: 302 to exactly the pinned origin plus /katalog; old: the foreign Referer is followed,
-// recorded as INFO), the CSP of the registration page and the catalog CSP baseline.
+// The report URLs of B1155 and the foreign-Referer redirect are live in BOTH states; the guest bell URL: installed 302 to the login, old no route (never a 5xx); the CSP baselines.
 $redirectRows=static function(array $by,bool $installed,string $where):void{
-    foreach([DashboardReportsInstallCoordinator::SUBAGENTS_PATH,DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH] as $p){$r=$by[$p]??null;
-        if($installed)check(is_array($r)&&$r['observed']===302&&$r['result']==='PASS'&&$r['location']==='LOGIN'&&$r['locationOrigin']==='PINNED_ORIGIN','GUEST_REPORT_302_TO_THE_LOGIN_ON_THE_PINNED_ORIGIN_'.$p.'_'.$where.':'.json_encode($r));
-        else check(is_array($r)&&$r['result']==='PASS'&&is_int($r['observed'])&&$r['observed']<500,'GUEST_REPORT_URL_IS_NOT_A_5XX_IN_THE_OLD_STATE_'.$p.'_'.$where.':'.json_encode($r));}
-    $x=$by['FOREIGN_REFERER_REDIRECT']??null;
-    if($installed)check(is_array($x)&&$x['result']==='PASS'&&$x['observed']===302&&$x['locationKind']==='PINNED_CATALOG','FOREIGN_REFERER_REDIRECT_IS_PINNED_TO_THE_ORIGIN_CATALOG_'.$where.':'.json_encode($x));
-    else check(is_array($x)&&str_starts_with((string)$x['result'],'INFO')&&$x['observed']===302&&$x['locationKind']==='FOREIGN_REFERER','OLD_STATE_FOLLOWS_THE_FOREIGN_REFERER_RECORDED_'.$where.':'.json_encode($x));
+    foreach(['/admin/reports/subagents','/admin/reports/subagents.csv'] as $p){$r=$by[$p]??null;check(is_array($r)&&$r['observed']===302&&$r['result']==='PASS'&&$r['location']==='LOGIN'&&$r['locationOrigin']==='PINNED_ORIGIN','GUEST_REPORT_302_TO_THE_LOGIN_ON_THE_PINNED_ORIGIN_'.$p.'_'.$where.':'.json_encode($r));}
+    $n=$by[CommissionsInstallCoordinator::NOTIFICATIONS_RECENT_PATH]??null;
+    if($installed)check(is_array($n)&&$n['observed']===302&&$n['result']==='PASS'&&$n['location']==='LOGIN','GUEST_BELL_URL_302_TO_THE_LOGIN_'.$where.':'.json_encode($n));
+    else check(is_array($n)&&$n['result']==='PASS'&&is_int($n['observed'])&&$n['observed']<500,'GUEST_BELL_URL_IS_NOT_A_5XX_IN_THE_OLD_STATE_'.$where.':'.json_encode($n));
+    $x=$by['FOREIGN_REFERER_REDIRECT']??null;check(is_array($x)&&$x['result']==='PASS'&&$x['observed']===302&&$x['locationKind']==='PINNED_CATALOG','FOREIGN_REFERER_REDIRECT_IS_PINNED_TO_THE_ORIGIN_CATALOG_'.$where.':'.json_encode($x));
     if($installed){$c=$by['CATALOG_CSP_UNCHANGED']??null;check(is_array($c)&&$c['result']==='PASS'&&$c['baselineRecorded']===true,'CATALOG_CSP_EQUALS_THE_PREFLIGHT_BASELINE_'.$where.':'.json_encode($c));
-        $g=$by['REGISTER_CSP']??null;check(is_array($g)&&$g['result']==='PASS'&&$g['youtubeNocookieInFrameSrc']===$g['pageEmbedsYoutubeIframe'],'REGISTER_CSP_TURNSTILE_AS_BEFORE_YOUTUBE_ONLY_WITH_A_VALID_BACKGROUND_'.$where.':'.json_encode($g));}
+        $g=$by['REGISTER_CSP']??null;check(is_array($g)&&$g['result']==='PASS'&&$g['youtubeNocookieInFrameSrc']===$g['pageEmbedsYoutubeIframe'],'REGISTER_CSP_TURNSTILE_AS_BEFORE_'.$where.':'.json_encode($g));}
     else check(isset($by['CATALOG_CSP_BASELINE'])&&isset($by['REGISTER_CSP_BASELINE']),'OLD_STATE_RECORDS_THE_CSP_BASELINES_'.$where);
 };
 // A request with a FORGED Host header (CI only; the shipped tool never sends one): the redirect Location and the login form must stay on the pinned origin (B1152, live before and after this rollout).
 $forged=static function():array{
-    $r=DashboardReportsFixtureWeb::getHost(PORT,'/admin/settings/smtp','forged-host.invalid');$l=DashboardReportsFixtureWeb::getHost(PORT,'/login','forged-host.invalid');
+    $r=CommissionsFixtureWeb::getHost(PORT,'/admin/settings/smtp','forged-host.invalid');$l=CommissionsFixtureWeb::getHost(PORT,'/login','forged-host.invalid');
     return ['status'=>$r['status'],'location'=>(string)$r['location'],'loginStatus'=>$l['status'],'loginBodyMentionsForged'=>str_contains($l['body'],'forged-host.invalid')];
 };
 // The e-mail header as the CLI renders it (nothing is sent: the mailer is the array driver, a MailMessage is only rendered): MailBranding::logo() and the HTML of a notification mail. B1153 is live, so the logo is there in BOTH states of this rollout.
@@ -409,27 +411,27 @@ $mailCheck=static fn():array=>json_decode(sh(['php','-d','opcache.enable=0','-d'
 // What one stylesheet looks like to a browser and to the edge (CI only): the plain URL, the exact ?v=<file mtime> URL the new layout links, and the edge double with the real .htaccess headers: all three 200, text/css and the bytes of the file on disk.
 $assetServed=static function(string $url,string $rel)use($active,$edge):array{
     $f=$active.'/'.$rel;$mt=(string)filemtime($f);$sha=hash_file('sha256',$f);$mime=static fn(array $r):string=>strtolower(trim(explode(';',(string)$r['contentType'])[0]));
-    $plain=DashboardReportsFixtureWeb::get(PORT,$url);$ver=DashboardReportsFixtureWeb::get(PORT,$url.'?v='.$mt);$e=$edge->fetch($url,[],bin2hex(random_bytes(8)));
+    $plain=CommissionsFixtureWeb::get(PORT,$url);$ver=CommissionsFixtureWeb::get(PORT,$url.'?v='.$mt);$e=$edge->fetch($url,[],bin2hex(random_bytes(8)));
     return ['plain'=>$plain['status']===200&&$mime($plain)==='text/css'&&hash('sha256',$plain['body'])===$sha,'versioned'=>$ver['status']===200&&$mime($ver)==='text/css'&&hash('sha256',$ver['body'])===$sha,'edge'=>$e['status']===200&&$mime($e)==='text/css'&&hash('sha256',$e['body'])===$sha&&MediaWeb::nosniff($e['nosniff'])&&CatalogWeb::noindex($e['robots'])&&($e['htaccessHeadersApplied']??false)===true];
 };
 // A failed POST /login with a foreign Referer (CI only; the shipped tool never POSTs): the old validation redirect follows the Referer (back()), the payload redirects to the login URL on the pinned origin.
 // The login is a nonexistent address, so no real account is ever counted by the login throttle; Turnstile is off in the fixture environment (TURNSTILE_ENABLED=false), the CSRF token and the session cookie come from a real GET /login.
 $failedLogin=static function():array{
-    $jar=[];$page=DashboardReportsFixtureWeb::jarGet(PORT,'/login',$jar);$tok=$page['status']===200?DashboardReportsFixtureWeb::csrfToken($page['body']):null;
+    $jar=[];$page=CommissionsFixtureWeb::jarGet(PORT,'/login',$jar);$tok=$page['status']===200?CommissionsFixtureWeb::csrfToken($page['body']):null;
     if($tok===null)return ['status'=>$page['status'],'location'=>'','kind'=>'NO_CSRF_TOKEN'];
-    $r=DashboardReportsFixtureWeb::jarGet(PORT,'/login',$jar,http_build_query(['_token'=>$tok,'login'=>'ghost-'.bin2hex(random_bytes(4)).'@example.test','password'=>'Wrong-'.bin2hex(random_bytes(6)).'Aa1!'],'','&',PHP_QUERY_RFC3986),['Referer: '.DashboardReportsInstallCoordinator::FOREIGN_REFERER]);
-    $loc=(string)($r['location']??'');$want=DashboardReportsInstallCoordinator::EXPECTED_APP_URL.'/login';
+    $r=CommissionsFixtureWeb::jarGet(PORT,'/login',$jar,http_build_query(['_token'=>$tok,'login'=>'ghost-'.bin2hex(random_bytes(4)).'@example.test','password'=>'Wrong-'.bin2hex(random_bytes(6)).'Aa1!'],'','&',PHP_QUERY_RFC3986),['Referer: '.CommissionsInstallCoordinator::FOREIGN_REFERER]);
+    $loc=(string)($r['location']??'');$want=CommissionsInstallCoordinator::EXPECTED_APP_URL.'/login';
     return ['status'=>$r['status'],'location'=>$loc,'kind'=>$loc===''?'NONE':($loc===$want?'PINNED_LOGIN':(preg_match('~^https?://evil\.example(?:[/?#]|$)~i',$loc)===1?'FOREIGN_REFERER':'OTHER'))];
 };
 // The throwaway SuperAdministrator of the window evidence (CI only; the shipped tool never logs in). Its password is generated now, lives in this process and in the private run config of the runner, and is never printed. THE HARD LOGIN GATE: a real POST /login, an authenticated
-// GET of the dashboard / (200, the B1154 shell, not yet the B1155 dashboard) and the logout must work in the fixture app at the OLD state BEFORE any run of the B1155 coordinator. Anything else FAILS the fixture: there is no CLI-only substitute and no skip.
-$winLogin='b1155-window-ci';$winPassword=bin2hex(random_bytes(12)).'Aa1!';
+// GET of the dashboard / (200, the B1154 shell, not yet the B1156 dashboard) and the logout must work in the fixture app at the OLD state BEFORE any run of the B1156 coordinator. Anything else FAILS the fixture: there is no CLI-only substitute and no skip.
+$winLogin='b1156-window-ci';$winPassword=bin2hex(random_bytes(12)).'Aa1!';
 $pdo()->prepare("INSERT INTO users (role_id,username,email,first_name,password_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,'active',NOW(),NOW())")->execute([$roleId,$winLogin,$winLogin.'@example.test','Fixture',password_hash($winPassword,PASSWORD_BCRYPT)]);
-$jarMain=[];$lg=DashboardReportsFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarMain);$dash=$lg['ok']?DashboardReportsFixtureWeb::jarGet(PORT,'/',$jarMain):null;$winMode='NOT_PROVEN';$winWhy='LOGIN_'.$lg['step'].'_STATUS_'.$lg['status'];
+$jarMain=[];$lg=CommissionsFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarMain);$dash=$lg['ok']?CommissionsFixtureWeb::jarGet(PORT,'/',$jarMain):null;$winMode='NOT_PROVEN';$winWhy='LOGIN_'.$lg['step'].'_STATUS_'.$lg['status'];
 if($lg['ok']&&is_array($dash)){
     $winWhy='DASHBOARD_STATUS_'.$dash['status'];
-    if($dash['status']===200&&str_contains($dash['body'],'a1-header__bar')&&!str_contains($dash['body'],'a1-hero--split')&&!str_contains($dash['body'],'a1-strip')){
-        $tok=DashboardReportsFixtureWeb::csrfToken($dash['body']);$lo=$tok===null?null:DashboardReportsFixtureWeb::jarGet(PORT,'/logout',$jarMain,http_build_query(['_token'=>$tok],'','&',PHP_QUERY_RFC3986));$after=DashboardReportsFixtureWeb::jarGet(PORT,'/',$jarMain);
+    if($dash['status']===200&&str_contains($dash['body'],'a1-header__bar')&&str_contains($dash['body'],'a1-hero--split')){
+        $tok=CommissionsFixtureWeb::csrfToken($dash['body']);$lo=$tok===null?null:CommissionsFixtureWeb::jarGet(PORT,'/logout',$jarMain,http_build_query(['_token'=>$tok],'','&',PHP_QUERY_RFC3986));$after=CommissionsFixtureWeb::jarGet(PORT,'/',$jarMain);
         if($lo!==null&&$lo['status']===302&&$after['status']===302){$winMode='AUTHENTICATED_HTTP';$winWhy='LOGIN_DASHBOARD_OF_THE_B1154_SHELL_AND_LOGOUT_WORK_IN_THE_FIXTURE_APP';}else $winWhy='LOGOUT_STATUS_'.json_encode([$lo['status']??null,$after['status']]);
     }
 }
@@ -438,7 +440,7 @@ check($winMode==='AUTHENTICATED_HTTP','HARD_LOGIN_GATE_AUTHENTICATED_LOGIN_DASHB
 // The sub-agent (role user, a seeded user group: the real setup of tests/Feature/SubagentSalesReportTest.php) and an admin (allowed, sees only the orders it supplies): CI-only accounts with generated passwords.
 $roleOf=static fn(string $slug):int=>(int)$pdo()->query("SELECT id FROM roles WHERE slug='".$slug."'")->fetchColumn();$groupId=(int)$pdo()->query('SELECT id FROM user_groups ORDER BY id LIMIT 1')->fetchColumn();
 check($roleOf('user')>0&&$roleOf('admin')>0&&$groupId>0,'THE_USER_AND_ADMIN_ROLES_AND_A_USER_GROUP_EXIST');
-$subLogin='b1155-subagent-ci';$subPassword=bin2hex(random_bytes(12)).'Bb2!';$admLogin='b1155-admin-ci';$admPassword=bin2hex(random_bytes(12)).'Cc3!';
+$subLogin='b1156-subagent-ci';$subPassword=bin2hex(random_bytes(12)).'Bb2!';$admLogin='b1156-admin-ci';$admPassword=bin2hex(random_bytes(12)).'Cc3!';
 $pdo()->prepare("INSERT INTO users (role_id,user_group_id,username,email,first_name,last_name,password_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'active',NOW(),NOW())")->execute([$roleOf('user'),$groupId,$subLogin,$subLogin.'@example.test','Sub','Agent',password_hash($subPassword,PASSWORD_BCRYPT)]);
 $pdo()->prepare("INSERT INTO users (role_id,username,email,first_name,last_name,password_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'active',NOW(),NOW())")->execute([$roleOf('admin'),$admLogin,$admLogin.'@example.test','Ad','Min',password_hash($admPassword,PASSWORD_BCRYPT)]);
 check((int)$pdo()->query("SELECT COUNT(*) FROM users WHERE username IN ('".$subLogin."','".$admLogin."')")->fetchColumn()===2,'SUBAGENT_AND_ADMIN_USERS_CREATED');
@@ -447,28 +449,28 @@ $reset();
 // 6. A route cache present: B1146 to B1153 ran without one, so the preflight HOLDs; the cache is never touched.
 $artisan(['route:cache']);$cacheBefore=$routeCacheSHA();check($cacheBefore!==null,'ROUTE_CACHE_CREATED');$reset();
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('ROUTE_CACHE_PRESENT_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore,'ROUTE_CACHE_PRESENT_HOLD_UNTOUCHED');
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('ROUTE_CACHE_PRESENT_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE'&&$routeCacheSHA()===$cacheBefore,'ROUTE_CACHE_PRESENT_HOLD_UNTOUCHED');
 $artisan(['route:clear']);check($routeCacheSHA()===null,'FIXTURE_ROUTE_CACHE_REMOVED');$reset();$results['routeCachePresent']='HOLD_NOTHING_CHANGED_CACHE_BYTES_UNCHANGED';
 // 6b. The chain gate on Report1120 (and on the B1154 state it names): every way of not being the verified B1154 PASS is a HOLD with nothing
 // changed: the report missing, only a decoy that is not a PASS, the real report beside a decoy (two reports), the production digest pin (the
 // fixture's report cannot have it), a different B1154 state id, a B1154 state that is not INSTALLED_PASS.
 $gate=static function(string $code,string $name,array $overrides=[])use($run,$tree,$reset):void{
     [$rc,$o]=$run([],'install',$overrides);$p=lastLine($o,'PREFLIGHT');
-    check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array($code,$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','CHAIN_GATE_'.$name.':'.json_encode($p['blockers']));$reset();
+    check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array($code,$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','CHAIN_GATE_'.$name.':'.json_encode($p['blockers']));$reset();
 };
-$decoy1120=$root.'/docs/operations/1120-B1154-INSTALLER-20261115-101000.md';
-rename($report1120,$report1120.'.moved');$gate('B1154_REPORT1120_MISSING','REPORT_1120_MISSING');
-file_put_contents($decoy1120,"B1154_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");$gate('B1154_REPORT_NOT_TERMINAL_PASS','DECOY_1120_IS_NOT_A_PASS');
-rename($report1120.'.moved',$report1120);$gate('B1154_REPORT1120_AMBIGUOUS','TWO_1120_REPORTS');unlink($decoy1120);
-$gate('B1154_REPORT1120_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1154ReportSHA256'=>DashboardReportsInstallCoordinator::B1154_REPORT_SHA256]);
-$gate('B1154_STATE_ID_DIFFERS_FROM_THE_PINNED_ONE','STATE_ID_DIFFERS',['b1154StateId'=>str_repeat('a',32)]);
-$stateFile=$private1154.'/'.$pin['state'].'/state.json';$stateOriginal=(string)file_get_contents($stateFile);check(str_contains($stateOriginal,'"phase":"INSTALLED_PASS"'),'THE_B1154_STATE_IS_INSTALLED_PASS');file_put_contents($stateFile,str_replace('"phase":"INSTALLED_PASS"','"phase":"ROLLED_BACK"',$stateOriginal));
-$gate('B1154_STATE_NOT_INSTALLED_PASS','B1154_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
+$decoy1121=$root.'/docs/operations/1121-B1155-INSTALLER-20261116-101000.md';
+rename($report1121,$report1121.'.moved');$gate('B1155_REPORT1121_MISSING','REPORT_1121_MISSING');
+file_put_contents($decoy1121,"B1154_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");$gate('B1155_REPORT_NOT_TERMINAL_PASS','DECOY_1121_IS_NOT_A_PASS');
+rename($report1121.'.moved',$report1121);$gate('B1155_REPORT1121_AMBIGUOUS','TWO_1121_REPORTS');unlink($decoy1121);
+$gate('B1155_REPORT1121_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1155ReportSHA256'=>CommissionsInstallCoordinator::B1155_REPORT_SHA256]);
+$gate('B1155_STATE_ID_DIFFERS_FROM_THE_PINNED_ONE','STATE_ID_DIFFERS',['b1155StateId'=>str_repeat('a',32)]);
+$stateFile=$private1155.'/'.$pin['state'].'/state.json';$stateOriginal=(string)file_get_contents($stateFile);check(str_contains($stateOriginal,'"phase":"INSTALLED_PASS"'),'THE_B1155_STATE_IS_INSTALLED_PASS');file_put_contents($stateFile,str_replace('"phase":"INSTALLED_PASS"','"phase":"ROLLED_BACK"',$stateOriginal));
+$gate('B1155_STATE_NOT_INSTALLED_PASS','B1155_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
 // A report that is the right PASS but one byte different (a changed digest) is the same HOLD as the production pin: the pin is the host file's bytes. The production pins are Report1120's facts:
 // its sha256 is that of the git blob (the CRLF worktree copy on a Windows checkout has another digest), its state id and its route count are the ones Report1120 printed.
-check(DashboardReportsInstallCoordinator::B1154_REPORT_SHA256==='8840b73569db9f2dc1455b14bce5ec7824f27b417e4ef010ddcdcc837030ced0'&&DashboardReportsInstallCoordinator::B1154_STATE_ID==='192319eb0107b9c10c427642c53a53a7'&&DashboardReportsInstallCoordinator::ROUTES===568&&DashboardReportsInstallCoordinator::ROUTES_AFTER===570&&DashboardReportsInstallCoordinator::B1154_TREE_FILES===8574&&DashboardReportsInstallCoordinator::installedTreeFiles()===8583&&DashboardReportsInstallCoordinator::EXPECTED_APP_URL==='https://cms.ald1n.com'&&DashboardReportsInstallCoordinator::BASE_COMMIT==='ad901a580ea85fffbd6567f1f12965b396680d79'&&DashboardReportsInstallCoordinator::SOURCE_COMMIT==='d2c07f62cee09b22248bcff2d4a8361523d7fee6'&&DashboardReportsInstallCoordinator::B1154_COMMIT===DashboardReportsInstallCoordinator::BASE_COMMIT,'PRODUCTION_PINS_ARE_THE_REPORT1120_FACTS');
-// The repository copy of Report1120 is the file the pin names: its git blob digest is the production pin (only checked where the repository is the checkout, as in CI).
-$repoReport=dirname($tools,3).'/docs/operations/1120-B1154-INSTALLER-20261115-105942.md';if(is_file($repoReport))check(hash_file('sha256',$repoReport)===DashboardReportsInstallCoordinator::B1154_REPORT_SHA256,'THE_ARCHIVED_REPORT1120_HAS_THE_PINNED_DIGEST');
+check(CommissionsInstallCoordinator::B1155_REPORT_SHA256==='1fa75edfdaca0ec8810a54ffa0900666db03f316c37922063102a59b4ff19267'&&CommissionsInstallCoordinator::B1155_STATE_ID==='48389cb1f7b6f435878fff98655ff202'&&CommissionsInstallCoordinator::ROUTES===570&&CommissionsInstallCoordinator::ROUTES_AFTER===579&&CommissionsInstallCoordinator::B1155_TREE_FILES===8583&&CommissionsInstallCoordinator::installedTreeFiles()===8596&&CommissionsInstallCoordinator::EXPECTED_APP_URL==='https://cms.ald1n.com'&&CommissionsInstallCoordinator::BASE_COMMIT==='d2c07f62cee09b22248bcff2d4a8361523d7fee6'&&CommissionsInstallCoordinator::SOURCE_COMMIT==='2e5460b4573022321b71c36798413c5e42555f81'&&CommissionsInstallCoordinator::B1155_COMMIT===CommissionsInstallCoordinator::BASE_COMMIT,'PRODUCTION_PINS_ARE_THE_REPORT1121_FACTS');
+// The repository copy of Report1121 is the file the pin names: its git blob digest is the production pin (only checked where the repository is the checkout, as in CI).
+$repoReport=dirname($tools,3).'/docs/operations/1121-B1155-INSTALLER-20261116-052404.md';if(is_file($repoReport))check(hash_file('sha256',$repoReport)===CommissionsInstallCoordinator::B1155_REPORT_SHA256,'THE_ARCHIVED_REPORT1121_HAS_THE_PINNED_DIGEST');
 // 6c. The pin is strict: the effective config('app.url') must be exactly https://cms.ald1n.com. A trailing slash is a HOLD with nothing changed (the .env of the
 // retained tree is restored by the reset).
 file_put_contents($envFile,str_replace('APP_URL=https://cms.ald1n.com','APP_URL=https://cms.ald1n.com/',$envOriginal));$artisan(['cache:clear']);
@@ -478,85 +480,35 @@ $gate('APP_URL_NOT_EXACTLY_THE_PINNED_ORIGIN_NOTHING_CHANGED','APP_URL_PLAIN_HTT
 // 6d. INSIDE THE BACKUP WINDOW: 20 minutes before the 02:30 backup an INSTALL is a HOLD with nothing changed (the install window this run needs would run into the backup). The same clock outside the window is the
 // clock of every other case of this fixture. The Sunday window (03:10) is the same rule with the other schedule row.
 [$rc,$o]=$run([],'install',['fixedNow'=>$conflictNow]);$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
 $sundayNow=(new DateTimeImmutable('2026-11-15 02:55:00',new DateTimeZone('Europe/Belgrade')))->getTimestamp();
 [$rc,$o]=$run([],'install',['fixedNow'=>$sundayNow]);$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_SUNDAY_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
-$results['chainGate']=['report1120Missing'=>'HOLD','decoy1120'=>'HOLD','twoReports'=>'HOLD','digestPin'=>'HOLD','stateId'=>'HOLD','stateNotInstalledPass'=>'HOLD','appUrlTrailingSlash'=>'HOLD','appUrlHttp'=>'HOLD','insideTheBackupWindow0230AndSunday0310'=>'HOLD','nothingChanged'=>true];
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_SUNDAY_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
+$results['chainGate']=['report1121Missing'=>'HOLD','decoy1121'=>'HOLD','twoReports'=>'HOLD','digestPin'=>'HOLD','stateId'=>'HOLD','stateNotInstalledPass'=>'HOLD','appUrlTrailingSlash'=>'HOLD','appUrlHttp'=>'HOLD','insideTheBackupWindow0230AndSunday0310'=>'HOLD','nothingChanged'=>true];
 // 7. Refusal: an unknown pre-state of the first and of the last replaced file stops the run before any change.
-$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));
 foreach([reset($modifiedSteps),end($modifiedSteps)] as $victim){
     $ctl=$active.'/'.$victim['path'];$original=file_get_contents($ctl);file_put_contents($ctl,$original."\n// foreign local edit\n");
-    [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('UNKNOWN_PRE_STATE_REFUSED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'UNKNOWN_PRE_STATE_REFUSED_'.$victim['n']);
+    [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('UNKNOWN_PRE_STATE_REFUSED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'UNKNOWN_PRE_STATE_REFUSED_'.$victim['n']);
     $newPresent=array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']));check(file_get_contents($ctl)===$original."\n// foreign local edit\n"&&$newPresent===[],'UNKNOWN_PRE_STATE_NOTHING_CHANGED_'.$victim['n']);file_put_contents($ctl,$original);$reset();
 }
 $results['unknownPreState']='HOLD_NOTHING_CHANGED_FIRST_AND_LAST_MODIFIED_FILE';
-// 7b. A NEW path that is already there is a HOLD with nothing changed too: the new directory (an empty resources/views/public-shop/partials) and a foreign file at the path of a new class.
-mkdir($partials,0755);[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'NEW_DIRECTORY_ALREADY_THERE_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));rmdir($partials);$reset();
-$foreignNew=$active.'/'.$stepController['path'];file_put_contents($foreignNew,"<?php\n// foreign file at the path of a new class\n");[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&in_array('UNKNOWN_PRE_STATE_REFUSED',$p['blockers'],true)&&in_array('NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&file_get_contents($foreignNew)==="<?php\n// foreign file at the path of a new class\n",'FOREIGN_FILE_AT_A_NEW_PATH_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));unlink($foreignNew);$reset();
-$results['newPathAlreadyThere']='HOLD_NOTHING_CHANGED_DIRECTORY_AND_FOREIGN_FILE';
-// What a logged-in user meets (CI only): the dashboard, the management report, the sub-agent report and its CSV, and the registration page, in whatever markup the tree has right now.
-$reportQuery='?period=custom&date_from=2026-10-01&date_to=2026-11-15';
-$seen=static function(string $login,string $password)use($reportQuery):array{
-    $jar=[];$l=DashboardReportsFixtureWeb::adminLogin(PORT,$login,$password,$jar);if(!$l['ok'])return ['loginOk'=>false,'step'=>$l['step'],'status'=>$l['status']];
-    $d=DashboardReportsFixtureWeb::jarGet(PORT,'/',$jar);$m=DashboardReportsFixtureWeb::jarGet(PORT,'/admin/reports',$jar);$rp=DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery,$jar);$c=DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH.$reportQuery,$jar);
-    $g=DashboardReportsFixtureWeb::get(PORT,DashboardReportsInstallCoordinator::REGISTER_PATH);
-    return ['loginOk'=>true,
-        'dashboard'=>['status'=>$d['status'],'shellBar'=>str_contains($d['body'],'a1-header__bar'),'newDashboard'=>str_contains($d['body'],'a1-hero--split'),'strip'=>str_contains($d['body'],'a1-strip'),'card'=>str_contains($d['body'],'a1-card'),'navDropdown'=>str_contains($d['body'],'a1-nav-dd__group')],
-        'management'=>['status'=>$m['status'],'link'=>str_contains($m['body'],'Prodaja po subagentima'),'route'=>str_contains($m['body'],DashboardReportsInstallCoordinator::SUBAGENTS_PATH)],
-        'report'=>['status'=>$rp['status'],'title'=>str_contains($rp['body'],'Prodaja po subagentima')],
-        'csv'=>['status'=>$c['status'],'csvContentType'=>str_starts_with(strtolower((string)$c['contentType']),'text/csv'),'bom'=>str_starts_with($c['body'],"\xEF\xBB\xBF"),'header'=>str_contains($c['body'],'Subagent;')],
-        'registration'=>['status'=>$g['status'],'newMarkup'=>str_contains($g['body'],'reg-shell'),'stylesheetLinked'=>str_contains($g['body'],'ald1n-public-register.css')]];
-};
-// The OLD markup (B1154 live): the shell, but not the new dashboard, no dropdown, no report routes (404), no link on the management report, the old registration page. The NEW markup (B1155 live): all of it, the report served as text/csv with the BOM.
-$checkOldView=static function(array $v,string $where):void{
-    check($v['loginOk']===true&&$v['dashboard']['status']===200&&$v['dashboard']['shellBar']===true&&$v['dashboard']['newDashboard']===false&&$v['dashboard']['strip']===false&&$v['dashboard']['card']===false&&$v['dashboard']['navDropdown']===false,'OLD_DASHBOARD_MARKUP_'.$where.':'.json_encode($v['dashboard']??$v));
-    check($v['management']['status']===200&&$v['management']['link']===false&&$v['management']['route']===false&&$v['report']['status']===404&&$v['csv']['status']===404,'OLD_REPORT_ROUTES_404_AND_NO_LINK_'.$where.':'.json_encode([$v['management'],$v['report'],$v['csv']]));
-    check($v['registration']['status']===200&&$v['registration']['newMarkup']===false&&$v['registration']['stylesheetLinked']===false,'OLD_REGISTRATION_MARKUP_'.$where.':'.json_encode($v['registration']));
-};
-$checkNewView=static function(array $v,string $where):void{
-    check($v['loginOk']===true&&$v['dashboard']['status']===200&&$v['dashboard']['shellBar']===true&&$v['dashboard']['newDashboard']===true&&$v['dashboard']['strip']===true&&$v['dashboard']['card']===true&&$v['dashboard']['navDropdown']===true,'NEW_DASHBOARD_MARKUP_'.$where.':'.json_encode($v['dashboard']??$v));
-    check($v['management']['status']===200&&$v['management']['link']===true&&$v['management']['route']===true,'NEW_MANAGEMENT_REPORT_LINKS_THE_SUBAGENT_REPORT_'.$where.':'.json_encode($v['management']));
-    check($v['report']['status']===200&&$v['report']['title']===true&&$v['csv']['status']===200&&$v['csv']['csvContentType']===true&&$v['csv']['bom']===true&&$v['csv']['header']===true,'NEW_SUBAGENT_REPORT_AND_CSV_SERVED_'.$where.':'.json_encode([$v['report'],$v['csv']]));
-    check($v['registration']['status']===200&&$v['registration']['newMarkup']===true&&$v['registration']['stylesheetLinked']===true,'NEW_REGISTRATION_MARKUP_'.$where.':'.json_encode($v['registration']));
-};
-
-// 8. Preflight facts with the B1154 tree: the B1149 to B1154 features are the OLD state (the origin pin, the PDF raster guard, the logo heights, the catalog whitelist, the e-mail logo and the B1154 admin shell included), all 30 B1155 source markers are false, the three library
-// methods, the four new classes and both report routes are absent, the registration stylesheet is absent on disk and not served, the route count is the B1154 one, APP_URL is exactly the pinned origin, the PHP extensions and the mail fingerprint are read, the login
-// background fact is a boolean, no migration, composer or config change is planned, nothing is written. The superadmin sees the OLD markup.
+// 7b. A foreign file at the path of a new class and at the path of a migration is a HOLD with nothing changed too.
+foreach([$byPath['app/Services/CommissionReversalService.php'],$stepMig1] as $nv){$foreignNew=$active.'/'.$nv['path'];file_put_contents($foreignNew,"<?php\n// foreign file at a new path\n");[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
+    check($rc===2&&in_array('UNKNOWN_PRE_STATE_REFUSED',$p['blockers'],true)&&in_array('NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&file_get_contents($foreignNew)==="<?php\n// foreign file at a new path\n",'FOREIGN_FILE_AT_A_NEW_PATH_HOLDS_NOTHING_CHANGED_'.$nv['path']);unlink($foreignNew);$reset();}
+$results['newPathAlreadyThere']='HOLD_NOTHING_CHANGED_CLASS_AND_MIGRATION_PATH';
+// 8. Preflight facts with the B1155 tree (the OLD state of this rollout): every B1149 to B1155 fact holds, the 32 B1156 markers are false, no new class, library method or route, 71 ran 0 pending, 570 routes, APP_URL exact, nothing written.
 [$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$ft=allLines($o,'FEATURE_CLI_CHECK')[0]??null;$en=allLines($o,'ENVIRONMENT_CLI_CHECK')[0]??null;$rcOld=allLines($o,'ROUTES_CHECK')[0]??null;$pf=allLines($o,'PREFLIGHT')[0]??null;
-check(is_array($ft)&&$ft['expectInstalled']===false&&$ft['themeRoutePostOnly']===true&&$ft['routesCached']===false&&($ft['routeList']['site-assets.show']??null)===1&&($ft['routeList']['admin.settings.smtp.index']??null)===1&&($ft['routeList']['public-shop.theme']??null)===1&&($ft['routeList'][DashboardReportsInstallCoordinator::MEDIA_ROUTE_NAME]??null)===1&&$ft['b1150ClassesLoaded']===true&&$ft['routeMedia']===true
-    &&$ft['throttleApi']===true&&$ft['throttleResolvable']===true&&$ft['webPasswordUsesThrottle']===true&&$ft['apiPasswordUsesThrottle']===true&&$ft['merchantIssueLabels']===true
-    &&$ft['originConfiguredIsExpected']===true&&$ft['middlewareGlobal']===true&&$ft['bootstrapNamesPin']===true&&$ft['pdfRasterGuard']===true
-    &&$ft['logoHeightsApi']===true&&$ft['catalogWhitelist']===true&&$ft['freshBrandingApi']===true&&$ft['mailBrandingApi']===true&&count($ft['b1154Markers'])===count(AdminShellInstallCoordinator::SOURCE_MARKERS)&&!in_array(false,$ft['b1154Markers'],true)
-    &&$ft['newClassesLoaded']===0&&$ft['newClassesTotal']===4&&count($ft['sourceMarkers'])===count(DashboardReportsInstallCoordinator::SOURCE_MARKERS)&&count($ft['sourceMarkers'])===30&&!in_array(true,$ft['sourceMarkers'],true)
-    &&!in_array(true,$ft['libraryApis'],true)&&count($ft['libraryApis'])===3&&$ft['bootstrapNamesRedirect']===false&&array_values(array_map(static fn($r)=>$r['present'],$ft['reportRoutes']))===[false,false],'OLD_STATE_FEATURES_B1154_PRESENT_THE_THIRTY_B1155_MARKERS_ABSENT:'.json_encode($ft));
-check(is_array($rcOld)&&$rcOld['routeCount']===$pin['routes']&&$rcOld['expectedRouteCount']===$pin['routes']&&$rcOld['routesCached']===false&&$rcOld['b1146RouteNamesPresent']===11&&$rcOld['installed']===false&&$rcOld['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS]['hits']===0&&$rcOld['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS_CSV]['hits']===0,'ROUTE_COUNT_IS_THE_B1154_COUNT_AND_BOTH_REPORT_NAMES_ARE_ABSENT_BEFORE:'.json_encode($rcOld));
-check(is_array($en)&&$en['extensions']['dom']===true&&$en['extensions']['libxml']===true&&$en['extensions']['fileinfo']===true&&$en['extensions']['mbstring']===true&&($en['extensions']['gd']===true||$en['extensions']['imagick']===true)&&$en['appUrlHttpsOrigin']===true&&$en['appUrlExact']===true&&is_bool($en['trustedOrCanonicalHostConfigPresent'])&&!array_key_exists('mailFingerprintHMAC',$en)&&!array_key_exists('mailFingerprintSHA256',$en),'ENVIRONMENT_FACTS_APP_URL_EXACT_WITHOUT_ANY_FINGERPRINT');
-check(is_array($pf)&&$pf['blockers']===[]&&$pf['values']['loginBackground']===['youtubeModeValidId'=>false]&&$pf['values']['scope']['migrations']==='NONE'&&$pf['values']['scope']['composer']==='NONE'&&$pf['values']['scope']['config']==='NONE'&&$pf['values']['scope']['env']==='UNCHANGED'&&$pf['values']['scope']['payloadUnderDatabaseConfigComposer']===0,'PREFLIGHT_LOGIN_BACKGROUND_IS_A_BOOLEAN_AND_NO_MIGRATION_COMPOSER_OR_CONFIG_CHANGE:'.json_encode($pf['values']['scope']??null));
-check(!str_contains($o,'login_background_mode')&&!str_contains($o,'login_background_youtube_id'),'NO_LOGIN_BACKGROUND_SETTING_NAME_OR_VALUE_IN_THE_REPORT');
+check(is_array($ft)&&$ft['expectInstalled']===false&&$ft['themeRoutePostOnly']===true&&$ft['routesCached']===false&&$ft['b1150ClassesLoaded']===true&&$ft['routeMedia']===true&&$ft['throttleApi']===true&&$ft['originConfiguredIsExpected']===true&&$ft['middlewareGlobal']===true&&$ft['pdfRasterGuard']===true&&$ft['logoHeightsApi']===true&&$ft['catalogWhitelist']===true&&$ft['bootstrapNamesRedirect']===true
+    &&count($ft['priorMarkers'])===29&&!in_array(false,$ft['priorMarkers'],true)&&$ft['newClassesLoaded']===0&&$ft['newClassesTotal']===6&&count($ft['sourceMarkers'])===32&&!in_array(true,$ft['sourceMarkers'],true)&&!in_array(true,$ft['libraryApis'],true)&&array_values(array_map(static fn($r)=>$r['present'],$ft['newRoutes']))===[false,false,false,false,false,false],'OLD_STATE_FEATURES_B1155_PRESENT_THE_THIRTY_TWO_B1156_MARKERS_ABSENT:'.json_encode($ft));
+check(is_array($rcOld)&&$rcOld['routeCount']===$pin['routes']&&$rcOld['expectedRouteCount']===$pin['routes']&&$rcOld['installed']===false&&$rcOld['b1146RouteNamesPresent']===11,'ROUTE_COUNT_IS_THE_B1155_COUNT_AND_THE_NEW_ROUTE_NAMES_ARE_ABSENT_BEFORE:'.json_encode($rcOld));
+check(is_array($en)&&$en['appUrlHttpsOrigin']===true&&$en['appUrlExact']===true&&!array_key_exists('mailFingerprintHMAC',$en),'ENVIRONMENT_FACTS_APP_URL_EXACT_WITHOUT_ANY_FINGERPRINT');
+check(is_array($pf)&&$pf['blockers']===[]&&$pf['values']['scope']['payloadUnderConfigComposerEnv']===0&&$pf['values']['scope']['databasePathsOtherThanTheTwoMigrations']===0&&$pf['values']['scope']['migrations']['files']===CommissionsInstallCoordinator::NEW_MIGRATIONS&&($pf['values']['migrations']['ran']??null)===71&&($pf['values']['migrations']['pending']??null)===[],'PREFLIGHT_SCOPE_AND_THE_MIGRATION_SET_71_RAN_0_PENDING:'.json_encode([$pf['values']['scope']??null,$pf['values']['migrations']??null]));
 [$s,$by]=$smokeRows($o);check($s['state']==='OLD','OLD_STATE_SMOKES_SHAPE');$b1149Intact($s,$by,'OLD');$pinRows($by,'OLD');$emailState($by,false,'OLD');$viewRows($by,'OLD');$assetRows($by,false,'OLD');$redirectRows($by,false,'OLD');
-check(!$imagesVisible||(MediaWeb::mediaLinkCount($oldCatalog)===0&&$rowOk($by,'PUBLIC_IMAGE_ROUTE')),'THE_CATALOG_LINKS_NO_SIGNED_URL_AND_THE_PUBLIC_IMAGE_ROUTE_ANSWERS');
-check($tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP=')&&!file_exists($partials),'PREFLIGHT_FACTS_NOTHING_CHANGED');
-// The real HTTP fact behind the old-state stylesheet rows: php -S answers an absent file with the application's 404, never a 200 and never a 5xx (the edge double with the real .htaccess headers agrees); the changed admin stylesheet is served with its pre-state bytes.
-$r=DashboardReportsFixtureWeb::get(PORT,$cssUrls[1]);$e=$edge->fetch($cssUrls[1],[],bin2hex(random_bytes(8)));check($r['status']===404&&$e['status']===404,'ABSENT_REGISTRATION_STYLESHEET_IS_A_404:'.json_encode([$r['status'],$e['status']]));
-$sv=$assetServed($cssUrls[0],$stepAdminCss['path']);check($sv['plain']===true&&$sv['versioned']===true&&$sv['edge']===true&&$stateOf($stepAdminCss)==='pre','OLD_ADMIN_STYLESHEET_IS_SERVED_TEXT_CSS_WITH_THE_FILE_BYTES:'.json_encode($sv));
-// The e-mail header before this rollout: B1153 is live, so the notification mail already carries the logo (a PNG light-theme logo, the default height 36, on the pinned origin); B1155 touches none of it.
-$mc=$mailCheck();check($mc['logoIsArray']===true&&$mc['logoSrcOnOrigin']===true&&$mc['logoHeight']===36&&$mc['logoOnDark']===false&&$mc['htmlHasLogoImg']===true&&$mc['imgHeight']===36&&$mc['imgOnOrigin']===true,'OLD_STATE_MAIL_HEADER_CARRIES_THE_B1153_LOGO:'.json_encode($mc));
-// B1152 is live before this rollout: a request with a forged Host header is redirected to the pinned origin already (the installed state is asserted again below).
-$f=$forged();check($f['status']===302&&$f['location']==='https://cms.ald1n.com/login'&&$f['loginStatus']===200&&$f['loginBodyMentionsForged']===false,'FORGED_HOST_STAYS_ON_THE_PINNED_ORIGIN_BEFORE_B1155:'.json_encode($f));$results['forgedHostOldState']='LOCATION_AND_LOGIN_PAGE_ON_THE_PINNED_ORIGIN_B1152_IS_LIVE';
-// The OLD state as the superadmin sees it, and the old redirect of a failed login with a foreign Referer (recorded, not judged: it is what the payload changes). The sub-agent is not a report user and sees the old pages without error.
-$ov=$seen($winLogin,$winPassword);$checkOldView($ov,'PREFLIGHT');$fl=$failedLogin();check(in_array($fl['status'],[302],true)&&$fl['kind']!=='NO_CSRF_TOKEN','OLD_STATE_FAILED_LOGIN_ANSWERS_A_REDIRECT:'.json_encode($fl));$results['oldState']=['dashboard'=>'B1154_SHELL_NO_NEW_MARKUP','reportRoutes'=>'404','failedLoginWithForeignReferer'=>$fl['kind']];
+check($tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP='),'PREFLIGHT_FACTS_NOTHING_CHANGED');
+$results['preflightFacts']='B1149_TO_B1155_PRESENT_THE_32_B1156_MARKERS_ABSENT_71_RAN_0_PENDING_570_ROUTES';
 $reset();
-// A script that is not one of the two Cloudflare edge scripts is an app script: the one-nonce-script old state then fails the preflight.
-touch($switches['rogueScript']);[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');[$s,$by]=$smokeRows($o);
-check($rc===2&&in_array('OLD_STATE_SMOKE_FAILED',$p['blockers'],true)&&$by['/katalog']['originScripts']===2&&$by['/katalog']['cspShape']===false&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','ROGUE_SCRIPT_IN_THE_OLD_STATE_HOLDS');unlink($switches['rogueScript']);
-// A preflight HOLD is re-run with the same command and the same private state (as Report1114 was on production): it goes on.
-[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$p=lastLine($o,'PREFLIGHT');check($rc===2&&$p['blockers']===[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','RERUN_AFTER_A_PREFLIGHT_HOLD_PASSES_THE_PREFLIGHT');$reset();$results['preflightFacts']=['b1149Features'=>'PRESENT_IN_THE_OLD_STATE','b1150MediaRoute'=>'PRESENT_IN_THE_OLD_STATE','b1151Throttle'=>'PRESENT_IN_THE_OLD_STATE','b1152OriginPinAndPdfGuard'=>'PRESENT_IN_THE_OLD_STATE','b1153LogoHeightsMailLogoCatalogView'=>'PRESENT_IN_THE_OLD_STATE','b1154AdminShell'=>'PRESENT_IN_THE_OLD_STATE','b1155SourceMarkers'=>'ALL_THIRTY_ABSENT','newClassesAndLibraryMethods'=>'ABSENT','reportRoutes'=>'ABSENT_404','registrationStylesheet'=>'ABSENT_ON_DISK_AND_404','routeCount'=>'THE_B1154_COUNT','appUrl'=>'EXACTLY_THE_PINNED_ORIGIN','loginBackground'=>'BOOLEAN_ONLY','extensions'=>'DOM_LIBXML_FILEINFO_MBSTRING_GD_OR_IMAGICK','htaccessCsp'=>'NONE'];
 // 9. With the shop OFF a fresh install HOLDs; the switch is never written.
-$shopOff();[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('SHOP_IS_OFF_B1155_INSTALLS_ONLY_WITH_THE_SHOP_ON_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE'&&$shopFlag()===null,'SHOP_OFF_INSTALL_REFUSED');$shopOn();$reset();$results['shopOffInstall']='HOLD_NOTHING_CHANGED';
+$shopOff();[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('SHOP_IS_OFF_B1156_INSTALLS_ONLY_WITH_THE_SHOP_ON_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE'&&$shopFlag()===null,'SHOP_OFF_INSTALL_REFUSED');$shopOn();$reset();$results['shopOffInstall']='HOLD_NOTHING_CHANGED';
 // 9b. The live doctor fails before any change (the file of the newest public image is missing): HOLD, the tree untouched, nothing backed up.
 $newest=$pdo()->query("SELECT file_path FROM product_images WHERE storage_disk='public' ORDER BY id DESC LIMIT 1")->fetchColumn();$newestFile=$retained.'/storage/app/public/'.$newest;check(is_file($newestFile)&&rename($newestFile,$newestFile.'.moved'),'NEWEST_IMAGE_FILE_MOVED_AWAY');
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');rename($newestFile.'.moved',$newestFile);
@@ -564,467 +516,188 @@ check($rc===2&&in_array('PRODUCT_MEDIA_DOCTOR_FAILED',$p['blockers'],true)&&!str
 
 // 10. An artisan run that starts after the preflight is seen by the census BEFORE the backup; nothing is written.
 [$rc,$o]=$run(['AFTER_PREFLIGHT'=>['busy']]);$pid=(int)trim((string)@file_get_contents($busyPidFile));if($pid>0){@posix_kill(-$pid,9);@posix_kill($pid,9);}shell_exec("pkill -9 -f 'sleep 40; true' || true");@unlink($busyPidFile);
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&str_contains($o,'"blockers":["CMS_ARTISAN_RUNNING"]')&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','CENSUS_BEFORE_BACKUP');$reset();
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&str_contains($o,'"blockers":["CMS_ARTISAN_RUNNING"]')&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','CENSUS_BEFORE_BACKUP');$reset();
 // A failure before the first file: "nothing applied", no view or web work.
 [$rc,$o]=$run(['BEFORE_STEP_1'=>['fail']]);$tail=substr($o,(int)strpos($o,'OVERLAY_ROLLBACK='));
-check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastLine($o,'ROLLBACK_FILES')['nothingApplied']===true&&!str_contains($tail,'ARTISAN=')&&!str_contains($tail,'WEB_OVERLAY_PROBE=')&&$tree()==='PRE','NOTHING_APPLIED_NO_REFRESH');$reset();
+check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastLine($o,'ROLLBACK_FILES')['nothingApplied']===true&&!str_contains($tail,'ARTISAN=')&&!str_contains($tail,'WEB_OVERLAY_PROBE=')&&$tree()==='PRE','NOTHING_APPLIED_NO_REFRESH');$reset();
 // The time budget is checked right before the first change.
 [$rc,$o]=$run([],'install',['budgetSeconds'=>0]);check($rc===2&&str_contains($o,'"blockers":["TIME_BUDGET_EXCEEDED_BEFORE_FIRST_CHANGE"]')&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','TIME_BUDGET_HOLD');$reset();
 // A catalog page without its JSON-LD block, and one without its CSP: acceptance fails, rolled back.
 [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['dropJsonLd'],'BEFORE_SMOKES_OLD'=>['clearDrops']]);[$s,$by]=$smokeRows(substr($o,0,(int)strpos($o,'OVERLAY_ROLLBACK=')));
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&$by['/katalog']['jsonLd']==='JSON_LD_MISSING'&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_JSON_LD_ROLLED_BACK');$reset();
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&$by['/katalog']['jsonLd']==='JSON_LD_MISSING'&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_JSON_LD_ROLLED_BACK');$reset();
 [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['dropCsp'],'BEFORE_SMOKES_OLD'=>['clearDrops']]);
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_CSP_ROLLED_BACK');$reset();
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MISSING_CSP_ROLLED_BACK');$reset();
 $results+=['censusBeforeBackup'=>'HOLD_NOTHING_WRITTEN','nothingApplied'=>'NO_REFRESH_NO_WEB_WORK','timeBudget'=>'HOLD','missingJsonLd'=>'ROLLED_BACK','missingCsp'=>'ROLLED_BACK'];
-// (f) The PREFLIGHT reads the web worker's app.url too. APP_URL absent from the server environment and from .env: the config default literal is used (source CONFIG_DEFAULT) and passes.
-file_put_contents($envFile,(string)preg_replace('/^APP_URL=.*\R/m','',$envOriginal));check(!str_contains((string)file_get_contents($envFile),'APP_URL='),'FIXTURE_ENV_WITHOUT_APP_URL');
-[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$p=lastLine($o,'PREFLIGHT');$wc=lastLine($o,'WEB_APP_URL_CHECK');
-check($rc===2&&$p['blockers']===[]&&is_array($wc)&&$wc['webAppUrlSource']==='CONFIG_DEFAULT'&&$wc['webAppUrlExact']===true&&$wc['webAppUrlOrigin']==='https://cms.ald1n.com'&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','ABSENT_APP_URL_USES_THE_CONFIG_DEFAULT_AND_PASSES_THE_PREFLIGHT:'.json_encode([$p['blockers'],$wc]));$reset();
-// (g) Two conflicting APP_URL lines in .env: ambiguous, a HOLD before any write (nothing guessed).
-file_put_contents($envFile,$envOriginal."APP_URL=http://cms.ald1n.com\n");
-[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&in_array('LOAD_PROBE_APP_URL_AMBIGUOUS_IN_DOTENV',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','DUPLICATE_CONFLICTING_APP_URL_IS_A_PREFLIGHT_HOLD:'.json_encode($p['blockers']));$reset();
-// (h) Two agreeing APP_URL lines are fine; an interpolated value is refused.
-file_put_contents($envFile,$envOriginal."APP_URL=https://cms.ald1n.com\n");[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['fail']]);$wc=lastLine($o,'WEB_APP_URL_CHECK');
-check($rc===2&&$wc['webAppUrlExact']===true&&$wc['failures']===[]&&!str_contains($o,'PER_FILE_BACKUP='),'DUPLICATE_AGREEING_APP_URL_PASSES_THE_WEB_CHECK');$reset();
-file_put_contents($envFile,(string)preg_replace('/^APP_URL=.*$/m','APP_URL=${APP_NAME}',$envOriginal));
-[$rc,$o]=$run();$wc=lastLine($o,'WEB_APP_URL_CHECK');
-check($rc===2&&in_array('LOAD_PROBE_APP_URL_INTERPOLATION',$wc['failures'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INTERPOLATED_APP_URL_IS_A_PREFLIGHT_HOLD');$reset();
-$results['webAppUrlPreflight']=['absent'=>'CONFIG_DEFAULT_PASS','duplicateConflicting'=>'HOLD','duplicateAgreeing'=>'PASS','interpolation'=>'HOLD'];
 
-// 11. Order negative controls (fixture only, never the tool): what each dependency edge of the plan protects, shown on the REAL application by placing ONE payload file where the plan forbids it (the controls restore the exact old bytes and wait for the web workers), and
-// the coordinator refusing each guard group without its proof. A wrong order does not make the whole site fail, except where the plan puts a guard group: the new shop layout without its partial breaks every shop page, the new dashboard without its partials breaks the dashboard,
-// the routes without their controller break the report URL, the management view without the routes breaks the management report, and bootstrap/app.php is the file that can take the WHOLE site down.
-$fatalsBeforeControls=substr_count((string)file_get_contents($base.'/server.log'),'PHP Fatal error');
-$ctlJar=[];$ctlGet=static function(string $path)use(&$ctlJar,$winLogin,$winPassword):array{$r=DashboardReportsFixtureWeb::jarGet(PORT,$path,$ctlJar);if($r['status']===302&&str_contains((string)$r['location'],'/login')&&DashboardReportsFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$ctlJar)['ok'])$r=DashboardReportsFixtureWeb::jarGet(PORT,$path,$ctlJar);return $r;};
-$withPayload=static function(array $step,callable $probe)use($active):array{$f=$active.'/'.$step['path'];$orig=(string)file_get_contents($f);check(hash('sha256',$orig)===$step['preSHA256'],'THE_FILE_IS_THE_PRE_STATE_BEFORE_THE_CONTROL_'.$step['path']);
-    file_put_contents($f,(string)file_get_contents($step['payload']));sleep(16);try{$out=$probe();}finally{file_put_contents($f,$orig);sleep(16);}return $out;};
-check($ctlGet('/')['status']===200&&$status('/katalog')===200,'THE_SITE_SERVES_BEFORE_THE_ORDER_CONTROLS');
-// (a) The new shop layout (group E) without its partial (group A): every shop page that renders the layout answers 500; the system routes and the login are not affected.
-$a=$withPayload($stepShopLayout,static fn()=>[$status('/up'),$status('/login'),$status('/katalog'),$status('/registracija')]);
-check($a[0]===200&&$a[1]===200&&$a[2]>=500&&$a[3]>=500&&$stateOf($stepShopLayout)==='pre'&&$status('/katalog')===200&&$status('/registracija')===200,'ORDER_VIOLATION_THE_NEW_SHOP_LAYOUT_BEFORE_ITS_PARTIAL_BREAKS_EVERY_SHOP_PAGE_THEN_RESTORED:'.json_encode($a));
-// (b) The new dashboard (group E) without its partials (group A): the logged-in dashboard answers 500, the public pages stay 200.
-$b=$withPayload($stepIndex,static fn()=>[$ctlGet('/')['status'],$status('/katalog'),$status('/login')]);
-check($b[0]>=500&&$b[1]===200&&$b[2]===200&&$stateOf($stepIndex)==='pre'&&$ctlGet('/')['status']===200,'ORDER_VIOLATION_THE_NEW_DASHBOARD_BEFORE_ITS_PARTIALS_BREAKS_THE_DASHBOARD_THEN_RESTORED:'.json_encode($b));
-// (c) routes/web.php (group F) without the controller class (group A): the report URL cannot answer 200; the rest of the site still serves.
-$c=$withPayload($stepRoutes,static fn()=>[$ctlGet(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)['status'],$status('/up'),$status('/katalog')]);
-check($c[0]!==200&&$c[1]===200&&$stateOf($stepRoutes)==='pre'&&$status(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)===404,'ORDER_VIOLATION_THE_ROUTES_BEFORE_THEIR_CONTROLLER_CANNOT_SERVE_THE_REPORT_THEN_RESTORED:'.json_encode($c));
-// (d) The management view (group G) without the routes (group F): it renders route('admin.reports.subagents'), so the management report answers 500.
-$d=$withPayload($stepMgmt,static fn()=>[$ctlGet('/admin/reports')['status'],$status('/up')]);
-check($d[0]>=500&&$d[1]===200&&$stateOf($stepMgmt)==='pre'&&$ctlGet('/admin/reports')['status']===200,'ORDER_VIOLATION_THE_MANAGEMENT_VIEW_BEFORE_THE_ROUTES_BREAKS_THE_MANAGEMENT_REPORT_THEN_RESTORED:'.json_encode($d));
-// (e) bootstrap/app.php (group D) without the library of group B: the closure that names AppUrlOrigin::redirect() is only reached by a validation exception, so the site serves until /katalog?stock=x, which answers 500.
-$e=$withPayload($stepBoot,static fn()=>[$status('/up'),$status('/login'),$status('/katalog'),$status('/katalog?stock=x')]);
-check($e[0]===200&&$e[1]===200&&$e[2]===200&&$e[3]>=500&&$stateOf($stepBoot)==='pre'&&$status('/katalog?stock=x')<500,'ORDER_VIOLATION_THE_NEW_BOOTSTRAP_BEFORE_ITS_LIBRARY_FAILS_ON_THE_FIRST_VALIDATION_REDIRECT_THEN_RESTORED:'.json_encode($e));
-// (f) A broken bootstrap/app.php (a syntax error: what a missing or damaged file would be) takes the WHOLE site down: /up, /login and the shop all answer 5xx until the exact old bytes are back. This is why group D is a guard group
-// (the web SAPI loads the classes it names first) and why its liveness smoke runs right after it.
-$bootFile=$active.'/'.$stepBoot['path'];$bootOrig=(string)file_get_contents($bootFile);check(hash('sha256',$bootOrig)===$stepBoot['preSHA256'],'THE_BOOTSTRAP_IS_THE_PRE_STATE_BEFORE_THE_BROKEN_BOOTSTRAP_CONTROL');
-file_put_contents($bootFile,"<?php\nthis is not php;\n");sleep(16);$f6=[$status('/up'),$status('/login'),$status('/katalog')];file_put_contents($bootFile,$bootOrig);sleep(16);
-check($f6[0]>=500&&$f6[1]>=500&&$f6[2]>=500&&$stateOf($stepBoot)==='pre'&&$status('/up')===200&&$status('/login')===200&&$status('/katalog')===200,'A_BROKEN_BOOTSTRAP_TAKES_THE_WHOLE_SITE_DOWN_AND_THE_OLD_BYTES_BRING_IT_BACK:'.json_encode($f6));
-$controlFatals=substr_count((string)file_get_contents($base.'/server.log'),'PHP Fatal error')-$fatalsBeforeControls;
-check($tree()==='PRE'&&!file_exists($partials),'ORDER_CONTROLS_RESTORED_THE_TREE_IS_THE_PRE_STATE');$ctlJar=[];$reset();
-$results['orderControls']=['newShopLayoutWithoutItsPartial'=>'EVERY_SHOP_PAGE_500_THEN_RESTORED','newDashboardWithoutItsPartials'=>'DASHBOARD_500_PUBLIC_PAGES_200_THEN_RESTORED','routesWithoutTheirController'=>'REPORT_URL_NOT_200_SITE_SERVES_THEN_RESTORED','managementViewWithoutTheRoutes'=>'MANAGEMENT_REPORT_500_THEN_RESTORED','newBootstrapWithoutItsLibrary'=>'FIRST_VALIDATION_REDIRECT_500_THEN_RESTORED','brokenBootstrap'=>'WHOLE_SITE_5XX_THEN_RESTORED'];
-// (g) The coordinator itself refuses each guard group without its premise, and the install is rolled back: a new file of an earlier group vanishes right before the first file of the guard group, or the web-SAPI proof of this run for that group is forgotten.
-$guardCases=[
-    'D_A_NEW_CLASS_FILE_IS_GONE'=>[$stepBoot,['BEFORE_STEP_'.$stepBoot['n']=>['rm:'.$stepService['path']]],'GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE'],
-    'D_NO_WEB_SAPI_CLASS_PROOF'=>[$stepBoot,['BEFORE_STEP_'.$stepBoot['n']=>['clearClassProof:D']],'GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],
-    'E_THE_NEW_STYLESHEET_IS_GONE'=>[$groupSteps('E')[0],['BEFORE_STEP_'.$groupSteps('E')[0]['n']=>['rm:'.$stepRegCss['path']]],'GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE'],
-    'E_NO_WEB_SAPI_ASSET_PROOF'=>[$groupSteps('E')[0],['BEFORE_STEP_'.$groupSteps('E')[0]['n']=>['clearAssetProof']],'GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF'],
-    'F_THE_CONTROLLER_CLASS_IS_GONE'=>[$stepRoutes,['BEFORE_STEP_'.$stepRoutes['n']=>['rm:'.$stepController['path']]],'GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE'],
-    'F_NO_WEB_SAPI_CLASS_PROOF'=>[$stepRoutes,['BEFORE_STEP_'.$stepRoutes['n']=>['clearClassProof:F']],'GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],
-];
-foreach($guardCases as $name=>[$step,$actions,$code]){
-    [$rc,$o]=$run($actions);
-    check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"'.$code.'"'&&!str_contains($o,'OVERLAY_STEP={"n":'.$step['n'].',')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$stateOf($step)==='pre','GUARD_REFUSED_'.$name.':'.substr($o,-600));
-    $reset();$results['guardRefusals'][$name]='HOLD_ROLLED_BACK_THE_GUARDED_FILE_NEVER_WRITTEN';
-}
-// (h) The web-SAPI class proof of group D itself can fail: a new class file becomes unreadable for the web worker (as a damaged or missing file would be), the web SAPI cannot load it, and bootstrap/app.php is NEVER written. The file is made readable again
-// right before the first restore (the rollback never overwrites foreign content), so the rollback is exact.
-check(posix_geteuid()!==0,'THE_FIXTURE_RUNS_AS_A_NON_ROOT_USER_SO_THAT_AN_UNREADABLE_FILE_IS_UNREADABLE');
-[$rc,$o]=$run(['GROUP_DONE_C'=>['chmodDeny:'.$stepController['path']],'BEFORE_RESTORE_30'=>['chmodAllow:'.$stepController['path']]]);$cp=array_filter(allLines($o,'WEB_CLASS_LOAD_PROOF'),static fn($x)=>$x['failures']!==[]);
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"WEB_SAPI_CLASS_NOT_LOADABLE"'&&count($cp)===1&&reset($cp)['classesLoadedInTheWebSapi']===6&&reset($cp)['classes']===7&&!str_contains($o,'OVERLAY_STEP={"n":'.$stepBoot['n'].',')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','CLASS_PROOF_REFUSES_AN_UNLOADABLE_CLASS_BOOTSTRAP_NEVER_WRITTEN:'.substr($o,-800));$reset();
-$results['guardRefusals']['D_AN_UNREADABLE_CLASS_IS_NOT_LOADABLE_IN_THE_WEB_SAPI']='HOLD_ROLLED_BACK_BOOTSTRAP_NEVER_WRITTEN';
-// (i) The web-SAPI asset proof of group E can fail: the web double answers the two changed stylesheets with another content type, or with a body that is not the payload (armed in the hold before group E, after the liveness smoke of group D). The proof refuses in its first round
-// and the views of group E are NEVER written.
-foreach(['cssWrongType'=>'contentType','cssTamperBody'=>'sha256EqualsThePayload'] as $action=>$fact){
-    [$rc,$o]=$run(['DURING_HOLD_before-guard-group-E'=>[$action],'BEFORE_SMOKES_OLD'=>['clearDrops']]);$wap=lastLine($o,'WEB_ASSET_PROOF');
-    check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GUARD_REFUSED_A_STYLESHEET_IS_NOT_SERVED_WITH_THE_PAYLOAD_BYTES"'&&is_array($wap)&&$wap['request']===1&&count($wap['failed'])===2&&($fact==='contentType'?$wap['rows'][0]['contentType']==='OTHER':$wap['rows'][0]['sha256EqualsThePayload']===false)&&!str_contains($o,'OVERLAY_STEP={"n":'.$groupSteps('E')[0]['n'].',')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','ASSET_PROOF_REFUSES_'.$action.':'.substr($o,-600));
-    $reset();$results['guardRefusals']['E_'.$action]='HOLD_ROLLED_BACK_THE_VIEWS_NEVER_WRITTEN';
-}
-$results['orderControls']['coordinatorGuardRefusals']=$results['guardRefusals'];
-$fatalsAfterGuardCases=substr_count((string)file_get_contents($base.'/server.log'),'PHP Fatal error');check($fatalsAfterGuardCases===$fatalsBeforeControls+$controlFatals,'THE_ONLY_FATALS_OF_THE_SERVER_LOG_ARE_THE_ONES_OF_THE_BROKEN_BOOTSTRAP_CONTROLS:'.json_encode([$fatalsBeforeControls,$controlFatals,$fatalsAfterGuardCases]));
+// ================================================================== B1156 (commissions and migrations) cases ==================================================================
+// 8b. The commission rows (CI only): the d2c07f62 schema (71 migrations ran) holds realistic data. Rows are inserted with the real column set (information_schema), the NOT NULL columns without a default get a neutral value, the interesting
+// columns are set explicitly. The set the backfill must move is written down HERE from the owner rule (a pending commission of an order that is delivered or fully paid and not cancelled), independent of the tool's own census.
+$colsOf=static function(string $table)use($pdo):array{$st=$pdo()->prepare('SELECT COLUMN_NAME,DATA_TYPE,IS_NULLABLE,COLUMN_DEFAULT,EXTRA,COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? ORDER BY ORDINAL_POSITION');$st->execute([DB,$table]);return $st->fetchAll(PDO::FETCH_ASSOC);};
+$enumPick=static function(string $table,string $column,array $prefer)use($colsOf):string{foreach($colsOf($table) as $c)if($c['COLUMN_NAME']===$column){if(preg_match_all("/'([^']*)'/",(string)$c['COLUMN_TYPE'],$m)&&$c['DATA_TYPE']==='enum'){foreach($prefer as $p)if(in_array($p,$m[1],true))return $p;return $m[1][0];}return $prefer[0];}throw new RuntimeException('B1156_FIXTURE_COLUMN_UNKNOWN_'.$table.'.'.$column);};
+$insertRow=static function(string $table,array $over)use($colsOf,$pdo):int{
+    $vals=[];foreach($colsOf($table) as $c){$n=$c['COLUMN_NAME'];if(array_key_exists($n,$over)){$vals[$n]=$over[$n];continue;}
+        if(str_contains((string)$c['EXTRA'],'auto_increment')||str_contains((string)$c['EXTRA'],'GENERATED')||$c['IS_NULLABLE']==='YES'||$c['COLUMN_DEFAULT']!==null)continue;
+        $t=(string)$c['DATA_TYPE'];$vals[$n]=match(true){in_array($t,['int','bigint','smallint','tinyint','mediumint'],true)=>0,in_array($t,['decimal','float','double'],true)=>'0',in_array($t,['datetime','timestamp'],true)=>date('Y-m-d H:i:s'),$t==='date'=>date('Y-m-d'),$t==='json'=>'{}',$t==='enum'=>(preg_match("/^enum\('([^']*)'/",(string)$c['COLUMN_TYPE'],$m)?$m[1]:''),default=>'x'};}
+    $db=$pdo();$cols=array_keys($vals);$db->prepare('INSERT INTO '.$table.' ('.implode(',',$cols).') VALUES ('.implode(',',array_fill(0,count($cols),'?')).')')->execute(array_values($vals));return (int)$db->lastInsertId();
+};
+$statusOpen=$enumPick('orders','status',['confirmed','processing','new','pending']);$statusDone=$enumPick('orders','status',['completed','delivered','shipped',$statusOpen]);$statusCancelled=$enumPick('orders','status',['cancelled']);
+check($statusCancelled==='cancelled','THE_CANONICAL_CANCELLED_STATUS_EXISTS');
+$now=date('Y-m-d H:i:s');$seed=[];
+$mkOrder=static function(string $tag,string $status,string $payState,?string $completedAt)use($insertRow,$ownerId,$now):int{return $insertRow('orders',['order_number'=>'APC-'.strtoupper($tag).'-'.random_int(1000,9999),'status'=>$status,'payment_state'=>$payState,'completed_at'=>$completedAt,'user_id'=>$ownerId,'created_by'=>$ownerId,'created_at'=>$now,'updated_at'=>$now]);};
+$mkCommission=static function(int $orderId,string $status,?int $approvedBy)use($insertRow,$ownerId,$now):int{return $insertRow('order_commissions',['order_id'=>$orderId,'user_id'=>$ownerId,'total_eur'=>'12.34','status'=>$status,'approved_by'=>$approvedBy,'approved_at'=>$approvedBy===null?null:$now,'status_updated_at'=>$now,'created_at'=>$now,'updated_at'=>$now]);};
+$orderPaid=$mkOrder('PAID',$statusOpen,'paid',null);$orderDelivered=$mkOrder('DELIV',$statusDone,'unpaid',$now);$orderOpen=$mkOrder('OPEN',$statusOpen,'unpaid',null);$orderCancelled=$mkOrder('CANC',$statusCancelled,'paid',null);$orderPaidDone=$mkOrder('PDONE',$statusDone,'paid',$now);$orderLegacy=$mkOrder('LEGAC',$statusOpen,'paid',null);
+$seed=['paidOrderPending'=>$mkCommission($orderPaid,'pending',null),'deliveredOrderPending'=>$mkCommission($orderDelivered,'pending',null),'unpaidUndeliveredPending'=>$mkCommission($orderOpen,'pending',null),'cancelledOrderPending'=>$mkCommission($orderCancelled,'pending',null),'paidCommission'=>$mkCommission($orderPaidDone,'paid',$ownerId),'legacyApproved'=>$mkCommission($orderLegacy,'approved',$ownerId)];
+$expectedMoved=[$seed['paidOrderPending'],$seed['deliveredOrderPending']];sort($expectedMoved);
+$seedSnapshot=['historyMax'=>(int)$pdo()->query('SELECT COALESCE(MAX(id),0) FROM commission_status_history')->fetchColumn(),'rows'=>$pdo()->query('SELECT * FROM order_commissions ORDER BY id')->fetchAll(PDO::FETCH_ASSOC)];
+$notifCounts=static function()use($pdo):array{$out=[];foreach($pdo()->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $tb)if(preg_match('/notif|outbox|mail|push|jobs$|job_batches/i',(string)$tb)===1)$out[$tb]=(int)$pdo()->query('SELECT COUNT(*) FROM '.$tb)->fetchColumn();ksort($out);return $out;};
+$notifBefore=$notifCounts();check($notifBefore!==[]&&array_key_exists('notifications',$notifBefore)||count($notifBefore)>0,'THE_NOTIFICATION_TABLES_ARE_COUNTED_NOT_AN_EMPTY_SET:'.json_encode(array_keys($notifBefore)));
+$statusOf=static function()use($pdo):array{$o=[];foreach($pdo()->query('SELECT id,status,approved_by,approved_at FROM order_commissions')->fetchAll(PDO::FETCH_ASSOC) as $r)$o[(int)$r['id']]=$r;return $o;};
+$schemaIs=static function()use($pdo):array{$db=$pdo();$t=(int)$db->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='".DB."' AND TABLE_NAME IN ('commission_adjustments','commission_debit_settlements')")->fetchColumn();$c=(int)$db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='".DB."' AND ((TABLE_NAME='order_commissions' AND COLUMN_NAME='auto_approved_at') OR (TABLE_NAME='commission_payment_batches' AND COLUMN_NAME IN ('debit_eur','net_eur')))")->fetchColumn();$m=(int)$db->query("SELECT COUNT(*) FROM migrations WHERE migration IN ('2026_11_16_000001_create_commission_adjustments','2026_11_16_000002_backfill_commissions_for_payout')")->fetchColumn();$ran=(int)$db->query('SELECT COUNT(*) FROM migrations')->fetchColumn();return ['tables'=>$t,'columns'=>$c,'migrationRows'=>$m,'ran'=>$ran];};
+$schemaOld=static fn():bool=>($s=$schemaIs())['tables']===0&&$s['columns']===0&&$s['migrationRows']===0&&$s['ran']===71;
+$schemaNew=static fn():bool=>($s=$schemaIs())['tables']===2&&$s['columns']===3&&$s['migrationRows']===2&&$s['ran']===73;
+$winCfg['orderId']=$orderPaid;
+check($schemaOld(),'THE_FIXTURE_DATABASE_IS_AT_THE_D2C07F62_SCHEMA_71_RAN');$reset();
+// The sub-agent of the windows owns the seeded commissions' orders in the old schema too (CI only): nothing more is needed for the pages to render rows.
+$winCfg['sub']=['login'=>$subLogin,'password'=>$subPassword];$winCfg['admin']=['login'=>$winLogin,'password'=>$winPassword];
+$extraCfg=['adminWindow'=>$winCfg,'orderId'=>$orderPaid];
+$judge=static function(array $rows,string $label)use($stepRows):void{
+    $bad=[];
+    foreach($rows as $r){
+        foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
+        foreach(['/up','/login'] as $p)if(($r['anon'][$p]??null)!==200)$bad[]=$r['point'].' '.$p.' missing';
+        if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
+        foreach(['dashGuest','smtpGuest','merchantGuest','documentsGuest','reportGuest','reportCsvGuest'] as $k)if($r[$k]!==302)$bad[]=$r['point'].' '.$k.' '.$r[$k];
+        if(!in_array($r['bellGuest'],[404,302],true))$bad[]=$r['point'].' guest bell URL '.$r['bellGuest'];
+        if(($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true)$bad[]=$r['point'].' AUTHENTICATED superadmin dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
+        if(($r['commissionsAuth']??null)!==200)$bad[]=$r['point'].' superadmin commissions page '.var_export($r['commissionsAuth']??null,true);
+        if(($r['dashSub']??null)!==200)$bad[]=$r['point'].' AUTHENTICATED sub-agent dashboard '.var_export($r['dashSub']??null,true);
+        if(!in_array($r['commissionsSub']??null,[200,403],true))$bad[]=$r['point'].' sub-agent commissions page '.var_export($r['commissionsSub']??null,true);
+        if(isset($r['adminWindow'])){foreach(['admin','sub'] as $who)foreach($r['adminWindow'][$who] as $pg=>$f)if($f['status']>=500)$bad[]=$r['point'].' WINDOW '.$who.' '.$pg.' '.$f['status'];
+            foreach(['/','/admin/commissions','/admin/orders'] as $pg)if(($r['adminWindow']['admin'][$pg]['status']??0)!==200)$bad[]=$r['point'].' WINDOW admin '.$pg.' '.($r['adminWindow']['admin'][$pg]['status']??'none');
+            foreach(['/','/orders'] as $pg)if(($r['adminWindow']['sub'][$pg]['status']??0)!==200)$bad[]=$r['point'].' WINDOW sub '.$pg.' '.($r['adminWindow']['sub'][$pg]['status']??'none');}
+    }
+    check($bad===[],$label.':'.implode(',',array_slice($bad,0,12)));
+};
+$tampered=static function(string $path)use($active):string{$f=$active.'/'.$path;return is_file($f)?hash_file('sha256',$f):'ABSENT';};
+$orphanOk=static function()use($active):bool{foreach(CommissionsInstallCoordinator::ORPHANS as $p=>$sha)if(!is_file($active.'/'.$p)||hash_file('sha256',$active.'/'.$p)!==$sha)return false;return true;};
+check($orphanOk(),'THE_TWO_ORPHAN_VIEWS_ARE_ON_THE_HOST_WITH_THEIR_B1155_BYTES_BEFORE');
 
-// 12. Install with a smoke after EVERY one of the 30 steps and every group boundary, the AUTHENTICATED dashboard at every point (the hard login gate passed), and the window evidence (what an administrator meets) at every group point.
-[$rc,$o]=$run($allSteps(),'install',[],['adminWindow'=>$winCfg]);$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
+// 9c. Guard groups without their proof are refused, each rolled back to the exact old tree (D: the provider needs the class proof, E: the routes need it, F: the views need the asset proof).
+foreach([['D',$stepProvider['n'],'clearClassProof:D','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['E',$stepRoutesApi['n'],'clearClassProof:E','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['F',$groupSteps('F')[0]['n'],'clearAssetProof','GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF']] as [$g,$n,$act,$code]){
+    [$rc,$o]=$run(['BEFORE_STEP_'.$n=>[$act]]);
+    check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode($code)&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'GUARD_GROUP_'.$g.'_REFUSED_WITHOUT_ITS_PROOF_AND_ROLLED_BACK');$reset();
+}
+$results['guardGroups']='D_E_F_REFUSED_WITHOUT_THEIR_PROOF_ROLLED_BACK';
+
+// 12. THE INSTALL. A smoke after EVERY step and every group boundary, after the database backup (all files in, OLD schema) and after the migration; both users' pages at every point (hard login gate passed).
+$allPoints=$allSteps()+['AFTER_DB_BACKUP'=>['stepSmoke'],'AFTER_MIGRATED'=>['stepSmoke']];
+$histBefore=(int)$pdo()->query('SELECT COUNT(*) FROM commission_status_history')->fetchColumn();$notifBefore=$notifCounts();
+[$rc,$o]=$run($allPoints,'install',[],$extraCfg);$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
 check(!str_contains($o,$winPassword)&&!str_contains(json_encode($rows),$winPassword)&&!str_contains($o,$subPassword)&&!str_contains($o,$admPassword),'THE_THROWAWAY_PASSWORDS_ARE_IN_NO_OUTPUT');
-check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','INSTALL_PASS');
-$expectedPoints=[];foreach($plan as $i=>$s){$expectedPoints[]='AFTER_STEP_'.$s['n'];if(!isset($plan[$i+1])||$plan[$i+1]['group']!==$s['group'])$expectedPoints[]='GROUP_DONE_'.$s['group'];}$expectedPoints[]='AFTER_INVALIDATE';
-$points=array_column($rows,'point');$groupPoints=count($groups)+1;
-check($points===$expectedPoints&&count($rows)===count($plan)+count($groups)+1&&count(array_filter($rows,static fn($r)=>array_key_exists('themePost',$r)))===$groupPoints,'EVERY_ONE_OF_THE_30_STEPS_AND_EVERY_GROUP_SMOKED:'.implode(',',$points));
-$bad=[];
-// The web workers revalidate every few seconds. At EVERY point (the point right after the rename of bootstrap/app.php and the one right after routes/web.php included) the system routes, the login and the public pages serve (200), the AUTHENTICATED dashboard of the
-// superadmin answers 200 in the B1154 shell, the B1149 storefront (guest SMTP page 302, the logo) stays intact, a media-route link on the catalog page is always served, a theme POST is 303 with the cookie at the group points, the B1153 catalog layout queries answer 200
-// and the per-page form is on the catalog page at every group point, a guest is redirected from the dashboard / at every point, and the guest report URLs are 404 until routes/web.php is in (step 29) and 302 to the login after it.
-foreach($rows as $r){
-    foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
-    foreach(['/up','/login'] as $p)if(($r['anon'][$p]??null)!==200)$bad[]=$r['point'].' '.$p.' missing';
-    if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
-    if(array_key_exists('perPageList',$r)&&($r['perPageList']!==200||$r['perPage999']!==200||$r['perPageControl']!==true||$r['perPageListLayout']!==true))$bad[]=$r['point'].' catalog layout queries and per-page form '.json_encode([$r['perPageList'],$r['perPage999'],$r['perPageControl'],$r['perPageListLayout']]);
-    if($r['dashGuest']!==302)$bad[]=$r['point'].' guest dashboard '.$r['dashGuest'];
-    if($r['smtpGuest']!==302)$bad[]=$r['point'].' guest SMTP page '.$r['smtpGuest'];
-    if($r['merchantGuest']!==302)$bad[]=$r['point'].' guest merchant settings page '.$r['merchantGuest'];
-    if($r['documentsGuest']!==302)$bad[]=$r['point'].' guest document settings page '.$r['documentsGuest'];
-    if($r['logoChecked']===true&&($r['logoLinked']!==true||$r['logoStatus']!==200))$bad[]=$r['point'].' logo '.var_export($r['logoStatus'],true);
-    if($r['mediaLinked']===true&&$r['mediaStatus']!==200)$bad[]=$r['point'].' media link '.var_export($r['mediaStatus'],true);
-    if(($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true)$bad[]=$r['point'].' AUTHENTICATED dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
-    $n=preg_match('/^AFTER_STEP_(\d+)$/D',$r['point'],$m)===1?(int)$m[1]:null;
-    $reportWant=$n!==null?($n<$stepRoutes['n']?[404]:[404,302]):(in_array($r['point'],['GROUP_DONE_F','GROUP_DONE_G','AFTER_INVALIDATE'],true)?[302]:[404]);
-    foreach(['reportGuest','reportCsvGuest'] as $k)if(!in_array($r[$k],$reportWant,true))$bad[]=$r['point'].' '.$k.' '.$r[$k];
-}
-check($bad===[],'INSTALL_ORDER_EVERY_POINT_SERVES_THE_SITE_AND_THE_AUTHENTICATED_DASHBOARD:'.implode(',',$bad));
-// The window evidence at the group points.
-$win=[];foreach($rows as $r)if(isset($r['adminWindow']))$win[$r['adminWindow']['group']]=$r['adminWindow'];check(array_keys($win)===$groups,'WINDOW_EVIDENCE_AT_EVERY_GROUP_POINT:'.implode(',',array_keys($win)));
-foreach(['A','B','C','D'] as $g){$w=$win[$g];
-    check($w['dashboard']['status']===200&&$w['dashboard']['shellBar']===true&&$w['dashboard']['newDashboard']===false&&$w['dashboard']['strip']===false&&$w['dashboard']['navDropdown']===false&&$w['report']['status']===404&&$w['csv']['status']===404&&$w['management']['status']===200&&$w['management']['link']===false&&$w['registration']['status']===200&&$w['registration']['newMarkup']===false,'AFTER_GROUP_'.$g.'_THE_ADMINISTRATOR_STILL_MEETS_THE_OLD_MARKUP_AND_NO_REPORT:'.json_encode($w));}
-$wE=$win['E'];check($wE['dashboard']['status']===200&&array_values(array_unique($wE['dashboard']['polls']))!==[]&&!in_array(false,array_map(static fn($x)=>$x<500,$wE['dashboard']['polls']),true)&&$wE['dashboard']['newDashboard']===true&&$wE['dashboard']['strip']===true&&$wE['dashboard']['card']===true&&$wE['dashboard']['navDropdown']===true&&is_numeric($wE['dashboard']['secondsUntilNew'])&&$wE['dashboard']['secondsUntilNew']<=20&&$wE['report']['status']===404&&$wE['csv']['status']===404&&$wE['management']['status']===200&&$wE['management']['link']===false&&$wE['registration']['status']===200&&$wE['registration']['newMarkup']===true&&$wE['registration']['stylesheetLinked']===true,'AFTER_GROUP_E_THE_DASHBOARD_THE_DROPDOWN_AND_THE_REGISTRATION_PAGE_ARE_NEW_THE_REPORT_IS_NOT_THERE_YET:'.json_encode($wE));
-$wF=$win['F'];check($wF['dashboard']['status']===200&&$wF['dashboard']['newDashboard']===true&&$wF['report']['status']===200&&$wF['report']['title']===true&&is_numeric($wF['report']['secondsUntilServed'])&&$wF['report']['secondsUntilServed']<=20&&$wF['csv']['status']===200&&$wF['csv']['csvContentType']===true&&$wF['management']['status']===200&&$wF['management']['link']===false,'AFTER_GROUP_F_THE_REPORT_AND_ITS_CSV_ARE_SERVED_THE_MANAGEMENT_REPORT_HAS_NO_LINK_YET:'.json_encode($wF));
-$wG=$win['G'];check($wG['dashboard']['status']===200&&$wG['report']['status']===200&&$wG['csv']['status']===200&&$wG['management']['status']===200&&$wG['management']['link']===true&&$wG['management']['linksTheRoute']===true&&is_numeric($wG['management']['secondsUntilLink'])&&$wG['management']['secondsUntilLink']<=20&&($wG['logout']['tokenFound']??false)===true&&($wG['logout']['status']??0)===302&&($wG['logout']['guestAfter']??0)===302,'AFTER_GROUP_G_THE_MANAGEMENT_REPORT_LINKS_THE_SUBAGENT_REPORT_AND_THE_LOGOUT_WORKS:'.json_encode($wG));
-$results['windows']=['hardLoginGate'=>$results['hardLoginGate']['mode'],'everyStep'=>'ALL_30_STEPS_UP_LOGIN_PUBLIC_PAGES_AND_THE_AUTHENTICATED_DASHBOARD_200','groupsAToD'=>'200_OLD_MARKUP_NO_REPORT_404','groupE'=>'200_NEW_DASHBOARD_STRIP_CARD_DROPDOWN_NEW_REGISTRATION_REPORT_404','groupF'=>'200_REPORT_AND_CSV_SERVED','groupG'=>'200_MANAGEMENT_LINK_LOGOUT_302','secondsUntilNewDashboard'=>$wE['dashboard']['secondsUntilNew'],'secondsUntilReportServed'=>$wF['report']['secondsUntilServed'],'secondsUntilManagementLink'=>$wG['management']['secondsUntilLink']];
-// Group order and "each group together": the 30 OVERLAY_STEP lines in plan order, the files of one group back to back (no pause, hold, proof, smoke or artisan call between them), exactly three full holds (before D, E and F, never anywhere else in the install), the web proof of each guard group inside its hold boundary and
-// before its first file, the liveness smoke of the previous group before the hold, the route check right after group F, a pause (not a hold) at the other boundaries, a smoke after every group.
-check(preg_match_all('/^OVERLAY_STEP=(\{.*\})$/m',$o,$ms)===30,'THIRTY_OVERLAY_STEPS');$order=array_map(static fn($x)=>json_decode($x,true),$ms[1]);
-check(implode(',',array_map(static fn($x)=>$x['n'].$x['group'],$order))===implode(',',array_map(static fn($s)=>$s['n'].$s['group'],$plan))&&$order[0]['kind']==='new'&&$order[9]['kind']==='modified'&&$order[21]['path']==='bootstrap/app.php'&&$order[28]['path']==='routes/web.php'&&$order[29]['path']==='resources/views/admin/reports/management.blade.php','GROUP_ORDER_A9_B3_C9_D1_E6_F1_G1_THE_MANAGEMENT_VIEW_AFTER_THE_ROUTES');
-$posOf=static fn(int $n):int=>(int)strpos($o,'OVERLAY_STEP={"n":'.$n.',');
-foreach(['A'=>[1,9],'B'=>[10,12],'C'=>[13,21],'E'=>[23,28]] as $g=>[$from,$to]){$between=substr($o,$posOf($from),$posOf($to)-$posOf($from));
-    check($between!==''&&!str_contains($between,'OVERLAY_GROUP_PAUSE=')&&!str_contains($between,'OVERLAY_HOLD')&&!str_contains($between,'GROUP_LIVENESS_SMOKE=')&&!str_contains($between,'ARTISAN=')&&!str_contains($between,'WEB_ASSET_PROOF=')&&!str_contains($between,'WEB_CLASS_LOAD_PROOF=')&&!str_contains($between,'ROUTES_CHECK='),'GROUP_'.$g.'_APPLIED_TOGETHER_NO_PAUSE_HOLD_PROOF_OR_SMOKE_BETWEEN_THE_FILES');}
-$holdsInstall=array_map(static fn($x)=>$x['label'],allLines(substr($o,0,(int)strpos($o,'"ACCEPTANCE_INTENT"')),'OVERLAY_HOLD_START'));
-$pauses=allLines($o,'OVERLAY_GROUP_PAUSE');$live=allLines($o,'GROUP_LIVENESS_SMOKE');
-$pLive=static function(string $g)use($o):int{return (int)strpos($o,'GROUP_LIVENESS_SMOKE={"after":"'.$g.'"');};
-$pHold=static function(string $g)use($o):int{return (int)strpos($o,'"label":"before-guard-group-'.$g.'"');};
-$pClassProof=static function(string $g)use($o):int{return (int)strpos($o,'WEB_CLASS_LOAD_PROOF={"label":"before-guard-group-'.$g.'"');};
-$pAssetProof=(int)strpos($o,'WEB_ASSET_PROOF={"label":"before-guard-group-E"');
-check($holdsInstall===['before-guard-group-D','before-guard-group-E','before-guard-group-F']&&$posOf(21)<$pLive('C')&&$pLive('C')<$pHold('D')&&$pHold('D')<$pClassProof('D')&&$pClassProof('D')<$posOf(22)
-    &&$posOf(22)<$pLive('D')&&$pLive('D')<$pHold('E')&&$pHold('E')<$pAssetProof&&$pAssetProof<$posOf(23)
-    &&$posOf(28)<$pLive('E')&&$pLive('E')<$pHold('F')&&$pHold('F')<$pClassProof('F')&&$pClassProof('F')<$posOf(29)
-    &&implode(',',array_map(static fn($x)=>$x['after'].'>'.$x['before'],$pauses))==='A>B,B>C,C>D,D>E,E>F,F>G,G>ACCEPTANCE'&&implode(',',array_column($live,'after'))==='A,B,C,D,E,F,G'&&array_filter($live,static fn($x)=>$x['failed']!==[])===[],'THREE_FULL_HOLDS_BEFORE_D_E_F_EACH_AFTER_THE_LIVENESS_SMOKE_OF_THE_PREVIOUS_GROUP_AND_BEFORE_ITS_PROOF_ONE_PAUSE_PER_BOUNDARY:'.json_encode([$holdsInstall,$pauses]));
-// Right after group F: route:clear, the CLI route check (570 routes, both names, GET) and only then the liveness smoke of F (with the guest report URLs); after D the immediate liveness smoke (bootstrap/app.php serves: guest dashboard on the pinned origin, the foreign-Referer redirect).
-$pRoutesF=(int)strpos($o,'ROUTES_CHECK={',$posOf(29));check($pRoutesF>$posOf(29)&&$pRoutesF<$pLive('F')&&$pLive('F')<$posOf(30)&&str_contains(substr($o,$pRoutesF,2500),'"installed":true')&&$posOf(30)<$pLive('G'),'AFTER_GROUP_F_THE_ROUTE_CHECK_THEN_THE_LIVENESS_SMOKE_BEFORE_THE_MANAGEMENT_VIEW:'.substr($o,$pRoutesF,200));
-$liveD=null;$liveF=null;foreach($live as $x){if($x['after']==='D')$liveD=$x;if($x['after']==='F')$liveF=$x;}$rowsOf=static fn(array $x):array=>array_column($x['rows'],'result','check');
-check(($rowsOf($liveD)['FOREIGN_REFERER_REDIRECT']??null)==='PASS'&&($rowsOf($liveD)['GUEST_DASHBOARD']??null)==='PASS'&&!isset($rowsOf($liveD)['GUEST_'.DashboardReportsInstallCoordinator::SUBAGENTS_PATH])&&($rowsOf($liveF)['GUEST_'.DashboardReportsInstallCoordinator::SUBAGENTS_PATH]??null)==='PASS'&&($rowsOf($liveF)['GUEST_'.DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH]??null)==='PASS','THE_LIVENESS_SMOKES_AFTER_D_AND_F_CARRY_THE_REFERER_REDIRECT_AND_THE_GUEST_REPORT_URLS:'.json_encode([$rowsOf($liveD),$rowsOf($liveF)]));
-// The proofs as emitted: D and F five class-load rounds each through the web SAPI (7 classes, all from the payload files, the web app.url exactly the pinned origin) plus one in the installed acceptance; E five asset rounds of the two changed stylesheets (200, text/css, the payload bytes).
-$cl=allLines($o,'WEB_CLASS_LOAD_PROOF');$labels=array_count_values(array_column($cl,'label'));ksort($labels);
-check(count($cl)===11&&$labels===['before-guard-group-D'=>5,'before-guard-group-F'=>5,'installed'=>1]&&count(array_filter($cl,static fn($x)=>$x['failures']===[]&&$x['classes']===7&&$x['classesLoadedInTheWebSapi']===7&&$x['classesFromThePayloadFile']===7&&$x['webAppUrlExact']===true&&$x['probeRemoved']===true))===11,'WEB_CLASS_PROOFS_ELEVEN_ROUNDS_SEVEN_CLASSES_FROM_THE_PAYLOAD_FILES:'.json_encode($labels));
-$ap=allLines($o,'WEB_ASSET_PROOF');check(count($ap)===5&&count(array_filter($ap,static fn($x)=>$x['failed']===[]&&count($x['rows'])===2&&!in_array(false,array_column($x['rows'],'ok'),true)&&$x['of']===5&&$x['label']==='before-guard-group-E'))===5&&array_column(end($ap)['rows'],'path')===$cssUrls&&array_column(end($ap)['rows'],'contentType')===['text/css','text/css']&&array_column(end($ap)['rows'],'sha256EqualsThePayload')===[true,true]&&!str_contains(json_encode($ap),'/home/'),'FIVE_WEB_ASSET_PROOF_ROUNDS_ALL_PASS');
-// The hold really elapsed before each guard group: wall time between the smoke after its predecessor file and the smoke after its first file is at least the measured hold.
-$pfl=allLines($o,'PREFLIGHT')[0];$measured=(int)$pfl['values']['web']['holdSeconds'];$tAt=static function(string $pt)use($rows):float{foreach($rows as $r)if($r['point']===$pt)return (float)$r['t'];throw new RuntimeException('B1155_FIXTURE_NO_POINT_'.$pt);};
-check($measured>=10&&$tAt('AFTER_STEP_22')-$tAt('AFTER_STEP_21')>=$measured-2&&$tAt('AFTER_STEP_23')-$tAt('AFTER_STEP_22')>=$measured-2&&$tAt('AFTER_STEP_29')-$tAt('AFTER_STEP_28')>=$measured-2,'THE_FULL_HOLD_PRECEDES_EACH_GUARD_GROUP:'.json_encode([$measured,$tAt('AFTER_STEP_22')-$tAt('AFTER_STEP_21'),$tAt('AFTER_STEP_23')-$tAt('AFTER_STEP_22'),$tAt('AFTER_STEP_29')-$tAt('AFTER_STEP_28')]));
-// Exactly ONE directory is created (the one of the theme-form partial) and recorded; no other.
-check(allLines($o,'OVERLAY_DIRECTORY_CREATED')===[['path'=>'resources/views/public-shop/partials','mode'=>'0755']]&&str_contains($o,'"directoriesCreated":1')&&is_dir($partials),'EXACTLY_THE_NEW_PARTIALS_DIRECTORY_IS_CREATED');
-[$s,$by]=$smokeRows($o);check($s['state']==='INSTALLED'&&$s['failed']===[]&&$s['shop']['open']===true&&$s['varyUnverified']===false&&$s['notices']===[]&&$s['requestsWrite']==='NONE_GET_AND_HEAD_ONLY'&&$s['login']==='NEVER_LOGGED_IN','SMOKES_PASS');
-$vcOk=lastLine($o,'VIEW_COMPILE_CHECK');check(is_array($vcOk)&&$vcOk['views']===11&&$vcOk['failed']===[]&&$vcOk['compiledViewDirectory']==='NOT_WRITTEN','THE_ELEVEN_VIEWS_COMPILE_AND_LINT_IN_MEMORY:'.json_encode($vcOk));
+check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','INSTALL_PASS');
+$expectedPoints=[];foreach($plan as $i=>$s){$expectedPoints[]='AFTER_STEP_'.$s['n'];if(!isset($plan[$i+1])||$plan[$i+1]['group']!==$s['group'])$expectedPoints[]='GROUP_DONE_'.$s['group'];}$expectedPoints[]='AFTER_DB_BACKUP';$expectedPoints[]='AFTER_MIGRATED';$expectedPoints[]='AFTER_INVALIDATE';
+$points=array_column($rows,'point');
+check($points===$expectedPoints,'EVERY_ONE_OF_THE_69_STEPS_EVERY_GROUP_THE_BACKUP_THE_MIGRATION_AND_THE_ACCEPTANCE_SMOKED:'.implode(',',$points));
+$judge($rows,'INSTALL_EVERY_POINT_SERVES_THE_SITE_AND_BOTH_USERS_PAGES');
+$win=[];foreach($rows as $r)if(isset($r['adminWindow']))$win[$r['point']]=$r['adminWindow'];
+check(isset($win['AFTER_DB_BACKUP'],$win['AFTER_MIGRATED'])&&$win['AFTER_DB_BACKUP']['admin']['/notifications/recent']['status']===200&&$win['AFTER_DB_BACKUP']['admin']['/notifications/recent']['json']===true&&$win['AFTER_MIGRATED']['admin']['/admin/commissions']['status']===200,'THE_NEW_CODE_ON_THE_OLD_SCHEMA_SERVES_EVERY_PAGE_BEFORE_THE_MIGRATION_AND_AFTER_IT');
+check(($win['GROUP_DONE_D']['admin']['/notifications/recent']['status']??0)===404&&($win['GROUP_DONE_E']['admin']['/notifications/recent']['status']??0)===200,'THE_BELL_URL_IS_404_UNTIL_THE_ROUTES_ARE_IN_AND_200_AFTER_THEM');
+$bellRow=array_values(array_filter($rows,static fn($r)=>$r['point']==='AFTER_STEP_'.$stepRoutesWeb['n']))[0]??null;check(is_array($bellRow)&&in_array($bellRow['bellGuest'],[302],true),'THE_GUEST_BELL_URL_REDIRECTS_RIGHT_AFTER_THE_ROUTES_FILE');
+// Group order and "each group together": the 69 OVERLAY_STEP lines in plan order, three full guard holds (before D, E and F), the migration after every file and after the liveness smoke of group F.
+check(preg_match_all('/^OVERLAY_STEP=(\{.*\})$/m',$o,$ms)===69,'SIXTY_NINE_OVERLAY_STEPS');$order=array_map(static fn($x)=>json_decode($x,true),$ms[1]);
+check(implode(',',array_map(static fn($x)=>$x['n'].$x['group'],$order))===implode(',',array_map(static fn($s)=>$s['n'].$s['group'],$plan))&&$order[0]['kind']==='new'&&$order[11]['path']===$stepMig1['path']&&$order[38]['path']==='app/Providers/AppServiceProvider.php'&&$order[40]['path']==='routes/web.php','GROUP_ORDER_A13_B14_C11_D1_E2_F28');
+$phases=array_map(static fn($x)=>json_decode($x,true),(preg_match_all('/^B1156_PHASE=(.*)$/m',$o,$pm)?$pm[1]:[]));
+$wantPhases=['PREFLIGHT','BACKED_UP','INSTALL_INTENT','FILES_INSTALLED','DB_BACKUP_INTENT','DB_BACKUP_VERIFIED','MIGRATE_INTENT','MIGRATED','ACCEPTANCE_INTENT','INSTALLED_PASS'];
+check(array_values(array_intersect($phases,$wantPhases))===$wantPhases,'PHASES_FILES_THEN_BACKUP_THEN_MIGRATE_INTENT_THEN_MIGRATED_THEN_ACCEPTANCE:'.json_encode($phases));
+$pos=static fn(string $needle):int=>(int)strpos($o,$needle);
+check($pos('OVERLAY_STEP={"n":69')<$pos('DB_BACKUP=')&&$pos('DB_BACKUP=')<$pos('BACKUP_RECHECKED_BEFORE_MIGRATE=')&&$pos('BACKUP_RECHECKED_BEFORE_MIGRATE=')<$pos('MIGRATE_SET_RECHECK=')&&$pos('MIGRATE_SET_RECHECK=')<$pos('MIGRATE={')&&$pos('MIGRATE={')<$pos('BACKFILL_CENSUS=')&&$pos('BACKFILL_CENSUS=')<$pos('VIEW_COMPILE_CHECK='),'THE_MIGRATION_RUNS_AFTER_EVERY_FILE_BEHIND_THE_BACKUP_ITS_RECHECK_AND_THE_SET_RECHECK');
+$db1=lastLine($o,'DB_BACKUP');$rk=lastLine($o,'BACKUP_RECHECKED_BEFORE_MIGRATE');$mig=lastLine($o,'MIGRATE');$bf=lastLine($o,'BACKFILL_CENSUS');$sc=allLines($o,'SCHEMA_CHECK');
+check($db1['status']==='VERIFIED'&&$rk['reverified']===true&&$rk['sameProcess']===true&&$mig['rc']===0&&$bf['ok']===true&&$bf['dueBefore']===2&&$bf['notificationRowsUnchanged']===true&&$bf['notificationTablesWatched']>0&&$sc[0]['expectInstalled']===false&&end($sc)['expectInstalled']===true,'THE_BACKUP_THE_RECHECK_THE_ONE_MIGRATE_CALL_AND_THE_BACKFILL_EVIDENCE:'.json_encode([$db1,$rk,$mig,$bf]));
+check(preg_match_all('/^MIGRATE=/m',$o)===1&&!str_contains($o,'migrate:fresh')&&!str_contains($o,'migrate:rollback')&&!str_contains($o,'migrate:refresh')&&!str_contains($o,'migrate:reset'),'EXACTLY_ONE_MIGRATE_CALL_NO_FRESH_ROLLBACK_REFRESH_RESET');
+// The database, independently of the tool: 73 ran, both new tables, three columns, the moved set is exactly the hardcoded one, nothing else changed, no notification row.
+check($schemaNew(),'AFTER_THE_INSTALL_THE_SCHEMA_IS_AHEAD_73_RAN_TWO_TABLES_THREE_COLUMNS_TWO_ROWS');
+$st=$statusOf();$moved=[];foreach($st as $id=>$r)if($r['status']==='approved'&&$r['approved_by']===null)$moved[]=$id;sort($moved);
+check($moved===$expectedMoved,'THE_BACKFILL_MOVED_EXACTLY_THE_PAID_AND_THE_DELIVERED_PENDING_COMMISSIONS:'.json_encode([$moved,$expectedMoved]));
+check($st[$seed['unpaidUndeliveredPending']]['status']==='pending'&&$st[$seed['cancelledOrderPending']]['status']==='pending'&&$st[$seed['paidCommission']]['status']==='paid'&&$st[$seed['legacyApproved']]['status']==='approved'&&(int)$st[$seed['legacyApproved']]['approved_by']===$ownerId,'THE_UNPAID_THE_CANCELLED_THE_PAID_AND_THE_LEGACY_APPROVED_COMMISSIONS_ARE_UNTOUCHED');
+check((int)$pdo()->query('SELECT COUNT(*) FROM commission_status_history')->fetchColumn()===$histBefore+2&&$notifCounts()===$notifBefore,'TWO_HISTORY_ROWS_AND_NO_NOTIFICATION_ROW:'.json_encode([$notifBefore,$notifCounts()]));
+check((int)$pdo()->query('SELECT COUNT(*) FROM order_commissions WHERE auto_approved_at IS NOT NULL')->fetchColumn()===2,'ONLY_THE_TWO_MOVED_ROWS_CARRY_AUTO_APPROVED_AT');
+// Retained orphans, tree and routes.
+check($orphanOk()&&is_file($active.'/'.$stepMig1['path'])&&is_file($active.'/'.$stepMig2['path']),'THE_TWO_ORPHANS_ARE_RETAINED_AND_THE_TWO_MIGRATION_FILES_ARE_THERE');
+$tr=lastLine($o,'ACTIVE_TREE_AFTER_INSTALL');check(is_array($tr)&&$tr['verifiedFiles']===8596&&count(glob($active.'/database/migrations/*.php'))===73,'THE_TREE_IS_THE_8596_FILE_TREE_WITH_73_MIGRATION_FILES');
+$rcNew=array_values(array_filter(allLines($o,'ROUTES_CHECK'),static fn($x)=>$x['installed']===true))[0]??null;
+check(is_array($rcNew)&&$rcNew['routeCount']===$pin['routes']+9&&$rcNew['routeCount']===CommissionsInstallCoordinator::ROUTES_AFTER+($pin['routes']-CommissionsInstallCoordinator::ROUTES)&&$rcNew['newWebRoutes']['notifications.recent']['methods']===['GET']&&$rcNew['newWebRoutes']['admin.settings.modules.operations']['methods']===['PUT'],'ROUTE_COUNT_IS_THE_B1155_COUNT_PLUS_NINE_WITH_THE_SIX_WEB_METHODS:'.json_encode($rcNew));
+check($pin['routes']===CommissionsInstallCoordinator::ROUTES,'THE_FIXTURE_APP_HAS_EXACTLY_570_ROUTES_BEFORE_AND_579_AFTER_THE_PRODUCTION_CONSTANTS_HOLD:'.$pin['routes']);
+$smokesInstalled=array_values(array_filter(allLines($o,'PUBLIC_HTTP_SMOKES'),static fn($x)=>$x['state']==='INSTALLED'));$s=end($smokesInstalled);$by=[];foreach($s['rows'] as $r)$by[$r['check']]=$r;
 $b1149Intact($s,$by,'INSTALLED');$pinRows($by,'INSTALLED');$emailState($by,true,'INSTALLED');$viewRows($by,'INSTALLED');$assetRows($by,true,'INSTALLED');$redirectRows($by,true,'INSTALLED');
-check($by['/katalog']['varyCookie']===true&&$by['/katalog']['noindex']===true&&$by['/katalog?page=999']['observed']===404&&$by['/katalog?sort=price_asc']['observed']===200&&in_array($by['/katalog?sort=ald1n_unknown']['observed'],[302,422],true)&&$by['/korpa']['layoutMarker']===true&&$by['/registracija']['observed']===200,'CATALOG_SMOKES');
-check(($by[$cssV]['result']??'PASS')==='PASS'&&($by[$galV]['result']??'PASS')==='PASS'&&$by[DashboardReportsInstallCoordinator::CSS_PATH]['cssMarker']===true&&$by[DashboardReportsInstallCoordinator::CSS_PATH.'?v='.$package['cssVersion'].' (view switch rules)']['result']==='PASS','CSS_SMOKES');
-check($by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['result']==='PASS'&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['galleryLink']===true&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['cacheControlPrivateNoStore']===true&&$by['PRODUCT_PAGE_FIRST_CATALOG_LINK']['cspShape']===true,'PRODUCT_SMOKE');
-check(count(array_filter($s['rows'],static fn($r)=>in_array($r['check'],DashboardReportsInstallCoordinator::LEGAL,true)&&$r['result']==='PASS'&&$r['layoutMarker']===true&&$r['cspShape']===true&&$r['noindex']===true))===8&&$s['noindexMissing']===[],'LEGAL_200_NONCE_SCRIPT_NOINDEX');
-// The two stylesheets of the install, as a browser and the edge get them (CI only): the plain URL, the exact ?v=<file mtime> URL the new layout links and the edge double with the real .htaccess headers, all 200, text/css and the bytes of the file on disk (= the payload).
-$servedI=[];foreach(DashboardReportsInstallCoordinator::ADMIN_CSS_PATHS as $u=>$rel)$servedI[$u]=$assetServed($u,$rel)+['onDiskIsThePayload'=>hash_file('sha256',$active.'/'.$rel)===DashboardReportsInstallCoordinator::DIGESTS[$rel][1]];
-check(array_filter($servedI,static fn($x)=>$x['plain']!==true||$x['versioned']!==true||$x['edge']!==true||$x['onDiskIsThePayload']!==true)===[],'INSTALLED_STYLESHEETS_SERVED_TEXT_CSS_PLAIN_VERSIONED_AND_THROUGH_THE_EDGE_DOUBLE:'.json_encode($servedI));$results['assetServing']='PLAIN_VERSIONED_MTIME_AND_EDGE_DOUBLE_ALL_200_TEXT_CSS_PAYLOAD_BYTES_ABSENT_ONES_404';
-// The signed media route (B1150, still live): every media row must PASS, the signed URLs are built on the pinned origin and still served.
-foreach(['PRODUCT_IMAGE_URL_ACCESSOR','MEDIA_ROUTE_IMAGE','MEDIA_ROUTE_ORIGINAL_HEAD','MEDIA_ROUTE_NOT_MODIFIED','MEDIA_ROUTE_BAD_SIGNATURE','MEDIA_ROUTE_MISSING_SIGNATURE','MEDIA_ROUTE_UNKNOWN_IMAGE'] as $k)check(($by[$k]['result']??'')==='PASS','MEDIA_SMOKE_ROW_'.$k.':'.json_encode($by[$k]??null));
-check(($by['MEDIA_ROUTE_IMAGE']['bodyBytes']??0)>4194304,'FIRST_IMAGE_ABOVE_4_MIB_PASSES_THE_SMOKE_BODY_LIMIT:'.($by['MEDIA_ROUTE_IMAGE']['bodyBytes']??'null'));
-check($by['PUBLIC_IMAGE_ROUTE']['result']==='PASS'||str_starts_with((string)$by['PUBLIC_IMAGE_ROUTE']['result'],'INFO'),'PUBLIC_IMAGE_ROUTE_ROW:'.json_encode($by['PUBLIC_IMAGE_ROUTE']));
-check(str_contains($o,'PRODUCT_MEDIA_DOCTOR={"label":"after-install","rc":0,"ready":true,"failLines":0'),'PRODUCT_MEDIA_DOCTOR_AFTER_INSTALL_RC0');
-// The real response as a browser gets it (CI only).
-$cat=DashboardReportsFixtureWeb::get(PORT,'/katalog');check(MediaWeb::nonceScript($cat['csp'],$cat['body'])&&preg_match("/script-src 'nonce-[A-Za-z0-9+\/]{22}=='; script-src-attr 'none'/",implode(' ',$cat['csp']))===1,'NONCE_SCRIPT_CSP_AS_SERVED');
-$hook=json_decode(sh(['php','-d','opcache.enable=0','-d','opcache.enable_cli=0',$incoming.'/b1155-app-check.php',$active,'media-sample'],$active),true,16,JSON_THROW_ON_ERROR);
-check(($hook['urlNull']??-1)===0&&$hook['imageCount']===2&&is_array($hook['sample']),'HOOK_TWO_IMAGES_NO_NULL_URL:'.json_encode($hook['urlNull']??null));
-$mu=$hook['sample'];$mt=$mu['path'].'?'.http_build_query($mu['query'],'','&',PHP_QUERY_RFC3986);$mg=DashboardReportsFixtureWeb::get(PORT,$mt);
-check($mg['status']===200&&$mg['cookies']===[]&&MediaWeb::mediaCacheControl($mg['cache'])&&MediaWeb::strongEtag($mg['etag'])&&MediaWeb::crossOriginPolicy($mg['corp'])&&MediaWeb::nosniff($mg['nosniff'])&&in_array(strtolower(trim(explode(';',(string)$mg['contentType'])[0])),['image/jpeg','image/png','image/webp'],true),'MEDIA_ROUTE_SERVED_AS_SPECIFIED:'.json_encode([$mg['status'],$mg['cache'],$mg['etag'],$mg['corp'],$mg['contentType']]));
-check(DashboardReportsFixtureWeb::get(PORT,$mt,['If-None-Match: '.$mg['etag'][0]])['status']===304,'MEDIA_ROUTE_304_ON_ETAG');
-$badQuery=$mu['query'];$badQuery['s']=substr($badQuery['s'],0,-1).(substr($badQuery['s'],-1)==='a'?'b':'a');$badUrl=$mu['path'].'?'.http_build_query($badQuery,'','&',PHP_QUERY_RFC3986);
-// A valid signature is never limited and a bad one is always a bare 404, also after more than 120 bad requests in the minute (no 429).
-$badStatuses=[];for($i=0;$i<130;$i++)$badStatuses[]=DashboardReportsFixtureWeb::get(PORT,$badUrl)['status'];
-check(count(array_unique($badStatuses))===1&&$badStatuses[0]===404,'BAD_SIGNATURE_ALWAYS_404_NEVER_429:'.json_encode(array_count_values($badStatuses)));
-check(DashboardReportsFixtureWeb::get(PORT,$mt)['status']===200,'VALID_SIGNATURE_STILL_200_AFTER_130_BAD_REQUESTS');
-check(DashboardReportsFixtureWeb::get(PORT,$mu['path'].'?v='.rawurlencode((string)$mu['query']['v']))['status']===404&&DashboardReportsFixtureWeb::get(PORT,'/media/p/'.(int)explode('/',$mu['path'])[3].'/huge?v='.$mu['query']['v'].'&s='.$mu['query']['s'])['status']===404,'MEDIA_ROUTE_MISSING_SIGNATURE_AND_UNKNOWN_RENDITION_404');
-$pi=MediaWeb::publicImagePath($cat['body']);if($pi!==null)check($status($pi)===200,'PUBLIC_IMAGE_ROUTE_STAYS_200');
-$cat2=DashboardReportsFixtureWeb::get(PORT,'/katalog');preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$cat['csp']),$n1);preg_match("/script-src 'nonce-([^']+)'/",implode(' ',$cat2['csp']),$n2);check($n1[1]!==$n2[1],'NONCE_DIFFERS_PER_REQUEST');
-// The pin as the browser would see it (B1152, unchanged by this rollout): a forged Host gets a redirect and a login page on the pinned origin, and the forged host appears nowhere.
-$fi=$forged();check($fi['status']===302&&$fi['location']==='https://cms.ald1n.com/login'&&$fi['loginStatus']===200&&$fi['loginBodyMentionsForged']===false,'FORGED_HOST_REDIRECT_AND_LOGIN_STAY_ON_THE_PINNED_ORIGIN:'.json_encode($fi));
-$results['forgedHostInstalledState']='LOCATION_AND_LOGIN_PAGE_ON_THE_PINNED_ORIGIN';
-$fe=lastLine($o,'FEATURE_CLI_CHECK');check($fe['expectInstalled']===true&&$fe['themeRoutePostOnly']===true&&$fe['routesCached']===false&&($fe['routeList'][DashboardReportsInstallCoordinator::MEDIA_ROUTE_NAME]??null)===1&&($fe['routeList']['site-assets.show']??null)===1&&($fe['routeList']['admin.settings.smtp.index']??null)===1
-    &&$fe['newClassesLoaded']===4&&$fe['newClassesTotal']===4&&$fe['newClassesAutoloaded']===true&&count($fe['sourceMarkers'])===30&&!in_array(false,$fe['sourceMarkers'],true)&&count($fe['libraryApis'])===3&&!in_array(false,$fe['libraryApis'],true)&&$fe['bootstrapNamesRedirect']===true
-    &&array_values(array_map(static fn($r)=>$r['present']===true&&$r['get']===true,$fe['reportRoutes']))===[true,true]&&array_keys($fe['reportRoutes'])===DashboardReportsInstallCoordinator::NEW_ROUTE_NAMES
-    &&count($fe['b1154Markers'])===count(AdminShellInstallCoordinator::SOURCE_MARKERS)&&!in_array(false,$fe['b1154Markers'],true)&&$fe['logoHeightsApi']===true&&$fe['catalogWhitelist']===true&&$fe['freshBrandingApi']===true&&$fe['mailBrandingApi']===true
-    &&$fe['originConfiguredIsExpected']===true&&$fe['middlewareGlobal']===true&&$fe['bootstrapNamesPin']===true&&$fe['pdfRasterGuard']===true
-    &&$fe['throttleApi']===true&&$fe['webPasswordUsesThrottle']===true&&$fe['apiPasswordUsesThrottle']===true&&$fe['merchantIssueLabels']===true&&$fe['b1150ClassesLoaded']===true&&$fe['routeMedia']===true,'CLI_FEATURES_AFTER_INSTALL_ALL_THIRTY_B1155_MARKERS_THE_LIBRARY_METHODS_AND_BOTH_ROUTES_ARE_THERE:'.json_encode($fe));
-$rcNew=lastLine($o,'ROUTES_CHECK');check($rcNew['routeCount']===$pin['routes']+2&&$rcNew['routeCount']===$rcOld['routeCount']+2&&$rcNew['installed']===true&&$rcNew['expectedRouteCount']===$pin['routes']+2&&$rcNew['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS]===['hits'=>1,'get'=>true]&&$rcNew['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS_CSV]===['hits'=>1,'get'=>true]&&$rcNew['routesCached']===false,'ROUTE_COUNT_PLUS_TWO_AFTER_AND_BOTH_NAMES_PRESENT_WITH_GET:'.json_encode($rcNew));
-check(str_contains($o,'"newRoutes":"TWO_GET_ROUTES_admin.reports.subagents_AND_admin.reports.subagents.csv_ROUTE_COUNT_'.$pin['routes'].'_TO_'.($pin['routes']+2).'"')&&str_contains($o,'"authenticatedDashboardAndReport":"NOT_VERIFIED_BY_THIS_TOOL_NOBODY_LOGS_IN_THE_OWNER_CHECKS_IT"')&&str_contains($o,'"passwordEndpoints":"NEVER_CALLED_NO_LOGIN"')&&str_contains($o,'"mail":"NEVER_SENT_NO_TEST_MAIL"')&&str_contains($o,'"pdfGeneration":"NOT_EXERCISED"')&&str_contains($o,'"settingsWritten":"NO"')
-    &&str_contains($o,'"stylesheets":"BOTH_CHANGED_ONES_SERVED_200_TEXT_CSS_WITH_THE_PAYLOAD_SHA256_TOKENS_STYLESHEET_UNCHANGED"')&&str_contains($o,'"classesLoadedInTheWebSapi":"7_BEFORE_BOOTSTRAP_AND_ROUTES"')&&str_contains($o,'"foreignRefererRedirect":"PINNED_TO_THE_ORIGIN_CATALOG"')&&str_contains($o,'"guestReportUrls":"302_TO_LOGIN_NEVER_5XX"')&&str_contains($o,'"catalogCsp":"EQUALS_THE_PREFLIGHT_BASELINE"')&&str_contains($o,'"treeFiles":8583')&&str_contains($o,'"directoriesCreated":1')&&str_contains($o,'"viewsCompiledAndLinted":"IN_MEMORY_11_VIEWS"'),'RESULT_STATES_TWO_ROUTES_THE_PROOFS_AND_THE_TREE_8583_ONE_DIRECTORY');
-// The private state keeps what the coordinator proved: the web class proof of D and F, the web asset proof, the CSP baselines and the login background fact (a boolean).
-$ptrNow=json_decode((string)file_get_contents($private.'/current.json'),true,8,JSON_THROW_ON_ERROR);$stNow=json_decode((string)file_get_contents($ptrNow['private'].'/state.json'),true,512,JSON_THROW_ON_ERROR);
-check(is_array($stNow['webClassProof']['D']??null)&&is_array($stNow['webClassProof']['F']??null)&&count($stNow['webClassProof']['D']['classes'])===7&&$stNow['webClassProof']['D']['classes']===$stNow['webClassProof']['F']['classes']&&is_array($stNow['webAssetProof']??null)&&$stNow['webAssetProof']['assets']===$cssUrls&&isset($stNow['cspBaseline']['catalog'],$stNow['cspBaseline']['register'])&&$stNow['loginBackground']===['youtubeModeValidId'=>false]&&$stNow['phase']==='INSTALLED_PASS','THE_STATE_KEEPS_THE_WEB_CLASS_PROOFS_THE_ASSET_PROOF_THE_CSP_BASELINES_AND_THE_LOGIN_BACKGROUND_BOOLEAN');
-$mf=allLines($o,'MAIL_TRANSPORT_FINGERPRINT');check(!preg_match('/mailFingerprint(HMAC|SHA256)|mailKey/',$o),'NO_FINGERPRINT_OR_KEY_IN_THE_REPORT');
-$stp=json_decode((string)file_get_contents(json_decode((string)file_get_contents($private.'/current.json'),true)['private'].'/state.json'),true);check(preg_match('/^[a-f0-9]{64}$/D',(string)($stp['mailKey']??''))===1&&preg_match('/^[a-f0-9]{64}$/D',(string)($stp['mailFingerprintHMAC']??''))===1&&(fileperms(json_decode((string)file_get_contents($private.'/current.json'),true)['private'].'/state.json')&0777)===0600,'KEY_AND_HMAC_ONLY_IN_THE_0600_STATE');
-check($mf!==[]&&end($mf)['status']==='MAIL_TRANSPORT_UNCHANGED'&&end($mf)['unchanged']===true&&end($mf)['valuesPrinted']===false&&end($mf)['testMailSent']===false,'MAIL_TRANSPORT_FINGERPRINT_UNCHANGED');
-check($routeCacheSHA()===null&&$shopFlag()==='1'&&!str_contains($o,'globalReset":true')&&str_contains($o,'"label":"installed-invalidate"'),'NO_ROUTE_CACHE_SHOP_UNTOUCHED_TARGETED_INVALIDATION');
-// The compiled views were cleared by view:clear and rebuilt on demand: the views directory holds only files compiled after the install (the layout view of the catalog is among them), none from before.
-check(count(glob($active.'/storage/framework/views/*.php')?:[])>0,'COMPILED_VIEWS_REBUILT_ON_DEMAND_AFTER_VIEW_CLEAR');
-$next=(array)lastLine($o,'OWNER_NEXT_STEPS');check(count($next)===6&&in_array($purgeStep,$next,true)&&str_starts_with((string)end($next),'ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1155-installer.sh --rollback')&&str_contains($next[1],'THIS_TOOL_NEVER_LOGS_IN')&&str_contains($next[1],'SUB-AGENT_REPORT')&&str_contains($next[4],'DO_NOT_RERUN_B1144_TO_B1154'),'OWNER_NEXT_STEPS_COMPLETE:'.json_encode($next));
-check(str_contains($o,'"command":"route:clear"')&&str_contains($o,'"command":"queue:restart"')&&$holdsInstall!==[]&&(lastLine($o,'MERCHANT_APPROVAL')['ok']??null)==='UNCHANGED'&&str_contains($o,'"database":"NO_PRODUCT_CART_OR_SWITCH_WRITES_SESSIONS_AND_APP_CACHE_ONLY"'),'REFRESH_AFTER_THE_LIVENESS_SMOKE_APPROVAL_UNCHANGED');
-// The B1149 logo, theme and CSS behaviour stays: 301 (unversioned) or 200, the versioned logo sandboxed, strict names.
-$bare=DashboardReportsFixtureWeb::get(PORT,'/site-assets/'.$logoName);check($bare['status']===301&&str_contains((string)$bare['location'],'?v=')&&MediaWeb::privateNoStore($bare['cache'])&&MediaWeb::sandboxCsp($bare['csp']),'SITE_ASSET_UNVERSIONED_REDIRECTS_OR_SERVES');
-$lu=MediaWeb::siteAssetUrl(DashboardReportsFixtureWeb::get(PORT,'/katalog')['body']);check($lu!==null&&$lu['query']!==[],'LOGO_URL_IS_VERSIONED');$lg2=DashboardReportsFixtureWeb::get(PORT,$lu['path'].'?v='.$lu['query']['v']);check($lg2['status']===200&&str_starts_with((string)$lg2['contentType'],'image/png')&&MediaWeb::nosniff($lg2['nosniff'])&&MediaWeb::sandboxCsp($lg2['csp']),'SITE_ASSET_SERVED_SANDBOXED');
-check($status('/site-assets/not-a-valid-name.png')===404&&$status('/site-assets/..%2F..%2F.env')===404,'SITE_ASSET_STRICT_NAMES');
-$t=$themePost('theme=dark&back=%2Fkatalog');check($t['status']===303&&$t['location']==='/katalog'&&isset($t['cookies']['shop_theme']),'THEME_POST_303_COOKIE');
-check(str_contains($body('/katalog',['Cookie: shop_theme='.$t['cookies']['shop_theme']]),'data-theme="dark"')&&str_contains($body('/katalog'),'data-theme="system"'),'THEME_COOKIE_RENDERS_DATA_THEME');
-check(str_contains($body($cssV),$markers['css'])&&str_contains($body($galV),$markers['gallery']),'CSS_SERVED');
-// 12b. What the owner keeps (CI only): the B1153 facts stay after this rollout: the notification mail carries the logo (a PNG light-theme logo, the default height 36, on the pinned origin), the header logo img has the height 32, the list view and the per-page choice render.
-$mc=$mailCheck();check($mc['logoIsArray']===true&&$mc['logoSrcOnOrigin']===true&&$mc['logoHeight']===36&&$mc['logoOnDark']===false&&$mc['htmlHasLogoImg']===true&&$mc['imgHeight']===36&&$mc['imgOnOrigin']===true,'INSTALLED_MAIL_HEADER_STILL_CARRIES_THE_B1153_LOGO:'.json_encode($mc));
-$lv=$body('/katalog?per_page=20&view=list');$gv=$body('/katalog?per_page=80');$jv=$body('/katalog?per_page=1000&view=junk');
-check(DashboardReportsInstallCoordinator::headerLogoHeight($body('/katalog'))===32&&str_contains($lv,'shop-products-list')&&str_contains($lv,'<option value="20" selected')&&str_contains($gv,'<option value="80" selected')&&!str_contains($gv,'shop-products-list')&&str_contains($jv,'<option value="40" selected')&&!str_contains($jv,'shop-products-list')&&!str_contains($jv,'value="1000"'),'B1153_LIST_VIEW_PER_PAGE_AND_LOGO_HEIGHT_STAY_AFTER_THE_INSTALL');
+check(!str_contains($o,'"MAIL_SENT"')&&lastLine($o,'MAIL_TRANSPORT_FINGERPRINT')['status']==='MAIL_TRANSPORT_UNCHANGED'&&lastLine($o,'SHOP_STATE_CHECK')['shop']['open']===true,'MAIL_UNCHANGED_SHOP_STATE_UNCHANGED');
+$results['install']=['steps'=>69,'groups'=>'A13_B14_C11_D1_E2_F28','migration'=>'AFTER_ALL_FILES_BEHIND_A_VERIFIED_BACKUP','schema'=>'73_RAN_TWO_TABLES_THREE_COLUMNS','moved'=>$moved,'orphans'=>'RETAINED','tree'=>8596,'routes'=>$rcNew['routeCount']];
+$installedOutput=$o;
 
-// 12b. What the administrators meet with the payload installed (CI only, the shipped tool never logs in), over real HTTP: the SUPERADMIN gets the new dashboard (a1-hero--split, a1-strip, a1-card), the navigation dropdown (a1-nav-dd__group) and the new
-// registration page (reg-form); the sub-agent report and its CSV are served (200, text/csv, BOM); the management report links "Prodaja po subagentima". A dashboard, a list page, three settings or report pages carry the new shell, both shell stylesheets and a CSP nonce on every inline script;
-// a SUB-AGENT (the real role and group setup of tests/Feature/SubagentSalesReportTest.php) gets 403 on the report, its CSV, the drill-down and the brand grouping and does not see the link; an ADMIN is allowed; a failed POST /login with a foreign Referer
-// redirects to the LOCAL login URL on the pinned origin; and not one Laravel ERROR or CRITICAL line is appended to the log by all of it.
-$logFileX=$logDir.'/laravel-'.date('Y-m-d').'.log';clearstatcache(true,$logFileX);$logSizeBefore=is_file($logFileX)?filesize($logFileX):0;
-$iv=$seen($winLogin,$winPassword);$checkNewView($iv,'INSTALLED');
-$nonceOk=static function(array $r):bool{$csp=implode(' ',$r['csp']);if(preg_match("/script-src 'nonce-([^']+)'/",$csp,$nm)!==1)return false;preg_match_all('~<script\b([^>]*)>~i',$r['body'],$sm);foreach($sm[1] as $attrs){if(preg_match('~\bsrc\s*=~i',$attrs)===1)continue;if(preg_match('~\btype\s*=\s*"([^"]*)"~i',$attrs,$tm)===1&&!in_array(strtolower($tm[1]),['module','text/javascript'],true))continue;if(!str_contains($attrs,'nonce="'.$nm[1].'"'))return false;}return true;};
-$jarX=[];$lgX=DashboardReportsFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarX);check($lgX['ok']===true,'ADMIN_LOGIN_WORKS_AFTER_THE_INSTALL');$listPath=null;foreach(['/admin/users','/admin/catalog','/orders','/admin/orders'] as $cand){if(DashboardReportsFixtureWeb::jarGet(PORT,$cand,$jarX)['status']===200){$listPath=$cand;break;}}check($listPath!==null,'A_LIST_PAGE_ANSWERS_200_FOR_THE_SUPERADMIN');
-$newPages=[];foreach(['/',$listPath,'/admin/settings','/admin/settings/documents','/admin/reports',DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery] as $pp){$r=DashboardReportsFixtureWeb::jarGet(PORT,$pp,$jarX);$newPages[$pp]=['status'=>$r['status'],'newShell'=>str_contains($r['body'],'a1-header__bar'),'dropdown'=>str_contains($r['body'],'a1-nav-dd__group'),'tokensLinked'=>preg_match('~href="[^"]*/assets/css/ald1n-tokens\.css\?v=\d+"~',$r['body'])===1,'adminLinked'=>preg_match('~href="[^"]*/assets/css/ald1n-admin\.css\?v=\d+"~',$r['body'])===1,'inlineScriptsHaveTheCspNonce'=>$nonceOk($r)];}
-check(array_filter($newPages,static fn($x)=>$x['status']!==200||!$x['newShell']||!$x['dropdown']||!$x['tokensLinked']||!$x['adminLinked']||!$x['inlineScriptsHaveTheCspNonce'])===[],'NEW_SHELL_AND_DROPDOWN_ON_THE_DASHBOARD_A_LIST_THREE_SETTINGS_OR_REPORT_PAGES_200_BOTH_STYLESHEETS_AND_EVERY_INLINE_SCRIPT_WITH_THE_CSP_NONCE:'.json_encode($newPages));
-// The sub-agent: logged in, the dashboard serves and does not link the report; the report, the CSV, the drill-down and the brand grouping are all 403.
-$subId=(int)$pdo()->query("SELECT id FROM users WHERE username='".$subLogin."'")->fetchColumn();check($subId>0,'THE_SUBAGENT_ROW_EXISTS');
-$jarS=[];$lgS=DashboardReportsFixtureWeb::adminLogin(PORT,$subLogin,$subPassword,$jarS);check($lgS['ok']===true,'SUBAGENT_LOGIN_WORKS_AFTER_THE_INSTALL:'.json_encode($lgS));
-$sd=DashboardReportsFixtureWeb::jarGet(PORT,'/',$jarS);$subPages=['dashboard'=>$sd['status'],'report'=>DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery,$jarS)['status'],'csv'=>DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH.$reportQuery,$jarS)['status'],
-    'drill'=>DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery.'&drill='.$subId,$jarS)['status'],'brand'=>DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery.'&group=brand',$jarS)['status']];
-check($subPages['dashboard']<500&&!str_contains($sd['body'],DashboardReportsInstallCoordinator::SUBAGENTS_PATH)&&$subPages['report']===403&&$subPages['csv']===403&&$subPages['drill']===403&&$subPages['brand']===403,'A_SUBAGENT_GETS_403_ON_THE_REPORT_ITS_CSV_AND_THE_DRILL_DOWN_AND_SEES_NO_LINK:'.json_encode($subPages));
-// An admin (role admin) is allowed: the page and the CSV are served.
-$jarA=[];$lgA=DashboardReportsFixtureWeb::adminLogin(PORT,$admLogin,$admPassword,$jarA);check($lgA['ok']===true,'ADMIN_ROLE_LOGIN_WORKS_AFTER_THE_INSTALL:'.json_encode($lgA));
-$admRep=DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_PATH.$reportQuery,$jarA);$admCsv=DashboardReportsFixtureWeb::jarGet(PORT,DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH.$reportQuery,$jarA);
-check($admRep['status']===200&&$admCsv['status']===200&&str_starts_with(strtolower((string)$admCsv['contentType']),'text/csv'),'AN_ADMIN_IS_ALLOWED_ON_THE_REPORT_AND_ITS_CSV:'.json_encode([$admRep['status'],$admCsv['status']]));
-// The failed POST /login with a foreign Referer (CI only): the installed redirect is the login URL on the pinned origin, never the Referer.
-$fl=$failedLogin();check($fl['status']===302&&$fl['kind']==='PINNED_LOGIN'&&$fl['location']==='https://cms.ald1n.com/login','A_FAILED_LOGIN_WITH_A_FOREIGN_REFERER_REDIRECTS_TO_THE_LOCAL_LOGIN_URL_ON_THE_PINNED_ORIGIN:'.json_encode($fl));
-clearstatcache(true,$logFileX);$logNew=is_file($logFileX)&&filesize($logFileX)>$logSizeBefore?(string)file_get_contents($logFileX,false,null,$logSizeBefore):'';
-check(!str_contains($logNew,'.ERROR:')&&!str_contains($logNew,'.CRITICAL:'),'NO_LARAVEL_ERROR_LINE_FROM_THE_AUTHENTICATED_PAGES_THE_REPORT_AND_THE_FAILED_LOGIN');
-$results['afterInstall']=['dashboard'=>'NEW_MARKUP_A1_HERO_SPLIT_STRIP_CARD_NO_LOG_ERROR','dropdown'=>'A1_NAV_DD_GROUP','report'=>'200','csv'=>'200_TEXT_CSV_BOM','registration'=>'NEW_REG_FORM_MARKUP','management'=>'LINKS_PRODAJA_PO_SUBAGENTIMA','subagent'=>$subPages,'adminRole'=>'ALLOWED','failedLoginWithForeignReferer'=>$fl['kind'],'newPages'=>array_map(static fn($x)=>$x['status'],$newPages)];
-$results['install']=['final'=>lastRaw($o,'B1155_FINAL'),'stepSmokePoints'=>count($rows),'b1149Storefront'=>'INTACT_THROUGHOUT','guestRedirects'=>'302_ON_THE_PINNED_ORIGIN_DASHBOARD_AND_REPORT_URLS_INCLUDED','themePost'=>'303_AT_GROUP_POINTS','mediaRoute'=>$imagesVisible?'EXERCISED':'NOT_EXERCISED_NO_PRODUCT_IMAGE','mailFingerprint'=>'UNCHANGED','upNever500'=>'EVERY_STEP_POINT_200','authenticatedDashboard'=>'200_AT_EVERY_STEP_POINT','b1153Facts'=>'STAY_MAIL_LOGO_HEIGHT_32_CATALOG_VIEW_PER_PAGE','stylesheets'=>'BOTH_200_TEXT_CSS_PAYLOAD_BYTES_PLAIN_MTIME_AND_EDGE','directories'=>'ONE_CREATED_THE_PARTIALS_DIRECTORY','routes'=>'568_TO_570'];
-check(str_contains($o,'ACTIVE_TREE_AFTER_INSTALL=')&&str_contains($o,'"manifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155":true')&&str_contains($o,'"verifiedFiles":8583'),'ACTIVE_TREE_AFTER_INSTALL_IS_THE_8583_FILE_MANIFEST');
+// 13. Idempotent re-run: nothing is applied again, the preflight of the installed state passes (73 ran, 0 pending).
+[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'MIGRATE={')&&!str_contains($o,'DB_BACKUP=')&&$tree()==='INSTALLED'&&$schemaNew(),'IDEMPOTENT_RERUN_NO_FILE_NO_BACKUP_NO_MIGRATION');
 
-// 13. Idempotent re-run.
-[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='INSTALLED','IDEMPOTENT_RERUN');$results['rerun']='PASS_ALREADY_INSTALLED';
+// 14. OWNER ROLLBACK after the migration: the files go back, the two migration files STAY (schema ahead), nothing is undone in the database; the OLD code then serves the new schema and the backfilled rows.
+[$rc,$o]=$run($allRestores(),'rollback',[],$extraCfg);$rrows=array_values(array_filter($stepRows(),static fn($r)=>str_starts_with($r['point'],'AFTER_RESTORE_')));
+check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ROLLED_BACK_FILES_SCHEMA_AHEAD'&&lastLine($o,'ROLLED_BACK_SCHEMA_AHEAD')['database']==='AHEAD_OF_THE_CODE_NO_DOWN_NO_DROP_NOTHING_UNDONE','OWNER_ROLLBACK_AFTER_THE_MIGRATION_IS_SCHEMA_AHEAD');
+$prefixKept=true;foreach($plan as $s){$sh=$tampered($s['path']);$isMig=in_array($s['path'],CommissionsInstallCoordinator::migrationFiles(),true);$want=$isMig?$s['payloadSHA256']:($s['kind']==='new'?'ABSENT':$s['preSHA256']);if($sh!==$want)$prefixKept=false;}
+check($prefixKept&&$orphanOk()&&$schemaNew()&&count(glob($active.'/database/migrations/*.php'))===73,'FILES_BACK_EXCEPT_THE_TWO_MIGRATION_FILES_ORPHANS_RETAINED_DATABASE_STILL_AHEAD');
+$tr=lastLine($o,'ACTIVE_TREE_AFTER_ROLLBACK');check(is_array($tr)&&$tr['verifiedFiles']===8585&&$tr['migrationFilesKept']===true,'THE_TREE_AFTER_THE_ROLLBACK_IS_THE_8583_TREE_PLUS_THE_TWO_MIGRATION_FILES');
+check(lastLine($o,'ROUTES_CHECK')['routeCount']===$pin['routes']&&$status('/notifications/recent')===302,'ROUTES_ARE_BACK_TO_570_THE_BELL_URL_REDIRECTS_A_GUEST');
+$judge($rrows,'ROLLBACK_EVERY_POINT_SERVES_THE_SITE_AND_BOTH_USERS_PAGES_WITH_THE_NEW_SCHEMA_UNDER_THE_OLD_CODE');
+// The OLD code on the NEW schema with the backfilled rows (advisor point: not asserted, proven): the dashboards, the commission lists and the order pages of both users.
+$oldPages=[];foreach([['admin','/'],['admin','/admin/commissions'],['admin','/admin/orders'],['admin','/admin/orders/'.$orderPaid],['admin','/admin/after-sales'],['admin','/admin/reports'],['sub','/'],['sub','/orders'],['sub','/commissions']] as [$who,$pg]){$j=[];$l=CommissionsFixtureWeb::adminLogin(PORT,$who==='admin'?$winLogin:$subLogin,$who==='admin'?$winPassword:$subPassword,$j);$r=$l['ok']?CommissionsFixtureWeb::jarGet(PORT,$pg,$j):['status'=>0,'body'=>''];$oldPages[$who.' '.$pg]=$r['status'];}
+check(array_filter($oldPages,static fn($s)=>$s>=500||$s===0)===[]&&$oldPages['admin /']===200&&$oldPages['admin /admin/commissions']===200&&$oldPages['sub /']===200,'THE_OLD_CODE_SERVES_THE_NEW_SCHEMA_AND_THE_BACKFILLED_ROWS:'.json_encode($oldPages));
+check(!str_contains($o,'DROP TABLE')&&$schemaNew(),'NOTHING_DROPPED');
+// A run after that is REFUSED (nothing runs): the owner asks for a new installer.
+[$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_SCHEMA_AHEAD'&&str_contains($o,'HOLD_SCHEMA_AHEAD_NOTHING_RUNS=')&&!str_contains($o,'OVERLAY_STEP=')&&$prefixKept,'A_RUN_AFTER_A_SCHEMA_AHEAD_ROLLBACK_IS_REFUSED');
+$results['ownerRollbackAfterMigration']='FILES_BACK_MIGRATION_FILES_KEPT_SCHEMA_AHEAD_OLD_CODE_SERVES_THE_NEW_SCHEMA_RERUN_REFUSED';
+$reset();check($schemaOld()&&$tree()==='PRE'&&$orphanOk(),'RESET_AFTER_THE_OWNER_ROLLBACK');
 
-// 14. 20 minutes before the 02:30 backup --rollback holds before any restore and prints the manual-only recovery block;
-// with --ignore-schedule it restores (shop ON) with a smoke after EVERY restored file: exact old bytes, the B1154 shell and the B1149 storefront intact, the report routes 404, the registration page old again, the new directory gone.
-[$rc,$o]=$run([],'rollback',['fixedNow'=>$conflictNow]);$note=lastLine($o,'RECOVERY_NOTE');
-check($rc===2&&preg_match('/"blockers":\["SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule"\]/',$o)===1&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$note['kind']==='ROLLBACK_NOT_STARTED_MANUAL_ONLY'&&$block($o)!==[]&&$tree()==='INSTALLED','SCHEDULE_HOLD_WITH_MANUAL_BLOCK');
-@unlink($stepLog);
-[$rc,$o]=$run($allRestores(),'rollback',['fixedNow'=>$conflictNow,'ignoreSchedule'=>true],['adminWindow'=>$winCfg]);$rrows=$stepRows();echo 'ROLLBACK_STEP_SMOKES='.json_encode($rrows,JSON_UNESCAPED_SLASHES).PHP_EOL;
-check(str_contains($o,'SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE')&&$rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&!file_exists($partials)&&$shopFlag()==='1'&&str_contains($o,'ACTIVE_TREE_AFTER_ROLLBACK=')&&str_contains($o,'"equalsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154":true'),'OWNER_ROLLBACK_IGNORE_SCHEDULE_NEW_FILES_AND_THE_DIRECTORY_GONE_TREE_IS_THE_8574_FILE_B1154_TREE');
-// Every restored file is smoked: the site, the guest pages and the AUTHENTICATED dashboard stay 200 (never a 5xx) in every window of the rollback.
-$expectedR=[];foreach(array_reverse($plan) as $s)$expectedR[]='AFTER_RESTORE_'.$s['n'];$badR=[];
-check(array_column($rrows,'point')===$expectedR,'EVERY_ONE_OF_THE_30_RESTORES_SMOKED:'.implode(',',array_column($rrows,'point')));
-foreach($rrows as $r){
-    foreach($r['anon'] as $p=>$st)if($st!==200)$badR[]=$r['point'].' '.$p.' '.$st;
-    foreach(['/up','/login'] as $p)if(($r['anon'][$p]??null)!==200)$badR[]=$r['point'].' '.$p.' missing';
-    foreach(['dashGuest','smtpGuest','merchantGuest','documentsGuest'] as $k)if($r[$k]!==302)$badR[]=$r['point'].' '.$k.' '.$r[$k];
-    foreach(['reportGuest','reportCsvGuest'] as $k)if(!in_array($r[$k],[404,302],true))$badR[]=$r['point'].' '.$k.' '.$r[$k];
-    if(($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true)$badR[]=$r['point'].' AUTHENTICATED dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
-    if($r['logoChecked']===true&&($r['logoLinked']!==true||$r['logoStatus']!==200))$badR[]=$r['point'].' logo '.var_export($r['logoStatus'],true);
+// 15. Failures BEFORE the migration started: the full reverse-order file rollback, the schema untouched, the migration files removed.
+foreach([['BEFORE_DB_BACKUP','BEFORE_THE_BACKUP'],['AFTER_DB_BACKUP','AFTER_THE_BACKUP_BEFORE_MIGRATE_INTENT'],['AFTER_MIGRATE_INTENT','AFTER_MIGRATE_INTENT_BEFORE_THE_COMMAND']] as [$point,$label]){
+    [$rc,$o]=$run([$point=>['fail']]);
+    check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&!is_file($active.'/'.$stepMig2['path'])&&!str_contains($o,'MIGRATE={'),'FAILURE_'.$label.'_IS_A_FULL_ROLLBACK_NOTHING_MIGRATED');
+    $tr=lastLine($o,'ACTIVE_TREE_AFTER_ROLLBACK');check(is_array($tr)&&$tr['verifiedFiles']===8583&&$tr['migrationFilesKept']===false&&$orphanOk(),'THE_TREE_AFTER_'.$label.'_IS_THE_8583_TREE');$reset();
 }
-check($badR===[],'ROLLBACK_ORDER_EVERY_POINT_SERVES_THE_SITE_AND_THE_AUTHENTICATED_DASHBOARD:'.implode(',',$badR));
-// After the forced rollback the SAME authenticated requests show the OLD markup again: no a1-strip, no new dashboard, no dropdown, report routes 404 for the superadmin, the old registration page, the 568 routes.
-$ov2=$seen($winLogin,$winPassword);$checkOldView($ov2,'AFTER_THE_ROLLBACK');
-check($status(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)===404&&$status(DashboardReportsInstallCoordinator::SUBAGENTS_CSV_PATH)===404&&array_filter($cssUrls,static fn($u)=>DashboardReportsFixtureWeb::get(PORT,$u)['status']!==($u===$cssUrls[0]?200:404))===[],'AFTER_THE_ROLLBACK_THE_REPORT_URLS_AND_THE_REGISTRATION_STYLESHEET_ARE_404_THE_ADMIN_STYLESHEET_IS_THE_OLD_ONE');
-$fl2=$failedLogin();check($fl2['status']===302,'AFTER_THE_ROLLBACK_A_FAILED_LOGIN_REDIRECTS_AGAIN_AS_BEFORE:'.json_encode($fl2));
-// Rollback order (the exact reverse of the install): group G first, a short hold, F, the full hold, E, the full hold, D, the full hold, C and B with a short hold between, the full hold before the new files, the new files and the directory last, the restored hold.
-$hr=array_map(static fn($x)=>$x['label'],allLines($o,'OVERLAY_HOLD_START'));$pg=static fn(string $g):int=>(int)strpos($o,'ROLLBACK_AFTER_GUARD_GROUP={"group":"'.$g.'","guardGroupIsOld":true}');$ph=static fn(string $l):int=>(int)strpos($o,'"label":"'.$l.'"');
-check($hr===['rollback-pause-F','rollback-after-guard-group-F','rollback-after-guard-group-E','rollback-after-guard-group-D','rollback-pause-B','rollback-before-new-classes','restored']&&$ph('rollback-pause-F')<$pg('F')&&$pg('F')<$ph('rollback-after-guard-group-F')&&$ph('rollback-after-guard-group-F')<$pg('E')&&$pg('E')<$ph('rollback-after-guard-group-E')&&$ph('rollback-after-guard-group-E')<$pg('D')&&$pg('D')<$ph('rollback-after-guard-group-D')&&$ph('rollback-after-guard-group-D')<$ph('rollback-pause-B')&&$ph('rollback-pause-B')<$ph('rollback-before-new-classes')&&$ph('rollback-before-new-classes')<$ph('restored')&&(lastLine($o,'MERCHANT_APPROVAL')['ok']??null)==='UNCHANGED','ROLLBACK_ORDER_G_F_HOLD_E_HOLD_D_HOLD_C_B_HOLD_THE_NEW_FILES_LAST:'.json_encode($hr));
-check(!str_contains($o,'"rollback-after-guard-group-A"')&&in_array($purgeBack,(array)lastLine($o,'OWNER_NEXT_STEPS'),true),'OWNER_NEXT_STEPS_AFTER_ROLLBACK');
-[$s,$by]=$smokeRows($o);$fe=lastLine($o,'FEATURE_CLI_CHECK');check($s['state']==='OLD'&&$s['shop']['open']===true&&($fe['routeList'][DashboardReportsInstallCoordinator::MEDIA_ROUTE_NAME]??null)===1&&$fe['themeRoutePostOnly']===true&&$fe['expectInstalled']===false&&$fe['newClassesLoaded']===0&&$fe['logoHeightsApi']===true&&$fe['catalogWhitelist']===true&&!in_array(true,$fe['sourceMarkers'],true)&&!in_array(true,$fe['libraryApis'],true)&&$fe['bootstrapNamesRedirect']===false&&!in_array(false,$fe['b1154Markers'],true)&&$fe['originConfiguredIsExpected']===true&&$fe['middlewareGlobal']===true&&$fe['throttleApi']===true,'OLD_STATE_SERVED:'.json_encode($fe));
-$b1149Intact($s,$by,'AFTER_ROLLBACK');$pinRows($by,'AFTER_ROLLBACK');$emailState($by,false,'AFTER_ROLLBACK');$viewRows($by,'AFTER_ROLLBACK');$assetRows($by,false,'AFTER_ROLLBACK');$redirectRows($by,false,'AFTER_ROLLBACK');
-$rcBack=lastLine($o,'ROUTES_CHECK');check($rcBack['routeCount']===$pin['routes']&&$rcBack['installed']===false&&$rcBack['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS]['hits']===0&&$rcBack['reportRoutes'][DashboardReportsInstallCoordinator::ROUTE_SUBAGENTS_CSV]['hits']===0&&hash_file('sha256',$active.'/'.$stepRoutes['path'])===$stepRoutes['preSHA256']&&hash_file('sha256',$active.'/'.$stepBoot['path'])===$stepBoot['preSHA256'],'ROUTE_COUNT_IS_THE_B1154_COUNT_AGAIN_568_IN_PRODUCTION_AND_BOTH_NAMES_ARE_GONE:'.json_encode($rcBack));
-sleep(3);check($status('/katalog')===200&&$themePost('theme=dark&back=%2Fkatalog')['status']===303&&in_array($status('/site-assets/'.$logoName),[200,301],true)&&$status('/admin/settings/smtp')===302,'OLD_STATE_B1149_STOREFRONT_KEPT');
-$results['rollbackInScheduleWindow']='HOLD_MANUAL_ONLY_BLOCK_THEN_IGNORE_SCHEDULE_PASS_30_RESTORES_SMOKED_NEW_FILES_AND_DIRECTORY_GONE';
-$results['afterRollback']=['dashboard'=>'OLD_MARKUP_NO_A1_STRIP','reportRoutes'=>'404','routeCount'=>$pin['routes'],'registration'=>'OLD_MARKUP','tree'=>'THE_8574_FILE_B1154_TREE'];$reset();
+$results['failureBeforeTheMigration']='FULL_ROLLBACK_THREE_POINTS_SCHEMA_UNTOUCHED';
 
-// 14b. A liveness smoke after a group that fails (the shop pages lose their noindex header after the second group): rolled back at once.
-{
-    $g1=$groups[0];$g2=$groups[1];
-    [$rc,$o]=$run(['GROUP_DONE_'.$g2=>['noHtaccess']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');
-    check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_'.$g2.'"'&&count($ls)===2&&$ls[0]['after']===$g1&&$ls[0]['failed']===[]&&$ls[1]['after']===$g2&&in_array('/katalog',$ls[1]['failed'],true)&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','MID_INSTALL_LIVENESS_FAILURE_ROLLED_BACK');
-    @unlink($switches['noHtaccess']);$reset();$results['groupLiveness']='PASS_AFTER_EVERY_GROUP_AND_A_FAILURE_AFTER_GROUP_'.$g2.'_ROLLED_BACK';
+// 16. Failures AFTER the migration ran: the files go back, the two migration files stay, final HOLD_ROLLED_BACK_SCHEMA_AHEAD; a re-run is refused; the old code serves the new schema.
+foreach([['AFTER_MIGRATE_COMMAND',['fail'],'THE_COMMAND_RAN_THEN_A_FAILURE'],['AFTER_SMOKES_INSTALLED',['logError'],'AN_ERROR_LINE_IN_THE_LOG_AFTER_THE_MIGRATION']] as [$point,$act,$label]){
+    [$rc,$o]=$run([$point=>$act],'install',[],$extraCfg);
+    check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_SCHEMA_AHEAD'&&$schemaNew()&&$orphanOk()&&is_file($active.'/'.$stepMig1['path'])&&is_file($active.'/'.$stepMig2['path'])&&str_contains($o,'OWNER_NEXT_STEPS=')&&lastLine($o,'ROLLED_BACK_SCHEMA_AHEAD')['backupBeforeTheMigration']===lastLine($o,'DB_BACKUP')['key'],'FAILURE_'.$label.'_KEEPS_THE_MIGRATION_FILES_AND_REPORTS_THE_SCHEMA_AHEAD');
+    $ok=true;foreach($plan as $s){$isMig=in_array($s['path'],CommissionsInstallCoordinator::migrationFiles(),true);$want=$isMig?$s['payloadSHA256']:($s['kind']==='new'?'ABSENT':$s['preSHA256']);if($tampered($s['path'])!==$want)$ok=false;}check($ok,'FILES_BACK_EXCEPT_THE_MIGRATIONS_AFTER_'.$label);
+    $j=[];$l=CommissionsFixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$j);$r=$l['ok']?CommissionsFixtureWeb::jarGet(PORT,'/admin/commissions',$j):['status'=>0];check($r['status']===200,'THE_OLD_COMMISSIONS_PAGE_SERVES_THE_BACKFILLED_ROWS_AFTER_'.$label.':'.$r['status']);
+    [$rc2,$o2]=$run();check($rc2===2&&lastRaw($o2,'B1156_FINAL')==='HOLD_SCHEMA_AHEAD'&&!str_contains($o2,'OVERLAY_STEP='),'RERUN_REFUSED_AFTER_'.$label);$reset();
 }
-// 14b2. The IMMEDIATE liveness smoke right after group D (bootstrap/app.php) fails (the site answers 5xx: injected in the web double): group D is the first group restored, then the rest in reverse order, and the old state is verified. The failed smoke
-// names /up; the later guard groups were never applied, their restores are no-ops that keep the order.
-[$rc,$o]=$run(['GROUP_DONE_D'=>['upFails'],'BEFORE_SMOKES_OLD'=>['clearDrops']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');$lastLive=end($ls);
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_D"'&&implode(',',array_column($ls,'after'))==='A,B,C,D'&&in_array('/up',$lastLive['failed'],true)&&str_contains($o,'ROLLBACK_AFTER_GUARD_GROUP={"group":"D","guardGroupIsOld":true}')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$stateOf($stepBoot)==='pre'&&$status('/up')===200&&$status('/katalog')===200&&!file_exists($partials),'A_5XX_RIGHT_AFTER_THE_BOOTSTRAP_ROLLED_BACK_THE_SITE_SERVES_AGAIN:'.json_encode($lastLive['failed']));$reset();
-// 14b2a. A bootstrap that only fails at REQUEST time (the web double answers 5xx right after the file is written; the CLI proof cannot see it): the fast check right after group D (8 s timeout, before the pause and the hold)
-// refuses, group D is rolled back at once, the liveness smoke of group D never runs. The detection time is measured and reported.
-[$rc,$o]=$run(['AFTER_STEP_'.$stepBoot['n']=>['upFails'],'BEFORE_SMOKES_OLD'=>['clearDrops']]);$fc=lastLine($o,'FAST_CHECK_AFTER_BOOTSTRAP');$lsAll=allLines($o,'GROUP_LIVENESS_SMOKE');
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"FAST_CHECK_FAILED_AFTER_BOOTSTRAP"'&&is_array($fc)&&$fc['timeoutSeconds']===8&&$fc['rows'][0]['result']==='FAIL'&&implode(',',array_column($lsAll,'after'))==='A,B,C'&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$stateOf($stepBoot)==='pre','A_REQUEST_TIME_ONLY_BOOTSTRAP_FAILURE_IS_ROLLED_BACK_BY_THE_FAST_CHECK:'.substr($o,-500));
-$results['bootstrapFastCheck']=['requestTimeFailure'=>'ROLLED_BACK_BY_THE_FAST_CHECK_BEFORE_THE_PAUSE_AND_THE_HOLD','detectionSeconds'=>$fc['seconds']??null,'timeoutSeconds'=>8];$reset();
-// 14b2b. A syntax-valid bootstrap whose exception setup throws at boot is refused by the CLI boot proof BEFORE any group-D byte is written (the proof evaluates a private copy with the live base path).
-$bootThrows="<?php\nuse Illuminate\\Foundation\\Application;\nreturn Application::configure(basePath: dirname(__DIR__))->withExceptions(function (\$exceptions): void { throw new RuntimeException('boot'); })->create();\n";
-[$rc,$o]=$run([],'install',['bootProofBytes'=>$bootThrows]);
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"APP_CHECK_BOOT_OR_CLASS_UNAVAILABLE"'&&!str_contains($o,'OVERLAY_STEP={"n":'.$stepBoot['n'].',')&&!str_contains($o,'BOOT_PROOF=')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$stateOf($stepBoot)==='pre','A_BOOTSTRAP_THAT_THROWS_AT_BOOT_IS_REFUSED_BY_THE_CLI_PROOF_NOTHING_WRITTEN:'.substr($o,-500));
-$results['bootstrapFastCheck']['bootThrow']='REFUSED_BY_THE_CLI_BOOT_PROOF_NO_GROUP_D_FILE_WRITTEN';$reset();
-// 14b3. Right after group D the pin points at a WRONG origin (every other check is fine: /up and /login answer 200): the origin assertion of the group-D liveness smoke (the guest dashboard / and the guest SMTP page redirect to the wrong origin, the foreign-Referer redirect
-// goes to the wrong origin) fails like a 5xx and the install is rolled back.
-[$rc,$o]=$run(['GROUP_DONE_D'=>['appUrlWrong'],'SAVED_ROLLBACK_INTENT'=>['appUrlRestore']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');$lastLive=end($ls);$liveRows=[];foreach($lastLive['rows'] as $r)$liveRows[$r['check']]=$r['result']??null;
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_D"'&&$lastLive['after']==='D'&&in_array('LOGIN_REDIRECT_LOCATION_GUEST_DASHBOARD',$lastLive['failed'],true)&&in_array('LOGIN_REDIRECT_LOCATION_ORIGIN_PIN_'.DashboardReportsInstallCoordinator::SMTP_PATH,$lastLive['failed'],true)&&in_array('FOREIGN_REFERER_REDIRECT',$lastLive['failed'],true)&&($liveRows['/up']??null)==='PASS'&&($liveRows['/login']??null)==='PASS'&&($liveRows['STYLESHEET_'.$cssUrls[0]]??null)==='PASS'&&($liveRows['STYLESHEET_'.$cssUrls[1]]??null)==='PASS'&&str_contains($o,'ROLLBACK_AFTER_GUARD_GROUP={"group":"D","guardGroupIsOld":true}')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','WRONG_ORIGIN_RIGHT_AFTER_GROUP_D_ROLLED_BACK:'.json_encode([$lastLive['failed'],$liveRows]));
-check(!str_contains($o,'wrong-origin.invalid'),'NO_WRONG_ORIGIN_VALUE_IN_THE_REPORT');$reset();
-// 14b4. The liveness smoke right after group F (the routes) fails after the route check passed (the shop pages lose their noindex header at that point): group G was not applied yet, group F is the first restored, the routes are gone again.
-[$rc,$o]=$run(['GROUP_DONE_F'=>['noHtaccess']]);$ls=allLines($o,'GROUP_LIVENESS_SMOKE');
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"GROUP_SMOKE_FAILED_AFTER_F"'&&implode(',',array_column($ls,'after'))==='A,B,C,D,E,F'&&in_array('/katalog',end($ls)['failed'],true)&&preg_match('/^ROUTES_CHECK=.*"installed":true/m',$o)===1&&str_contains($o,'ROLLBACK_AFTER_GUARD_GROUP={"group":"F","guardGroupIsOld":true}')&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$status(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)===404,'LIVENESS_FAILURE_RIGHT_AFTER_THE_ROUTES_ROLLED_BACK_THE_ROUTES_ARE_GONE');
-@unlink($switches['noHtaccess']);$reset();$results['livenessAfterGuardGroups']=['afterD5xx'=>'ROLLED_BACK_D_FIRST','afterDWrongOrigin'=>'ROLLED_BACK_D_FIRST','afterFNoindex'=>'ROLLED_BACK_F_FIRST_ROUTES_GONE'];
-// 14c. An extra non-edge script with the page nonce in the installed state: more than one origin script, rolled back.
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rogueScript'],'BEFORE_SMOKES_OLD'=>['clearDrops']]);[$s,$by]=$smokeRows(substr($o,0,(int)strpos($o,'OVERLAY_ROLLBACK=')));
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&$by['/katalog']['originScripts']===2&&$by['/katalog']['cspShape']===false&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','ROGUE_SCRIPT_IN_THE_INSTALLED_STATE_ROLLED_BACK');$reset();
-// 14d. The read-only view step can fail: a deliberately broken Blade view (not part of the payload, so the rollback is exact) is added to the checked list through the fixture override; the acceptance fails with
-// BLADE_VIEW_COMPILE_OR_LINT_FAILED, only that view is named, and the install rolls back to the byte-identical pre-state (every plan file at its pre digest, the new files and the new directory gone).
-$brokenRel='resources/views/b1155-broken-ci.blade.php';file_put_contents($active.'/'.$brokenRel,"@php \$x = ; @endphp\n");
-[$rc,$o]=$run([],'install',['viewChecks'=>array_merge(DashboardReportsInstallCoordinator::VIEW_CHECKS,[$brokenRel])]);$vc=lastLine($o,'VIEW_COMPILE_CHECK');
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"BLADE_VIEW_COMPILE_OR_LINT_FAILED"'&&is_array($vc)&&$vc['views']===12&&$vc['failed']===[$brokenRel]&&$vc['compiledViewDirectory']==='NOT_WRITTEN'&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&!file_exists($partials),'BROKEN_VIEW_FAILS_THE_ACCEPTANCE_AND_ROLLS_BACK_TO_THE_PRE_STATE:'.json_encode($vc));
-unlink($active.'/'.$brokenRel);$reset();$results['brokenView']='ACCEPTANCE_FAILED_ROLLED_BACK_BYTE_IDENTICAL';
-// 14e. SIGKILL at the new fault points of the install. After EACH kill the tree is an exact install prefix that the install itself served (the guest pages answer, /up and /login 200, bootstrap/app.php in the new bytes serves) and the re-run of the same
-// command restores the old state exactly, group by group in reverse, and removes the created directory: after the first new file, right after the theme-form partial created the new directory, after the proof of group D and the first file of each guard group, and after the last file.
-$killCases=['AFTER_STEP_1'=>1,'AFTER_STEP_'.$stepThemeForm['n']=>$stepThemeForm['n'],'CLASSES_PROVEN'=>21,'AFTER_STEP_'.$stepBoot['n']=>$stepBoot['n'],'AFTER_STEP_'.$groupSteps('E')[0]['n']=>$groupSteps('E')[0]['n'],'AFTER_STEP_'.$stepRoutes['n']=>$stepRoutes['n'],'AFTER_STEP_'.$stepMgmt['n']=>$stepMgmt['n']];
-foreach($killCases as $point=>$k){
-    [$rc,$o]=$run([$point=>['kill']]);
-    check($rc!==0&&$tree()===($k===count($plan)?'INSTALLED':'MIXED')&&$status('/up')===200&&$status('/login')===200&&$status('/katalog')===200&&$status(DashboardReportsInstallCoordinator::REGISTER_PATH)===200,'KILLED_AT_'.$point.'_THE_SITE_SERVES');
-    $prefix($k);if($k>=$stepThemeForm['n'])check(is_dir($partials),'KILLED_AT_'.$point.'_THE_NEW_DIRECTORY_EXISTS');
-    if($k===$stepBoot['n'])check($status('/katalog?stock=x')<500&&DashboardReportsFixtureWeb::get(PORT,'/katalog?stock=x',['Referer: '.DashboardReportsInstallCoordinator::FOREIGN_REFERER])['location']==='https://cms.ald1n.com/katalog','KILLED_AFTER_BOOTSTRAP_THE_PINNED_REDIRECT_SERVES_ALREADY');
-    if($k===$stepRoutes['n'])check($status(DashboardReportsInstallCoordinator::SUBAGENTS_PATH)===302,'KILLED_AFTER_THE_ROUTES_THE_GUEST_REPORT_URL_REDIRECTS_TO_THE_LOGIN');
-    [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL=')&&$tree()==='PRE'&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&!file_exists($partials),'RERUN_RESTORES_AFTER_THE_KILL_AT_'.$point);$reset();$results['installKills'][$point]='SITE_SERVED_EXACT_PREFIX_'.$k.'_THEN_RESTORED_DIRECTORY_GONE';
+$results['failureAfterTheMigration']='SCHEMA_AHEAD_ROLLBACK_MIGRATION_FILES_KEPT_RERUN_REFUSED_TWO_POINTS';
+
+// 17. SIGKILL after MIGRATE_INTENT (before the command) and after the command: the same command resumes FORWARD only (never the generic restore) and ends in PASS; the evidence still equals the hardcoded set.
+foreach([['AFTER_MIGRATE_INTENT','BEFORE_THE_COMMAND'],['AFTER_MIGRATE_COMMAND','AFTER_THE_COMMAND']] as [$point,$label]){
+    [$rc,$o]=$run([$point=>['kill']],'install',[],$extraCfg);check($rc!==0&&$rc!==2&&$tree()==='INSTALLED','KILLED_'.$label.'_THE_FILES_STAY_INSTALLED');
+    if($point==='AFTER_MIGRATE_INTENT')check($schemaOld(),'KILLED_BEFORE_THE_COMMAND_THE_SCHEMA_IS_STILL_OLD');else check($schemaNew(),'KILLED_AFTER_THE_COMMAND_THE_SCHEMA_IS_NEW');
+    [$rc,$o]=$run([],'install',[],$extraCfg);
+    check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_MIGRATION_FORWARD_ONLY=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED'&&$schemaNew(),'RESUMED_FORWARD_ONLY_'.$label);
+    $st=$statusOf();$moved=[];foreach($st as $id=>$r)if($r['status']==='approved'&&$r['approved_by']===null)$moved[]=$id;sort($moved);check($moved===$expectedMoved&&(int)$pdo()->query('SELECT COUNT(*) FROM order_commissions WHERE auto_approved_at IS NOT NULL')->fetchColumn()===2,'THE_MOVED_SET_IS_THE_HARDCODED_ONE_AFTER_THE_RESUME_'.$label);
+    $reset();check($tree()==='PRE'&&$schemaOld(),'RESET_AFTER_THE_KILL_'.$label);
 }
-// 15. Forced acceptance failure (a new ERROR line in laravel.log): automatic rollback to the verified old state.
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError']]);check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL"'&&$tree()==='PRE'&&lastLine($o,'B1155_PHASE')==='ROLLED_BACK','FORCED_FAILURE_ROLLED_BACK');
-check($status('/katalog')===200&&$status('/pravne-informacije')===200,'FORCED_FAILURE_OLD_SERVED');$results['forcedFailure']='ROLLED_BACK';
-// The effective mail transport changes during the acceptance (.env default mailer array -> log): rolled back; the owner is told.
-[$rc,$o]=$run(['AFTER_SMOKES_INSTALLED'=>['mailChange']]);
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"MAIL_TRANSPORT_FINGERPRINT_CHANGED"'&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&str_contains($o,'OWNER_NOTICE_MAIL_FINGERPRINT="MAIL_TRANSPORT_FINGERPRINT_CHANGED"'),'MAIL_TRANSPORT_CHANGE_ROLLED_BACK');$reset();$results['mailTransportChange']='ROLLED_BACK';
-// The next run after ROLLED_BACK installs again; the owner then rolls back with the shop OFF (closed-shop smokes).
-[$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','REINSTALL_AFTER_ROLLBACK');$shopOff();
-[$rc,$o]=$run([],'rollback');[$s,$by]=$smokeRows($o);check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&$s['shop']['open']===false&&$by['/katalog']['observed']===404&&$by['/pravne-informacije']['layoutMarker']===true&&$shopFlag()===null,'ROLLBACK_WITH_SHOP_OFF');$shopOn();$reset();
-$results['rollbackShopOff']='PASS_ROLLED_BACK_BY_OWNER_SWITCH_NOT_WRITTEN';
-// 16. 429 from the public-shop-browse throttle (shared edge IP).
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimit2']]);[$s,$by]=$smokeRows($o);
-check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$by['/pravne-informacije']['result']==='PASS'&&$by['/pravne-informacije']['attempts']===3&&$by['/katalog']['result']==='PASS','TRANSIENT_429_WAITED_OUT');
-@unlink($switches['rate429']);$rollbackOk('TRANSIENT_429');
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways']]);
-check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SMOKES_RATE_LIMITED_429"'&&str_contains($o,'SMOKES_RATE_LIMITED_PAUSE=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&lastLine($o,'B1155_PHASE')==='ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED'&&str_contains($o,'ACTIVE_TREE_INSTALLED_UNVERIFIED='),'PERSISTENT_429_HOLD_NO_ROLLBACK');
-// The per-batch cap and the shared-limiter skip: the first throttled GET waits Retry-After twice (3 + 3 s within the 7 s budget)
-// and stops at attempt 3; every later throttled GET is skipped without a request; /login, /up, the CSS, /tema, the guest SMTP
-// page, the guest dashboard, the two new stylesheets and the (unthrottled) media route are still fetched. The number of skipped GETs follows the coded smoke set: at least 10.
-[$s,$by]=$smokeRows($o);$skipped=array_filter($s['rows'],static fn($r)=>($r['skippedSharedLimiter']??false)===true&&$r['attempts']===0);
-check($by['/pravne-informacije']['attempts']===3&&$by['/pravne-informacije']['waitedSeconds']===6&&count($skipped)>=10&&$s['rateLimitWaitedSeconds']===6&&$by['/login']['result']==='PASS'&&$by[DashboardReportsInstallCoordinator::CSS_PATH]['result']==='PASS'&&$by['GET /tema']['result']==='PASS'&&$by['/admin/settings/smtp']['result']==='PASS'&&$by['/']['result']==='PASS'&&$by['ADMIN_STYLESHEET '.$cssUrls[0]]['result']==='PASS'&&$by['ADMIN_STYLESHEET '.$cssUrls[1]]['result']==='PASS','RATE_LIMIT_CAP_AND_SHARED_KEY_SKIP');
-@unlink($switches['rate429']);
-[$rc,$o]=$run();check($rc===0&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','RESUMED_ACCEPTANCE_PASS');
-[$rc,$o]=$run(['BEFORE_SMOKES_OLD'=>['rateLimitAlways']],'rollback');
-check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&str_contains($o,'OWNER_NOTICE_RATE_LIMITED=')&&lastLine($o,'B1155_PHASE')==='ROLLED_BACK'&&$tree()==='PRE','ROLLBACK_429_NOT_INCOMPLETE');@unlink($switches['rate429']);$reset();
-$results['rateLimit429']=['transient'=>'WAITED_OUT_PASS','persistentInstall'=>'HOLD_FILES_KEPT_THEN_RESUMED_ACCEPTANCE_PASS','persistentRollback'=>'PASS_ROLLED_BACK_WITH_OWNER_NOTICE'];
-// 17. The owner turns the shop OFF in the middle of the acceptance batch: HOLD with the exact files, never a rollback.
-[$rc,$o]=$run(['DURING_SMOKES_INSTALLED'=>['shopOff']]);
-check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED"'&&$tree()==='INSTALLED'&&$shopFlag()===null,'SHOP_OFF_DURING_ACCEPTANCE_HOLD');
-[$rc,$o]=$run();check($rc===2&&str_contains($o,'HOLD_ACCEPTANCE_NOT_RESUMED=')&&$tree()==='INSTALLED'&&$shopFlag()===null,'RESUME_REFUSED_WHILE_SHOP_OFF');
-$shopOn();[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS,'RESUMED_AFTER_SHOP_ON');$rollbackOk('SHOP_OFF_CASE');
-$results['shopOffDuringAcceptance']='HOLD_NO_PASS_CLAIM_RESUMED_AFTER_SHOP_ON';
-// 18. Owner policy, no indexing: the server-wide .htaccess header removed.
-touch($switches['noHtaccess']);[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');[$s,$by]=$smokeRows($o);
-check($rc===2&&lastLine($o,'B1155_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES',$p['blockers'],true)&&$s['failed']===[]&&$by['/pravne-informacije']['result']==='FAIL_NOINDEX_POLICY_HEADER_MISSING'&&array_diff(DashboardReportsInstallCoordinator::LEGAL,$s['noindexMissing'])===[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','NOINDEX_MISSING_PREFLIGHT_HOLD');unlink($switches['noHtaccess']);$reset();
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['noHtaccess']]);[$s,$by]=$smokeRows($o);
-check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES"'&&$s['failed']===[]&&array_diff(DashboardReportsInstallCoordinator::LEGAL,$s['noindexMissing'])===[]&&in_array('SITE_ASSET_LOGO',$s['noindexMissing'],true)&&!str_contains($o,'OVERLAY_ROLLBACK=')&&str_contains((string)(lastLine($o,'OWNER_NEXT_STEPS')[0]??''),'X-ROBOTS-TAG_NOINDEX')&&$tree()==='INSTALLED','NOINDEX_MISSING_INSTALLED_HOLD_FILES_KEPT');
-[$rc,$o]=$run();check($rc===2&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&lastRaw($o,'B1155_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED','NOINDEX_STILL_MISSING_RESUME_HOLDS');
-unlink($switches['noHtaccess']);[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','NOINDEX_BACK_RESUMED_PASS');
-[$rc,$o]=$run(['BEFORE_SMOKES_OLD'=>['noHtaccess']],'rollback');
-check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&str_contains($o,'OWNER_NOTICE_NOINDEX_MISSING=')&&$tree()==='PRE','NOINDEX_MISSING_ROLLBACK_COMPLETES_WITH_NOTICE');@unlink($switches['noHtaccess']);$reset();
-$results['noindexPolicy']=['preflight'=>'HOLD_NOTHING_CHANGED','installed'=>'HOLD_FILES_KEPT_RESUME_HOLDS_THEN_PASS','rollback'=>'PASS_WITH_OWNER_NOTICE'];
-// 19. Vary: Cookie (the theme cookie keys /katalog). The edge hides it and no origin route exists: HOLD with the files kept;
-// with the loopback-TLS origin route the origin is asked once: present = PASS with a notice, missing = rolled back.
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['dropVaryEdge']]);[$s,$by]=$smokeRows($o);
-check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE"'&&$s['varyUnverified']===true&&$by['/katalog']['varyCookie']===false&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED','VARY_HIDDEN_NO_ORIGIN_ROUTE_HOLD_FILES_KEPT');
-unlink($switches['dropVaryEdge']);[$rc,$o]=$run();check($rc===0&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS,'VARY_VISIBLE_RESUMED_PASS');$rollbackOk('VARY_HOLD');
-$origin=['probeRoute'=>'LOOPBACK_TLS_ORIGIN'];
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['dropVaryEdge']],'install',$origin);[$s,$by]=$smokeRows($o);
-check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$by['/katalog']['varyCookie']===false&&$by['/katalog']['originVaryCookie']===true&&in_array('VARY_COOKIE_SENT_BY_THE_ORIGIN_BUT_NOT_VISIBLE_THROUGH_THE_EDGE',$s['notices'],true),'VARY_HIDDEN_ORIGIN_HAS_IT_PASS_WITH_NOTICE');
-@unlink($switches['dropVaryEdge']);$rollbackOk('VARY_ORIGIN');
-[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['dropVaryAll'],'BEFORE_SMOKES_OLD'=>['clearDrops']],'install',$origin);[$s,$by]=$smokeRows(substr($o,0,(int)strpos($o,'OVERLAY_ROLLBACK=')));
-check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')==='"INSTALLED_SMOKE_FAILED"'&&$by['/katalog']['originVaryCookie']===false&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','VARY_MISSING_AT_THE_ORIGIN_ROLLED_BACK');$reset();
-$results['varyCookie']=['edgeHiddenNoOrigin'=>'HOLD_FILES_KEPT_THEN_RESUMED_PASS','edgeHiddenOriginPresent'=>'PASS_WITH_NOTICE','originMissing'=>'ROLLED_BACK'];
+$results['killAroundTheMigration']='FORWARD_RESUME_PASS_BOTH_POINTS';
 
-
-// 20. SIGKILL in the rollback: right after the bootstrap (group D) was restored (group G, F and E are old, everything else still new), and in the three holds that matter: after group F was restored, after group D was restored and before the new files. The
-// resumed rollback holds the remainder from the SAVED wall clock of the last change and finishes; the tree is an exact install prefix after the kill (the site serves) and the old state, without the new files and the new directory, after the resume.
-[$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','INSTALL_BEFORE_THE_ROLLBACK_KILLS');
-[$rc,$o]=$run(['AFTER_RESTORE_'.$stepBoot['n']=>['kill']],'rollback');check($rc!==0&&$tree()==='MIXED'&&$stateOf($stepBoot)==='pre'&&$stateOf($stepRoutes)==='pre'&&$stateOf($stepMgmt)==='pre'&&$stateOf($stepLastLib)==='payload'&&$status('/up')===200&&$status('/login')===200&&$status('/katalog')===200,'ROLLBACK_KILLED_RIGHT_AFTER_THE_BOOTSTRAP_WAS_RESTORED_THE_SITE_SERVES');$prefix($stepBoot['n']-1);
-[$rc,$o]=$run([],'rollback');$h=null;foreach(allLines($o,'OVERLAY_HOLD_START') as $x)if($x['label']==='rollback-after-guard-group-D')$h=$x;
-check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&is_array($h)&&$h['clock']==='SAVED_WALL_CLOCK_OF_THE_LAST_CHANGE'&&$h['remainingSeconds']<=$h['seconds']&&!file_exists($partials),'RESUMED_ROLLBACK_FINISHES_AND_HOLDS_FROM_THE_SAVED_CLOCK');$reset();$results['killInTheRollbackAfterGroupD']='GROUP_D_OLD_THEN_FINISHED';
-foreach(['rollback-after-guard-group-F'=>$stepMgmt['n']-2,'rollback-after-guard-group-D'=>$stepBoot['n']-1,'rollback-before-new-classes'=>$stepThemeForm['n']+1] as $label=>$k){
-    [$rc,$o]=$run();check($rc===0&&$tree()==='INSTALLED','INSTALL_BEFORE_THE_HOLD_KILL_'.$label);
-    [$rc,$o]=$run(['DURING_HOLD_'.$label=>['kill']],'rollback');
-    check($rc!==0&&$tree()==='MIXED'&&$status('/up')===200&&$status('/login')===200&&$status('/katalog')===200,'ROLLBACK_KILLED_IN_THE_HOLD_'.$label.'_THE_SITE_SERVES');$prefix($k);
-    [$rc,$o]=$run([],'rollback');$holds=[];foreach(allLines($o,'OVERLAY_HOLD_START') as $x)$holds[$x['label']]=$x;
-    check($rc===0&&lastRaw($o,'B1155_FINAL')==='PASS_ROLLED_BACK_BY_OWNER'&&$tree()==='PRE'&&($holds[$label]['clock']??null)==='SAVED_WALL_CLOCK_OF_THE_LAST_CHANGE'&&$holds[$label]['remainingSeconds']<=$holds[$label]['seconds']&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&!file_exists($partials),'RESUMED_ROLLBACK_HOLDS_THE_REMAINDER_FROM_THE_SAVED_WALL_CLOCK_'.$label);
-    $reset();$results['rollbackHoldKills'][$label]='SITE_SERVED_EXACT_PREFIX_'.$k.'_THEN_HELD_FROM_THE_SAVED_WALL_CLOCK_AND_FINISHED';
+// 18. SIGKILL in the middle of the files and right after the backup: the generic restore, the schema untouched.
+foreach([['AFTER_STEP_20','IN_THE_MIDDLE_OF_THE_FILES'],['AFTER_DB_BACKUP','RIGHT_AFTER_THE_BACKUP']] as [$point,$label]){
+    [$rc,$o]=$run([$point=>['kill']],'install',[],$extraCfg);check($rc!==0&&$rc!==2,'KILLED_'.$label);
+    [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL='),'RESUME_AFTER_A_KILL_'.$label.'_IS_THE_GENERIC_RESTORE_NOTHING_MIGRATED');$reset();
 }
-// 21. One restore fails (the management view, the first restore; the bootstrap in the middle, with group G, F and E already old; and the last library of group B): that step and everything before it stay installed,
-// the later steps are old again (an exact install prefix that the install itself served). The manual block, run exactly as pasted, restores the old state, removes the new files and the created directory.
-$partial=[];
-foreach([$stepMgmt['n'],$stepBoot['n'],$stepLastLib['n']] as $k){
-    [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['logError'],'BEFORE_RESTORE_'.$k=>['fail']]);$rf=lastLine($o,'ROLLBACK_FILES');$note=lastLine($o,'RECOVERY_NOTE');
-    $laterModified=count(array_filter($plan,static fn($s)=>$s['n']>$k&&$s['kind']==='modified'));$laterNew=count(array_filter($plan,static fn($s)=>$s['n']>$k&&$s['kind']==='new'));
-    check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLBACK_INCOMPLETE'&&$rf['stoppedAtStep']===$k&&$rf['exactInstallPrefixKept']==='STEPS_1_TO_'.$k.'_INSTALLED_LATER_STEPS_RESTORED'&&$rf['modifiedRestored']===$laterModified&&$rf['newRemoved']===$laterNew&&$note['kind']==='ROLLBACK_INCOMPLETE','PARTIAL_ROLLBACK_STOPS_AT_STEP_'.$k);
-    $prefix($k);sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/up')===200&&$status('/login')===200,'PREFIX_'.$k.'_SERVES');
-    $lines=$block($o);$kinds=array_values(array_filter(array_map($kindOf,$lines)));$expected=[];$lastKey=null;
-    // Every group boundary is one sleep (the full measured hold after each of F, E and D and before the new files, the revalidation pause elsewhere); the empty created directory goes right before the final view:clear.
-    foreach(array_reverse($plan) as $s){if($s['n']>$k)continue;$key=$s['group'];if($lastKey!==null&&$lastKey!==$key)$expected[]='sleep';$lastKey=$key;if($s['kind']==='modified')array_push($expected,'verify','install:'.$active.'/'.$s['path']);else $expected[]='rm:'.$active.'/'.$s['path'];}
-    $ptr=json_decode((string)file_get_contents($private.'/current.json'),true);$created=json_decode((string)file_get_contents($ptr['private'].'/state.json'),true)['createdDirs']??[];
-    check($created===($k>=$stepThemeForm['n']?[$partials]:[]),'THE_CREATED_DIRECTORY_IS_RECORDED_IN_THE_SAVED_STATE_EXACTLY_WHEN_IT_WAS_CREATED:'.json_encode($created));
-    foreach($created as $d)$expected[]='rmdir';$expected[]='view';
-    check($kinds===$expected,'RECOVERY_BLOCK_EXACT_REVERSE_ORDER:'.json_encode($kinds));
-    $manual=$runBlock($lines);check($manual['rc']===0&&str_contains($manual['out'],'B1155_MANUAL_RECOVERY_BLOCK_DONE')&&$tree()==='PRE'&&array_filter($newSteps,static fn($s)=>is_file($active.'/'.$s['path']))===[]&&!file_exists($partials),'MANUAL_BLOCK_RESTORES_OLD_STATE_REMOVES_THE_NEW_FILES_AND_THE_DIRECTORY:'.substr($manual['out'],-400));
-    [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE','AFTER_MANUAL_BLOCK_VERIFIED');$reset();
-    $partial[]='PREFIX_1_TO_'.$k.'_MANUAL_BLOCK_RESTORED_THEN_VERIFIED';
-}
-$results['partialRollback']=$partial;$k=max(1,intdiv(count($plan),2));
+$results['killBeforeTheMigration']='GENERIC_RESTORE_TWO_POINTS';
 
-// 22. SIGKILL in the middle of the copy: the re-run restores, the next installs.
-[$rc,$o]=$run(['AFTER_STEP_'.$k=>['kill']]);check($rc!==0&&$tree()==='MIXED','KILLED_MID_COPY');
-[$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1155_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL=')&&$tree()==='PRE'&&!file_exists($partials),'KILL_RERUN_RESTORES');
-[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS,'KILL_THEN_INSTALL');$rollbackOk('KILL_MID_COPY');
-$results['killMidCopy']='RESTORED_THEN_INSTALLED';
-// An interrupted backup left changed private copies; the next run writes every stale copy again and the later rollback
-// still puts back the exact old bytes.
-$modifiedCount=count(array_filter($plan,static fn($s)=>$s['kind']==='modified'));
-check($modifiedCount===21,'TWENTY_ONE_MODIFIED_STEPS');
-[$rc,$o]=$run(['AFTER_BACKUP_COPIES'=>['corruptBackup','kill']]);check($rc!==0&&$tree()==='PRE'&&!str_contains($o,'OVERLAY_STEP='),'KILLED_DURING_BACKUP');
-[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&preg_match_all('/^BACKUP_COPY_REWRITTEN=/m',$o)===$modifiedCount,'STALE_BACKUP_COPIES_REWRITTEN');
-$rollbackOk('REWRITTEN_COPIES');$results['staleBackupCopies']=['rewritten'=>$modifiedCount,'rollbackExact'=>true];
+// 19. 429 that stays during the acceptance: the files and the migration stay, the run HOLDs, the same command repeats only the acceptance.
+[$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways'],'BEFORE_SMOKES_OLD'=>['clearDrops']],'install',[],$extraCfg);
+check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED'&&$schemaNew(),'PERSISTENT_429_HOLDS_THE_FILES_AND_THE_MIGRATION_STAY');
+@unlink($switches['rate429']);[$rc,$o]=$run([],'install',[],$extraCfg);
+check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'MIGRATE={'),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');$reset();
+$results['persistent429']='ACCEPTANCE_REPEATED_ONLY';
 
-// 22b. The registration CSP with a YouTube login background: the settings hold the YouTube mode with a valid 11-character id (a boolean read by the CLI helper; neither the mode nor the id is ever printed). The preflight records it, the installed registration page
-// lists https://www.youtube-nocookie.com in frame-src (the old one did not), the Turnstile sources are as before and the catalog CSP still equals the baseline; the rollback restores the old state.
-$pdo()->exec("INSERT INTO settings (setting_key,setting_value,created_at,updated_at) VALUES ('login_background_mode','youtube',NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value='youtube'");
-$pdo()->exec("INSERT INTO settings (setting_key,setting_value,created_at,updated_at) VALUES ('login_background_youtube_id','Ab3_dEf-9Xz',NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value='Ab3_dEf-9Xz'");$artisan(['cache:clear']);
-[$rc,$o]=$run();$pfy=allLines($o,'PREFLIGHT')[0];[$s,$by]=$smokeRows($o);$g=$by['REGISTER_CSP']??null;
-check($rc===0&&lastRaw($o,'B1155_FINAL')===DashboardReportsInstallCoordinator::FINAL_PASS&&$pfy['values']['loginBackground']===['youtubeModeValidId'=>true]&&is_array($g)&&$g['result']==='PASS'&&$g['pageEmbedsYoutubeIframe']===true&&$g['youtubeNocookieInFrameSrc']===true&&!str_contains($o,'Ab3_dEf-9Xz')&&!str_contains($o,'login_background_mode'),'YOUTUBE_BACKGROUND_THE_INSTALLED_REGISTRATION_CSP_LISTS_YOUTUBE_NOCOOKIE_IN_FRAME_SRC_AND_NO_ID_IS_PRINTED:'.json_encode($g));
-check(str_contains(implode(' ',DashboardReportsFixtureWeb::get(PORT,DashboardReportsInstallCoordinator::REGISTER_PATH)['csp']),'https://www.youtube-nocookie.com'),'THE_SERVED_REGISTRATION_PAGE_REALLY_CARRIES_THE_YOUTUBE_FRAME_SOURCE');
-$rollbackOk('YOUTUBE_BACKGROUND');$pdo()->exec("DELETE FROM settings WHERE setting_key IN ('login_background_mode','login_background_youtube_id')");$artisan(['cache:clear']);$results['youtubeLoginBackground']='INSTALLED_CSP_LISTS_YOUTUBE_NOCOOKIE_NO_VALUE_PRINTED_ROLLED_BACK';
+// Final: after every case the live tree is the B1155 tree again and the schema is the d2c07f62 one.
+check($tree()==='PRE'&&$schemaOld()&&$orphanOk(),'THE_FIXTURE_ENDS_AT_THE_B1155_TREE_AND_THE_OLD_SCHEMA');
+@proc_terminate($server);
+echo json_encode(['b1156Fixture'=>'PASS','results'=>$results],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL;
 
-check(glob($active.'/public/ald1n-b1144-*')===[]&&$routeCacheSHA()===null&&$shopFlag()==='1'&&!file_exists($partials),'NO_PROBE_NO_ROUTE_CACHE_SHOP_ON_NO_NEW_DIRECTORY');
-check(!str_contains($allOutput,'"command":"view:cache"')&&str_contains($allOutput,'"command":"view:clear"')&&str_contains($allOutput,'"command":"queue:restart"')&&!preg_match('/"command":"(?:route:(?!list|clear)|config:|cache:)/',$allOutput),'ONLY_VIEW_CLEAR_ROUTE_CLEAR_QUEUE_RESTART');
-check(!preg_match('~/media/p/\d|[?&]s=[a-f0-9]{32}~',$allOutput),'NO_CAPABILITY_URL_IN_ANY_B1155_REPORT_INSTALL_ROLLBACK_OR_HOLD');
-// The merchant e-mail and the reversible data-cfemail encoding of it never reach a report: only counts do.
-check(!str_contains($allOutput,'podrska@example.test')&&!str_contains($allOutput,bin2hex('podrska@example.test'))&&!str_contains($allOutput,'data-cfemail='),'NO_MERCHANT_E_MAIL_AND_NO_CFEMAIL_ENCODING_IN_ANY_B1155_REPORT');
-check(str_contains($allOutput,'"webEuidIsOperator":true')&&!str_contains($allOutput,'"webEuidIsOperator":false'),'WEB_EUID_IS_OPERATOR');
-$serverLog=(string)file_get_contents($base.'/server.log');
-check(substr_count($serverLog,'PHP Fatal error')===$fatalsBeforeControls+$controlFatals,'NO_FATAL_IN_SERVER_LOG_OUTSIDE_THE_BROKEN_BOOTSTRAP_CONTROLS_EVERY_WINDOW_OF_EVERY_RUN_IS_A_PAGE_NOT_A_FATAL:'.substr_count($serverLog,'PHP Fatal error'));
-// The tool never logged in and never requested a password endpoint. This fixture logged in with throwaway users (POST /login, POST /logout) and POSTed a failed /login: nothing else; the cli-server logs every request line.
-check(!preg_match('~/account/password|/me/password|/auth/password|forgot-password|reset-password|password/email~',$serverLog),'NO_PASSWORD_ENDPOINT_REQUESTED_AT_ANY_TIME');
-check(!str_contains($allOutput,$winPassword)&&!str_contains($serverLog,$winPassword)&&!str_contains((string)@file_get_contents($stepLog),$winPassword)&&!str_contains($allOutput,$subPassword)&&!str_contains($allOutput,$admPassword)&&!str_contains($serverLog,$subPassword)&&!str_contains($serverLog,$admPassword),'THE_THROWAWAY_PASSWORDS_ARE_IN_NO_OUTPUT_LOG_OR_REPORT');
-// The forged Host exists in the CI-only requests of this fixture and nowhere in any report.
-check(!str_contains($allOutput,'forged-host.invalid'),'FORGED_HOST_NOT_IN_ANY_REPORT');
-proc_terminate($server);echo json_encode(['b1155Fixture'=>'PASS','cases'=>$results],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL;
-// The CI step greps the PASS marker in the last 250 lines of the log, from the first line that starts with a brace: this last line is always inside that window.
-echo '{"b1155Fixture": "PASS"}'.PHP_EOL;

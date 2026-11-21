@@ -953,7 +953,10 @@ final class CommissionsInstallCoordinator
      */
     private function probeTargets(bool $installed):array
     {
-        $t=[];foreach($this->plan as $s){$dir=realpath(dirname($this->target($s)));$path=($dir===false?dirname($this->target($s)):$dir).'/'.basename($s['path']);$t[$path]=$installed?$s['payloadSHA256']:$s['preSHA256'];}
+        $t=[];foreach($this->plan as $s){
+            // After a schema-ahead rollback the two migration files stay on the host (their rows are in the migrations table): they are not a target of the old-state probe.
+            if(!$installed&&($this->state['keepMigrations']??false)===true&&in_array($s['path'],self::migrationFiles(),true))continue;
+            $dir=realpath(dirname($this->target($s)));$path=($dir===false?dirname($this->target($s)):$dir).'/'.basename($s['path']);$t[$path]=$installed?$s['payloadSHA256']:$s['preSHA256'];}
         return $t;
     }
 
@@ -2006,7 +2009,8 @@ final class CommissionsInstallCoordinator
      */
     private function restore(string $reason,bool $keepMigrations=false):bool
     {
-        $this->emit('OVERLAY_ROLLBACK',['reason'=>$reason]);$problems=[];try{$this->save('ROLLBACK_INTENT');}catch(Throwable $e){$problems[]=self::code($e);}
+        if($keepMigrations){$this->state['keepMigrations']=true;$this->persist();}
+        $this->emit('OVERLAY_ROLLBACK',['reason'=>$reason,'keepMigrations'=>$keepMigrations]);$problems=[];try{$this->save('ROLLBACK_INTENT');}catch(Throwable $e){$problems[]=self::code($e);}
         try{$this->cleanupRecorded();}catch(Throwable $e){$problems[]=self::code($e);}
         $backup=$this->state['backup']??null;$restored=0;$removed=0;$stoppedBefore=null;$touched=true;
         try{$touched=$this->touched();}catch(Throwable $e){$problems[]=self::code($e);}

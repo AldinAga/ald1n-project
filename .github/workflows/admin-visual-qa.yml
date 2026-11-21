@@ -39,7 +39,7 @@ jobs:
   admin-visual:
     name: Disposable Laravel 13 / PHP 8.4 / MariaDB 10.11.19, Chromium + WebKit in parallel
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     services:
       mariadb:
         image: mariadb:10.11.19
