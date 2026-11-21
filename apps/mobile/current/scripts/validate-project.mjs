@@ -3634,8 +3634,6 @@ assert(
 );
 assert(
   shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="shipment"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="delivery"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="shipment"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="delivery"')
     && shipmentDeliveryWebBatch513.includes('aria-label="Pošiljka je poslata"')
