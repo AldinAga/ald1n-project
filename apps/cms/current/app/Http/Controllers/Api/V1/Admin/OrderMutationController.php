@@ -203,7 +203,7 @@ final class OrderMutationController extends Controller
         $data = $request->validate([
             'entry_type' => ['required', Rule::in(['payment', 'refund'])],
             'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
-            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'cash_on_delivery', 'card', 'other'])],
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'cash_on_delivery', 'cod', 'card', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:190'],
             'note' => ['nullable', 'string', 'max:2000'],

@@ -263,7 +263,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
             ->assertSee($note->document_number);
     }
 
-    public function test_unpaid_guest_bank_transfer_cannot_be_completed_or_fabricate_a_payment(): void
+    public function test_unpaid_bank_transfer_is_delivered_without_a_payment_with_warranty_from_delivery_and_paid_later(): void
     {
         $this->enableSyntheticWarrantyRule();
         $account=BankAccount::query()->create([
@@ -284,21 +284,19 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $versions=app(\App\Services\OrderVersionService::class);
         $confirmed=$workflow->changeStatus($order,'confirmed',$admin,null,$versions->token($order));
 
-        try {
-            $workflow->complete($confirmed,$admin,[
-                'delivery_method'=>'own_transport',
-                'delivered_at'=>now()->subMinute()->toDateTimeString(),
-            ]);
-            self::fail('Unpaid transfer must not be completed automatically.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            self::assertArrayHasKey('completion',$e->errors());
-        }
-        self::assertNull($order->fresh()->completed_at);
+        // Isporuka je odvojena od naplate: neplaćen prenos se isporučuje, dug ostaje otvoren, a garancija teče od isporuke.
+        $deliveredAt=now()->subMinute()->toDateTimeString();
+        $delivered=$workflow->complete($confirmed,$admin,[
+            'delivery_method'=>'own_transport','delivered_at'=>$deliveredAt,
+        ]);
+        self::assertNotNull($delivered->completed_at);
         self::assertSame('unpaid',$order->fresh()->payment_state);
-        self::assertSame(0,OrderPayment::query()->count());
-        self::assertSame(0,\App\Models\OrderDelivery::query()->count());
+        self::assertSame(0,OrderPayment::query()->count(),'Delivery must not fabricate a payment.');
+        self::assertSame(1,\App\Models\OrderDelivery::query()->count());
         self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
-        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
+        $deliveredWarranty=\App\Models\ProductWarranty::query()->sole();
+        self::assertSame('active',$deliveredWarranty->status);
+        self::assertSame(substr($deliveredAt,0,10),$deliveredWarranty->starts_at->format('Y-m-d'));
 
         $this->loginActor($admin);
         $this->post('/admin/orders/'.$order->id.'/payments',[
@@ -311,34 +309,19 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('verified',$receipt->status);
         self::assertSame('paid',$order->fresh()->payment_state);
         self::assertSame(24000.0,(float)$order->fresh()->paid_total_rsd);
-        $pending=\App\Models\WarrantyIssuance::query()->sole();
-        self::assertSame('issued_pending_delivery',$pending->status);
-        self::assertNull($pending->activated_warranty_id);
-        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
-        $this->loginActor($this->buyer);
-        $this->get($privatePath)->assertOk()->assertSee($pending->warranty_number)
-            ->assertSee('Izdato');
-        $pendingPdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
-            ->assertHeader('Content-Type','application/pdf')
-            ->assertHeader('Cache-Control','max-age=0, no-store, private')->getContent();
-        self::assertStringStartsWith('%PDF-1.4',$pendingPdf);
-        $workflow->complete($order->fresh(),$admin,[
-            'delivery_method'=>'own_transport',
-            'delivered_at'=>now()->subMinute()->toDateTimeString(),
-        ]);
-        self::assertNotNull($order->fresh()->completed_at);
+        // Uplata posle isporuke ne pravi drugi sertifikat i ne pomera početak garancije.
+        self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
+        $afterPayment=\App\Models\ProductWarranty::query()->sole();
+        self::assertSame($deliveredWarranty->warranty_number,$afterPayment->warranty_number);
+        self::assertSame(substr($deliveredAt,0,10),$afterPayment->starts_at->format('Y-m-d'));
         self::assertSame(1,OrderPayment::query()->count(),
             'Verified transfer must not trigger a duplicate automatic COD entry.');
-        $activated=$pending->fresh();
-        self::assertSame('activated',$activated->status);
-        self::assertSame($activated->warranty_number,
-            \App\Models\ProductWarranty::query()->sole()->warranty_number);
-        $activePdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
-            ->assertHeader('Content-Type','application/pdf')->getContent();
-        self::assertStringStartsWith('%PDF-1.4',$activePdf);
-        self::assertNotSame($pendingPdf,$activePdf,
-            'An activated certificate must show real delivery dates, not pending placeholders.');
+        $workflow->complete($order->fresh(),$admin,[
+            'delivery_method'=>'own_transport','delivered_at'=>$deliveredAt,
+        ]);
+        self::assertSame(1,\App\Models\ProductWarranty::query()->count());
         self::assertSame(0,OrderCommission::query()->count());
+        $this->loginActor($this->buyer);
         $this->get($privatePath)->assertOk()->assertSee('24.000,00');
     }
 

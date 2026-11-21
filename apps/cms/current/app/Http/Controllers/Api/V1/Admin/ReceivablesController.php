@@ -194,7 +194,7 @@ final class ReceivablesController extends Controller
         $data = $request->validate([
             'idempotency_key' => ['required', 'string', 'max:200'],
             'amount_rsd' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'other'])],
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'cash_on_delivery', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:1000'],

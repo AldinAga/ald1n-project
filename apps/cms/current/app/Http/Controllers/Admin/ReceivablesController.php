@@ -118,7 +118,7 @@ final class ReceivablesController extends Controller
     }
 
     public function payment(
-        Request $request,
+        \App\Http\Requests\RecordOrderPaymentRequest $request,
         ReceivableCase $receivable,
         OrderPaymentService $payments,
         IdempotencyService $idempotency,
@@ -127,16 +127,12 @@ final class ReceivablesController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User && $actor->hasPermission('payments.manage'), 403);
 
-        $data = $request->validate([
-            'idempotency_key' => ['required', 'string', 'max:200'],
-            'amount_rsd' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'other'])],
-            'paid_at' => ['required', 'date'],
-            'reference' => ['nullable', 'string', 'max:120'],
-            'note' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $idempotencyKey = (string) $data['idempotency_key'];
+        // Isti obrazac i ista pravila kao na porudžbini (RecordOrderPaymentRequest); ovde je ključ idempotencije obavezan.
+        $data = $request->validated();
+        $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));
+        if ($idempotencyKey === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['idempotency_key' => 'Idempotency ključ je obavezan.']);
+        }
         unset($data['idempotency_key']);
 
         /** @var Order $order */

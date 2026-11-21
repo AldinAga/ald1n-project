@@ -39,6 +39,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         $this->order($buyer, $super, 'M3L-CONF-003', ['status' => 'confirmed', 'accepted_at' => now(), 'payment_method' => 'cash_on_delivery', 'payment_status' => 'pending', 'expected_shipping_at' => now()->addDays(3)]);
         $this->order($buyer, $super, 'M3L-OLD-004', ['status' => 'new', 'source_system' => 'legacy']);
         $this->order($buyer, $super, 'M3L-SHIP-005', ['status' => 'shipped', 'accepted_at' => now(), 'payment_status' => 'paid']);
+        $this->order($buyer, $super, 'M3L-BANK-006', ['status' => 'confirmed', 'accepted_at' => now(), 'payment_method' => 'bank_transfer', 'payment_status' => 'pending']);
 
         $html = (string) $this->actingAs($super)->get('/admin/orders')->assertOk()->getContent();
         $page = $this->page($html);
@@ -49,7 +50,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringNotContainsString('Nazad na vrh', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page), 'Old order list classes must be gone.');
         self::assertSame(1, substr_count($page, 'a1-btn--primary'), 'Exactly one primary action: the filter submit.');
-        self::assertStringContainsString('5 porudžbina</span>', $page);
+        self::assertStringContainsString('6 porudžbina</span>', $page);
 
         // Header links keep their targets; the reports link follows the reports.view gate.
         self::assertStringContainsString('href="'.route('admin.orders.archived').'"', $page);
@@ -73,8 +74,8 @@ final class OrdersModuleThreeListsTest extends TestCase
 
         // Table: five data rows, phone card labels, right aligned money, status as dot plus text.
         self::assertStringContainsString('<table class="a1-table a1-table--cards a1-ol-table" role="table">', $page);
-        self::assertSame(5, substr_count($page, 'data-label="Broj"'));
-        self::assertSame(5, substr_count($page, 'class="a1-table__num" data-label="Iznos"'));
+        self::assertSame(6, substr_count($page, 'data-label="Broj"'));
+        self::assertSame(6, substr_count($page, 'class="a1-table__num" data-label="Iznos"'));
         self::assertStringContainsString('15.000,00 RSD', $page);
         self::assertStringContainsString('2.500,50 RSD', $page);
         // Nova x3: nova, stari "processing" red i legacy red; "Obrada" / "U obradi" ne postoje u prikazu.
@@ -106,10 +107,14 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertSame(2, substr_count($page, 'aria-label="Potvrdi porudžbinu: '));
         self::assertStringNotContainsString('Preuzmi', $page);
         self::assertStringNotContainsString('U obradu', $page);
-        self::assertStringContainsString('aria-label="Evidentiraj isporuku: M3L-CONF-003"', $page);
-        self::assertStringContainsString('aria-label="Evidentiraj isporuku: M3L-SHIP-005"', $page);
-        self::assertStringNotContainsString('aria-label="Evidentiraj isporuku: M3L-NEW-001"', $page);
-        self::assertStringNotContainsString('aria-label="Evidentiraj isporuku: M3L-PROC-002"', $page);
+        // Jedna potvrda isporuke, ista reč svuda; naplata nije uslov (SHIP-005 je plaćena, CONF-003 pouzeće, BANK-006 neplaćena uplata na račun).
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-CONF-003"', $page);
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-SHIP-005"', $page);
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-BANK-006"', $page);
+        self::assertStringContainsString('#order-workspace-logistics-actions" aria-label="Potvrdi isporuku: M3L-BANK-006"', $page);
+        self::assertStringNotContainsString('aria-label="Potvrdi isporuku: M3L-NEW-001"', $page);
+        self::assertStringNotContainsString('aria-label="Potvrdi isporuku: M3L-PROC-002"', $page);
+        self::assertStringNotContainsString('Evidentiraj isporuku', $page);
 
         // F1: lista više nema forme koje šalju status bez tokena svežine (to je padalo sa 409); potvrda ide kroz detalj.
         self::assertSame(0, substr_count($page, '<form class="a1-ol-inline"'));

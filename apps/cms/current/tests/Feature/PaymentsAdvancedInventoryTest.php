@@ -150,7 +150,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
     }
 
 
-    public function test_admin_can_complete_cod_order_and_lock_all_further_financial_actions(): void
+    public function test_admin_can_complete_cod_order_and_keep_recording_payments_after_delivery(): void
     {
         $customer = $this->user('complete-cod-customer', 'user');
         $admin = $this->user('complete-cod-admin', 'admin');
@@ -190,8 +190,10 @@ final class PaymentsAdvancedInventoryTest extends TestCase
             'payment_method' => 'cash',
             'paid_at' => now()->format('Y-m-d\TH:i'),
         ]);
-        $lockedResponse->assertRedirect()->assertSessionHasErrors('amount_rsd');
-        self::assertSame(1, OrderPayment::query()->count());
+        // Isporuka je odvojena od naplate: posle isporuke se uplate i dalje evidentiraju (ledger nije zaključan).
+        $lockedResponse->assertRedirect()->assertSessionHasNoErrors();
+        self::assertSame(2, OrderPayment::query()->count());
+        self::assertSame('overpaid', $completed->fresh()->payment_state);
     }
 
     public function test_stock_receipt_is_idempotent_and_inventory_count_creates_variance(): void

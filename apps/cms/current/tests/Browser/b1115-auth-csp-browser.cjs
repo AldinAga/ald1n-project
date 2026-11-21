@@ -476,7 +476,7 @@ async function main() {
         } finally { await amendment.close(); }
       } finally { await financial.close(); }
     });
-    await check('receivable-installment-rows-and-allow-multiple-submit', async () => {
+    await check('receivable-installment-rows-and-payment-form-disables-on-submit', async () => {
       const financial = await admin.newPage();
       try {
         await open(financial, '/admin/receivables/'+fixture.receivable);
@@ -485,7 +485,10 @@ async function main() {
         assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 2);
         await financial.locator('[data-installment-rows] .installment-row').last().locator('[data-remove-installment]').click();
         assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 1);
-        const form = financial.locator('form[data-ux-allow-multiple-submit]');
+        // Jedan obrazac "Evidentiraj uplatu" (kao na porudžbini): ključ idempotencije + zaštita od dvostrukog slanja.
+        const form = financial.locator('form[data-payment-record-form]');
+        assert.equal(await form.locator('[name="idempotency_key"]').count(), 1);
+        assert.equal(await form.getAttribute('data-ux-allow-multiple-submit'), null);
         await form.locator('[name="amount_rsd"]').fill('100');
         let requests = 0;
         await financial.route(base+'/admin/receivables/'+fixture.receivable+'/payments', async route => { requests++; await route.fulfill({status: 204, body: ''}); });
@@ -493,8 +496,8 @@ async function main() {
         await financial.waitForTimeout(150);
         await form.evaluate(node => node.requestSubmit());
         await financial.waitForTimeout(150);
-        assert.equal(requests, 2);
-        assert.equal(await form.getAttribute('aria-busy'), null);
+        assert.equal(requests, 1);
+        assert.equal(await form.getAttribute('aria-busy'), 'true');
       } finally { await financial.close(); }
     });
     const buyer = await context();
