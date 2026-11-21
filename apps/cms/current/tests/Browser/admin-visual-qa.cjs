@@ -754,7 +754,8 @@ async function ordersFlowChecks(page, pg, width, base) {
         shipmentPanelVisible: vis('[data-logistics-panel="shipment"]').length > 0,
         deliveryPanelVisible: vis('[data-logistics-panel="delivery"]').length > 0,
         trackingVisible: vis('#od-ship-tracking, #od-ship-courier').length > 0,
-        visibleSubmits: vis('#order-workspace-logistics-actions button[type=submit]').map((b) => (b.textContent || '').trim()),
+        // Buttons inside a closed <details> (e.g. "Pošiljka vraćena") are not a visible step.
+        visibleSubmits: vis('#order-workspace-logistics-actions button[type=submit]').filter((b) => { const dd = b.closest('details'); return !dd || dd.open; }).map((b) => (b.textContent || '').trim()),
       } : null,
       paymentForm: root ? !!root.querySelector('form[data-payment-record-form]') : false,
       pillTone: (root && root.querySelector('.a1-od-facts .a1-pill')) ? root.querySelector('.a1-od-facts .a1-pill').className : '',
