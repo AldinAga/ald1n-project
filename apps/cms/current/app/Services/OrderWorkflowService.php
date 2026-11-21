@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderCommission;
 use App\Models\OrderDelivery;
 use App\Models\OrderPayment;
+use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -293,6 +294,13 @@ final class OrderWorkflowService
                 if (!in_array($deliveryMethod, ['own_transport', 'courier', 'customer_pickup', 'other'], true)) {
                     throw ValidationException::withMessages(['delivery_method' => 'Izabran je nepodržan način isporuke.']);
                 }
+                // Kurirom se prvo potvrđuje slanje (kurirska služba i broj pošiljke), pa isporuka; sopstveni prevoz i lično preuzimanje nemaju korak slanja.
+                if ($deliveryMethod === 'courier') {
+                    $shipment = OrderShipment::query()->where('order_id', $locked->id)->first();
+                    if (!$shipment instanceof OrderShipment || $shipment->isReturned()) {
+                        throw ValidationException::withMessages(['delivery_method' => 'Za kurirsku isporuku najpre potvrdi da je pošiljka poslata (kurirska služba i broj pošiljke). Za sopstveni prevoz ili lično preuzimanje izaberi taj način isporuke.']);
+                    }
+                }
 
                 try {
                     $deliveredAt = Carbon::parse((string) ($deliveryData['delivered_at'] ?? now()));
@@ -364,13 +372,9 @@ final class OrderWorkflowService
                 $total = round((float) $locked->subtotal_rsd, 2);
                 $remaining = round(max(0.0, $total - $net), 2);
 
-                if ($remaining > 0.004) {
-                    if ((string) $locked->payment_method !== 'cash_on_delivery') {
-                        throw ValidationException::withMessages([
-                            'completion' => 'Porudžbina nije u potpunosti plaćena. Najpre evidentirajte uplatu, pa je zatim kompletirajte.',
-                        ]);
-                    }
-
+                // Isporuka je odvojena od naplate (odluka 2): kod ostalih načina plaćanja dug ostaje otvoren u Potraživanjima,
+                // a uplate se i dalje evidentiraju. Samo pouzeće automatski evidentira naplaćeni iznos pri isporuci.
+                if ($remaining > 0.004 && (string) $locked->payment_method === 'cash_on_delivery') {
                     $payment = OrderPayment::query()->create([
                         'order_id' => $locked->id,
                         'payment_number' => $this->numbers->next('payment', (int) now()->format('Y')),
@@ -434,12 +438,9 @@ final class OrderWorkflowService
                     user: $actor,
                 );
 
-                // B943: COD payment, physical delivery and warranty activation
-                // must either all commit or all roll back. A post-commit warning
-                // alone would leave a completed paid order without active cover.
-                if ($paymentNumber !== null) {
-                    $this->warranties->ensureForOrder($locked, $actor);
-                }
+                // B943: physical delivery and warranty activation must either both commit or both roll back.
+                // Garancija počinje datumom potvrde isporuke UVEK, bez obzira na uplatu (odluka 13).
+                $this->warranties->ensureForOrder($locked, $actor);
 
                 return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
             }, 5);
@@ -466,24 +467,52 @@ final class OrderWorkflowService
             Log::warning('Automatic warranty issuance failed.', ['order_id' => $updated->id, 'exception' => $exception]);
         }
 
+        // Račun se pravi automatski pri potvrdi isporuke (odluka 9). Isti servis kao dugme, idempotentno, POSLE transakcije:
+        // greška PDF-a ili podešavanja firme ne sme da poništi isporuku, već se beleži i prijavljuje onome ko je potvrdio.
+        $invoice = $this->issueInvoiceAfterDelivery($updated, $actor);
+
         if ($updated->user instanceof User) {
-            $message = 'Isporuka za porudžbinu '.$updated->order_number.' je evidentirana i porudžbina je kompletirana.';
+            $message = 'Porudžbina '.$updated->order_number.' je isporučena.';
             if ($paymentNumber !== null) {
                 $message .= ' Plaćanje pouzećem je evidentirano pod brojem '.$paymentNumber.'.';
+            }
+            if ($invoice !== null) {
+                $message .= ' Račun '.$invoice->document_number.' je izdat.';
             }
             $this->notifications->order(
                 $updated->user,
                 'order.completed',
-                'Porudžbina je kompletirana',
+                'Porudžbina je isporučena',
                 $message,
                 $updated,
                 ['severity' => 'success', 'icon' => 'check-circle'],
             );
         }
 
-        $this->emails->orderChanged($updated, 'order_completed', 'Porudžbina '.$updated->order_number.' je kompletirana', 'Isporuka je evidentirana i porudžbina je završena.', ['completed_at' => $updated->completed_at?->toISOString(), 'actor_id' => $actor->id]);
+        $mail = 'Porudžbina '.$updated->order_number.' je isporučena.';
+        $mail .= $invoice !== null ? ' Račun '.$invoice->document_number.' je u prilogu i dostupan u porudžbini.' : ' Račun će biti dostupan u porudžbini.';
+        $mail .= ' Garantni listovi su u delu Garancije u tvom nalogu.';
+        $this->emails->orderChanged($updated, 'order_completed', 'Porudžbina '.$updated->order_number.' je isporučena', $mail, ['completed_at' => $updated->completed_at?->toISOString(), 'actor_id' => $actor->id, 'invoice_number' => $invoice?->document_number]);
 
         return $updated;
+    }
+
+    private function issueInvoiceAfterDelivery(Order $order, User $actor): ?\App\Models\OrderDocument
+    {
+        try {
+            return app(OrderDocumentService::class)->issue($order, 'invoice', $actor);
+        } catch (Throwable $exception) {
+            $incident = strtoupper(substr(hash('sha256', $exception::class.'|'.$exception->getMessage().'|'.microtime(true)), 0, 10));
+            Log::warning('Automatic invoice after delivery failed.', ['incident' => $incident, 'order_id' => $order->id, 'exception' => $exception]);
+            try {
+                $this->audit->log('order.invoice_auto_failed', 'Račun nije izdat automatski pri isporuci '.$order->order_number, $order, metadata: ['incident' => $incident, 'message' => mb_substr($exception->getMessage(), 0, 300)], user: $actor);
+                $this->notifications->order($actor, 'order.invoice_auto_failed', 'Račun nije izdat automatski', 'Isporuka porudžbine '.$order->order_number.' je sačuvana, ali račun nije izdat (incident '.$incident.'). Izdaj ga iz kartice Dokumenti.', $order, ['severity' => 'danger', 'icon' => 'alert-triangle']);
+            } catch (Throwable) {
+                // Prijava greške ne sme da poništi isporuku.
+            }
+
+            return null;
+        }
     }
 
     public function reopen(Order $order, User $actor, string $reason): Order

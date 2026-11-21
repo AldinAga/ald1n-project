@@ -132,7 +132,8 @@ final class OrderPaymentService
                 'entry_type' => $type,
                 'status' => 'verified',
                 'amount_rsd' => (float) $data['amount_rsd'],
-                'payment_method' => (string) $data['payment_method'],
+                // Jedna šifra za pouzeće: stari ulaz "cod" (potraživanja) se čuva kao "cash_on_delivery".
+                'payment_method' => (string) $data['payment_method'] === 'cod' ? 'cash_on_delivery' : (string) $data['payment_method'],
                 'paid_at' => $data['paid_at'],
                 'reference' => trim((string) ($data['reference'] ?? '')) ?: null,
                 'note' => trim((string) ($data['note'] ?? '')) ?: null,
@@ -324,13 +325,8 @@ final class OrderPaymentService
             ]);
         }
 
-        // Deferred Direct Sale is physically completed/delivered while its receivable stays open.
-        // Payment record/verify/void lifecycle is therefore allowed; generic refunds remain blocked above.
-        if ($order->completed_at !== null && !$deferredDirectSale) {
-            throw ValidationException::withMessages([
-                $field => 'Porudžbina je kompletirana i finansijske stavke su zaključane.',
-            ]);
-        }
+        // Isporuka je odvojena od naplate (odluka vlasnika 16.11.2026, tačka 2): posle isporuke dug ostaje otvoren u Potraživanjima,
+        // pa se uplate, refundacije, potvrde i storniranja i dalje evidentiraju. Samo (neodložena) direktna prodaja ima zaključan ledger.
     }
 
     private function notifyCustomer(OrderPayment $payment, string $title, string $message, string $severity): void
