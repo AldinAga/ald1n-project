@@ -288,11 +288,11 @@ const PAGES = [
   { module: 'orders', key: 'orders-show-long-amount', path: (i) => `/admin/orders/${i.order_long_amount}`, widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-show-paid', path: (i) => `/admin/orders/${i.order_paid}`, widths: ORDERS_WIDTHS_3 },
   { module: 'orders', key: 'orders-show-partly-paid', path: (i) => `/admin/orders/${i.order_partly_paid}`, widths: ORDERS_WIDTHS_3 },
-  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
   // Potvrđena porudžbina u kartici "Isporuka": kurir (podrazumevano: "Pošiljka je poslata") i lično preuzimanje (samo "Potvrdi isporuku"); isporučena (zeleno).
-  { module: 'orders', key: 'orders-show-confirmed-courier', path: (i) => `/admin/orders/${i.order_paid}`, widths: ORDERS_WIDTHS_3 },
-  { module: 'orders', key: 'orders-show-confirmed-pickup', path: (i) => `/admin/orders/${i.order_paid}`, prepare: prepare.deliveryPickup, widths: ORDERS_WIDTHS_3 },
-  { module: 'orders', key: 'orders-show-delivered', path: (i) => `/admin/orders/${i.order_completed}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-confirmed-courier', path: (i) => `/admin/orders/${i.order_paid}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-confirmed-pickup', path: (i) => `/admin/orders/${i.order_paid}`, prepare: prepare.deliveryPickup, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-delivered', path: (i) => `/admin/orders/${i.order_completed}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
   { module: 'orders', key: 'orders-show-cancelled', path: (i) => `/admin/orders/${i.order_cancelled}`, widths: ORDERS_WIDTHS_3 },
   // One list cell per status the list can show (new is covered by orders-index-filtered). Archived orders have no detail page (404 by design).
   { module: 'orders', key: 'orders-status-processing', path: '/admin/orders?status=processing', widths: ORDERS_WIDTHS_2 },
