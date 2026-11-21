@@ -190,7 +190,7 @@ final class OrderFlowDeliveryB1121Test extends TestCase
 
         $page = $this->root((string) $this->actingAs($this->admin)->get('/admin/orders/'.$order->id)->assertOk()->getContent());
         self::assertSame(1, substr_count($page, 'id="order-workspace-logistics-actions"'));
-        self::assertStringNotContainsString('data-delivery-method-switch', $page, 'the method is fixed once the shipment exists');
+        self::assertStringNotContainsString('id="od-method-switch"', $page, 'the method is fixed once the shipment exists');
         self::assertStringContainsString('<input type="hidden" name="delivery_method" value="courier" data-delivery-method-input>', $page);
         self::assertMatchesRegularExpression('~id="od-del-name" name="recipient_name" maxlength="190" value="Primalac Iz Slanja"~', $page);
         self::assertMatchesRegularExpression('~id="od-del-phone" name="recipient_phone" maxlength="60" value="0645556667"~', $page);
@@ -284,7 +284,7 @@ final class OrderFlowDeliveryB1121Test extends TestCase
             $other = $this->confirmedOrder();
             app(OrderShipmentService::class)->record($other->fresh(), $this->admin, ['shipment_method' => 'courier', 'courier_service_id' => $courier->id, 'tracking_number' => 'NOCOL', 'recipient_name' => 'Kupac'], null, $this->token($other));
             $this->postJson('/api/v1/admin/orders/'.$other->id.'/shipment/return', ['reason' => 'Bez kolona.'])->assertStatus(422)->assertJsonValidationErrors('shipment');
-            $this->actingAs($this->admin)->get('/admin/orders/'.$other->id)->assertOk();
+            $this->getJson('/api/v1/admin/orders/'.$other->id)->assertOk()->assertJsonPath('data.shipment.is_returned', false)->assertJsonPath('data.actions.return_shipment', true);
         } finally {
             OrderShipment::$returnColumnsOverride = null;
         }
