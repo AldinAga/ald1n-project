@@ -414,6 +414,7 @@ final class CommissionsInstallCoordinator
     private string $routesScript;
     private string $featureScript;
     private int $backupBase=0;
+    private int $backupMaxAgeSeconds=600;
     private int $backupTimeout=2400;
     private int $verifyTimeout=1200;
     private int $migrateTimeout=900;

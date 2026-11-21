@@ -599,7 +599,9 @@ $allPoints=$allSteps()+['AFTER_DB_BACKUP'=>['stepSmoke'],'AFTER_MIGRATED'=>['ste
 $histBefore=(int)$pdo()->query('SELECT COUNT(*) FROM commission_status_history')->fetchColumn();$notifBefore=$notifCounts();
 [$rc,$o]=$run($allPoints,'install',[],$extraCfg);$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
 check(!str_contains($o,$winPassword)&&!str_contains(json_encode($rows),$winPassword)&&!str_contains($o,$subPassword)&&!str_contains($o,$admPassword),'THE_THROWAWAY_PASSWORDS_ARE_IN_NO_OUTPUT');
-check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','INSTALL_PASS');
+$logErrors=static function()use($logDir):array{$out=[];foreach(glob($logDir.'/laravel*.log')?:[] as $lf)foreach(file($lf,FILE_IGNORE_NEW_LINES)?:[] as $ln)if(str_contains($ln,'.ERROR:')&&count($out)<14)$out[]=substr($ln,0,260);return $out;};
+echo 'LARAVEL_ERRORS_AFTER_THE_INSTALL_RUN='.json_encode($logErrors(),JSON_UNESCAPED_SLASHES).PHP_EOL;
+check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&$tree()==='INSTALLED','INSTALL_PASS:'.json_encode(array_slice($logErrors(),0,4)));
 $expectedPoints=[];foreach($plan as $i=>$s){$expectedPoints[]='AFTER_STEP_'.$s['n'];if(!isset($plan[$i+1])||$plan[$i+1]['group']!==$s['group'])$expectedPoints[]='GROUP_DONE_'.$s['group'];}$expectedPoints[]='AFTER_DB_BACKUP';$expectedPoints[]='AFTER_MIGRATED';$expectedPoints[]='AFTER_INVALIDATE';
 $points=array_column($rows,'point');
 check($points===$expectedPoints,'EVERY_ONE_OF_THE_69_STEPS_EVERY_GROUP_THE_BACKUP_THE_MIGRATION_AND_THE_ACCEPTANCE_SMOKED:'.implode(',',$points));
