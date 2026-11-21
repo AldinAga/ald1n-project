@@ -49,9 +49,9 @@ $fail=static function(string $code):never{echo json_encode(['ok'=>false,'error'=
 [$self,$base,$mode,$arg1,$arg2,$arg3,$arg4,$arg5,$arg6]=$argv+[null,null,null,null,null,null,null,null,null];
 $originOk=static fn(mixed $o):bool=>is_string($o)&&preg_match('~^https://[a-z0-9.-]{1,120}$~D',$o)===1;
 $checkMarkers=static function(mixed $m):array{if(!is_array($m)||$m===[]||count($m)>40)return [];foreach($m as $k=>$x)if(!is_string($k)||preg_match('/^[A-Za-z0-9]{1,60}$/D',$k)!==1||!is_array($x)||count($x)!==2||!is_string($x[0])||preg_match('~^[A-Za-z0-9_/.-]{1,160}\.(php|js|css)$~D',$x[0])!==1||str_contains($x[0],'..')||!is_string($x[1])||$x[1]===''||strlen($x[1])>200)return [];return $m;};
-if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views','login-bg','boot-proof'],true)||($mode==='boot-proof'&&(!is_string($arg1)||!str_starts_with($arg1,'/')||str_contains($arg1,'..')||!is_file($arg1)||is_link($arg1)))||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
+if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views','login-bg','boot-proof','census','schema'],true)||($mode==='boot-proof'&&(!is_string($arg1)||!str_starts_with($arg1,'/')||str_contains($arg1,'..')||!is_file($arg1)||is_link($arg1)))||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
 $viewList=[];
-if($mode==='views'){$viewList=is_string($arg1)?json_decode($arg1,true,4):null;if(!is_array($viewList)||$viewList===[]||count($viewList)>32)$fail('APP_CHECK_ARGUMENTS');foreach($viewList as $v)if(!is_string($v)||preg_match('~^resources/views/[A-Za-z0-9_/.-]{1,160}\.blade\.php$~D',$v)!==1||str_contains($v,'..'))$fail('APP_CHECK_ARGUMENTS');}
+if($mode==='views'){$viewList=is_string($arg1)?json_decode($arg1,true,4):null;if(!is_array($viewList)||$viewList===[]||count($viewList)>64)$fail('APP_CHECK_ARGUMENTS');foreach($viewList as $v)if(!is_string($v)||preg_match('~^resources/views/[A-Za-z0-9_/.-]{1,160}\.blade\.php$~D',$v)!==1||str_contains($v,'..'))$fail('APP_CHECK_ARGUMENTS');}
 $newClasses=[];$routeName='';$expectedOrigin='';$markers=[];$reportRoutes=[];
 if($mode==='env')$expectedOrigin=$arg2;
 if($mode==='features'){
@@ -78,14 +78,14 @@ $takesThrottle=static function(string $class):bool{
 try{
     chdir($base);require $base.'/vendor/autoload.php';
     if($mode==='boot-proof'){
-        // B1155: the payload bootstrap/app.php (a private temp copy, NOT in the live tree) is evaluated with the live base path, then the application is built and the exception handler and the HTTP kernel
-        // are resolved (the withExceptions callback runs there). Nothing is written (no cache, no database); only booleans are printed. A syntax or boot error exits non-zero.
-        $code=(string)file_get_contents($arg1);if(!str_starts_with($code,'<?php')||$code===''||str_contains($code,'__halt_compiler'))$fail('APP_CHECK_BOOT_PROOF_SOURCE');
-        $code=substr($code,5);$code=str_replace(['dirname(__DIR__)','__DIR__'],[var_export($base,true),var_export($base.'/bootstrap',true)],$code);
-        $built=eval($code);if(!$built instanceof Illuminate\Foundation\Application)$fail('APP_CHECK_BOOT_PROOF_NOT_AN_APPLICATION');
-        $built->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-        $handler=$built->make(Illuminate\Contracts\Debug\ExceptionHandler::class);$http=$built->make(Illuminate\Contracts\Http\Kernel::class);
-        echo json_encode(['ok'=>true,'applicationBuilt'=>true,'handlerResolved'=>is_object($handler),'httpKernelResolved'=>is_object($http)],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+        // B1156: the payload AppServiceProvider (a private temp copy, NOT in the live tree; its class is renamed) is registered against the live application in this CLI process and the binding of CommissionCalculator
+        // is resolved: the container builds it through the NEW constructor (the rate comes from the settings, read only). Nothing is written (no cache, no database); only booleans are printed.
+        $code=(string)file_get_contents($arg1);if(!str_starts_with($code,'<?php')||str_contains($code,'__halt_compiler')||substr_count($code,'final class AppServiceProvider ')!==1)$fail('APP_CHECK_BOOT_PROOF_SOURCE');
+        $app=require $base.'/bootstrap/app.php';$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        eval(substr(str_replace('final class AppServiceProvider ','final class AppServiceProviderProof ',$code),5));
+        $provider=new App\Providers\AppServiceProviderProof($app);$provider->register();
+        $calc=$app->make(App\Services\CommissionCalculator::class);$rate=$calc instanceof App\Services\CommissionCalculator?$calc->ratePercent():-1.0;
+        echo json_encode(['ok'=>true,'providerRegistered'=>true,'calculatorResolved'=>$calc instanceof App\Services\CommissionCalculator&&$rate>=0.0&&$rate<=100.0],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     $app=require $base.'/bootstrap/app.php';
     if(method_exists($app,'configurationIsCached')&&$app->configurationIsCached())$fail('APP_CHECK_CONFIG_CACHED');
@@ -104,6 +104,25 @@ try{
         $appUrlExact=config('app.url')===$expectedOrigin;
         $bootText=(string)@file_get_contents($base.'/bootstrap/app.php');$trusted=str_contains($bootText,'trustHosts')||is_file($base.'/app/Http/Middleware/TrustHosts.php')||config('app.trusted_hosts')!==null||config('app.canonical_host')!==null||config('app.canonical_url')!==null;
         echo json_encode(['ok'=>true,'limiterStore'=>$limiterStore,'extensions'=>$ext,'phpVersionOk'=>PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500,'appUrlHttpsOrigin'=>$origin,'appUrlExact'=>$appUrlExact,'trustedOrCanonicalHostConfigPresent'=>$trusted,'mailTransportKind'=>is_string($mailer['transport']??null)?$mailer['transport']:'UNKNOWN','mailFingerprintHMAC'=>$fingerprint],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='schema'){
+        // Read-only: the tables, columns and migration rows of 2026_11_16_000001_create_commission_adjustments (booleans only).
+        $S=Illuminate\Support\Facades\Schema::class;$tables=[];foreach(['commission_adjustments','commission_debit_settlements'] as $x)$tables[$x]=$S::hasTable($x);
+        $columns=[];foreach(['order_commissions'=>['auto_approved_at'],'commission_payment_batches'=>['debit_eur','net_eur']] as $tb=>$cols)foreach($cols as $c)$columns[$tb.'.'.$c]=$S::hasTable($tb)&&$S::hasColumn($tb,$c);
+        $rows=[];foreach(['2026_11_16_000001_create_commission_adjustments','2026_11_16_000002_backfill_commissions_for_payout'] as $m)$rows[$m]=(int)Illuminate\Support\Facades\DB::table('migrations')->where('migration',$m)->count()===1;
+        echo json_encode(['ok'=>true,'tables'=>$tables,'columns'=>$columns,'migrationRows'=>$rows],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='census'){
+        // Read-only plain SELECTs, independent of the application's own eligibility code: commissions per status; the pending commissions of an order that is not cancelled and is delivered (completed_at) or fully paid (paid, overpaid)
+        // = the set the backfill must move (count and sha256 of the sorted ids); the commissions with auto_approved_at set (only when the column exists); the history rows; the row count of every table that looks like a notification,
+        // outbox, mail, push or queue table (so "nothing was sent" is measured, not assumed). Only counts and digests are printed.
+        $DB=Illuminate\Support\Facades\DB::class;$S=Illuminate\Support\Facades\Schema::class;
+        $by=[];foreach($DB::table('order_commissions')->selectRaw('status, COUNT(*) AS c')->groupBy('status')->get() as $r)$by[(string)$r->status]=(int)$r->c;
+        $due=$DB::table('order_commissions as oc')->join('orders as o','o.id','=','oc.order_id')->where('oc.status','pending')->where('o.status','!=','cancelled')->where(static function($q):void{$q->whereNotNull('o.completed_at')->orWhereIn('o.payment_state',['paid','overpaid']);})->orderBy('oc.id')->pluck('oc.id')->map(static fn($x)=>(int)$x)->all();
+        $auto=['autoApprovedCount'=>null,'autoApprovedSha256'=>null,'autoApprovedWithApprover'=>null];
+        if($S::hasColumn('order_commissions','auto_approved_at')){$ids=$DB::table('order_commissions')->whereNotNull('auto_approved_at')->orderBy('id')->pluck('id')->map(static fn($x)=>(int)$x)->all();$auto=['autoApprovedCount'=>count($ids),'autoApprovedSha256'=>hash('sha256',implode(',',$ids)),'autoApprovedWithApprover'=>(int)$DB::table('order_commissions')->whereNotNull('auto_approved_at')->whereNotNull('approved_by')->count()];}
+        $notif=[];foreach($DB::select('SHOW TABLES') as $row){$name=(string)array_values((array)$row)[0];if(preg_match('/notif|outbox|mail|push|jobs$|job_batches/i',$name)===1)$notif[$name]=(int)$DB::table($name)->count();}ksort($notif);
+        echo json_encode(['ok'=>true,'byStatus'=>$by,'dueCount'=>count($due),'dueSha256'=>hash('sha256',implode(',',$due)),'dueIdsSample'=>array_slice($due,0,10)]+$auto+['notificationRows'=>$notif,'statusHistoryRows'=>(int)$DB::table('commission_status_history')->count()],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     if($mode==='media-sample'){
         // The first product image that has a file, as the ProductImage accessor builds its URL (the call every admin page and the app make),
@@ -173,12 +192,12 @@ try{
     $mailApi=false;try{$mb='App\Support\MailBranding';$mailApi=class_exists($mb,true)&&method_exists($mb,'logo')&&(new ReflectionMethod($mb,'logo'))->isStatic()&&(new ReflectionMethod($mb,'logo'))->isPublic();}catch(Throwable){$mailApi=false;}
     $sourceMarkers=[];foreach($markers as $k=>[$p,$needle]){$f=$base.'/'.$p;$sourceMarkers[$k]=is_file($f)&&!is_link($f)&&str_contains((string)@file_get_contents($f),$needle);}
     $b1154Markers=[];foreach($markers154 as $k=>[$p,$needle]){$f=$base.'/'.$p;$b1154Markers[$k]=is_file($f)&&!is_link($f)&&str_contains((string)@file_get_contents($f),$needle);}
-    // B1155: the new methods of the three group B libraries (reflection only, nothing is called), the two report routes (present, answers GET), the route count and the bootstrap text. All false before the install.
+    // B1156: the new methods of the libraries (reflection only, nothing is called), the six new web routes (present, with their methods), the route count and the bootstrap text (true in both states since B1155).
     $api=static function(string $class,string $method):bool{try{return class_exists($class,true)&&method_exists($class,$method)&&(new ReflectionMethod($class,$method))->isPublic();}catch(Throwable){return false;}};
-    $libraryApis=['redirect'=>$api('App\Support\AppUrlOrigin','redirect'),'loginBackground'=>$api('App\Support\PublicStorefrontAppearance','loginBackground'),'reportOrderIds'=>$api('App\Services\ManagementReportService','reportOrderIds')];
-    $reportFacts=[];foreach($reportRoutes as $n){$rt=$routes->getByName($n);$reportFacts[$n]=['present'=>$rt!==null,'get'=>$rt!==null&&in_array('GET',$rt->methods(),true)];}
+    $libraryApis=['hasAdjustments'=>$api('App\Support\CommissionMoney','hasAdjustments'),'ratePercent'=>$api('App\Services\CommissionCalculator','ratePercent'),'adjustments'=>$api('App\Models\OrderCommission','adjustments'),'reverse'=>$api('App\Services\CommissionReversalService','reverse')];
+    $reportFacts=[];foreach($reportRoutes as $n){$rt=$routes->getByName($n);$reportFacts[$n]=['present'=>$rt!==null,'methods'=>$rt===null?[]:array_values(array_diff($rt->methods(),['HEAD']))];}
     $bootstrapNamesRedirect=str_contains((string)@file_get_contents($base.'/bootstrap/app.php'),'AppUrlOrigin::redirect(');
-    echo json_encode(['ok'=>true,'libraryApis'=>$libraryApis,'reportRoutes'=>$reportFacts,'routeCount'=>$routes->count(),'bootstrapNamesRedirect'=>$bootstrapNamesRedirect,'originConfiguredIsExpected'=>$originConfigured,'middlewareGlobal'=>$middlewareGlobal,'bootstrapNamesPin'=>$bootstrapNamesPin,'pdfRasterGuard'=>$pdfGuard,'logoHeightsApi'=>$logoApi,'catalogWhitelist'=>$catalogApi,'freshBrandingApi'=>$freshApi,'mailBrandingApi'=>$mailApi,'sourceMarkers'=>$sourceMarkers,'b1154Markers'=>$b1154Markers,'newClassesTotal'=>count($newClasses),'newClassesLoaded'=>$loaded,'newClassesAutoloaded'=>count($newClasses)>0&&$loaded===count($newClasses),
+    echo json_encode(['ok'=>true,'libraryApis'=>$libraryApis,'newRoutes'=>$reportFacts,'routeCount'=>$routes->count(),'bootstrapNamesRedirect'=>$bootstrapNamesRedirect,'originConfiguredIsExpected'=>$originConfigured,'middlewareGlobal'=>$middlewareGlobal,'bootstrapNamesPin'=>$bootstrapNamesPin,'pdfRasterGuard'=>$pdfGuard,'logoHeightsApi'=>$logoApi,'catalogWhitelist'=>$catalogApi,'freshBrandingApi'=>$freshApi,'mailBrandingApi'=>$mailApi,'sourceMarkers'=>$sourceMarkers,'priorMarkers'=>$b1154Markers,'newClassesTotal'=>count($newClasses),'newClassesLoaded'=>$loaded,'newClassesAutoloaded'=>count($newClasses)>0&&$loaded===count($newClasses),
         'throttleApi'=>$throttleApi,'throttleResolvable'=>$throttleResolvable,'webPasswordUsesThrottle'=>$takesThrottle('App\Http\Controllers\AccountController'),'apiPasswordUsesThrottle'=>$takesThrottle('App\Http\Controllers\Api\V1\AccountController'),'merchantIssueLabels'=>$issueLabels,
         'b1150ClassesLoaded'=>$b1150Loaded===count(B1150_CLASSES),'routeMedia'=>$media!==null&&in_array('GET',$media->methods(),true),
         'b1149ClassesLoaded'=>$b1149Loaded===count(B1149_CLASSES),'routeSiteAssets'=>$site!==null&&in_array('GET',$site->methods(),true),'routeSmtpIndex'=>$smtp!==null&&in_array('GET',$smtp->methods(),true),

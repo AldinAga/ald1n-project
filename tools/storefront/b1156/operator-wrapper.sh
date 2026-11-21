@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# B1155 operator wrapper. Author: Ald1n <https://ald1n.com>
+# B1156 operator wrapper. Author: Ald1n <https://ald1n.com>
 # The worker runs DETACHED from the SSH session (own session, HUP ignored, stdin /dev/null) and writes the report file
 # itself; this foreground part only reserves the report, follows it and prints the final EXIT line. An SSH drop or
 # Ctrl-C here never stops the worker: follow the report with tail -f.
 # The worker is started with stdout on /dev/null and appends to the report itself, so the terminal clear (AGENTS 26)
 # never writes escape bytes into the operation report.
-# Without options it installs (or re-verifies an earlier PASS); --rollback restores the backed-up bytes of a B1155 install.
+# Without options it installs (or re-verifies an earlier PASS); --rollback restores the backed-up bytes of a B1156 install.
 # --rollback --ignore-schedule is the owner override for the scheduled-backup window only (the census still gates; the shop may stay ON).
 clear 2>/dev/null || printf '\033c'
 set -u
 umask 077
 export GIT_OPTIONAL_LOCKS=0
 ROOT=/home/icaffeco/ald1n-project
-SCRIPT="$ROOT/incoming/b1155-installer.sh"
+SCRIPT="$ROOT/incoming/b1156-installer.sh"
 SELF_SHA=__SELF_SHA__
 CHECKSUMS_SHA=__CHECKSUMS_SHA__
 LOCK="$HOME/.ald1n-stage/report-sequence.lock"
@@ -28,11 +28,11 @@ case "$#:${1-}:${2-}" in 1:--worker:) WORKER=1;; 1:--rollback:) MODE=rollback;; 
 if test "$WORKER" = 1; then
   case "${REPORT-}" in "$ROOT"/docs/operations/*.md) ;; *) printf 'HOLD: worker report context\n'; exit 2;; esac
   test ! -L "$REPORT" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || { printf 'HOLD: worker report context\n'; exit 2; }
-  # Only a report name the foreground reserves: <sequence>-B1155-INSTALLER-<YYYYmmdd>-<HHMMSS>.md (ROLLBACK for --rollback)
+  # Only a report name the foreground reserves: <sequence>-B1156-INSTALLER-<YYYYmmdd>-<HHMMSS>.md (ROLLBACK for --rollback)
   report_name="${REPORT##*/}"
-  [[ "$report_name" =~ ^[0-9]+-B1155-INSTALLER(-ROLLBACK)?-[0-9]{8}-[0-9]{6}\.md$ ]] || { printf 'HOLD: worker report name\n'; exit 2; }
-  case "${B1155_MODE-}" in install|rollback) ;; *) printf 'HOLD: worker mode\n'; exit 2;; esac
-  case "${B1155_MODE-}:${B1155_IGNORE_SCHEDULE-0}" in install:0|rollback:0|rollback:1) ;; *) printf 'HOLD: worker schedule override\n'; exit 2;; esac
+  [[ "$report_name" =~ ^[0-9]+-B1156-INSTALLER(-ROLLBACK)?-[0-9]{8}-[0-9]{6}\.md$ ]] || { printf 'HOLD: worker report name\n'; exit 2; }
+  case "${B1156_MODE-}" in install|rollback) ;; *) printf 'HOLD: worker mode\n'; exit 2;; esac
+  case "${B1156_MODE-}:${B1156_IGNORE_SCHEDULE-0}" in install:0|rollback:0|rollback:1) ;; *) printf 'HOLD: worker schedule override\n'; exit 2;; esac
   exec >> "$REPORT" 2>&1 < /dev/null
   printf 'WORKER_PID=%s\n' "$$"
 fi
@@ -43,7 +43,7 @@ fail() {
 }
 cleanup() {
   if test "$LOCK_HELD" = 1; then rmdir "$LOCK" 2>/dev/null; LOCK_HELD=0; fi
-  case "$scratch" in "$HOME"/.ald1n-stage/b1155-report.??????) rm -rf -- "$scratch";; esac
+  case "$scratch" in "$HOME"/.ald1n-stage/b1156-report.??????) rm -rf -- "$scratch";; esac
   scratch=''
 }
 on_signal() {
@@ -65,26 +65,26 @@ test "$(realpath "$0")" = "$SCRIPT" || fail 'canonical incoming script required'
 actual="$(sed 's/^SELF_SHA=.*/SELF_SHA=__SELF_SHA__/' "$SCRIPT" | sha256sum)"; actual="${actual%% *}"
 test "$actual" = "$SELF_SHA" || fail 'operator script integrity'
 script_bytes="$(sha256sum "$SCRIPT")"; script_bytes="${script_bytes%% *}"
-test ! -L "$ROOT/incoming/b1155-package.sha256" || fail 'checksum link'
-actual="$(sha256sum "$ROOT/incoming/b1155-package.sha256")" || fail 'checksum file missing'; actual="${actual%% *}"
+test ! -L "$ROOT/incoming/b1156-package.sha256" || fail 'checksum link'
+actual="$(sha256sum "$ROOT/incoming/b1156-package.sha256")" || fail 'checksum file missing'; actual="${actual%% *}"
 test "$actual" = "$CHECKSUMS_SHA" || fail 'package checksum integrity'
 while read -r digest file; do
-  case "$file" in b1155-*) ;; *) fail 'unexpected package filename';; esac
+  case "$file" in b1156-*) ;; *) fail 'unexpected package filename';; esac
   case "$file" in */*|*..*) fail 'package path';; esac
   test ! -L "$ROOT/incoming/$file" || fail 'package helper link'
-done < "$ROOT/incoming/b1155-package.sha256"
-(cd "$ROOT/incoming" && sha256sum --check --strict --quiet b1155-package.sha256) || fail 'package integrity'
+done < "$ROOT/incoming/b1156-package.sha256"
+(cd "$ROOT/incoming" && sha256sum --check --strict --quiet b1156-package.sha256) || fail 'package integrity'
 PHP="$(command -v php)" || fail 'PHP unavailable'
 "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r 'exit(PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500?0:2);' || fail 'PHP8.4.1+ required'
 if test "$WORKER" = 1; then
   test -n "${REPORT-}" && test "$(dirname "$REPORT")" = "$ROOT/docs/operations" || fail 'worker report context'
-  printf 'B1155 DASHBOARD DROPDOWNS REGISTRATION SUBAGENT SALES REPORT AND SAFE REDIRECTS (30 FILES: 9 NEW, 21 MODIFIED; NEW FILES FIRST, LIBRARIES NEXT, CALLERS AND ASSETS, THE BOOTSTRAP, THE VIEWS, THE ROUTES, THE MANAGEMENT REPORT VIEW LAST); THE SHOP STATE IS ONLY READ\nSTOREFRONT_DB_SWITCH_WRITTEN=NO\nSMTP_SETTINGS_READ_OR_WRITTEN=NO_ONLY_A_HASHED_TRANSPORT_FINGERPRINT_NO_TEST_MAIL\nROUTES_CHANGED=YES_TWO_GET_ROUTES_568_TO_570_ONLY_ROUTE_CLEAR_NO_ROUTE_CACHE_BUILT\nPASSWORD_ENDPOINTS_CALLED=NO_NEVER_LOGGED_IN_NO_PASSWORD_RESET_REQUESTED\nMAIL_SENT=NO_NO_TEST_MAIL\nPDF_GENERATED=NO\nAUTHENTICATED_PAGES_AND_POST_FLOWS_VERIFIED_BY_THIS_TOOL=NO_NOBODY_LOGS_IN_NOTHING_IS_POSTED_THE_OWNER_CHECKS_THEM\nRETAINED_DIRECTORY_MODES_CHANGED=NO\nMIGRATIONS=NONE\nCOMPOSER_CHANGED=NO\nENV_CHANGED=NO\nCONFIG_CHANGED=NO\nOPCACHE_GLOBAL_CLEAR=NEVER_TARGETED_PER_FILE_INVALIDATION_ONLY\nWORKER_DETACHED_FROM_SSH_SESSION=YES\nOPERATOR_MODE=%s\nOPERATOR_IGNORE_SCHEDULE=%s\n' "$B1155_MODE" "${B1155_IGNORE_SCHEDULE-0}"
+  printf 'B1156 COMMISSIONS AUTO PAYOUT REVERSALS DEBITS ORDERS AND DASHBOARD UI (69 FILES: 13 NEW, 56 MODIFIED; TWO FILES DELETED IN MAIN STAY ON THE HOST; NEW FILES FIRST, LIBRARIES, CONTROLLERS, THE PROVIDER, THE ROUTES, THE VIEWS, THEN A FRESH DATABASE BACKUP AND TWO MIGRATIONS); THE SHOP STATE IS ONLY READ\nSTOREFRONT_DB_SWITCH_WRITTEN=NO\nSMTP_SETTINGS_READ_OR_WRITTEN=NO_ONLY_A_HASHED_TRANSPORT_FINGERPRINT_NO_TEST_MAIL\nROUTES_CHANGED=YES_NINE_ROUTES_570_TO_579_ONLY_ROUTE_CLEAR_NO_ROUTE_CACHE_BUILT\nPASSWORD_ENDPOINTS_CALLED=NO_NEVER_LOGGED_IN_NO_PASSWORD_RESET_REQUESTED\nMAIL_SENT=NO_NO_TEST_MAIL_NO_NOTIFICATION_ROW_FROM_THE_BACKFILL\nPDF_GENERATED=NO\nAUTHENTICATED_PAGES_AND_POST_FLOWS_VERIFIED_BY_THIS_TOOL=NO_NOBODY_LOGS_IN_NOTHING_IS_POSTED_THE_OWNER_CHECKS_THEM\nRETAINED_DIRECTORY_MODES_CHANGED=NO\nFILES_DELETED=NO_TWO_ORPHAN_VIEWS_STAY\nMIGRATIONS=TWO_AFTER_A_FRESH_VERIFIED_BACKUP_NEVER_FRESH_REFRESH_ROLLBACK_RESET_NO_DOWN\nCOMPOSER_CHANGED=NO\nENV_CHANGED=NO\nCONFIG_CHANGED=NO\nOPCACHE_GLOBAL_CLEAR=NEVER_TARGETED_PER_FILE_INVALIDATION_ONLY\nWORKER_DETACHED_FROM_SSH_SESSION=YES\nOPERATOR_MODE=%s\nOPERATOR_IGNORE_SCHEDULE=%s\n' "$B1156_MODE" "${B1156_IGNORE_SCHEDULE-0}"
   branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)" || fail 'branch provenance'
   local_head="$(git -C "$ROOT" rev-parse HEAD)" || fail 'HEAD provenance'
   remote_head="$(git -C "$ROOT" rev-parse origin/main)" || fail 'main provenance'
   printf 'BRANCH=%s\nLOCAL_HEAD=%s\nREMOTE_HEAD=%s\n' "$branch" "$local_head" "$remote_head"
-  "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r '$p=json_decode(file_get_contents($argv[1]),true);if(!preg_match("/^[a-f0-9]{40}$/D",$p["helperSource"]??""))exit(2);echo "HELPER_SOURCE_SHA=".$p["helperSource"].PHP_EOL;' "$ROOT/incoming/b1155-package.json" || fail 'helper/source provenance'
-  "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 "$ROOT/incoming/b1155-installer.php"
+  "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r '$p=json_decode(file_get_contents($argv[1]),true);if(!preg_match("/^[a-f0-9]{40}$/D",$p["helperSource"]??""))exit(2);echo "HELPER_SOURCE_SHA=".$p["helperSource"].PHP_EOL;' "$ROOT/incoming/b1156-package.json" || fail 'helper/source provenance'
+  "$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 "$ROOT/incoming/b1156-installer.php"
   result=$?
   printf 'EXIT=%s\nREPORT=%s\n' "$result" "$REPORT"
   exit "$result"
@@ -92,7 +92,7 @@ fi
 test -d "$ROOT/docs/operations" && test -d "$HOME/.ald1n-stage" || fail 'canonical reports or successful stage unavailable'
 origin="$(git -C "$ROOT" remote get-url origin)" || fail 'origin unavailable'
 case "$origin" in https://github.com/AldinAga/ald1n-project|https://github.com/AldinAga/ald1n-project.git|git@github.com:AldinAga/ald1n-project.git) ;; *) fail 'unexpected origin';; esac
-scratch="$(mktemp -d "$HOME/.ald1n-stage/b1155-report.XXXXXX")" || fail 'report scratch'
+scratch="$(mktemp -d "$HOME/.ald1n-stage/b1156-report.XXXXXX")" || fail 'report scratch'
 fetch_output="$(git -C "$ROOT" fetch origin main 2>&1)"; fetched=$?; printf '%s\n' "$fetch_output"
 test "$fetched" = 0 || fail 'fresh main unavailable'
 git -C "$ROOT" ls-tree -r --name-only origin/main -- docs/operations > "$scratch/reports.txt" || fail 'remote report census'
@@ -101,18 +101,18 @@ if mkdir "$LOCK" 2>/dev/null; then LOCK_HELD=1; fi
 CRITICAL=0
 if test -n "$PENDING_SIGNAL"; then on_signal $PENDING_SIGNAL; fi
 test "$LOCK_HELD" = 1 || fail "another operator report reservation active; if no operator worker runs (check: ps -u icaffeco -o pid=,args= | grep -E 'b11[0-9][0-9]-' | grep -v grep) the lock is stale and is removed with: rmdir $LOCK"
-next="$("$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r '$highest=0;foreach(file($argv[1],FILE_IGNORE_NEW_LINES)?:[] as $p){if(preg_match("/^(\d+)-/",basename($p),$m))$highest=max($highest,(int)$m[1]);}foreach(new DirectoryIterator($argv[2]) as $i){if($i->isFile()&&preg_match("/^(\d+)-/",$i->getFilename(),$m))$highest=max($highest,(int)$m[1]);}if($highest<1120)exit(2);echo $highest+1;' "$scratch/reports.txt" "$ROOT/docs/operations")"; sequence=$?
+next="$("$PHP" -d display_errors=0 -d log_errors=0 -d opcache.enable=0 -d opcache.enable_cli=0 -r '$highest=0;foreach(file($argv[1],FILE_IGNORE_NEW_LINES)?:[] as $p){if(preg_match("/^(\d+)-/",basename($p),$m))$highest=max($highest,(int)$m[1]);}foreach(new DirectoryIterator($argv[2]) as $i){if($i->isFile()&&preg_match("/^(\d+)-/",$i->getFilename(),$m))$highest=max($highest,(int)$m[1]);}if($highest<1121)exit(2);echo $highest+1;' "$scratch/reports.txt" "$ROOT/docs/operations")"; sequence=$?
 test "$sequence" = 0 || fail 'report sequence unavailable'
 label=INSTALLER
 if test "$MODE" = rollback; then label=INSTALLER-ROLLBACK; fi
-REPORT="$ROOT/docs/operations/${next}-B1155-${label}-$(date +%Y%m%d-%H%M%S).md"
+REPORT="$ROOT/docs/operations/${next}-B1156-${label}-$(date +%Y%m%d-%H%M%S).md"
 (set -o noclobber; : > "$REPORT") 2>/dev/null || fail 'report collision'
 cleanup
 export REPORT
-B1155_MODE="$MODE"
-export B1155_MODE
-B1155_IGNORE_SCHEDULE="$IGNORE_SCHEDULE"
-export B1155_IGNORE_SCHEDULE
+B1156_MODE="$MODE"
+export B1156_MODE
+B1156_IGNORE_SCHEDULE="$IGNORE_SCHEDULE"
+export B1156_IGNORE_SCHEDULE
 printf 'SCRIPT=%s\nSCRIPT_SHA256=%s\nSCRIPT_NORMALIZED_INTEGRITY_SHA256=%s\nCHECKSUMS_SHA256=%s\n%s\n' "$SCRIPT" "$script_bytes" "$SELF_SHA" "$CHECKSUMS_SHA" "$fetch_output" >> "$REPORT"
 if command -v setsid >/dev/null 2>&1; then
   setsid nohup bash "$SCRIPT" --worker > /dev/null 2>&1 < /dev/null &

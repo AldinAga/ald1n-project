@@ -413,6 +413,7 @@ final class CommissionsInstallCoordinator
     private string $appStateScript;
     private string $routesScript;
     private string $featureScript;
+    private int $backupBase=0;
     private int $backupTimeout=2400;
     private int $verifyTimeout=1200;
     private int $migrateTimeout=900;
@@ -905,7 +906,7 @@ final class CommissionsInstallCoordinator
     /** Scheduled app:backup-create (02:30 daily, 03:10 Sunday, app timezone) must not start within the window this run needs. */
     private function scheduleState(array $app):array
     {
-        $last=$app['backups']['lastCompletedSeconds']??null;$base=$last===null?$this->defaultBackupSeconds:max(60,(int)$last);$duration=2*$base+600;$now=$this->now();$tz=(string)($app['appTimezone']??'');
+        $last=$app['backups']['lastCompletedSeconds']??null;$base=$last===null?$this->defaultBackupSeconds:max(60,(int)$last);$this->backupBase=$base;$duration=2*$base+600;$now=$this->now();$tz=(string)($app['appTimezone']??'');
         try{$local=(new DateTimeImmutable('@'.$now))->setTimezone(new DateTimeZone($tz))->format('Y-m-d H:i T');}catch(Throwable){throw new RuntimeException('APP_TIMEZONE_INVALID');}
         return ['conflict'=>MigrateUnclampCoordinator::scheduleConflict($app['backupSchedule']??[],$now,$this->scheduleNeedSeconds,$duration),'appTimezone'=>$tz,'appLocalTime'=>$local,'needSeconds'=>$this->scheduleNeedSeconds,'scheduledBackupSeconds'=>$duration,'events'=>$app['backupSchedule']??[]];
     }
@@ -1174,7 +1175,7 @@ final class CommissionsInstallCoordinator
     private function requiredWindowSeconds(int $holdSeconds):int
     {
         $g=count(array_unique(array_column($this->plan,'group')));$holds=count(self::GUARDS)+1+count(self::GUARDS)+2;
-        return max(1800,$holds*$holdSeconds+2*$this->smokeCapSeconds()+(4*$g-2)*$this->groupPause()+(2*$g-1)*self::LIVENESS_SECONDS+self::WEB_PROOF_REQUESTS*self::WEB_PROOF_SECONDS*count(self::GUARDS)+300);
+        return max(1800,$holds*$holdSeconds+2*$this->smokeCapSeconds()+(4*$g-2)*$this->groupPause()+(2*$g-1)*self::LIVENESS_SECONDS+self::WEB_PROOF_REQUESTS*self::WEB_PROOF_SECONDS*count(self::GUARDS)+300+2*($this->backupBase>0?$this->backupBase:$this->defaultBackupSeconds)+$this->migrateTimeout+2*$this->censusSeconds);
     }
 
     /**
@@ -1614,26 +1615,26 @@ final class CommissionsInstallCoordinator
     {
         $g=[];$v=['stage'=>$stage];$installed=$stage==='installed';
         $try=static function(string $gate,callable $check)use(&$g):mixed{try{$r=$check();$g[$gate]=null;return $r;}catch(Throwable $e){$g[$gate]=self::code($e);return null;}};
-        $chain=$try('chainB1154Report1120',fn()=>$this->chain());if($chain!==null){$this->state['chain']=$chain;$v['retainedDirectoryModes']=$this->retainedModes();}$v['chain']=$chain;
-        $manifest=$try('runtimeManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154',fn()=>$this->b1154Manifest());
+        $chain=$try('chainB1155Report1121',fn()=>$this->chain());if($chain!==null){$this->state['chain']=$chain;$v['retainedDirectoryModes']=$this->retainedModes();}$v['chain']=$chain;
+        $manifest=$try('runtimeManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155',fn()=>$this->b1155Manifest());
         $targets=$try('overlayTargets',fn()=>$this->targets());$v['targets']=$targets;
         if($targets!==null){if(!$installed&&!$targets['preState'])$g['overlayTargets']=$targets['installed']?'OVERLAY_ALREADY_PRESENT_WITHOUT_B1156_STATE_NO_BACKUP_NOTHING_CHANGED':($targets['link']!==[]?'TARGET_IS_SYMLINK':'UNKNOWN_PRE_STATE_REFUSED');if($installed&&!$targets['installed'])$g['overlayTargets']='INSTALLED_DIGESTS_CHANGED';}
-        // The nine new paths must be absent (and the new directory with them) before the first change: $targets['preState'] already requires absent for every kind new; the directory is checked on its own.
-        if(!$installed)$g['newPathsAbsent']=count(array_filter($this->plan,fn($s)=>$s['kind']==='new'&&(file_exists($this->target($s))||is_link($this->target($s)))))===0&&!file_exists($this->active().'/resources/views/public-shop/partials')?null:'NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED';
-        $v['tree']=$manifest!==null&&$chain!==null?$try('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154',fn()=>$installed?LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$chain['htaccessSHA256'],self::installedTreeFiles()):LeanGates::verifyTree($this->active(),$manifest,self::CONFIG_SHA,$chain['htaccessSHA256'],self::B1154_TREE_FILES)):null;
-        if(!array_key_exists('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154',$g))$g['activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
+        // The 13 new paths (the two migration files among them) must be absent before the first change: $targets['preState'] already requires absent for every kind new; stated once more on its own.
+        if(!$installed)$g['newPathsAbsent']=count(array_filter($this->plan,fn($s)=>$s['kind']==='new'&&(file_exists($this->target($s))||is_link($this->target($s)))))===0?null:'NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED';
+        $v['tree']=$manifest!==null&&$chain!==null?$try('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155',fn()=>$installed?LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$chain['htaccessSHA256'],self::installedTreeFiles()):LeanGates::verifyTree($this->active(),$manifest,self::CONFIG_SHA,$chain['htaccessSHA256'],self::B1155_TREE_FILES)):null;
+        if(!array_key_exists('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155',$g))$g['activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
         if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['kind']==='modified'){CommissionsFiles::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
-        // This payload has four PHP classes: an authoritative composer classmap would hide them from the autoloader, so it blocks (the check cannot fire where B1154 passed).
+        // This payload has six new PHP classes: an authoritative composer classmap would hide them from the autoloader, so it blocks (the check cannot fire where B1155 passed).
         $g['composerClassmapNotAuthoritative']=$this->classmapBlocker();
-        // No migration, no composer change and no config change: asserted and printed (the helper and the migration gate below read the live state).
-        $v['scope']=['migrations'=>'NONE','composer'=>'NONE','config'=>'NONE','env'=>'UNCHANGED','payloadUnderDatabaseConfigComposer'=>count(array_filter($this->plan,static fn($s)=>preg_match('~^(database/|config/|composer\.|\.env)~',$s['path'])===1))];if($v['scope']['payloadUnderDatabaseConfigComposer']!==0)$g['payloadScope']='PAYLOAD_TOUCHES_DATABASE_CONFIG_OR_COMPOSER';
+        // Two migrations (the only files under database/), no composer change, no config change and no .env change: asserted and printed (the migration gate below reads the live state).
+        $v['scope']=['migrations'=>['files'=>self::NEW_MIGRATIONS,'runs'=>'AFTER_EVERY_OTHER_FILE_BEHIND_A_FRESH_VERIFIED_BACKUP','mode'=>'migrate --force --realpath --path=<file> x2, never fresh/refresh/rollback/reset, no down()'],'composer'=>'NONE','config'=>'NONE','env'=>'UNCHANGED','payloadUnderConfigComposerEnv'=>count(array_filter($this->plan,static fn($s)=>preg_match('~^(config/|composer\.|\.env)~',$s['path'])===1)),'databasePathsOtherThanTheTwoMigrations'=>count(array_filter($this->plan,static fn($s)=>str_starts_with($s['path'],'database/')&&!in_array($s['path'],self::migrationFiles(),true)))];if($v['scope']['payloadUnderConfigComposerEnv']!==0||$v['scope']['databasePathsOtherThanTheTwoMigrations']!==0)$g['payloadScope']='PAYLOAD_TOUCHES_CONFIG_COMPOSER_ENV_OR_DATABASE_BEYOND_THE_TWO_MIGRATIONS';
         $g['configNotCached']=file_exists($this->active().'/bootstrap/cache/config.php')?'CONFIG_CACHE_PRESENT':null;
         $g['noRouteCache']=$this->routeCacheFiles()===[]?null:'ROUTE_CACHE_PRESENT_NOTHING_CHANGED';
         $g['noMaintenanceMode']=file_exists($this->active().'/storage/framework/down')||file_exists($this->active().'/storage/framework/maintenance.php')?'MAINTENANCE_MODE_ACTIVE':null;
-        $try('noLeftoverProbeOrTemp',function():void{FreshnessProbe::assertNoLeftover($this->active().'/public');if($this->ownTemps()!==[])throw new RuntimeException('LEFTOVER_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154_OR_B1156_TEMP_FILE');});
+        $try('noLeftoverProbeOrTemp',function():void{FreshnessProbe::assertNoLeftover($this->active().'/public');if($this->ownTemps()!==[])throw new RuntimeException('LEFTOVER_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154_B1155_OR_B1156_TEMP_FILE');});
         $v['caches']=$try('cacheState',fn()=>['routeCacheFiles'=>count($this->routeCacheFiles()),'compiledViews'=>$this->compiledViews(),'viewsCached'=>$this->compiledViews()>0]);
         $v['logs']=LeanGates::dailyLogs($this->active().'/storage/logs');$g['laravelDailyLog']=$v['logs']['dailyFiles']>0?null:'LARAVEL_DAILY_LOG_MISSING';
-        $v['migrations']=$try('migrateStatus71Ran0Pending',fn()=>$this->migrationStatus());
+        $v['migrations']=$try($installed?'migrateStatus73Ran0Pending':'migrateStatus71Ran0Pending',fn()=>$installed?$this->migrationStatus(self::RAN_AFTER,[]):$this->migrationStatus(self::RAN,[]));
         $app=$try('appStateDatabase',fn()=>$this->helper($this->appStateScript,['state']));
         if($app!==null){
             $shop=self::shopOf($app);$v['shop']=$shop+['writtenByThisTool'=>false];$v['app']=['backupsRunning'=>$app['backups']['running']];
@@ -1666,7 +1667,7 @@ final class CommissionsInstallCoordinator
         if($targets!==null&&($targets['preState']||$targets['installed'])&&isset($this->state['id']))$v['webAppUrl']=$try('webAppUrlPinned',fn()=>$this->webAppUrlCheck('preflight-'.$stage));else $g['webAppUrlPinned']='NOT_EVALUATED_TARGETS';
         if(isset($v['web']['holdSeconds'])){
             $this->state['groupPauseSeconds']=(int)($v['web']['revalidateFreq']??2)+1;
-            $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'groupPauseSeconds'=>$this->groupPause(),'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'9*HOLD+2*SMOKE_CAP+(4*GROUPS-2)*PAUSE+(2*GROUPS-1)*LIVENESS(370)+3*5*WEB_PROOF(60)+300<=WINDOW,GROUPS=7'];
+            $need=$this->requiredWindowSeconds((int)$v['web']['holdSeconds']);$v['timeBound']=['holdSeconds'=>(int)$v['web']['holdSeconds'],'groupPauseSeconds'=>$this->groupPause(),'smokeCapSeconds'=>$this->smokeCapSeconds(),'requiredWindowSeconds'=>$need,'rule'=>'9*HOLD+2*SMOKE_CAP+(4*GROUPS-2)*PAUSE+(2*GROUPS-1)*LIVENESS(370)+3*5*WEB_PROOF(60)+300+2*BACKUP+MIGRATE+2*CENSUS<=WINDOW,GROUPS=6'];
             $this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$need);
             if($this->scheduleGate&&$app!==null){$s=$try('scheduleWindowFitsTimeBound',fn()=>$this->scheduleState($app));$v['scheduleTimeBound']=$s;if($s!==null&&$s['conflict']!==null)$g['scheduleWindowFitsTimeBound']='SCHEDULED_BACKUP_WITHIN_THE_'.$need.'_SECONDS_THIS_RUN_MAY_NEED';}
         }else $g['timeBound']='NOT_EVALUATED_WEB_PROBE';
@@ -1761,16 +1762,16 @@ final class CommissionsInstallCoordinator
         $files=[];$linted=0;
         try{
             foreach($this->plan as $s){
-                if(!str_ends_with($s['path'],'.php'))continue;
+                if(!str_ends_with($s['path'],'.php')||str_ends_with($s['path'],'.blade.php'))continue;
                 $f=$dir.'/'.sprintf('%02d',$s['n']).'.php';AtomicFile::privateCopy($f,$this->payload($s));$files[]=$f;
                 $r=$this->command([$this->php,'-l',$f],$dir,60);if($r['rc']!==0)throw new RuntimeException('BOOT_PROOF_PHP_LINT_FAILED_'.$s['n']);$linted++;
             }
-            $f=$dir.'/bootstrap-app.php';AtomicFile::privateCopy($f,$this->bootProofBytes??$this->payload($this->step('bootstrap/app.php')));$files[]=$f;
+            $f=$dir.'/provider.php';AtomicFile::privateCopy($f,$this->bootProofBytes??$this->payload($this->step('app/Providers/AppServiceProvider.php')));$files[]=$f;
             $h=$this->helper($this->featureScript,['boot-proof',$f]);
-            if(($h['applicationBuilt']??false)!==true||($h['handlerResolved']??false)!==true||($h['httpKernelResolved']??false)!==true)throw new RuntimeException('BOOT_PROOF_FAILED');
+            if(($h['providerRegistered']??false)!==true||($h['calculatorResolved']??false)!==true)throw new RuntimeException('BOOT_PROOF_FAILED');
         }finally{foreach($files as $f)if(is_file($f)&&!is_link($f))@unlink($f);@rmdir($dir);}
         $this->state['bootProof']=['at'=>time(),'phpFilesLinted'=>$linted];$this->persist();
-        $this->emit('BOOT_PROOF',['phpFilesLinted'=>$linted,'bootstrapLoadedInCli'=>true,'liveTreeTouched'=>false,'writes'=>'NONE']);
+        $this->emit('BOOT_PROOF',['phpFilesLinted'=>$linted,'payloadProviderRegisteredInCli'=>true,'calculatorResolvedWithTheNewConstructor'=>true,'liveTreeTouched'=>false,'writes'=>'NONE']);
     }
 
     /**
@@ -1793,6 +1794,154 @@ final class CommissionsInstallCoordinator
         else{$proof=$this->state['webAssetProof']??null;if(!is_array($proof)||($proof['assets']??null)!==array_keys($this->assetFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF');}
     }
 
+
+    // ------------------------------------------------------------------ database backup, migration and its evidence
+
+    private function verifyRun(int $id):array
+    {
+        $started=hrtime(true);try{$v=$this->artisan(['app:backup-verify','--run='.$id],$this->verifyTimeout);}catch(Throwable $e){return ['pass'=>false,'rc'=>null,'child'=>self::code($e),'seconds'=>(hrtime(true)-$started)/1e9];}
+        return ['pass'=>$v['rc']===0&&str_contains($v['stdout'],'Backup je logicki validan'),'rc'=>$v['rc'],'seconds'=>(hrtime(true)-$started)/1e9];
+    }
+
+    /** migrate:status without a verdict: how many ran and which are pending (names, in order). */
+    private function migrationSnapshot():array
+    {
+        $r=$this->artisan(['migrate:status'],120);if($r['rc']!==0)throw new RuntimeException('MIGRATE_STATUS_FAILED_OR_DB_UNREACHABLE');
+        return LeanGates::migrationStatus($r['stdout'],LeanGates::migrationFiles($this->active().'/database/migrations'));
+    }
+
+    /** Read-only schema facts of the first migration (the b1156 helper): tables, columns and the two rows of the migrations table. */
+    private function schemaFacts():array
+    {
+        $h=$this->helper($this->featureScript,['schema']);foreach(['tables','columns','migrationRows'] as $k)if(!is_array($h[$k]??null)||$h[$k]===[])throw new RuntimeException('SCHEMA_FACTS_UNREADABLE');return $h;
+    }
+
+    /** $installed: every new table and column exists and both migration rows exist; otherwise none of them does. */
+    private function schemaCheck(bool $installed):array
+    {
+        $h=$this->schemaFacts();$all=array_merge(array_values($h['tables']),array_values($h['columns']),array_values($h['migrationRows']));$this->emit('SCHEMA_CHECK',$h+['expectInstalled'=>$installed]);
+        if($installed?in_array(false,$all,true):in_array(true,$all,true))throw new RuntimeException($installed?'SCHEMA_NOT_AHEAD_AFTER_THE_MIGRATION':'SCHEMA_ALREADY_AHEAD_BEFORE_THE_MIGRATION');return $h;
+    }
+
+    /** Whether the database is (partly) ahead of the pre-migration code: any new table, column or migrations row. Unreadable counts as ahead (the conservative answer: the migration files stay). */
+    private function schemaAhead():bool
+    {
+        try{$h=$this->schemaFacts();return in_array(true,array_merge(array_values($h['tables']),array_values($h['columns']),array_values($h['migrationRows'])),true);}catch(Throwable){return true;}
+    }
+
+    /** Read-only commission facts (the b1156 helper, plain SELECTs): counts per status, the pending commissions the owner rule makes payable (count + digest of the ids), the auto-approved rows, and every notification-like table. */
+    private function commissionCensus():array
+    {
+        $h=$this->helper($this->featureScript,['census']);foreach(['byStatus','dueCount','dueSha256','notificationRows','statusHistoryRows'] as $k)if(!array_key_exists($k,$h))throw new RuntimeException('CENSUS_FACTS_UNREADABLE');return $h;
+    }
+
+    /** A fresh backup of THIS run (B1145's way): app:backup-create --type=manual, then its own app:backup-verify. Prints id, key, size and status only. */
+    private function dbBackup():void
+    {
+        $this->processBackup=null;$app=$this->helper($this->appStateScript,['state']);
+        if(($app['backups']['table']??null)!==true||($app['backups']['running']??null)!==0)throw new RuntimeException('BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING');
+        if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_RECHECK');}
+        $this->save('DB_BACKUP_INTENT');$started=hrtime(true);$this->fault('BEFORE_DB_BACKUP');
+        $create=$this->artisan(['app:backup-create','--type=manual'],$this->backupTimeout);
+        $key=preg_match('/^PASS Backup je kreiran: (\S+)\s*$/m',$create['stdout'],$m)?basename($m[1]):null;
+        if($create['rc']!==0||$key===null||preg_match('/^\d{8}-\d{6}-manual-[a-f0-9]{6}$/D',$key)!==1){$this->emit('DB_BACKUP',['status'=>'CREATE_FAILED','rc'=>$create['rc'],'rawOutputNotExported'=>true,'note'=>'A_BACKUP_RUN_ROW_MAY_STAY_RUNNING_UP_TO_6_HOURS_BLOCKING_THE_NEXT_RUN_THE_FILES_ARE_ROLLED_BACK_AND_NO_MIGRATION_RAN']);throw new RuntimeException('DB_BACKUP_CREATE_FAILED');}
+        $run=$this->helper($this->appStateScript,['backup',$key]);if(($run['found']??false)!==true||($run['status']??null)!=='completed'||!is_int($run['id']??null))throw new RuntimeException('DB_BACKUP_RUN_NOT_COMPLETED');
+        $createdAt=hrtime(true);$this->state['dbBackup']=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'verified'=>false,'createdAt'=>time()];$this->persist();
+        $verify=$this->verifyRun($run['id']);
+        $this->emit('DB_BACKUP',['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'status'=>$verify['pass']?'VERIFIED':'VERIFY_FAILED','verifyRC'=>$verify['rc'],'createSeconds'=>round(($createdAt-$started)/1e9,1),'verifySeconds'=>round($verify['seconds'],1),'keepNote'=>'THE_APP_KEEPS_ONLY_THE_2_NEWEST_VERIFIED_BACKUPS_COPY_THIS_ONE_OFF_THE_SERVER_BEFORE_THE_NEXT_NIGHTLY_BACKUP']);
+        if(!$verify['pass'])throw new RuntimeException('DB_BACKUP_VERIFY_FAILED');
+        $this->processBackup=['id'=>$run['id'],'key'=>$key,'sizeBytes'=>$run['sizeBytes'],'createdAt'=>$createdAt,'verifySeconds'=>$verify['seconds']];$this->state['dbBackup']['verified']=true;$this->save('DB_BACKUP_VERIFIED');$this->fault('AFTER_DB_BACKUP');
+    }
+
+    /** The backup taken in THIS process is rechecked right before the migration: row completed with the same id and size, directory present, app:backup-verify passes again. Returns the failed check or null. */
+    private function recheckBackup():?string
+    {
+        $b=$this->processBackup;if($b===null)return 'NO_BACKUP_IN_THIS_RUN';
+        try{$row=$this->helper($this->appStateScript,['backup',$b['key']]);}catch(Throwable $e){return 'ROW_UNREADABLE_'.self::code($e);}
+        if(($row['found']??false)!==true)return 'ROW_MISSING';if(($row['status']??null)!=='completed'||($row['id']??null)!==$b['id'])return 'ROW_NOT_COMPLETED';
+        if(($row['sizeBytes']??null)!==$b['sizeBytes'])return 'SIZE_CHANGED';if(($row['dirPresent']??false)!==true)return 'DIRECTORY_MISSING';
+        $v=$this->verifyRun($b['id']);return $v['pass']?null:'VERIFY_FAILED';
+    }
+
+    /**
+     * After the last file and its liveness smoke: the migration. Gates in this order: the migration set (71 ran, exactly the two new files pending), the schema (none of it there), the read-only commission census, a FRESH backup of this
+     * run with its recheck and age bound (retaken once when stale), the artisan census and the backup window again, the migration set once more. Only then MIGRATE_INTENT is saved and the ONE migrate call runs.
+     * A failure before MIGRATE_INTENT is a full file rollback (nothing ran); from MIGRATE_INTENT on the policy is forward-only resume or a rollback that keeps the migration files.
+     */
+    private function migrationStep():void
+    {
+        $this->migrationStatus(self::RAN,self::NEW_MIGRATIONS);$this->schemaCheck(false);
+        $before=$this->commissionCensus();$this->state['censusBefore']=$before;$this->persist();$this->emit('COMMISSION_CENSUS_BEFORE',array_diff_key($before,['dueIds'=>true]));
+        for($attempt=0;;$attempt++){
+            if($this->processBackup===null)$this->dbBackup();
+            $reason=$this->recheckBackup();
+            if($reason===null){
+                $this->census();$age=(hrtime(true)-$this->processBackup['createdAt'])/1e9;$bound=max($this->backupMaxAgeSeconds,(int)ceil(2*$this->processBackup['verifySeconds'])+2*$this->censusSeconds+60);
+                if($age<=$bound){$this->emit('BACKUP_RECHECKED_BEFORE_MIGRATE',['id'=>$this->processBackup['id'],'key'=>$this->processBackup['key'],'rowCompleted'=>true,'sameSize'=>true,'directoryPresent'=>true,'reverified'=>true,'ageSeconds'=>(int)$age,'maxAgeSeconds'=>$bound,'sameProcess'=>true]);break;}
+                $reason='OLDER_THAN_'.$bound.'_SECONDS';
+            }
+            $this->emit('BACKUP_RECHECK_FAILED',['reason'=>$reason,'attempt'=>$attempt+1,'action'=>$attempt===0?'RETAKE_A_FRESH_BACKUP':'HOLD']);
+            if($attempt>=1)throw new RuntimeException('BACKUP_RECHECK_FAILED_BEFORE_MIGRATE');
+            $this->processBackup=null;
+        }
+        $app=$this->helper($this->appStateScript,['state']);if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_RECHECK');}
+        $this->migrationStatus(self::RAN,self::NEW_MIGRATIONS);$this->emit('MIGRATE_SET_RECHECK',['ok'=>true,'ran'=>self::RAN,'pending'=>self::NEW_MIGRATIONS]);
+        $this->state['migrateStartedAt']=time();$this->save('MIGRATE_INTENT');$this->fault('AFTER_MIGRATE_INTENT');
+        $this->runMigration();
+    }
+
+    /**
+     * THE migrate call of this tool: only the two files of this payload (--realpath with their absolute paths), --force, never fresh, refresh, rollback or reset, no down(). Idempotent: both migrations check for what they create,
+     * so a resumed run simply runs it again. After it: 73 ran and none pending, the schema facts, and the backfilled set equals the set the owner rule gave before (no other row, no notification).
+     */
+    private function runMigration():void
+    {
+        $paths=[];foreach(self::migrationFiles() as $f)$paths[]='--path='.$this->active().'/'.$f;
+        try{$m=$this->artisan(array_merge(['migrate','--force','--realpath'],$paths),$this->migrateTimeout);}catch(Throwable $e){$m=['rc'=>null,'stderrBytes'=>0];$this->emit('MIGRATE_CHILD_STOPPED',self::code($e));}
+        $this->emit('MIGRATE',['rc'=>$m['rc'],'stderrBytes'=>$m['stderrBytes']??0,'rawOutputNotExported'=>true]);$this->fault('AFTER_MIGRATE_COMMAND');
+        if($m['rc']!==0)throw new RuntimeException('MIGRATE_FAILED');
+        $this->migrationStatus(self::RAN_AFTER,[]);$this->schemaCheck(true);$this->backfillFacts();
+        $this->save('MIGRATED');$this->fault('AFTER_MIGRATED');$this->refreshViews(true);
+    }
+
+    /** The backfill moved exactly the set the owner rule gave BEFORE the migration (pending commissions of a paid or delivered, not cancelled order) and nothing else; no notification-like row was written. */
+    private function backfillFacts():void
+    {
+        $b=$this->state['censusBefore']??null;if(!is_array($b))throw new RuntimeException('CENSUS_BEFORE_MISSING');$a=$this->commissionCensus();$due=(int)$b['dueCount'];$n=static fn(array $c,string $k):int=>(int)($c['byStatus'][$k]??0);
+        $facts=['dueBefore'=>$due,'pendingBefore'=>$n($b,'pending'),'pendingAfter'=>$n($a,'pending'),'approvedBefore'=>$n($b,'approved'),'approvedAfter'=>$n($a,'approved'),'paidUnchanged'=>$n($a,'paid')===$n($b,'paid'),'cancelledUnchanged'=>$n($a,'cancelled')===$n($b,'cancelled'),
+            'autoApprovedAfter'=>$a['autoApprovedCount']??null,'autoApprovedSetEqualsTheDueSet'=>($a['autoApprovedSha256']??null)===$b['dueSha256']&&($a['autoApprovedCount']??null)===$due,'approvedByNullOnAutoApproved'=>$a['autoApprovedWithApprover']??null,
+            'statusHistoryRowsAdded'=>(int)$a['statusHistoryRows']-(int)$b['statusHistoryRows'],'notificationRowsUnchanged'=>$a['notificationRows']===$b['notificationRows'],'notificationTablesWatched'=>count($b['notificationRows'])];
+        $ok=$facts['pendingAfter']===$facts['pendingBefore']-$due&&$facts['approvedAfter']===$facts['approvedBefore']+$due&&$facts['paidUnchanged']&&$facts['cancelledUnchanged']&&$facts['autoApprovedSetEqualsTheDueSet']&&$facts['approvedByNullOnAutoApproved']===0&&$facts['statusHistoryRowsAdded']===$due&&$facts['notificationRowsUnchanged']&&$facts['notificationTablesWatched']>0;
+        $this->emit('BACKFILL_CENSUS',$facts+['ok'=>$ok]);if(!$ok)throw new RuntimeException('BACKFILL_RESULT_NOT_THE_EXPECTED_SET');
+    }
+
+    /**
+     * A run that finds MIGRATE_INTENT or MIGRATED saved (killed during or right after the migration) goes FORWARD only: the same gates as an owner rollback, the files must still be exactly the payload (a deviation is a HOLD, nothing is
+     * restored: the database may be ahead), then a fresh backup when the migration is not complete, the migration again, the evidence and the acceptance. It never enters the generic restore.
+     */
+    private function resumeMigration():int
+    {
+        $this->emit('RESUMED_MIGRATION_FORWARD_ONLY',['phase'=>$this->state['phase'],'rule'=>'NEVER_DOWN_NEVER_DROP_NEVER_THE_GENERIC_RESTORE']);$this->state['chain']??=$this->chain();
+        try{
+            $app=$this->helper($this->appStateScript,['state']);if(($app['backups']['table']??null)!==true||($app['backups']['running']??null)!==0)throw new RuntimeException('BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING');
+            $this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$this->requiredWindowSeconds($this->fullHold()));
+            if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_WAIT');}
+            $this->earlierIdle();$this->census();$this->requireRecordedShop('BEFORE_RESUMED_MIGRATION');
+            if($this->targets()['installed']!==true)throw new RuntimeException('RESUME_REFUSED_THE_FILES_ARE_NOT_EXACTLY_THE_PAYLOAD_DATABASE_MAY_BE_AHEAD_NOTHING_RESTORED');
+            $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->persist();
+            $s=$this->migrationSnapshot();
+            if($s['ran']===self::RAN_AFTER&&$s['pending']===[]){$this->schemaCheck(true);$this->backfillFacts();$this->save('MIGRATED');}
+            else{
+                $ok=$s['ran']>=self::RAN&&$s['ran']<=self::RAN_AFTER&&$s['pending']===array_slice(self::NEW_MIGRATIONS,$s['ran']-self::RAN);
+                if(!$ok)throw new RuntimeException('RESUME_REFUSED_THE_MIGRATION_SET_IS_NOT_A_PREFIX_OF_THE_TWO_MIGRATIONS');
+                if(!is_array($this->state['censusBefore']??null))throw new RuntimeException('RESUME_REFUSED_NO_CENSUS_BEFORE_THE_MIGRATION');
+                $this->dbBackup();$this->runMigration();
+            }
+        }catch(Throwable $e){$this->emit('HOLD_MIGRATION_NOT_RESUMED',['blockers'=>[self::code($e)],'filesChanged'=>'NONE','databaseNotRolledBack'=>true,'next'=>'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RESUMES_FORWARD_ONLY']);$this->final='HOLD_MIGRATION_NOT_RESUMED';return 2;}
+        try{$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
+        return $this->finish(self::FINAL_PASS);
+    }
+
     private function install():void
     {
         $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->state['applied']=[];unset($this->state['webAssetProof'],$this->state['webClassProof'],$this->state['bootProof']);$this->save('INSTALL_INTENT');$group=null;
@@ -1805,7 +1954,7 @@ final class CommissionsInstallCoordinator
             if($group!==null&&$group!==$s['group']){
                 if($group==='D')$this->fastCheck();
                 $this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>$s['group'],'seconds'=>$pause]);sleep($pause);
-                $this->fault('GROUP_DONE_'.$group);if($group==='F'){$this->routeClear();$this->routesCheck(true);$this->fault('ROUTES_PROVEN');}$this->liveness($group);
+                $this->fault('GROUP_DONE_'.$group);if($group==='E'){$this->routeClear();$this->routesCheck(true);$this->fault('ROUTES_PROVEN');}$this->liveness($group);
                 $guard=self::GUARDS[$s['group']]??null;
                 if($guard==='classes'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webClassProof('before-guard-group-'.$s['group'],$s['group']);$this->fault('CLASSES_PROVEN');if($s['group']==='D'){$this->bootProof();$this->fault('BOOT_PROVEN');}}
                 elseif($guard==='assets'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webAssetProof('before-guard-group-'.$s['group']);$this->fault('ASSETS_PROVEN');}
@@ -1822,7 +1971,7 @@ final class CommissionsInstallCoordinator
             $this->state['temps']=array_values(array_filter($this->state['temps'],static fn($x)=>$x!==$temp));$this->state['applied'][$s['n']]='DONE';$this->changed();$this->persist();
             $this->emit('OVERLAY_STEP',['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'sha256'=>$s['payloadSHA256']]+$receipt);$this->fault('AFTER_STEP_'.$s['n']);
         }
-        // The last group is G (the management view, after the routes): ONE revalidation pause so every worker runs it, then the liveness smoke at once (the guest report URLs included; a failure rolls group G back
+        // The last group is F (the views, after the routes): ONE revalidation pause so every worker runs it, then the liveness smoke at once (the guest report URLs included; a failure rolls group G back
         // first), and only then route:clear, view:clear and queue:restart (the acceptance judges the rest).
         $this->fault('GROUP_DONE_'.$group);$this->emit('OVERLAY_GROUP_PAUSE',['after'=>$group,'before'=>'ACCEPTANCE','seconds'=>$pause]);sleep($pause);$this->liveness($group);$this->refreshViews(true);$this->save('FILES_INSTALLED');
     }
@@ -1842,7 +1991,7 @@ final class CommissionsInstallCoordinator
 
     private function accept():void
     {
-        $this->save('ACCEPTANCE_INTENT');$this->viewsCheck();$first=$this->probeRun('installed-invalidate',true,true,false);$this->fault('AFTER_INVALIDATE');$this->hold('installed',(int)$first['holdSeconds']);
+        $this->save('ACCEPTANCE_INTENT');$this->viewsCheck();$this->schemaCheck(true);$first=$this->probeRun('installed-invalidate',true,true,false);$this->fault('AFTER_INVALIDATE');$this->hold('installed',(int)$first['holdSeconds']);
         $this->requireRecordedShop('BEFORE_INSTALLED_SMOKES');$this->smokes(true);$this->fault('AFTER_SMOKES_INSTALLED');$this->requireRecordedShop('AFTER_INSTALLED_SMOKES');
         $this->unthrottledChecks('ACTIVE_TREE_AFTER_INSTALL');
         $this->approvalReport('after-install');$this->requireRecordedShop('BEFORE_INSTALLED_PASS');
@@ -1855,7 +2004,7 @@ final class CommissionsInstallCoordinator
      * stops the loop), with the full measured hold right after each of the guard groups F, E and D is back to its old bytes and again before the
      * new files go, re-invalidates, waits and smoke-tests the old state with the shop in whatever state it is now.
      */
-    private function restore(string $reason):bool
+    private function restore(string $reason,bool $keepMigrations=false):bool
     {
         $this->emit('OVERLAY_ROLLBACK',['reason'=>$reason]);$problems=[];try{$this->save('ROLLBACK_INTENT');}catch(Throwable $e){$problems[]=self::code($e);}
         try{$this->cleanupRecorded();}catch(Throwable $e){$problems[]=self::code($e);}
@@ -1877,6 +2026,7 @@ final class CommissionsInstallCoordinator
                 // once it is back to its old bytes (so no web worker still runs the code of a guarded file when what it depends on goes: the routes before the controller classes, the views before the
                 // stylesheets, bootstrap/app.php before the libraries), the other boundaries get the revalidation pause, before the new files (group A) the full hold again; the new files are removed last
                 // and the created directory after them. A fresh process resuming a rollback times each wait from the saved wall-clock time of the last change.
+                if($keepMigrations&&in_array($s['path'],self::migrationFiles(),true))continue;
                 $key=$s['group'];$boundary=$group!==null&&$group!==$key;$prev=$group;$group=$key;
                 try{
                     if($boundary){
@@ -1901,14 +2051,16 @@ final class CommissionsInstallCoordinator
             $this->emit('ROLLBACK_FILES',['modifiedRestored'=>$restored,'newRemoved'=>$removed,'stoppedAtStep'=>$stoppedBefore,'exactInstallPrefixKept'=>$stoppedBefore===null?null:($this->isInstallPrefix($stoppedBefore)?'STEPS_1_TO_'.$stoppedBefore.'_INSTALLED_LATER_STEPS_RESTORED':'NOT_AN_INSTALL_PREFIX_SEE_RECOVERY_NOTE_FILES'),'problems'=>$problems]);
         }
         if($problems===[])try{
-            $t=$this->targets();if(!$t['preState'])throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck(false);$this->featureCheck(false);
+            if(!($keepMigrations?$this->preStateKeepingMigrations():$this->targets()['preState']))throw new RuntimeException('ROLLBACK_TARGETS_NOT_PRE_STATE');$this->routesCheck(false);$this->featureCheck(false,$keepMigrations);
             $first=$this->probeRun('restored-invalidate',false,true,false);$this->hold('restored',(int)$first['holdSeconds']);
             try{try{$this->smokes(false);}catch(Throwable $e){if(self::code($e)!=='SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED')throw $e;$this->emit('OLD_STATE_SMOKES_REPEATED','THE_SHOP_STATE_CHANGED_DURING_THE_BATCH');$this->smokes(false);}}catch(Throwable $e){
                 if(self::code($e)==='NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES'){$this->state['rollbackNoindexMissing']=true;$this->emit('OWNER_NOTICE_NOINDEX_MISSING','THE_RESTORED_FILES_ARE_EXACT_BUT_PUBLIC_PAGES_ARE_SERVED_WITHOUT_X-ROBOTS-TAG_NOINDEX_RESTORE_THE_HEADER_LINE_IN_apps/cms/current/public/.htaccess_OR_THE_CLOUDFLARE_RULE_THAT_REMOVES_IT');}
                 elseif(self::code($e)==='SMOKES_RATE_LIMITED_429'){$this->state['rollbackSmokesRateLimited']=true;$this->emit('OWNER_NOTICE_RATE_LIMITED','THE_RESTORED_FILES_ARE_EXACT_BUT_THE_SITE_ANSWERED_429_TO_THE_SMOKES_OPEN_https://cms.ald1n.com/katalog_AND_ONE_LEGAL_PAGE_YOURSELF');}
                 else throw $e;}
             $this->probeRun('restored-fresh',false,false,true);
-            $tree=LeanGates::verifyTree($this->active(),$this->b1154Manifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::B1154_TREE_FILES);$this->emit('ACTIVE_TREE_AFTER_ROLLBACK',$tree+['equalsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154'=>true]);
+            $kept=$keepMigrations?array_map(fn($f)=>['path'=>$f,'kind'=>'new','sha256'=>$this->step($f)['payloadSHA256'],'preSHA256'=>null],self::migrationFiles()):[];
+            $manifestNow=$keepMigrations?['files'=>self::applied($this->b1155Manifest()['files'],$kept,'B1156_KEPT_MIGRATIONS')]:$this->b1155Manifest();
+            $tree=LeanGates::verifyTree($this->active(),$manifestNow,self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::B1155_TREE_FILES+count($kept));$this->emit('ACTIVE_TREE_AFTER_ROLLBACK',$tree+['equalsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155'=>true,'migrationFilesKept'=>$keepMigrations]);
             try{$this->mailFingerprintUnchanged('after-rollback');}catch(Throwable $e){$this->emit('OWNER_NOTICE_MAIL_FINGERPRINT',self::code($e));}
             $this->approvalReport('after-rollback');
         }catch(Throwable $e){$problems[]=self::code($e);}
@@ -1916,7 +2068,8 @@ final class CommissionsInstallCoordinator
             try{$this->save('ROLLBACK_INCOMPLETE');}catch(Throwable){$this->emit('ROLLBACK_STATE_UNWRITABLE','FIX_DISK_OR_PERMISSIONS_THEN_RUN_THE_SAME_COMMAND');}
             $this->recoveryNote(array_values(array_unique($problems)));return false;
         }
-        $this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'EXACT_PRIVATE_COPIES','newFiles'=>'REMOVED','routeCache'=>'NONE_NEVER_CREATED','compiledViews'=>'CLEARED_REBUILT_ON_DEMAND_NOT_PRECOMPILED','tree'=>'EQUALS_8574_FILE_MANIFEST_PLUS_B1146_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154','shopSwitch'=>'NOT_WRITTEN']);return true;
+        if($keepMigrations){$this->save('ROLLED_BACK_SCHEMA_AHEAD');$this->emit('ROLLED_BACK_SCHEMA_AHEAD',['files'=>'EXACT_PRIVATE_COPIES_EXCEPT_THE_TWO_MIGRATION_FILES_WHICH_STAY','newFiles'=>'REMOVED_EXCEPT_THE_TWO_MIGRATIONS','database'=>'AHEAD_OF_THE_CODE_NO_DOWN_NO_DROP_NOTHING_UNDONE','tree'=>'EQUALS_8583_FILE_MANIFEST_PLUS_THE_TWO_MIGRATION_FILES','oldCodeAndTheNewSchema'=>'THE_OLD_CODE_USES_ELOQUENT_AND_EXPLICIT_COLUMN_LISTS_THE_NEW_TABLES_AND_COLUMNS_ARE_ADDITIVE_AND_UNUSED_BY_IT','backupBeforeTheMigration'=>$this->state['dbBackup']['key']??'UNKNOWN','shopSwitch'=>'NOT_WRITTEN']);return true;}
+        $this->save('ROLLED_BACK');$this->emit('ROLLED_BACK',['files'=>'EXACT_PRIVATE_COPIES','newFiles'=>'REMOVED','routeCache'=>'NONE_NEVER_CREATED','compiledViews'=>'CLEARED_REBUILT_ON_DEMAND_NOT_PRECOMPILED','tree'=>'EQUALS_8583_FILE_MANIFEST_PLUS_B1146_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154_B1155','shopSwitch'=>'NOT_WRITTEN']);return true;
     }
 
     /** Whether any overlay byte may have reached the tree: an applied step, a payload file, a created directory, a non-pre target. */
@@ -1925,6 +2078,31 @@ final class CommissionsInstallCoordinator
         foreach((array)($this->state['applied']??[]) as $v)if($v==='DONE'||$v==='PENDING')return true;
         if(($this->state['createdDirs']??[])!==[])return true;
         $t=$this->targets();return !$t['preState']||$t['payload']>0||$t['foreign']!==[]||$t['link']!==[];
+    }
+
+    /** The two files main deleted are RETAINED on the host with their B1155 bytes (owner rule: nothing is deleted); the tree check lists them in its manifest, this states it on its own. */
+    private function orphanCheck():array
+    {
+        $rows=[];foreach(self::ORPHANS as $path=>$sha){$f=$this->active().'/'.$path;$rows[$path]=is_file($f)&&!is_link($f)&&hash_equals($sha,hash_file('sha256',$f));}
+        $this->emit('RETAINED_ORPHANS',['files'=>$rows,'included'=>'NOTHING_IN_THE_NEW_TREE_INCLUDES_THEM']);if(in_array(false,$rows,true))throw new RuntimeException('RETAINED_ORPHAN_MISSING_OR_CHANGED');return $rows;
+    }
+
+    /** The old state except that the two migration files hold their payload bytes (a schema-ahead rollback keeps them). */
+    private function preStateKeepingMigrations():bool
+    {
+        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if(in_array($s['path'],self::migrationFiles(),true)){if($c!=='payload')return false;}elseif($c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
+        return true;
+    }
+
+    /** restore() that keeps the two migration files exactly when the migration was started and the database is (partly) ahead of the code: never removes what a migrations row refers to. */
+    private function restoreAuto(string $reason):bool
+    {
+        $keep=isset($this->state['migrateStartedAt'])&&$this->schemaAhead();return $this->restore($reason,$keep);
+    }
+
+    private function finalAfterRestore(bool $ok):string
+    {
+        return $ok?(($this->state['phase']??'')==='ROLLED_BACK_SCHEMA_AHEAD'?'HOLD_ROLLED_BACK_SCHEMA_AHEAD':'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'):'HOLD_ROLLBACK_INCOMPLETE';
     }
 
     /** Verified, not assumed: steps 1..$k hold the payload, every later step its old bytes (a later new file is absent). */
@@ -2011,14 +2189,19 @@ final class CommissionsInstallCoordinator
     private function finish(string $final):int
     {
         $new=count(array_filter($this->plan,static fn($s)=>$s['kind']==='new'));
-        $this->final=$final;$this->emit('B1156_RESULT',['overlay'=>'DASHBOARD_DROPDOWNS_REGISTRATION_SUBAGENT_REPORT_REDIRECTS_'.count($this->plan).'_FILES','baseCommit'=>self::BASE_COMMIT,'sourceCommit'=>self::SOURCE_COMMIT,'newFiles'=>$new,'modifiedFiles'=>count($this->plan)-$new,'treeFiles'=>self::installedTreeFiles(),'appUrl'=>'EXACTLY_'.$this->expectedAppUrl.'_VERIFIED_BEFORE_ANY_CHANGE','newRoutes'=>'TWO_GET_ROUTES_'.self::ROUTE_SUBAGENTS.'_AND_'.self::ROUTE_SUBAGENTS_CSV.'_ROUTE_COUNT_'.$this->expectedRoutes.'_TO_'.$this->expectedRoutesAfter,'authenticatedDashboardAndReport'=>'NOT_VERIFIED_BY_THIS_TOOL_NOBODY_LOGS_IN_THE_OWNER_CHECKS_IT','viewsCompiledAndLinted'=>'IN_MEMORY_'.count($this->viewChecks).'_VIEWS','stylesheets'=>'BOTH_CHANGED_ONES_SERVED_200_TEXT_CSS_WITH_THE_PAYLOAD_SHA256_TOKENS_STYLESHEET_UNCHANGED','classesLoadedInTheWebSapi'=>count(self::proofClasses()).'_BEFORE_BOOTSTRAP_AND_ROUTES','catalogCsp'=>'EQUALS_THE_PREFLIGHT_BASELINE','foreignRefererRedirect'=>'PINNED_TO_THE_ORIGIN_CATALOG','guestReportUrls'=>'302_TO_LOGIN_NEVER_5XX','passwordEndpoints'=>'NEVER_CALLED_NO_LOGIN','mail'=>'NEVER_SENT_NO_TEST_MAIL','pdfGeneration'=>'NOT_EXERCISED','settingsWritten'=>'NO','directoriesCreated'=>count(array_filter((array)($this->state['createdDirs']??[]))),'tests'=>'NOT_INSTALLED','shopSwitch'=>'READ_ONLY_NOT_WRITTEN','smtpSettings'=>'NOT_READ_NOT_WRITTEN_NO_TEST_MAIL_ONLY_A_TRANSPORT_FINGERPRINT','routeCache'=>'NONE','migrations'=>'NONE','composer'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','queue'=>'RESTARTED_VIA_ARTISAN_queue:restart','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
+        $this->final=$final;$this->emit('B1156_RESULT',['overlay'=>'COMMISSIONS_AUTO_PAYOUT_REVERSALS_ORDERS_UI_'.count($this->plan).'_FILES','baseCommit'=>self::BASE_COMMIT,'sourceCommit'=>self::SOURCE_COMMIT,'newFiles'=>$new,'modifiedFiles'=>count($this->plan)-$new,'treeFiles'=>self::installedTreeFiles(),
+            'retainedOrphans'=>array_keys(self::ORPHANS),'orphansRule'=>'THE_TWO_VIEWS_THE_NEW_CODE_NO_LONGER_INCLUDES_STAY_ON_THE_HOST_WITH_THEIR_B1155_BYTES_NOTHING_IS_DELETED','appUrl'=>'EXACTLY_'.$this->expectedAppUrl.'_VERIFIED_BEFORE_ANY_CHANGE',
+            'newRoutes'=>'SIX_WEB_AND_THREE_API_ROUTES_ROUTE_COUNT_'.$this->expectedRoutes.'_TO_'.$this->expectedRoutesAfter,'migrations'=>self::NEW_MIGRATIONS,'migrationRun'=>'AFTER_EVERY_OTHER_FILE_BEHIND_A_FRESH_VERIFIED_DATABASE_BACKUP_73_RAN_0_PENDING_NO_DOWN_NO_DROP','databaseBackup'=>$this->state['dbBackup']['key']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE',
+            'backfill'=>'THE_SET_OF_PENDING_COMMISSIONS_OF_PAID_OR_DELIVERED_ORDERS_MOVED_AND_NOTHING_ELSE_NO_NOTIFICATION_ROW','viewsCompiledAndLinted'=>'IN_MEMORY_'.count($this->viewChecks).'_VIEWS','stylesheet'=>'THE_CHANGED_ADMIN_STYLESHEET_SERVED_200_TEXT_CSS_WITH_THE_PAYLOAD_SHA256_TOKENS_STYLESHEET_UNCHANGED','classesLoadedInTheWebSapi'=>count(self::proofClasses()).'_BEFORE_THE_PROVIDER_AND_THE_ROUTES','catalogCsp'=>'EQUALS_THE_PREFLIGHT_BASELINE',
+            'authenticatedPages'=>'NOT_VERIFIED_BY_THIS_TOOL_NOBODY_LOGS_IN_THE_OWNER_CHECKS_THEM','passwordEndpoints'=>'NEVER_CALLED_NO_LOGIN','mail'=>'NEVER_SENT_NO_TEST_MAIL','pdfGeneration'=>'NOT_EXERCISED','settingsWritten'=>'NO','directoriesCreated'=>count(array_filter((array)($this->state['createdDirs']??[]))),'tests'=>'NOT_INSTALLED','shopSwitch'=>'READ_ONLY_NOT_WRITTEN','smtpSettings'=>'NOT_READ_NOT_WRITTEN_NO_TEST_MAIL_ONLY_A_TRANSPORT_FINGERPRINT','routeCache'=>'NONE','composer'=>'NONE','env'=>'UNCHANGED','config'=>'UNCHANGED','queue'=>'RESTARTED_VIA_ARTISAN_queue:restart','opcache'=>'TARGETED_PER_FILE_INVALIDATION_ONLY','backupDirectory'=>$this->state['backup']['directory']??'NONE_ALREADY_INSTALLED_BEFORE_THIS_TOOL_STATE']);
         $this->cssNotice();
         $this->emit('OWNER_NEXT_STEPS',array_merge([$this->purgeStep(),
-            '2_THIS_TOOL_NEVER_LOGS_IN_SO_THE_DASHBOARD_AND_THE_SUB-AGENT_REPORT_WITH_DATA_WERE_NOT_SEEN_BY_IT_LOG_IN_OPEN_THE_DASHBOARD_ON_THE_DESKTOP_AND_ON_A_PHONE_OPEN_THE_MENUS_OPEN_REPORTS_THEN_THE_SUB-AGENT_REPORT_AND_EXPORT_ITS_CSV_OPEN_THE_PUBLIC_REGISTRATION_PAGE_AND_ONE_PAGE_OF_EVERY_MODULE_TO_SEE_THAT_IT_LOOKS_AS_BEFORE',
-            '3_IF_ANYTHING_IS_WRONG_RUN_THE_ROLLBACK_COMMAND_BELOW_THE_SHOP_MAY_STAY_ON',
-            '4_THE_SHOP_AND_THE_SMTP_SETTINGS_STAY_AS_YOU_SET_THEM_THIS_TOOL_NEVER_CHANGES_THEM',
-            '5_DO_NOT_RERUN_B1144_TO_B1154_OR_THEIR_ROLLBACK'],isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1156-installer.sh --rollback (THE_SHOP_MAY_STAY_ON)']:['NO_B1156_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
-        $this->emit('DO_NOT_RERUN_B1144_B1145_B1146_B1147_B1148_B1149_B1150_B1151_B1152_B1153_OR_B1154_AFTER_B1156','THEIR_MANIFEST_GATES_NOW_SEE_THE_'.count($this->plan).'_B1156_FILES_AND_THEIR_--rollback_WOULD_REFUSE_FOREIGN_BYTES');return 0;
+            '2_THIS_TOOL_NEVER_LOGS_IN_SO_THE_PAGES_BEHIND_THE_LOGIN_WERE_NOT_SEEN_BY_IT_LOG_IN_OPEN_THE_DASHBOARD_THE_ORDER_LIST_AND_ONE_ORDER_THE_COMMISSIONS_PAGE_AND_THE_BELL_AND_CHECK_THAT_THE_COMMISSIONS_THE_BACKFILL_MOVED_SHOW_AS_FOR_PAYOUT',
+            '3_THE_WEB_WORKERS_THAT_STARTED_BEFORE_THE_MIGRATION_MAY_KEEP_THE_OLD_SCHEMA_ANSWER_UNTIL_THEY_RESTART_IF_THE_NEW_COMMISSION_FUNCTIONS_(REVERSALS_AND_DEBITS)_ARE_MISSING_AFTER_AN_HOUR_ASK_THE_HOSTING_TO_RECYCLE_THE_PHP_WORKERS_OF_THIS_ACCOUNT',
+            '4_IF_ANYTHING_IS_WRONG_RUN_THE_ROLLBACK_COMMAND_BELOW_IT_RESTORES_THE_FILES_AND_KEEPS_THE_TWO_MIGRATION_FILES_THE_DATABASE_IS_NEVER_UNDONE_THE_SHOP_MAY_STAY_ON',
+            '5_THE_SHOP_AND_THE_SMTP_SETTINGS_STAY_AS_YOU_SET_THEM_THIS_TOOL_NEVER_CHANGES_THEM',
+            '6_DO_NOT_RERUN_B1144_TO_B1155_OR_THEIR_ROLLBACK'],isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1156-installer.sh --rollback (THE_SHOP_MAY_STAY_ON)']:['NO_B1156_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
+        $this->emit('DO_NOT_RERUN_B1144_B1145_B1146_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154_OR_B1155_AFTER_B1156','THEIR_MANIFEST_GATES_NOW_SEE_THE_'.count($this->plan).'_B1156_FILES_AND_THEIR_--rollback_WOULD_REFUSE_FOREIGN_BYTES');return 0;
     }
 
     private function alreadyInstalled():int
@@ -2034,19 +2217,21 @@ final class CommissionsInstallCoordinator
         try{
             $phase=$this->state['phase'];
             if($this->mode==='rollback'){
-                if(!in_array($phase,['INSTALLED_PASS','ACCEPTANCE_NOT_VERIFIED','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
+                if(!in_array($phase,['INSTALLED_PASS','ACCEPTANCE_NOT_VERIFIED','ROLLBACK_INCOMPLETE','ROLLBACK_INTENT','ACCEPTANCE_INTENT','MIGRATED','MIGRATE_INTENT','DB_BACKUP_VERIFIED','DB_BACKUP_INTENT','FILES_INSTALLED','INSTALL_INTENT','BACKED_UP'],true)){$this->emit('HOLD_NOTHING_TO_ROLL_BACK',['phase'=>$phase]);return 2;}
                 $this->state['chain']??=$this->chain();
                 $blockers=$this->rollbackGates(true);
                 if($blockers!==[]){$this->emit('HOLD_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'CLEAR_THE_BLOCKERS_THEN_RUN_THE_SAME_COMMAND']);$this->manualNoteIfTouched($blockers);return 2;}
-                if(!$this->restore('OWNER_REQUESTED_ROLLBACK'))return 2;$this->final='PASS_ROLLED_BACK_BY_OWNER';$this->emit('OWNER_NOTICE','THE_B1154_STATE_IS_ACTIVE_AGAIN_A_LATER_RUN_OF_THE_SAME_COMMAND_WITHOUT_OPTIONS_INSTALLS_AGAIN');
+                if(!$this->restoreAuto('OWNER_REQUESTED_ROLLBACK'))return 2;$ahead=($this->state['phase']??'')==='ROLLED_BACK_SCHEMA_AHEAD';$this->final=$ahead?'PASS_ROLLED_BACK_FILES_SCHEMA_AHEAD':'PASS_ROLLED_BACK_BY_OWNER';$this->emit('OWNER_NOTICE',$ahead?'THE_B1155_FILES_ARE_BACK_THE_DATABASE_STAYS_AHEAD_NO_DOWN_NO_DROP_THE_TWO_MIGRATION_FILES_STAY_A_LATER_RUN_IS_REFUSED_ASK_FOR_A_NEW_INSTALLER':'THE_B1155_STATE_IS_ACTIVE_AGAIN_A_LATER_RUN_OF_THE_SAME_COMMAND_WITHOUT_OPTIONS_INSTALLS_AGAIN');
                 $this->cssNotice();$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(true),'2_THE_SHOP_STAYS_IN_THE_STATE_YOU_SET_THIS_TOOL_NEVER_CHANGES_IT']);return 0;
             }
             if($phase==='INSTALLED_PASS')return $this->alreadyInstalled();
+            if($phase==='ROLLED_BACK_SCHEMA_AHEAD'){$this->emit('HOLD_SCHEMA_AHEAD_NOTHING_RUNS',['phase'=>$phase,'why'=>'THE_FILES_ARE_THE_B1155_ONES_BUT_THE_DATABASE_HAS_THE_NEW_SCHEMA_AND_THE_TWO_MIGRATION_FILES_STAY','next'=>'ASK_FOR_A_NEW_INSTALLER']);$this->final='HOLD_SCHEMA_AHEAD';return 2;}
+            if(in_array($phase,self::MIGRATING,true))return $this->resumeMigration();
             if($phase==='ACCEPTANCE_NOT_VERIFIED')return $this->resumeAcceptance();
             if(in_array($phase,self::IN_FLIGHT,true)){
                 $this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();
                 $blockers=$this->rollbackGates(false);if($blockers!==[]){$this->emit('HOLD_RESUMED_ROLLBACK_NOT_STARTED',['blockers'=>$blockers,'filesChanged'=>'NONE','next'=>'RUN_THE_SAME_COMMAND_AGAIN_WHEN_THE_BLOCKERS_ARE_GONE']);$this->manualNoteIfTouched($blockers);return 2;}
-                $ok=$this->restore('RESUMED_INTERRUPTED_'.$phase);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(true)]);return 2;
+                $ok=$this->restoreAuto('RESUMED_INTERRUPTED_'.$phase);$this->final=$this->finalAfterRestore($ok);if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(true)]);return 2;
             }
             if(!in_array($phase,['PREFLIGHT','HOLD_PREFLIGHT_BLOCKED'],true))throw new RuntimeException('UNKNOWN_SAVED_PHASE');
             $this->cleanupRecorded();$p=$this->preflight('fresh');
@@ -2054,7 +2239,7 @@ final class CommissionsInstallCoordinator
             $this->fault('AFTER_PREFLIGHT');
             try{$this->census();$this->beforeFirstChange();}catch(Throwable $e){$p['blockers']=[self::code($e)];return $this->hold2('HOLD_PREFLIGHT_BLOCKED',$p);}
             $this->backup($p);
-            try{$this->install();$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
+            try{$this->install();$this->migrationStep();$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
             return $this->finish(self::FINAL_PASS);
         }catch(Throwable $e){$this->emit('HOLD_CODE_DETAIL',self::code($e));return 2;}
     }
@@ -2082,13 +2267,13 @@ final class CommissionsInstallCoordinator
                 return 2;
             }
         }
-        $ok=$this->restore($code);$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(true)]);return 2;
+        $ok=$this->restoreAuto($code);$this->final=$this->finalAfterRestore($ok);if($ok)$this->emit('OWNER_NEXT_STEPS',[$this->purgeStep(true)]+($this->final==='HOLD_ROLLED_BACK_SCHEMA_AHEAD'?[1=>'2_THE_DATABASE_IS_AHEAD_OF_THE_RESTORED_CODE_THE_TWO_MIGRATIONS_RAN_AND_STAY_NOTHING_WAS_UNDONE_THE_OLD_CODE_TOLERATES_THE_ADDITIVE_SCHEMA_DO_NOT_RERUN_THIS_COMMAND_ASK_FOR_A_NEW_INSTALLER']:[]));return 2;
     }
 
     /** The acceptance checks that need neither a throttled route nor the shop: fresh probes, routes, the CLI feature facts, mail-transport fingerprint, log, tree. */
     private function unthrottledChecks(string $label):void
     {
-        $this->probeRun('installed-fresh',true,false,true);$this->routesCheck(true);$this->featureCheck(true);$this->webClassProof('installed','',1);$this->productMediaDoctor('after-install',true);$this->mailFingerprintUnchanged('after-install');
+        $this->probeRun('installed-fresh',true,false,true);$this->routesCheck(true);$this->featureCheck(true);$this->schemaCheck(true);$this->orphanCheck();$this->webClassProof('installed','',1);$this->productMediaDoctor('after-install',true);$this->mailFingerprintUnchanged('after-install');
         $scan=LeanGates::newLogErrors($this->active().'/storage/logs',$this->state['logBaseline']);$this->emit('LARAVEL_LOG_SINCE_INSTALL',$scan);if($scan['newErrorLines']!==0)throw new RuntimeException('NEW_LARAVEL_LOG_ERRORS_SINCE_INSTALL');
         $tree=LeanGates::verifyTree($this->active(),$this->installedManifest(),self::CONFIG_SHA,$this->state['chain']['htaccessSHA256'],self::installedTreeFiles());$this->emit($label,$tree+['manifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1156'=>true]);
     }
@@ -2107,7 +2292,7 @@ final class CommissionsInstallCoordinator
             $this->earlierIdle();$this->census();$this->requireRecordedShop('BEFORE_RESUMED_ACCEPTANCE');
             $this->state['logBaseline']=LeanGates::logBaseline($this->active().'/storage/logs');$this->persist();
         }catch(Throwable $e){$this->emit('HOLD_ACCEPTANCE_NOT_RESUMED',['blockers'=>[self::code($e)],'filesChanged'=>'NONE','next'=>'TURN_THE_SHOP_ON_AS_BEFORE_OR_WAIT_FOR_THE_ARTISAN_RUN_THEN_RUN_THE_SAME_COMMAND_OR_USE_--rollback']);$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';return 2;}
-        if($this->targets()['installed']!==true){$ok=$this->restore('RESUMED_ACCEPTANCE_FILES_NOT_EXACT');$this->final=$ok?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLBACK_INCOMPLETE';return 2;}
+        if($this->targets()['installed']!==true){$ok=$this->restoreAuto('RESUMED_ACCEPTANCE_FILES_NOT_EXACT');$this->final=$this->finalAfterRestore($ok);return 2;}
         try{$this->accept();}catch(Throwable $e){return $this->acceptanceFailed($e);}
         return $this->finish(self::FINAL_PASS);
     }
