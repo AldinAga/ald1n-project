@@ -378,7 +378,7 @@
                         @csrf
                         <div class="a1-field">
                             <label class="a1-label" for="oc-cancel-note">Razlog otkazivanja<span class="a1-req" aria-hidden="true">*</span></label>
-                            <textarea class="a1-textarea" id="oc-cancel-note" name="reason" rows="3" minlength="3" maxlength="1000" required@error('reason') aria-invalid="true" aria-describedby="oc-cancel-note-err"@enderror></textarea>
+                            <textarea class="a1-textarea" id="oc-cancel-note" name="reason" rows="3" minlength="3" maxlength="1000" required @error('reason') aria-invalid="true" aria-describedby="oc-cancel-note-err" @enderror></textarea>
                             @error('reason')<p class="a1-error" id="oc-cancel-note-err">{{ $message }}</p>@enderror
                         </div>
                         <div><button class="a1-btn a1-btn--danger" type="submit" data-confirm="Otkazati porudžbinu i vratiti lager?">Otkaži porudžbinu</button></div>
