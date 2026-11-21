@@ -448,7 +448,7 @@ final class CommissionsInstallCoordinator
     private const WEB_PROOF_SECONDS=60;
     /** Upper bound of the requests in one smoke batch: 2 system, 8 legal, 5 storefront CSS, 2 /tema, 6 guest admin pages (incl. the two report URLs), 3 stylesheets, 1 logo, 15 shop (two of them the per-page and view queries, the registration page and the foreign-Referer request), 1 origin Vary, spare. */
     private const SMOKE_GETS=60;
-    private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED','NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES','VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE'];
+    private const UNVERIFIED_CODES=['SMOKES_RATE_LIMITED_429','SHOP_STATE_CHANGED_DURING_ACCEPTANCE_STOREFRONT_NOT_VERIFIED','NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES','VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE','BACKFILL_RESULT_NOT_THE_EXPECTED_SET'];
     private bool $scheduleGate=true;
     private ?int $fixedNow=null;
     private int $scheduleNeedSeconds=1800;
@@ -1645,6 +1645,7 @@ final class CommissionsInstallCoordinator
             $g['noRunningBackup']=$app['backups']['table']===true&&$app['backups']['running']===0?null:'BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING';
             if($this->scheduleGate){$s=$try('outsideScheduledBackupWindow',fn()=>$this->scheduleState($app));$v['schedule']=$s;if($s!==null&&$s['conflict']!==null)$g['outsideScheduledBackupWindow']='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']);}
         }else foreach(['shopStateRecorded','noRunningBackup','outsideScheduledBackupWindow'] as $gate)$g[$gate]='NOT_EVALUATED_APP_STATE';
+        if($app!==null&&!$installed){$v['backupRetention']=$try('backupRetentionHealthy',fn()=>$this->backupRetention($app));$v['backupHeadroom']=$try('backupHeadroom',fn()=>$this->backupHeadroom($app));}
         $env=$try('environmentCli',fn()=>$this->envCheck('preflight-'.$stage));$v['environment']=$env===null?null:array_diff_key($env,['mailFingerprintHMAC'=>true]);
         // INFO only, never a blocker: where the rate limiters (and the bad-signature counter of the media route) keep their counters.
         $v['limiterStore']=is_array($env)&&is_string($env['limiterStore']??null)&&preg_match('/^[a-z]{3,12}$/D',$env['limiterStore'])===1?$env['limiterStore']:'UNKNOWN';$this->state['limiterStore']=$v['limiterStore'];
@@ -1835,7 +1836,28 @@ final class CommissionsInstallCoordinator
     /** Read-only commission facts (the b1156 helper, plain SELECTs): counts per status, the pending commissions the owner rule makes payable (count + digest of the ids), the auto-approved rows, and every notification-like table. */
     private function commissionCensus():array
     {
-        $h=$this->helper($this->featureScript,['census']);foreach(['byStatus','dueCount','dueSha256','notificationRows','statusHistoryRows'] as $k)if(!array_key_exists($k,$h))throw new RuntimeException('CENSUS_FACTS_UNREADABLE');return $h;
+        $h=$this->helper($this->featureScript,['census']);foreach(['byStatus','dueCount','dueSha256','dueIds','notificationRows','statusHistoryRows'] as $k)if(!array_key_exists($k,$h))throw new RuntimeException('CENSUS_FACTS_UNREADABLE');return $h;
+    }
+
+    /**
+     * The app's own retention walks the completed backups newest first and keeps the first two that verify; with one or more completed rows and none verifying, a NEW backup is marked failed and so is every later one
+     * (B1145 refused that state before anything changed). Same walk here, in the PREFLIGHT, so a backup problem is a HOLD with nothing changed and not a rollback of 69 files.
+     */
+    private function backupRetention(array $app):array
+    {
+        $runs=(array)($app['backups']['completedRuns']??[]);if($runs===[])return ['completed'=>0,'verified'=>[],'rule'=>'NO_COMPLETED_BACKUP_THE_NEW_ONE_IS_THE_FIRST'];
+        $failing=[];foreach($runs as $r){$v=$this->verifyRun((int)$r['id']);if($v['pass'])return ['completed'=>count($runs),'verified'=>[['id'=>$r['id'],'key'=>$r['key']]],'failing'=>$failing,'rule'=>'THE_NEW_BACKUP_PLUS_ONE_VERIFYING_EXISTING_BACKUP_SATISFY_THE_APP_KEEP_TWO'];$failing[]=['id'=>$r['id'],'key'=>$r['key']];}
+        throw new RuntimeException('BACKUP_RETENTION_WOULD_REJECT_NEW_BACKUP');
+    }
+
+    /** Free bytes and inodes on the filesystem of the backup directory for one more backup (B1145's need: the plain dump is written before the gzip), read-only. */
+    private function backupHeadroom(array $app):array
+    {
+        $need=MigrateUnclampCoordinator::backupNeed($this->minFreeBytes,$app['backups']['lastCompletedSizeBytes']??null,$app['databaseBytes']??null,$app['backups']['lastCompletedFileCount']??null);
+        $path=$app['backupPathReal']??null;if(!is_string($path)||$path===''||!is_dir($path))throw new RuntimeException('BACKUP_DIRECTORY_UNREADABLE');
+        $r=$this->command(['stat','-f','-c','%a %S %d %c',$path],null,20);if($r['rc']!==0||!preg_match('/^(\d+) (\d+) (\d+) (\d+)$/D',trim($r['stdout']),$m))throw new RuntimeException('DISK_STAT_UNAVAILABLE');
+        $free=(int)$m[1]*(int)$m[2];$out=['freeBytes'=>$free,'requiredBytes'=>$need['bytes'],'freeInodes'=>(int)$m[3],'requiredInodes'=>$need['inodes']];
+        if($free<$need['bytes'])throw new RuntimeException('BACKUP_DIRECTORY_HEADROOM_INSUFFICIENT');if((int)$m[3]<$need['inodes'])throw new RuntimeException('BACKUP_DIRECTORY_INODES_INSUFFICIENT');return $out;
     }
 
     /** A fresh backup of THIS run (B1145's way): app:backup-create --type=manual, then its own app:backup-verify. Prints id, key, size and status only. */
@@ -1874,7 +1896,7 @@ final class CommissionsInstallCoordinator
     private function migrationStep():void
     {
         $this->migrationStatus(self::RAN,self::NEW_MIGRATIONS);$this->schemaCheck(false);
-        $before=$this->commissionCensus();$this->state['censusBefore']=$before;$this->persist();$this->emit('COMMISSION_CENSUS_BEFORE',array_diff_key($before,['dueIds'=>true]));
+        $before=$this->commissionCensus();$this->state['censusBefore']=$before;$this->persist();$this->emit('COMMISSION_CENSUS_BEFORE',array_diff_key($before,['dueIds'=>true,'autoApprovedIds'=>true]));
         for($attempt=0;;$attempt++){
             if($this->processBackup===null)$this->dbBackup();
             $reason=$this->recheckBackup();
@@ -1888,6 +1910,8 @@ final class CommissionsInstallCoordinator
             $this->processBackup=null;
         }
         $app=$this->helper($this->appStateScript,['state']);if($this->scheduleGate){$s=$this->scheduleState($app);if($s['conflict']!==null)throw new RuntimeException('SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_RECHECK');}
+        // Database sessions busy right now: INFO only (the shop is open and orders keep arriving; the migration itself is additive and idempotent).
+        try{$this->emit('DB_SESSIONS_BEFORE_MIGRATE',array_diff_key($this->helper($this->appStateScript,['locks','5']),['ok'=>true]));}catch(Throwable $e){$this->emit('DB_SESSIONS_BEFORE_MIGRATE',['unreadable'=>self::code($e)]);}
         $this->migrationStatus(self::RAN,self::NEW_MIGRATIONS);$this->emit('MIGRATE_SET_RECHECK',['ok'=>true,'ran'=>self::RAN,'pending'=>self::NEW_MIGRATIONS]);
         $this->state['migrateStartedAt']=time();$this->save('MIGRATE_INTENT');$this->fault('AFTER_MIGRATE_INTENT');
         $this->runMigration();
@@ -1907,14 +1931,19 @@ final class CommissionsInstallCoordinator
         $this->save('MIGRATED');$this->fault('AFTER_MIGRATED');$this->refreshViews(true);
     }
 
-    /** The backfill moved exactly the set the owner rule gave BEFORE the migration (pending commissions of a paid or delivered, not cancelled order) and nothing else; no notification-like row was written. */
+    /**
+     * The backfill moved the set the owner rule gave BEFORE the migration (pending commissions of a paid or delivered, not cancelled order): every one of those ids is now approved, has no approver and carries auto_approved_at.
+     * The auto-approved set may hold MORE ids (an order paid or delivered while the backup and the migration ran: live traffic, reported as INFO, never a failure). Global counts, history rows and the notification tables are
+     * reported as INFO only: in production orders, payments and notifications keep arriving during those minutes. The fixture (no traffic) asserts the strict equalities on its own.
+     */
     private function backfillFacts():void
     {
-        $b=$this->state['censusBefore']??null;if(!is_array($b))throw new RuntimeException('CENSUS_BEFORE_MISSING');$a=$this->commissionCensus();$due=(int)$b['dueCount'];$n=static fn(array $c,string $k):int=>(int)($c['byStatus'][$k]??0);
-        $facts=['dueBefore'=>$due,'pendingBefore'=>$n($b,'pending'),'pendingAfter'=>$n($a,'pending'),'approvedBefore'=>$n($b,'approved'),'approvedAfter'=>$n($a,'approved'),'paidUnchanged'=>$n($a,'paid')===$n($b,'paid'),'cancelledUnchanged'=>$n($a,'cancelled')===$n($b,'cancelled'),
-            'autoApprovedAfter'=>$a['autoApprovedCount']??null,'autoApprovedSetEqualsTheDueSet'=>($a['autoApprovedSha256']??null)===$b['dueSha256']&&($a['autoApprovedCount']??null)===$due,'approvedByNullOnAutoApproved'=>$a['autoApprovedWithApprover']??null,
-            'statusHistoryRowsAdded'=>(int)$a['statusHistoryRows']-(int)$b['statusHistoryRows'],'notificationRowsUnchanged'=>$a['notificationRows']===$b['notificationRows'],'notificationTablesWatched'=>count($b['notificationRows'])];
-        $ok=$facts['pendingAfter']===$facts['pendingBefore']-$due&&$facts['approvedAfter']===$facts['approvedBefore']+$due&&$facts['paidUnchanged']&&$facts['cancelledUnchanged']&&$facts['autoApprovedSetEqualsTheDueSet']&&$facts['approvedByNullOnAutoApproved']===0&&$facts['statusHistoryRowsAdded']===$due&&$facts['notificationRowsUnchanged']&&$facts['notificationTablesWatched']>0;
+        $b=$this->state['censusBefore']??null;if(!is_array($b)||!is_array($b['dueIds']??null))throw new RuntimeException('CENSUS_BEFORE_MISSING');$a=$this->commissionCensus();$due=array_map('intval',$b['dueIds']);$auto=array_map('intval',(array)($a['autoApprovedIds']??[]));
+        $missing=array_values(array_diff($due,$auto));$extra=array_values(array_diff($auto,$due));$n=static fn(array $c,string $k):int=>(int)($c['byStatus'][$k]??0);
+        $facts=['dueBefore'=>count($due),'dueNotMoved'=>count($missing),'autoApprovedAfter'=>count($auto),'autoApprovedBeyondTheDueSetInfoLiveTraffic'=>count($extra),'approvedWithAnApproverAmongTheAutoApproved'=>$a['autoApprovedWithApprover']??null,
+            'pendingBefore'=>$n($b,'pending'),'pendingAfter'=>$n($a,'pending'),'approvedBefore'=>$n($b,'approved'),'approvedAfter'=>$n($a,'approved'),'paidInfo'=>[$n($b,'paid'),$n($a,'paid')],'cancelledInfo'=>[$n($b,'cancelled'),$n($a,'cancelled')],
+            'statusHistoryRowsAddedInfo'=>(int)$a['statusHistoryRows']-(int)$b['statusHistoryRows'],'notificationRowsChangedInfo'=>$a['notificationRows']===$b['notificationRows']?[]:array_keys(array_filter($a['notificationRows'],static fn($v,$k)=>($b['notificationRows'][$k]??null)!==$v,ARRAY_FILTER_USE_BOTH)),'notificationTablesWatched'=>count($b['notificationRows'])];
+        $ok=$missing===[]&&$facts['approvedWithAnApproverAmongTheAutoApproved']===0&&$facts['notificationTablesWatched']>0;
         $this->emit('BACKFILL_CENSUS',$facts+['ok'=>$ok]);if(!$ok)throw new RuntimeException('BACKFILL_RESULT_NOT_THE_EXPECTED_SET');
     }
 
@@ -2125,7 +2154,7 @@ final class CommissionsInstallCoordinator
      */
     private function recoveryNote(array $problems,string $kind='ROLLBACK_INCOMPLETE'):void
     {
-        $a=$this->active();$files=[];$q=static fn(string $v):string=>escapeshellarg($v);
+        $a=$this->active();$files=[];$q=static fn(string $v):string=>escapeshellarg($v);$keepMig=isset($this->state['migrateStartedAt'])&&$this->schemaAhead();
         foreach($this->plan as $s){try{$now=$this->classify($s)['state'];}catch(Throwable){$now='UNREADABLE';}$b=$this->state['backup']['files'][$s['n']]??null;$files[$s['n']]=['n'=>$s['n'],'group'=>$s['group'],'kind'=>$s['kind'],'path'=>$s['path'],'now'=>$now,'backupCopy'=>$b['copy']??null,'sha256'=>$b['sha256']??null,'mode'=>isset($b['mode'])?sprintf('%04o',$b['mode']):null,'gid'=>$b['gid']??null];}
         $record=is_array($this->state['backup']['files']??null);
         $next=$kind==='ROLLBACK_INCOMPLETE'?'FIX_THE_REPORTED_CAUSE_THEN_RUN_THE_SAME_COMMAND_IT_RETRIES_THE_ROLLBACK_FIRST':'NOTHING_WAS_ATTEMPTED_CLEAR_THE_BLOCKERS_AND_RUN_THE_SAME_COMMAND';
@@ -2136,7 +2165,7 @@ final class CommissionsInstallCoordinator
             $t=$a.'/'.$f['path'];$key=$f['group'];$act=[];
             if($f['kind']==='modified'&&$f['now']==='payload'&&$f['backupCopy']!==null)$act=['printf '.$q('%s  %s\n').' '.$q((string)$f['sha256']).' '.$q((string)$f['backupCopy']).' | sha256sum --check --strict --quiet -','install -m '.$f['mode'].' -g '.(int)$f['gid'].' '.$q((string)$f['backupCopy']).' '.$q($t)];
             elseif($f['kind']==='modified'&&$f['now']==='payload')$act=['echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2','exit 2'];
-            elseif($f['kind']==='new'&&$f['now']==='payload'&&$record)$act=['rm -f -- '.$q($t)];
+            elseif($f['kind']==='new'&&$f['now']==='payload'&&$record&&!($keepMig&&in_array($f['path'],self::migrationFiles(),true)))$act=['rm -f -- '.$q($t)];
             elseif($f['kind']==='modified'&&$f['now']==='absent')echo 'OWNER_INSPECT: '.$t.' IS_MISSING_NOT_REMOVED_BY_B1156_THE_OLD_BYTES_ARE_IN '.($f['backupCopy']??'NO_BACKUP_COPY').' SHA256 '.($f['sha256']??'UNKNOWN').PHP_EOL;
             elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1156'.PHP_EOL;
             if($act===[])continue;
@@ -2201,10 +2230,9 @@ final class CommissionsInstallCoordinator
         $this->cssNotice();
         $this->emit('OWNER_NEXT_STEPS',array_merge([$this->purgeStep(),
             '2_THIS_TOOL_NEVER_LOGS_IN_SO_THE_PAGES_BEHIND_THE_LOGIN_WERE_NOT_SEEN_BY_IT_LOG_IN_OPEN_THE_DASHBOARD_THE_ORDER_LIST_AND_ONE_ORDER_THE_COMMISSIONS_PAGE_AND_THE_BELL_AND_CHECK_THAT_THE_COMMISSIONS_THE_BACKFILL_MOVED_SHOW_AS_FOR_PAYOUT',
-            '3_THE_WEB_WORKERS_THAT_STARTED_BEFORE_THE_MIGRATION_MAY_KEEP_THE_OLD_SCHEMA_ANSWER_UNTIL_THEY_RESTART_IF_THE_NEW_COMMISSION_FUNCTIONS_(REVERSALS_AND_DEBITS)_ARE_MISSING_AFTER_AN_HOUR_ASK_THE_HOSTING_TO_RECYCLE_THE_PHP_WORKERS_OF_THIS_ACCOUNT',
-            '4_IF_ANYTHING_IS_WRONG_RUN_THE_ROLLBACK_COMMAND_BELOW_IT_RESTORES_THE_FILES_AND_KEEPS_THE_TWO_MIGRATION_FILES_THE_DATABASE_IS_NEVER_UNDONE_THE_SHOP_MAY_STAY_ON',
-            '5_THE_SHOP_AND_THE_SMTP_SETTINGS_STAY_AS_YOU_SET_THEM_THIS_TOOL_NEVER_CHANGES_THEM',
-            '6_DO_NOT_RERUN_B1144_TO_B1155_OR_THEIR_ROLLBACK'],isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1156-installer.sh --rollback (THE_SHOP_MAY_STAY_ON)']:['NO_B1156_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
+            '3_IF_ANYTHING_IS_WRONG_RUN_THE_ROLLBACK_COMMAND_BELOW_IT_RESTORES_THE_FILES_AND_KEEPS_THE_TWO_MIGRATION_FILES_THE_DATABASE_IS_NEVER_UNDONE_THE_SHOP_MAY_STAY_ON',
+            '4_THE_SHOP_AND_THE_SMTP_SETTINGS_STAY_AS_YOU_SET_THEM_THIS_TOOL_NEVER_CHANGES_THEM',
+            '5_DO_NOT_RERUN_B1144_TO_B1155_OR_THEIR_ROLLBACK'],isset($this->state['backup']['directory'])?['ROLLBACK_IF_NEEDED=bash /home/icaffeco/ald1n-project/incoming/b1156-installer.sh --rollback (THE_SHOP_MAY_STAY_ON)']:['NO_B1156_BACKUP_IN_THIS_STATE_NO_AUTOMATIC_ROLLBACK']));
         $this->emit('DO_NOT_RERUN_B1144_B1145_B1146_B1147_B1148_B1149_B1150_B1151_B1152_B1153_B1154_OR_B1155_AFTER_B1156','THEIR_MANIFEST_GATES_NOW_SEE_THE_'.count($this->plan).'_B1156_FILES_AND_THEIR_--rollback_WOULD_REFUSE_FOREIGN_BYTES');return 0;
     }
 
@@ -2230,7 +2258,7 @@ final class CommissionsInstallCoordinator
             }
             if($phase==='INSTALLED_PASS')return $this->alreadyInstalled();
             if($phase==='ROLLED_BACK_SCHEMA_AHEAD'){$this->emit('HOLD_SCHEMA_AHEAD_NOTHING_RUNS',['phase'=>$phase,'why'=>'THE_FILES_ARE_THE_B1155_ONES_BUT_THE_DATABASE_HAS_THE_NEW_SCHEMA_AND_THE_TWO_MIGRATION_FILES_STAY','next'=>'ASK_FOR_A_NEW_INSTALLER']);$this->final='HOLD_SCHEMA_AHEAD';return 2;}
-            if(in_array($phase,self::MIGRATING,true))return $this->resumeMigration();
+            if(in_array($phase,self::MIGRATING,true)||(isset($this->state['migrateStartedAt'])&&in_array($phase,['DB_BACKUP_INTENT','DB_BACKUP_VERIFIED'],true)))return $this->resumeMigration();
             if($phase==='ACCEPTANCE_NOT_VERIFIED')return $this->resumeAcceptance();
             if(in_array($phase,self::IN_FLIGHT,true)){
                 $this->emit('RESUMED_INTERRUPTED_INSTALL',['phase'=>$phase]);$this->state['chain']??=$this->chain();
@@ -2257,13 +2285,14 @@ final class CommissionsInstallCoordinator
     private function acceptanceFailed(Throwable $e):int
     {
         $code=self::code($e);$this->emit('INSTALL_OR_ACCEPTANCE_FAILED',$code);
-        if(in_array($code,self::UNVERIFIED_CODES,true)&&($this->state['phase']??'')==='ACCEPTANCE_INTENT'){
+        if(in_array($code,self::UNVERIFIED_CODES,true)&&(($this->state['phase']??'')==='ACCEPTANCE_INTENT'||($code==='BACKFILL_RESULT_NOT_THE_EXPECTED_SET'&&($this->state['phase']??'')==='MIGRATE_INTENT'))){
             try{$exact=$this->targets()['installed']===true;}catch(Throwable){$exact=false;}
             if($exact)try{$this->unthrottledChecks('ACTIVE_TREE_INSTALLED_UNVERIFIED');}catch(Throwable $f){$exact=false;$code=self::code($f);$this->emit('UNTHROTTLED_CHECK_FAILED',$code);}
             if($exact){
                 $this->state['unverifiedReason']=$code;$this->save('ACCEPTANCE_NOT_VERIFIED');$this->final='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED';
                 $this->emit('HOLD_INSTALLED_NOT_VERIFIED',['reason'=>$code,'files'=>'ALL_'.count($this->plan).'_HOLD_EXACTLY_THE_PAYLOAD','rollback'=>'NOT_STARTED_THE_FILES_ARE_CORRECT','shopSwitch'=>'NOT_WRITTEN']);
                 $first=match($code){'SMOKES_RATE_LIMITED_429'=>'1_THE_SITE_ANSWERED_429_TO_THE_CHECKS_WAIT_A_FEW_MINUTES_(LOW_TRAFFIC)',
+                    'BACKFILL_RESULT_NOT_THE_EXPECTED_SET'=>'1_THE_MIGRATION_RAN_AND_ALL_FILES_ARE_IN_PLACE_BUT_THE_BACKFILL_EVIDENCE_DID_NOT_MATCH_(SEE_BACKFILL_CENSUS)_THE_FILES_ARE_KEPT_REVIEW_THE_COMMISSIONS_PAGE_NOTHING_WAS_UNDONE',
                     'NOINDEX_POLICY_HEADER_MISSING_ON_PUBLIC_PAGES'=>'1_PUBLIC_PAGES_ARE_SERVED_WITHOUT_X-ROBOTS-TAG_NOINDEX_RESTORE_THE_HEADER_LINE_IN_apps/cms/current/public/.htaccess_OR_THE_CLOUDFLARE_RULE_THAT_REMOVES_IT_(THE_OWNER_POLICY_IS_NO_INDEXING)',
                     'VARY_COOKIE_NOT_VERIFIABLE_EDGE_HIDES_IT_AND_NO_ORIGIN_ROUTE'=>'1_THE_EDGE_HIDES_THE_VARY_HEADER_OF_/katalog_AND_THE_ORIGIN_COULD_NOT_BE_ASKED_DIRECTLY_CHECK_THAT_CLOUDFLARE_DOES_NOT_CACHE_HTML_(CACHE_LEVEL_STANDARD_NO_CACHE_EVERYTHING_RULE)',
                     default=>'1_THE_SHOP_STATE_CHANGED_DURING_THE_CHECKS_TURN_THE_SHOP_ON_AGAIN_IN_THE_ADMIN'};

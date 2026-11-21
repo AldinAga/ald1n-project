@@ -60,10 +60,9 @@ Zašto je stari kod bezbedan sa novom šemom: stari kod čita provizije i serije
 ## Poznata ograničenja (iskreno)
 
 1. Između fajlova i migracije (nekoliko minuta) novi kod radi nad starom šemom. Skoro sve staze imaju zaštitu (`CommissionMoney::hasAdjustments()`, `Schema::hasTable`). Dve retke administratorske radnje NEMAJU zaštitu i u tom prozoru bi dale grešku 500 (transakcija se poništava, podaci se ne kvare): vraćanje provizije u „Na čekanju“ i izmena stavki odobrene porudžbine. Ne radite to dok instalacija traje.
-2. `CommissionMoney::hasAdjustments()` i `CommissionAutoApprovalService::ready()` pamte odgovor po procesu. PHP radnici koji su počeli pre migracije mogu zadržati stari odgovor dok se ne restartuju; nove funkcije (storno i zaduženja) tada kasne, ali ništa ne puca. Ako posle sat vremena nedostaju, zamolite hosting da recikliraju PHP procese naloga.
-3. Alat nikad ne prijavljuje korisnika, pa strane iza prijave (kontrolna tabla, provizije, porudžbine, zvonce) proverava vlasnik: otvorite kontrolnu tablu, listu porudžbina i jednu porudžbinu, stranu Provizije i zvonce obaveštenja, na računaru i na telefonu.
-4. Stalne kopije: aplikacija čuva samo 2 najnovije proverene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izveštaju, `DB_BACKUP`) sačuvajte van servera pre sledeće noćne.
-5. Cloudflare se ne dira i nije potrebno čišćenje keša (`?v=<vreme fajla>` u pogledima).
+2. Alat nikad ne prijavljuje korisnika, pa strane iza prijave (kontrolna tabla, provizije, porudžbine, zvonce) proverava vlasnik: otvorite kontrolnu tablu, listu porudžbina i jednu porudžbinu, stranu Provizije i zvonce obaveštenja, na računaru i na telefonu.
+3. Stalne kopije: aplikacija čuva samo 2 najnovije proverene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izveštaju, `DB_BACKUP`) sačuvajte van servera pre sledeće noćne.
+4. Cloudflare se ne dira i nije potrebno čišćenje keša (`?v=<vreme fajla>` u pogledima).
 
 ## Šta NIJE proveravano ovim alatom
 

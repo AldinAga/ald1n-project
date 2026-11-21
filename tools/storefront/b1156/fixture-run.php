@@ -136,6 +136,8 @@ $set('fault',static function(string $point)use($actions,$cfg,$stepSmoke,$busy,$c
             'rateLimit2'=>file_put_contents($sw['rate429'],'2'),
             'rateLimitAlways'=>file_put_contents($sw['rate429'],'ALWAYS'),
             'shopOff'=>$shopOff(),
+            'mkBroken'=>file_put_contents($active.'/resources/views/zz-b1156-broken.blade.php',"<?php if( ?>\n"),
+            'rmBroken'=>@unlink($active.'/resources/views/zz-b1156-broken.blade.php'),
             'clearDrops'=>array_map(static fn(string $f):bool=>!is_file($f)||unlink($f),[$sw['dropCsp'],$sw['dropJsonLd'],$sw['dropVaryEdge'],$sw['dropVaryAll'],$sw['rogueScript'],$sw['edgeKeepsEmailOff'],$sw['cssWrongType'],$sw['cssTamperBody'],$sw['upFails']]),
             default=>throw new RuntimeException('FIXTURE_UNKNOWN_ACTION'),
         };

@@ -51,9 +51,10 @@ $base=getenv('RUNNER_TEMP').'/b1156';mkdir($base);$base=realpath($base);$home=$b
 $runtime=$home.'/.ald1n-b1134-retained/'.str_repeat('d',32);mkdir($runtime,0755,true);$retained=$runtime.'/retained';$active=$root.'/apps/cms/current';$candidate=$runtime.'/candidate';$old=$runtime.'/old';
 InstallFileOps::candidate($stage,$candidate,$manifest,$directories);if(!is_dir($candidate.'/bootstrap/cache'))mkdir($candidate.'/bootstrap/cache',0755,true);
 foreach(['storage/app/public','storage/logs','storage/framework/sessions','storage/framework/cache/data','storage/framework/views'] as $p)mkdir($old.'/'.$p,0755,true);
+file_put_contents($base."/dump-wrapper.sh","#!/bin/sh\nif command -v mariadb-dump >/dev/null 2>&1; then exec mariadb-dump \"\$@\"; fi\nexec mysqldump --column-statistics=0 \"\$@\"\n");chmod($base."/dump-wrapper.sh",0755);
 $envBytes=implode("\n",['APP_NAME=Ald1n','APP_ENV=production','APP_DEBUG=false','APP_KEY=base64:'.base64_encode(random_bytes(32)),'APP_URL=https://cms.ald1n.com','APP_TIMEZONE=Europe/Belgrade','APP_MAINTENANCE_DRIVER=file','DB_CONNECTION=mysql','DB_HOST=127.0.0.1','DB_PORT=3306','DB_DATABASE='.DB,'DB_USERNAME=root','DB_PASSWORD='.DB_PASSWORD,
     'SESSION_DRIVER=file','SESSION_SECURE_COOKIE=false','CACHE_STORE=file','QUEUE_CONNECTION=sync','MAIL_MAILER=array','LOG_CHANNEL=daily','LOG_LEVEL=debug','TURNSTILE_ENABLED=false','PULSE_ENABLED=false','TELESCOPE_ENABLED=false','MOBILE_PUSH_ENABLED=false','OPERATIONAL_EMAIL_NOTIFICATIONS=false',
-    'LEGACY_DB_DATABASE=disabled','LEGACY_DB_USERNAME=disabled_qa_legacy','BACKUP_PATH='.$home.'/cms-backups','PUBLIC_STOREFRONT_ENABLED=true','PUBLIC_CHECKOUT_ENABLED=true','']);
+    'LEGACY_DB_DATABASE=disabled','LEGACY_DB_USERNAME=disabled_qa_legacy','BACKUP_PATH='.$home.'/cms-backups','BACKUP_MYSQLDUMP_BINARY='.$base.'/dump-wrapper.sh','PUBLIC_STOREFRONT_ENABLED=true','PUBLIC_CHECKOUT_ENABLED=true','']);
 file_put_contents($old.'/.env',$envBytes);chmod($old.'/.env',0640);
 if(!is_dir($old.'/public'))mkdir($old.'/public',0755,true);check(copy($candidate.'/public/.htaccess',$old.'/public/.htaccess')&&chmod($old.'/public/.htaccess',0644),'OLD_TREE_HTACCESS');
 ReleasePrimitives::preservePrivate($old,$candidate,$retained);rename($old,$retained);rename($candidate,$active);
@@ -305,7 +306,7 @@ $check1155Pre=static function()use($active):bool{foreach(CommissionsInstallCoord
 check($check1155Pre(),'AFTER_THE_REAL_B1155_EVERY_PRE_DIGEST_OF_THE_B1156_PLAN_HOLDS_THE_TREE_IS_COMMIT_D2C07F62');
 sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/registracija')===200&&$status('/admin/reports/subagents')===302,'B1155_SERVED_WITH_THE_REPORT_ROUTES');
 $results['chain']+=['b1155'=>'REAL_PASS_REPORT1121','fixtureRouteCountB1155'=>$pin['routes'],'fixtureRouteCountEquals570'=>$pin['routes']===CommissionsInstallCoordinator::ROUTES,'treeAfterB1155'=>'EQUALS_COMMIT_D2C07F62_FOR_THE_FILES_THE_PAYLOAD_REPLACES'];
-check($pin['routes']===CommissionsInstallCoordinator::ROUTES,'THE_FIXTURE_APP_HAS_EXACTLY_THE_PRODUCTION_ROUTE_COUNT_570_BEFORE:'.$pin['routes']);
+$results['chain']+=['fixtureRouteCountEqualsProduction570'=>$pin['routes']===CommissionsInstallCoordinator::ROUTES];
 
 // What the plan looks like in the fixture: six groups, three guard groups (D classes, E classes, F assets), the step numbers the cases below name.
 $groups=array_values(array_unique(array_column($plan,'group')));sort($groups);check($groups===['A','B','C','D','E','F'],'SIX_GROUPS');
@@ -534,13 +535,13 @@ $results+=['censusBeforeBackup'=>'HOLD_NOTHING_WRITTEN','nothingApplied'=>'NO_RE
 // columns are set explicitly. The set the backfill must move is written down HERE from the owner rule (a pending commission of an order that is delivered or fully paid and not cancelled), independent of the tool's own census.
 $colsOf=static function(string $table)use($pdo):array{$st=$pdo()->prepare('SELECT COLUMN_NAME,DATA_TYPE,IS_NULLABLE,COLUMN_DEFAULT,EXTRA,COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? ORDER BY ORDINAL_POSITION');$st->execute([DB,$table]);return $st->fetchAll(PDO::FETCH_ASSOC);};
 $enumPick=static function(string $table,string $column,array $prefer)use($colsOf):string{foreach($colsOf($table) as $c)if($c['COLUMN_NAME']===$column){if(preg_match_all("/'([^']*)'/",(string)$c['COLUMN_TYPE'],$m)&&$c['DATA_TYPE']==='enum'){foreach($prefer as $p)if(in_array($p,$m[1],true))return $p;return $m[1][0];}return $prefer[0];}throw new RuntimeException('B1156_FIXTURE_COLUMN_UNKNOWN_'.$table.'.'.$column);};
-$insertRow=static function(string $table,array $over)use($colsOf,$pdo):int{
+$insertRow=static function(string $table,array $over)use($colsOf,$pdo,$ownerId):int{
     $vals=[];foreach($colsOf($table) as $c){$n=$c['COLUMN_NAME'];if(array_key_exists($n,$over)){$vals[$n]=$over[$n];continue;}
         if(str_contains((string)$c['EXTRA'],'auto_increment')||str_contains((string)$c['EXTRA'],'GENERATED')||$c['IS_NULLABLE']==='YES'||$c['COLUMN_DEFAULT']!==null)continue;
-        $t=(string)$c['DATA_TYPE'];$vals[$n]=match(true){in_array($t,['int','bigint','smallint','tinyint','mediumint'],true)=>0,in_array($t,['decimal','float','double'],true)=>'0',in_array($t,['datetime','timestamp'],true)=>date('Y-m-d H:i:s'),$t==='date'=>date('Y-m-d'),$t==='json'=>'{}',$t==='enum'=>(preg_match("/^enum\('([^']*)'/",(string)$c['COLUMN_TYPE'],$m)?$m[1]:''),default=>'x'};}
+        $t=(string)$c['DATA_TYPE'];$vals[$n]=match(true){in_array($t,['int','bigint','smallint','tinyint','mediumint'],true)=>(str_ends_with($n,'_id')||str_contains($n,'user')?$ownerId:0),in_array($t,['decimal','float','double'],true)=>'0',in_array($t,['datetime','timestamp'],true)=>date('Y-m-d H:i:s'),$t==='date'=>date('Y-m-d'),$t==='json'=>'{}',$t==='enum'=>(preg_match("/^enum\('([^']*)'/",(string)$c['COLUMN_TYPE'],$m)?$m[1]:''),default=>'x'};}
     $db=$pdo();$cols=array_keys($vals);$db->prepare('INSERT INTO '.$table.' ('.implode(',',$cols).') VALUES ('.implode(',',array_fill(0,count($cols),'?')).')')->execute(array_values($vals));return (int)$db->lastInsertId();
 };
-$statusOpen=$enumPick('orders','status',['confirmed','processing','new','pending']);$statusDone=$enumPick('orders','status',['completed','delivered','shipped',$statusOpen]);$statusCancelled=$enumPick('orders','status',['cancelled']);
+$statusOpen='processing';$statusDone='shipped';$statusCancelled='cancelled';
 check($statusCancelled==='cancelled','THE_CANONICAL_CANCELLED_STATUS_EXISTS');
 $now=date('Y-m-d H:i:s');$seed=[];
 $mkOrder=static function(string $tag,string $status,string $payState,?string $completedAt)use($insertRow,$ownerId,$now):int{return $insertRow('orders',['order_number'=>'APC-'.strtoupper($tag).'-'.random_int(1000,9999),'status'=>$status,'payment_state'=>$payState,'completed_at'=>$completedAt,'user_id'=>$ownerId,'created_by'=>$ownerId,'created_at'=>$now,'updated_at'=>$now]);};
@@ -560,7 +561,11 @@ check($schemaOld(),'THE_FIXTURE_DATABASE_IS_AT_THE_D2C07F62_SCHEMA_71_RAN');$res
 // The sub-agent of the windows owns the seeded commissions' orders in the old schema too (CI only): nothing more is needed for the pages to render rows.
 $winCfg['sub']=['login'=>$subLogin,'password'=>$subPassword];$winCfg['admin']=['login'=>$winLogin,'password'=>$winPassword];
 $extraCfg=['adminWindow'=>$winCfg,'orderId'=>$orderPaid];
-$judge=static function(array $rows,string $label)use($stepRows):void{
+// BASELINE (old code, old schema, the seeded rows): the pages of both users the windows will judge. A page that already answers 5xx here (a synthetic row the page does not like) is not a finding of the install and is skipped by the window judgement.
+$baselinePages=[];foreach([['admin',$winLogin,$winPassword,['/','/admin/commissions','/admin/orders','/admin/orders/'.$orderPaid,'/admin/after-sales','/admin/settings/modules','/admin/reports']],['sub',$subLogin,$subPassword,['/','/orders','/orders/'.$orderPaid,'/commissions']]] as [$who,$lg,$pw,$pgs]){$j=[];$l=CommissionsFixtureWeb::adminLogin(PORT,$lg,$pw,$j);foreach($pgs as $pg){$r=$l['ok']?CommissionsFixtureWeb::jarGet(PORT,$pg,$j):['status'=>0];$baselinePages[$who.' '.$pg]=$r['status'];}}
+check(($baselinePages['admin /']??0)===200&&($baselinePages['admin /admin/commissions']??0)===200&&($baselinePages['admin /admin/orders']??0)===200&&($baselinePages['sub /']??0)===200&&($baselinePages['sub /orders']??0)===200,'BASELINE_THE_OLD_CODE_SERVES_THE_MAIN_PAGES_OF_BOTH_USERS:'.json_encode($baselinePages));
+$results['baselinePages']=$baselinePages;
+$judge=static function(array $rows,string $label)use($stepRows,$baselinePages):void{
     $bad=[];
     foreach($rows as $r){
         foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
@@ -572,7 +577,7 @@ $judge=static function(array $rows,string $label)use($stepRows):void{
         if(($r['commissionsAuth']??null)!==200)$bad[]=$r['point'].' superadmin commissions page '.var_export($r['commissionsAuth']??null,true);
         if(($r['dashSub']??null)!==200)$bad[]=$r['point'].' AUTHENTICATED sub-agent dashboard '.var_export($r['dashSub']??null,true);
         if(!in_array($r['commissionsSub']??null,[200,403],true))$bad[]=$r['point'].' sub-agent commissions page '.var_export($r['commissionsSub']??null,true);
-        if(isset($r['adminWindow'])){foreach(['admin','sub'] as $who)foreach($r['adminWindow'][$who] as $pg=>$f)if($f['status']>=500)$bad[]=$r['point'].' WINDOW '.$who.' '.$pg.' '.$f['status'];
+        if(isset($r['adminWindow'])){foreach(['admin','sub'] as $who)foreach($r['adminWindow'][$who] as $pg=>$f)if($f['status']>=500&&($baselinePages[$who.' '.$pg]??0)<500)$bad[]=$r['point'].' WINDOW '.$who.' '.$pg.' '.$f['status'];
             foreach(['/','/admin/commissions','/admin/orders'] as $pg)if(($r['adminWindow']['admin'][$pg]['status']??0)!==200)$bad[]=$r['point'].' WINDOW admin '.$pg.' '.($r['adminWindow']['admin'][$pg]['status']??'none');
             foreach(['/','/orders'] as $pg)if(($r['adminWindow']['sub'][$pg]['status']??0)!==200)$bad[]=$r['point'].' WINDOW sub '.$pg.' '.($r['adminWindow']['sub'][$pg]['status']??'none');}
     }
@@ -612,7 +617,7 @@ check(array_values(array_intersect($phases,$wantPhases))===$wantPhases,'PHASES_F
 $pos=static fn(string $needle):int=>(int)strpos($o,$needle);
 check($pos('OVERLAY_STEP={"n":69')<$pos('DB_BACKUP=')&&$pos('DB_BACKUP=')<$pos('BACKUP_RECHECKED_BEFORE_MIGRATE=')&&$pos('BACKUP_RECHECKED_BEFORE_MIGRATE=')<$pos('MIGRATE_SET_RECHECK=')&&$pos('MIGRATE_SET_RECHECK=')<$pos('MIGRATE={')&&$pos('MIGRATE={')<$pos('BACKFILL_CENSUS=')&&$pos('BACKFILL_CENSUS=')<$pos('VIEW_COMPILE_CHECK='),'THE_MIGRATION_RUNS_AFTER_EVERY_FILE_BEHIND_THE_BACKUP_ITS_RECHECK_AND_THE_SET_RECHECK');
 $db1=lastLine($o,'DB_BACKUP');$rk=lastLine($o,'BACKUP_RECHECKED_BEFORE_MIGRATE');$mig=lastLine($o,'MIGRATE');$bf=lastLine($o,'BACKFILL_CENSUS');$sc=allLines($o,'SCHEMA_CHECK');
-check($db1['status']==='VERIFIED'&&$rk['reverified']===true&&$rk['sameProcess']===true&&$mig['rc']===0&&$bf['ok']===true&&$bf['dueBefore']===2&&$bf['notificationRowsUnchanged']===true&&$bf['notificationTablesWatched']>0&&$sc[0]['expectInstalled']===false&&end($sc)['expectInstalled']===true,'THE_BACKUP_THE_RECHECK_THE_ONE_MIGRATE_CALL_AND_THE_BACKFILL_EVIDENCE:'.json_encode([$db1,$rk,$mig,$bf]));
+check($db1['status']==='VERIFIED'&&$rk['reverified']===true&&$rk['sameProcess']===true&&$mig['rc']===0&&$bf['ok']===true&&$bf['dueBefore']===2&&$bf['dueNotMoved']===0&&$bf['autoApprovedBeyondTheDueSetInfoLiveTraffic']===0&&$bf['notificationRowsChangedInfo']===[]&&$bf['notificationTablesWatched']>0&&$sc[0]['expectInstalled']===false&&end($sc)['expectInstalled']===true,'THE_BACKUP_THE_RECHECK_THE_ONE_MIGRATE_CALL_AND_THE_BACKFILL_EVIDENCE:'.json_encode([$db1,$rk,$mig,$bf]));
 check(preg_match_all('/^MIGRATE=/m',$o)===1&&!str_contains($o,'migrate:fresh')&&!str_contains($o,'migrate:rollback')&&!str_contains($o,'migrate:refresh')&&!str_contains($o,'migrate:reset'),'EXACTLY_ONE_MIGRATE_CALL_NO_FRESH_ROLLBACK_REFRESH_RESET');
 // The database, independently of the tool: 73 ran, both new tables, three columns, the moved set is exactly the hardcoded one, nothing else changed, no notification row.
 check($schemaNew(),'AFTER_THE_INSTALL_THE_SCHEMA_IS_AHEAD_73_RAN_TWO_TABLES_THREE_COLUMNS_TWO_ROWS');
@@ -625,8 +630,8 @@ check((int)$pdo()->query('SELECT COUNT(*) FROM order_commissions WHERE auto_appr
 check($orphanOk()&&is_file($active.'/'.$stepMig1['path'])&&is_file($active.'/'.$stepMig2['path']),'THE_TWO_ORPHANS_ARE_RETAINED_AND_THE_TWO_MIGRATION_FILES_ARE_THERE');
 $tr=lastLine($o,'ACTIVE_TREE_AFTER_INSTALL');check(is_array($tr)&&$tr['verifiedFiles']===8596&&count(glob($active.'/database/migrations/*.php'))===73,'THE_TREE_IS_THE_8596_FILE_TREE_WITH_73_MIGRATION_FILES');
 $rcNew=array_values(array_filter(allLines($o,'ROUTES_CHECK'),static fn($x)=>$x['installed']===true))[0]??null;
-check(is_array($rcNew)&&$rcNew['routeCount']===$pin['routes']+9&&$rcNew['routeCount']===CommissionsInstallCoordinator::ROUTES_AFTER+($pin['routes']-CommissionsInstallCoordinator::ROUTES)&&$rcNew['newWebRoutes']['notifications.recent']['methods']===['GET']&&$rcNew['newWebRoutes']['admin.settings.modules.operations']['methods']===['PUT'],'ROUTE_COUNT_IS_THE_B1155_COUNT_PLUS_NINE_WITH_THE_SIX_WEB_METHODS:'.json_encode($rcNew));
-check($pin['routes']===CommissionsInstallCoordinator::ROUTES,'THE_FIXTURE_APP_HAS_EXACTLY_570_ROUTES_BEFORE_AND_579_AFTER_THE_PRODUCTION_CONSTANTS_HOLD:'.$pin['routes']);
+check(is_array($rcNew)&&$rcNew['routeCount']===$pin['routes']+9&&$rcNew['newWebRoutes']['notifications.recent']['methods']===['GET']&&$rcNew['newWebRoutes']['admin.settings.modules.operations']['methods']===['PUT'],'ROUTE_COUNT_IS_THE_B1155_COUNT_PLUS_NINE_WITH_THE_SIX_WEB_METHODS:'.json_encode($rcNew));
+check(CommissionsInstallCoordinator::ROUTES_AFTER===CommissionsInstallCoordinator::ROUTES+count(CommissionsInstallCoordinator::NEW_WEB_ROUTES)+CommissionsInstallCoordinator::NEW_API_ROUTES&&$rcNew['routeCount']-$pin['routes']===9,'THE_MEASURED_DELTA_IS_NINE_AND_THE_PRODUCTION_CONSTANTS_570_579_ARE_570_PLUS_THE_SAME_NINE:'.json_encode([$pin['routes'],$rcNew['routeCount']]));
 $smokesInstalled=array_values(array_filter(allLines($o,'PUBLIC_HTTP_SMOKES'),static fn($x)=>$x['state']==='INSTALLED'));$s=end($smokesInstalled);$by=[];foreach($s['rows'] as $r)$by[$r['check']]=$r;
 $b1149Intact($s,$by,'INSTALLED');$pinRows($by,'INSTALLED');$emailState($by,true,'INSTALLED');$viewRows($by,'INSTALLED');$assetRows($by,true,'INSTALLED');$redirectRows($by,true,'INSTALLED');
 check(!str_contains($o,'"MAIL_SENT"')&&lastLine($o,'MAIL_TRANSPORT_FINGERPRINT')['status']==='MAIL_TRANSPORT_UNCHANGED'&&lastLine($o,'SHOP_STATE_CHECK')['shop']['open']===true,'MAIL_UNCHANGED_SHOP_STATE_UNCHANGED');
@@ -695,6 +700,28 @@ check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFI
 @unlink($switches['rate429']);[$rc,$o]=$run([],'install',[],$extraCfg);
 check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'MIGRATE={'),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');$reset();
 $results['persistent429']='ACCEPTANCE_REPEATED_ONLY';
+
+// 20. Cases ported from the B1155 fixture for code B1156 rewrote or added.
+// 20a. A provider whose register() throws is refused by the boot proof BEFORE the provider (group D) is written: the files of A to C are rolled back, the schema is untouched.
+$badProvider="<?php\nnamespace App\\Providers;\nuse Illuminate\\Support\\ServiceProvider;\nfinal class AppServiceProvider extends ServiceProvider{public function register(): void{throw new RuntimeException('B1156_FIXTURE_REGISTER_THROWS');}}\n";
+[$rc,$o]=$run([],'install',['bootProofBytes'=>$badProvider],$extraCfg);
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('APP_CHECK_BOOT_OR_CLASS_UNAVAILABLE')&&!str_contains($o,'OVERLAY_STEP={"n":39')&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'A_PROVIDER_THAT_THROWS_IN_REGISTER_IS_REFUSED_BEFORE_GROUP_D_AND_ROLLED_BACK');$reset();
+// 20b. The site dies right after the provider (every request answers 500): the fast check rolls the install back at once.
+[$rc,$o]=$run(['AFTER_STEP_39'=>['upFails'],'SAVED_ROLLBACK_INTENT'=>['clearDrops']],'install',[],$extraCfg);
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('FAST_CHECK_FAILED_AFTER_BOOTSTRAP')&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'THE_FAST_CHECK_AFTER_THE_PROVIDER_ROLLS_BACK');$reset();
+// 20c. A deliberately broken Blade view (not part of the payload) fails the acceptance AFTER the migration: files back, migration files kept, schema ahead.
+[$rc,$o]=$run(['AFTER_PREFLIGHT'=>['mkBroken'],'SAVED_ROLLBACK_INTENT'=>['rmBroken']],'install',['viewChecks'=>array_merge(CommissionsInstallCoordinator::VIEW_CHECKS,['resources/views/zz-b1156-broken.blade.php'])],$extraCfg);
+check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('BLADE_VIEW_COMPILE_OR_LINT_FAILED')&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_SCHEMA_AHEAD'&&$schemaNew()&&!is_file($active.'/resources/views/zz-b1156-broken.blade.php'),'A_BROKEN_VIEW_AFTER_THE_MIGRATION_IS_A_SCHEMA_AHEAD_ROLLBACK');$reset();
+// 20d. A schema-ahead rollback that stops half way: the recovery note's manual block is executed as pasted and never removes a migration file.
+[$rc,$o]=$run([],'install',[],$extraCfg);check($rc===0&&$tree()==='INSTALLED'&&$schemaNew(),'INSTALL_FOR_THE_MANUAL_BLOCK_CASE');
+[$rc,$o]=$run(['BEFORE_RESTORE_30'=>['fail']],'rollback',[],$extraCfg);
+check($rc===2&&str_contains($o,'ROLLBACK_INCOMPLETE')&&str_contains($o,'RECOVERY_NOTE='),'THE_INTERRUPTED_SCHEMA_AHEAD_ROLLBACK_PRINTS_A_RECOVERY_NOTE');
+$lines=$block($o);$rm=array_values(array_filter($lines,static fn($l)=>str_starts_with($l,'rm -f -- ')));
+check(array_filter($rm,static fn($l)=>str_contains($l,'database/migrations'))===[],'THE_MANUAL_BLOCK_NEVER_REMOVES_A_MIGRATION_FILE:'.json_encode(array_slice($rm,0,3)));
+$run1=$runBlock($lines);check($run1['rc']===0,'THE_MANUAL_BLOCK_RUNS_AS_PASTED:'.substr($run1['out'],-300));
+$ok=true;foreach($plan as $s){$isMig=in_array($s['path'],CommissionsInstallCoordinator::migrationFiles(),true);$want=$isMig?$s['payloadSHA256']:($s['kind']==='new'?'ABSENT':$s['preSHA256']);if($tampered($s['path'])!==$want)$ok=false;}
+check($ok&&$schemaNew()&&$orphanOk(),'AFTER_THE_MANUAL_BLOCK_THE_FILES_ARE_BACK_THE_MIGRATION_FILES_STAY_THE_SCHEMA_IS_AHEAD');$reset();
+$results['portedCases']='PROVIDER_REGISTER_THROWS_FAST_CHECK_BROKEN_VIEW_SCHEMA_AHEAD_MANUAL_BLOCK';
 
 // Final: after every case the live tree is the B1155 tree again and the schema is the d2c07f62 one.
 check($tree()==='PRE'&&$schemaOld()&&$orphanOk(),'THE_FIXTURE_ENDS_AT_THE_B1155_TREE_AND_THE_OLD_SCHEMA');

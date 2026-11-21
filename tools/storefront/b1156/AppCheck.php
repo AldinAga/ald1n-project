@@ -119,10 +119,10 @@ try{
         $DB=Illuminate\Support\Facades\DB::class;$S=Illuminate\Support\Facades\Schema::class;
         $by=[];foreach($DB::table('order_commissions')->selectRaw('status, COUNT(*) AS c')->groupBy('status')->get() as $r)$by[(string)$r->status]=(int)$r->c;
         $due=$DB::table('order_commissions as oc')->join('orders as o','o.id','=','oc.order_id')->where('oc.status','pending')->where('o.status','!=','cancelled')->where(static function($q):void{$q->whereNotNull('o.completed_at')->orWhereIn('o.payment_state',['paid','overpaid']);})->orderBy('oc.id')->pluck('oc.id')->map(static fn($x)=>(int)$x)->all();
-        $auto=['autoApprovedCount'=>null,'autoApprovedSha256'=>null,'autoApprovedWithApprover'=>null];
-        if($S::hasColumn('order_commissions','auto_approved_at')){$ids=$DB::table('order_commissions')->whereNotNull('auto_approved_at')->orderBy('id')->pluck('id')->map(static fn($x)=>(int)$x)->all();$auto=['autoApprovedCount'=>count($ids),'autoApprovedSha256'=>hash('sha256',implode(',',$ids)),'autoApprovedWithApprover'=>(int)$DB::table('order_commissions')->whereNotNull('auto_approved_at')->whereNotNull('approved_by')->count()];}
+        $auto=['autoApprovedCount'=>null,'autoApprovedSha256'=>null,'autoApprovedWithApprover'=>null,'autoApprovedIds'=>[]];
+        if($S::hasColumn('order_commissions','auto_approved_at')){$ids=$DB::table('order_commissions')->whereNotNull('auto_approved_at')->orderBy('id')->pluck('id')->map(static fn($x)=>(int)$x)->all();$auto=['autoApprovedCount'=>count($ids),'autoApprovedSha256'=>hash('sha256',implode(',',$ids)),'autoApprovedWithApprover'=>(int)$DB::table('order_commissions')->whereNotNull('auto_approved_at')->whereNotNull('approved_by')->count(),'autoApprovedIds'=>$ids];}
         $notif=[];foreach($DB::select('SHOW TABLES') as $row){$name=(string)array_values((array)$row)[0];if(preg_match('/notif|outbox|mail|push|jobs$|job_batches/i',$name)===1)$notif[$name]=(int)$DB::table($name)->count();}ksort($notif);
-        echo json_encode(['ok'=>true,'byStatus'=>$by,'dueCount'=>count($due),'dueSha256'=>hash('sha256',implode(',',$due)),'dueIdsSample'=>array_slice($due,0,10)]+$auto+['notificationRows'=>$notif,'statusHistoryRows'=>(int)$DB::table('commission_status_history')->count()],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+        echo json_encode(['ok'=>true,'byStatus'=>$by,'dueCount'=>count($due),'dueSha256'=>hash('sha256',implode(',',$due)),'dueIds'=>$due]+$auto+['notificationRows'=>$notif,'statusHistoryRows'=>(int)$DB::table('commission_status_history')->count()],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
     }
     if($mode==='media-sample'){
         // The first product image that has a file, as the ProductImage accessor builds its URL (the call every admin page and the app make),
