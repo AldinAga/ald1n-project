@@ -86,8 +86,14 @@ final class OrderController extends Controller
 
     public function cancel(Request $request, Order $order, OrderWorkflowService $workflow): OrderResource
     {
-        $validated = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
-        return new OrderResource($workflow->cancelOwn($order, $request->user(), $validated['note'] ?? null));
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+        // Razlog je obavezan (servis vraća 422 sa greškom "reason"); stara aplikacija šalje "note", što se i dalje prihvata.
+        $reason = trim((string) ($validated['reason'] ?? $validated['note'] ?? ''));
+
+        return new OrderResource($workflow->cancelOwn($order, $request->user(), $reason !== '' ? $reason : null));
     }
 
     public function postCreate(Request $request, Order $order): JsonResponse

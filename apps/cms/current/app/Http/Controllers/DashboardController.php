@@ -365,7 +365,7 @@ final class DashboardController extends Controller
                     'other_products' => $summary['other_products'],
                     'number' => $order->order_number,
                     'status' => $displayStatus,
-                    'status_label' => ['new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata','completed'=>'Isporučena','cancelled'=>'Otkazana'][$displayStatus] ?? $displayStatus,
+                    'status_label' => \App\Support\OrderStatus::label((string) $displayStatus),
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'remaining_rsd' => max(0, (float) $order->subtotal_rsd - (float) $order->paid_total_rsd),
                     // EUR line: the rate stored on the order itself, never today's rate; null when the order has none.

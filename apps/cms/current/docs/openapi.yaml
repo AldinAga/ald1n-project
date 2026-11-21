@@ -1305,7 +1305,8 @@ paths:
             schema:
               type: object
               properties:
-                note: { type: [string, 'null'], maxLength: 1000 }
+                reason: { type: string, maxLength: 1000, description: 'Razlog otkazivanja je obavezan (stari klijenti mogu da ga pošalju kao note).' }
+                note: { type: [string, 'null'], maxLength: 1000, description: 'Zastarelo; isto što i reason.' }
       responses:
         '200': { description: Porudžbina je otkazana }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -2637,7 +2638,7 @@ paths:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     patch:
-      summary: Change order status without bypassing shipment workflow
+      summary: Confirm (status=confirmed, which also takes the order over for the caller) or cancel (status=cancelled, reason required) an order
       operationId: adminOrdersStatus
       security:
         - bearerAuth: []
@@ -2649,25 +2650,26 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [new, processing, confirmed, cancelled] }
+                status: { type: string, enum: [new, processing, confirmed, shipped, cancelled], description: 'Samo confirmed i cancelled su prihvaćeni; processing, new i shipped vraćaju 422 sa jasnom porukom.' }
                 note: { type: string, nullable: true, maxLength: 1000 }
+                reason: { type: string, nullable: true, maxLength: 1000, description: 'Obavezan za cancelled (ili note).' }
+                order_version_token: { type: string, minLength: 64, maxLength: 64, description: 'Obavezan za confirmed.' }
       responses:
         '200': { description: Status changed through OrderWorkflowService. }
         '403': { description: orders.manage permission and managed scope required. }
-        '422': { description: Invalid or disallowed transition. }
+        '422': { description: Invalid or disallowed transition, missing cancellation reason. }
         '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/accept:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     post:
-      summary: Accept order for processing
+      summary: Removed step "Preuzmi" (kept so older clients fail soft)
       operationId: adminOrdersAccept
       security:
         - bearerAuth: []
       responses:
-        '200': { description: Order accepted through OrderOperationalService. }
         '403': { description: orders.manage permission and managed scope required. }
-        '422': { description: Order cannot be accepted in its current state. }
+        '422': { description: 'Uvek 422 sa code order_accept_removed: potvrda porudžbine je ujedno preuzima.' }
         '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/internal-notes:
     parameters:

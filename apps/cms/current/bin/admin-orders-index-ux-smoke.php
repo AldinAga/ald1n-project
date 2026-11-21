@@ -30,8 +30,7 @@ foreach ($filters as $name) {
 }
 $actions = [
     "route('admin.orders.show', \$order)",
-    "route('admin.orders.accept', \$order)",
-    "route('admin.orders.status', \$order)",
+    '#order-confirm',
     '#delivery-completion',
 ];
 $checkActions = true;
@@ -56,7 +55,7 @@ $checks = [
         => $checkFilters && str_contains($blade, '<form class="a1-filters a1-ol-filters" method="get"'),
     'Filters have a search landmark without extra form'
         => str_contains($blade, 'role="search" aria-label="Filtriranje porudžbina"')
-           && substr_count($blade, '<form') === 4,
+           && substr_count($blade, '<form') === 1,
     'Data table and headers remain semantically available'
         => str_contains($blade, '<table class="a1-table a1-table--cards a1-ol-table" role="table">')
            && str_contains($blade, 'aria-label="Lista porudžbina"')
@@ -75,9 +74,11 @@ $checks = [
         => $checkActions
            && str_contains($blade, 'a1-ol-actions')
            && str_contains($blade, "\$order->source_system === 'laravel'"),
-    'Original POST/PATCH CSRF protection remains'
-        => substr_count($blade, '@csrf') >= 2
-           && substr_count($blade, "@method('PATCH')") === 2,
+    'List rows carry no inline status forms: "Potvrdi" opens the confirm panel on the detail (token freshness is kept there)'
+        => !str_contains($blade, '@csrf')
+           && !str_contains($blade, "@method('PATCH')")
+           && !str_contains($blade, "route('admin.orders.accept'")
+           && !str_contains($blade, 'value="processing"'),
     'No form wraps an order list row'
         => strpos($blade, '<form') < strpos($blade, '<table')
            && strpos($blade, '</form>') < strpos($blade, '<table'),
@@ -90,8 +91,10 @@ $checks = [
     'Mobile cards have safe one-column fallback and data labels'
         => str_contains($adminCss, '@media (max-width:560px)')
            && str_contains($adminCss, 'content:attr(data-label)'),
-    'POST quick-action forms stay independent interactive boxes'
-        => str_contains($blade, 'class="a1-ol-inline" method="post"'),
+    'Quick action is a single link to the confirm panel (no Preuzmi / U obradu)'
+        => str_contains($blade, 'aria-label="Potvrdi porudžbinu: ')
+           && !str_contains($blade, 'aria-label="Preuzmi')
+           && !str_contains($blade, 'aria-label="U obradu'),
     'Quick actions keep keyboard focus treatment'
         => str_contains($adminCss, '.a1-ops :focus-visible')
            && str_contains($adminCss, 'outline-offset:var(--a1-focus-offset)'),

@@ -11,6 +11,7 @@ use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Support\OrderStatus;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,14 +23,33 @@ use Throwable;
 
 final class OrderWorkflowService
 {
-    /** @var array<string,list<string>> */
+    /**
+     * "processing" je ostao samo u starim redovima (prikazuje se kao Nova): iz njega se potvrđuje ili otkazuje,
+     * a ništa novo ne ulazi u njega (odluka vlasnika 16.11.2026, tačke 1 i 14).
+     *
+     * @var array<string,list<string>>
+     */
     private const TRANSITIONS = [
-        'new' => ['processing', 'confirmed', 'cancelled'],
+        'new' => ['confirmed', 'cancelled'],
         'processing' => ['confirmed', 'cancelled'],
         'confirmed' => ['shipped', 'cancelled'],
         'shipped' => ['cancelled'],
         'cancelled' => [],
     ];
+
+    /**
+     * Prelazi koje superadmin sme da izabere ručno iz datog statusa. "Poslata" se ne bira ručno:
+     * ona nastaje samo evidencijom slanja.
+     *
+     * @return list<string>
+     */
+    public static function manualTransitions(string $status): array
+    {
+        return array_values(array_filter(
+            self::TRANSITIONS[$status] ?? [],
+            static fn (string $target): bool => $target !== 'shipped',
+        ));
+    }
 
     public function __construct(
         private readonly AuditLogger $audit,
@@ -43,9 +63,22 @@ final class OrderWorkflowService
         private readonly OrderVersionService $versions,
     ) {}
 
-    public function cancelOwn(Order $order, User $user, ?string $note = null): Order
+    /** Kupac ili SubAgent otkazuje sopstvenu porudžbinu; razlog je obavezan. */
+    public function cancelOwn(Order $order, User $user, ?string $reason = null): Order
     {
-        return $this->changeStatus($order, 'cancelled', $user, $note ?: 'Korisnik je otkazao porudžbinu.', ownCancellation: true);
+        return $this->changeStatus($order, 'cancelled', $user, $reason, ownCancellation: true);
+    }
+
+    /** Jedan korak: preuzima porudžbinu na ime potvrđivača (ako nije preuzeta) i potvrđuje je. */
+    public function confirm(Order $order, User $actor, ?string $note, ?string $expectedOrderToken): Order
+    {
+        return $this->changeStatus($order, 'confirmed', $actor, $note, $expectedOrderToken);
+    }
+
+    /** Otkazivanje od strane odgovornog lica ili superadmina; razlog je obavezan. */
+    public function cancel(Order $order, User $actor, ?string $reason): Order
+    {
+        return $this->changeStatus($order, 'cancelled', $actor, $reason);
     }
 
     public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null, ?string $expectedOrderToken = null, bool $ownCancellation = false): Order
@@ -54,6 +87,12 @@ final class OrderWorkflowService
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
             if ($ownCancellation) abort_unless((int) $locked->user_id === (int) $actor->id, 404);
+            if ($newStatus === 'cancelled' && trim((string) $note) === '') {
+                throw ValidationException::withMessages(['reason' => 'Razlog otkazivanja je obavezan.']);
+            }
+            if ($newStatus === 'processing') {
+                throw ValidationException::withMessages(['status' => 'Korak „U obradi“ više ne postoji. Potvrdi porudžbinu ili je otkaži.']);
+            }
             $this->assertNotDirectSale($locked);
             $this->assertNotCompleted($locked);
             $this->assertLaravelOrder($locked);
@@ -74,16 +113,23 @@ final class OrderWorkflowService
                 return $locked->fresh(['items', 'commission', 'user', 'supplier']) ?? $locked;
             }
             if (!in_array($newStatus, self::TRANSITIONS[$oldStatus] ?? [], true)) {
-                throw ValidationException::withMessages(['status' => sprintf('Prelaz statusa %s -> %s nije dozvoljen.', $oldStatus, $newStatus)]);
+                throw ValidationException::withMessages(['status' => $this->refusedTransitionMessage($oldStatus, $newStatus)]);
             }
             if ($newStatus === 'cancelled') $this->returnInventoryOnce($locked, $actor);
 
+            $takeOver = $newStatus === 'confirmed' && $locked->accepted_at === null;
             $locked->update([
                 'status' => $newStatus,
                 'cancelled_at' => $newStatus === 'cancelled' ? ($locked->cancelled_at ?? now()) : $locked->cancelled_at,
                 'cancelled_by' => $newStatus === 'cancelled' ? ($locked->cancelled_by ?? $actor->id) : $locked->cancelled_by,
+                // Potvrda ujedno preuzima porudžbinu na ime potvrđivača (odluka 1); isti upis, pa token svežine ostaje važeći do kraja.
+                'accepted_by' => $takeOver ? $actor->id : $locked->accepted_by,
+                'accepted_at' => $takeOver ? now() : $locked->accepted_at,
                 'updated_by' => $actor->id,
             ]);
+            if ($takeOver) {
+                $this->audit->log('order.accepted', 'Preuzeta porudžbina '.$locked->order_number.' potvrdom', $locked, after: ['accepted_by' => $actor->id, 'accepted_at' => $locked->accepted_at?->toISOString()], user: $actor);
+            }
             DB::table('order_status_history')->insert([
                 'order_id' => $locked->id,
                 'changed_by' => $actor->id,
@@ -136,12 +182,11 @@ final class OrderWorkflowService
         }, 5);
 
         if ($updated->user instanceof User) {
-            $labels = ['new' => 'nova', 'processing' => 'u obradi', 'confirmed' => 'potvrđena', 'shipped' => 'poslata', 'cancelled' => 'otkazana'];
             $this->notifications->order(
                 $updated->user,
                 'order.status_changed',
                 'Status porudžbine je promenjen',
-                sprintf('Porudžbina %s je sada %s.%s', $updated->order_number, $labels[$updated->status] ?? $updated->status, $note ? ' Napomena: '.$note : ''),
+                sprintf('Porudžbina %s je sada %s.%s', $updated->order_number, mb_strtolower(OrderStatus::label($updated->status)), $note ? ' Napomena: '.$note : ''),
                 $updated,
                 ['severity' => $updated->status === 'cancelled' ? 'danger' : ($updated->status === 'shipped' ? 'success' : 'info')],
             );
@@ -170,45 +215,33 @@ final class OrderWorkflowService
             );
         }
 
-        $statusLabels = ['new' => 'Nova', 'processing' => 'U obradi', 'confirmed' => 'Potvrđena', 'shipped' => 'Poslata', 'cancelled' => 'Otkazana'];
-        $this->emails->orderChanged(
-            $updated,
-            'order_status_changed',
-            'Promenjen status porudžbine '.$updated->order_number,
-            'Novi status: '.($statusLabels[$updated->status] ?? $updated->status).($note ? '. Napomena: '.$note : '.'),
-            ['status' => $updated->status, 'note' => $note, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()],
-        );
+        // Kupac ne dobija mejl o potvrdi (odluka 38); mejlovi idu za primljenu, poslatu i isporučenu porudžbinu.
+        if ($updated->status !== 'confirmed') {
+            $this->emails->orderChanged(
+                $updated,
+                'order_status_changed',
+                'Promenjen status porudžbine '.$updated->order_number,
+                'Novi status: '.OrderStatus::label($updated->status).($note ? '. Napomena: '.$note : '.'),
+                ['status' => $updated->status, 'note' => $note, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()],
+            );
+        }
 
         return $updated;
     }
 
-    public function updateTracking(Order $order, ?string $trackingNumber, User $actor): Order
+    private function refusedTransitionMessage(string $from, string $to): string
     {
-        throw ValidationException::withMessages(['tracking_number' => 'Broj za praćenje se unosi isključivo kroz Evidenciju slanja pošiljke.']);
+        $allowed = array_map(
+            static fn (string $target): string => OrderStatus::label($target),
+            array_values(array_diff(self::TRANSITIONS[$from] ?? [], ['shipped'])),
+        );
 
-        $updated = DB::transaction(function () use ($order, $trackingNumber, $actor): Order {
-            /** @var Order $locked */
-            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $this->assertNotDirectSale($locked);
-            $this->assertNotCompleted($locked);
-            $this->assertLaravelOrder($locked);
-            $before = $locked->tracking_number;
-            $locked->update([
-                'tracking_number' => $trackingNumber,
-                'tracking_updated_at' => now(),
-                'tracking_updated_by' => $actor->id,
-                'updated_by' => $actor->id,
-            ]);
-            $this->audit->log('order.tracking_changed', 'Promenjen tracking '.$locked->order_number, $locked, ['tracking_number' => $before], ['tracking_number' => $trackingNumber], user: $actor);
-            return $locked->fresh(['user', 'supplier']) ?? $locked;
-        }, 5);
-
-        if ($updated->user instanceof User && filled($trackingNumber)) {
-            $this->notifications->order($updated->user, 'order.tracking_changed', 'Dodat je tracking broj', 'Tracking broj za '.$updated->order_number.' je '.$trackingNumber.'.', $updated, ['severity' => 'success']);
-        }
-        $trackingMessage = filled($trackingNumber) ? 'Broj za praćenje je '.$trackingNumber.'.' : 'Broj za praćenje je uklonjen.';
-        $this->emails->orderChanged($updated, 'order_tracking_changed', 'Ažurirano praćenje porudžbine '.$updated->order_number, $trackingMessage, ['tracking_number' => $trackingNumber, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()]);
-        return $updated;
+        return sprintf(
+            'Porudžbina je „%s“ i ne može da pređe u „%s“.%s',
+            OrderStatus::label($from),
+            OrderStatus::label($to),
+            $allowed === [] ? ' Za ovaj status nema dalje ručne izmene.' : ' Dozvoljeno: '.implode(', ', array_unique($allowed)).'.',
+        );
     }
 
     /** @param array<string,mixed>|string|null $deliveryData */

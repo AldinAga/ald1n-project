@@ -2,14 +2,9 @@
 @section('title', 'Porudžbine')
 @section('content')
 @php
-    $statusLabels = [
-        'new' => 'Nova',
-        'processing' => 'Obrada',
-        'confirmed' => 'Potvrđena',
-        'shipped' => 'Poslata',
-        'completed' => 'Isporučena',
-        'cancelled' => 'Otkazana',
-    ];
+    // Jedan izvor naziva statusa; stari "processing" se prikazuje kao Nova i nije posebna opcija filtera.
+    $statusLabels = \App\Support\OrderStatus::LABELS;
+    $statusOptions = array_diff_key($statusLabels, ['processing' => true]);
     $paymentLabels = [
         'pending' => 'Na čekanju',
         'paid' => 'Plaćeno',
@@ -20,7 +15,7 @@
     $suppliers = $suppliers ?? collect();
 
     // Active filters as removable chips, derived from the same query parameters the filter form submits.
-    $attentionLabels = ['unaccepted' => 'Čekaju preuzimanje', 'overdue' => 'Prekoračen rok'];
+    $attentionLabels = ['unaccepted' => 'Čekaju potvrdu', 'overdue' => 'Prekoračen rok'];
     $sourceLabels = ['laravel' => 'Laravel', 'legacy' => 'Legacy'];
     $chips = [];
     if ((string) request('q') !== '') {
@@ -89,7 +84,7 @@
                 <span class="a1-ol-tile__icon a1-ol-tile__icon--warning"><x-icon name="hourglass" :size="22" :shell="true" /></span>
                 <span class="a1-ol-tile__body">
                     <span class="a1-ol-tile__count">{{ $attentionCounts['unaccepted'] }}</span>
-                    <span class="a1-ol-tile__label">Čekaju preuzimanje</span>
+                    <span class="a1-ol-tile__label">Čekaju potvrdu</span>
                     @if(request('attention') === 'unaccepted')<span class="a1-ol-tile__state">Aktivan filter</span>@endif
                 </span>
             </a>
@@ -127,7 +122,7 @@
                     <label class="a1-label" for="ol-status">Status</label>
                     <select class="a1-select" id="ol-status" name="status">
                         <option value="">Svi</option>
-                        @foreach($statusLabels as $value => $label)
+                        @foreach($statusOptions as $value => $label)
                             <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -221,21 +216,11 @@
                                 if (!$isDirectSale && !$supplierName && $order->relationLoaded('supplier')) {
                                     $supplierName = $order->supplier?->displayName();
                                 }
-                                $statusTone = $order->completed_at ? 'ok' : match ($order->status) {
-                                    'cancelled' => 'danger',
-                                    'shipped' => 'info',
-                                    'new', 'processing', 'confirmed' => 'warning',
-                                    default => '',
-                                };
-                                // Same conditions as before; the first one is the primary button, the rest go into the "Još" menu.
+                                $statusTone = \App\Support\OrderStatus::tone((string) $order->status, $order->completed_at !== null);
+                                // Jedan korak: "Potvrdi" vodi na panel potvrde na detalju (potvrda traži token svežine, pa nema forme u listi).
                                 $rowActions = [];
-                                if ($order->source_system === 'laravel' && !$order->accepted_at && in_array($order->status, ['new', 'processing'], true)) {
-                                    $rowActions[] = 'accept';
-                                }
-                                if ($order->source_system === 'laravel' && $order->status === 'new') {
-                                    $rowActions[] = 'processing';
-                                } elseif ($order->source_system === 'laravel' && $order->status === 'processing') {
-                                    $rowActions[] = 'confirmed';
+                                if ($order->source_system === 'laravel' && !$order->completed_at && in_array($order->status, ['new', 'processing'], true)) {
+                                    $rowActions[] = 'confirm';
                                 }
                                 if (!$order->completed_at && in_array($order->status, ['confirmed', 'shipped'], true) && ($order->payment_method === 'cash_on_delivery' || $order->payment_status === 'paid')) {
                                     $rowActions[] = 'complete'; // label "Evidentiraj isporuku" lives in partials/row-action
@@ -252,9 +237,9 @@
                                     </span>
                                 </td>
                                 <td role="cell" class="a1-ol-late" data-label="Odgovorno lice">
-                                    <span class="a1-ol-cell" title="{{ $supplierName }} · {{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}">
+                                    <span class="a1-ol-cell" title="{{ $supplierName }} · {{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka potvrdu') }}">
                                         {{ $supplierName ?: '—' }}
-                                        <span class="a1-ol-sub">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka preuzimanje') }}</span>
+                                        <span class="a1-ol-sub">{{ $isDirectSale ? 'Bez SubAgenta' : ($order->accepted_at ? 'Preuzeto '.$order->accepted_at->format('d.m. H:i') : 'Čeka potvrdu') }}</span>
                                         @if($isOverdue)
                                             <span class="a1-ol-flag"><x-icon name="alert" :size="16" :shell="true" /> Prekoračen rok</span>
                                         @endif
@@ -262,7 +247,7 @@
                                 </td>
                                 <td role="cell" data-label="Status obrade">
                                     <span class="a1-ol-cell">
-                                        <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Isporučena' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                                        <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null) }}</span>
                                         @if($isDirectSale || $order->source_system !== 'laravel')
                                             <span class="a1-ol-sub">{{ $isDirectSale ? 'Direktna prodaja' : $order->source_system }}</span>
                                         @endif

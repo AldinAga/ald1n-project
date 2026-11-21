@@ -88,7 +88,7 @@
         <span>Status</span>
         <select name="status">
             <option value="">Svi</option>
-            @foreach (['new' => 'Nova', 'processing' => 'Obrada', 'confirmed' => 'Potvrđena', 'shipped' => 'Poslata', 'completed' => 'Kompletirana', 'cancelled' => 'Otkazana'] as $value => $label)
+            @foreach (collect(['new', 'confirmed', 'shipped', 'completed', 'cancelled'])->mapWithKeys(fn ($s) => [$s => \App\Support\OrderStatus::label($s)]) as $value => $label)
                 <option value="{{ $value }}" {{ ($filters['status'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
             @endforeach
         </select>
@@ -153,7 +153,7 @@
                         <td><strong>{{ $order->order_number }}</strong></td>
                         <td>{{ $order->user?->displayName() ?: '—' }}</td>
                         <td>{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: ($order->supplier?->displayName() ?: '—')) }}</td>
-                        <td>{{ $order->completed_at !== null ? 'Kompletirana' : $order->status }}</td>
+                        <td>{{ \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null) }}</td>
                         <td>{{ $order->payment_status }}</td>
                         <td>{{ number_format((float) $order->subtotal_rsd, 2, ',', '.') }} RSD</td>
                         <td>{{ $order->sales_channel === 'direct_sale' ? '—' : number_format((float) ($order->commission?->total_eur ?? 0), 2, ',', '.').' EUR' }}</td>

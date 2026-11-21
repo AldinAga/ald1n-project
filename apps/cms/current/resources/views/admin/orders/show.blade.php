@@ -39,12 +39,7 @@
     ];
     // Status as an a1-pill (dot plus text): the tone is only the modifier.
     $pill = static fn (string $tone): string => 'a1-pill'.($tone !== '' ? ' a1-pill--'.$tone : '');
-    $orderTone = ($order['is_completed'] ?? false) ? 'ok' : match ((string) ($order['status'] ?? 'new')) {
-        'cancelled' => 'danger',
-        'shipped' => 'info',
-        'new', 'processing', 'confirmed', 'pending' => 'warning',
-        default => '',
-    };
+    $orderTone = \App\Support\OrderStatus::tone((string) ($order['status'] ?? 'new'), (bool) ($order['is_completed'] ?? false));
     $paymentTone = match ((string) ($order['payment_state'] ?? 'unpaid')) {
         'paid', 'overpaid' => 'ok',
         'partial' => 'warning',
@@ -97,11 +92,11 @@
             ? (is_array($delivery) ? '#order-workspace-delivery-record' : '#order-workspace-completed')
             : (($actions['complete'] ?? false) ? '#order-workspace-logistics-actions' : null);
 
-        if (($actions['accept'] ?? false) && !empty($urls['accept'])) {
-            $workspaceNextTarget = '#order-workspace-accept';
-            $workspaceNextLabel = 'Preuzmi porudžbinu';
-            $workspaceNextTitle = 'Porudžbina čeka preuzimanje';
-            $workspaceNextText = 'Preuzmi je za obradu. Nakon toga nastavi kroz status, slanje i stvarnu isporuku.';
+        if (($actions['confirm'] ?? false) && !empty($urls['confirm'])) {
+            $workspaceNextTarget = '#order-confirm';
+            $workspaceNextLabel = 'Potvrdi porudžbinu';
+            $workspaceNextTitle = 'Porudžbina čeka potvrdu';
+            $workspaceNextText = 'Potvrda ujedno preuzima porudžbinu na tvoje ime. Posle nje sledi slanje ili predaja kupcu.';
         } elseif (($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) {
             $workspaceNextTarget = '#order-workspace-logistics-actions';
             $workspaceNextLabel = 'Evidentiraj slanje';
@@ -122,18 +117,14 @@
             $workspaceNextLabel = 'Pregledaj istoriju';
             $workspaceNextTitle = 'Porudžbina je otkazana';
             $workspaceNextText = 'Nema aktivne operativne akcije. Proveri timeline i istoriju poslovnih događaja.';
-        } elseif (!empty($urls['status'])) {
-            $workspaceNextTarget = '#order-workspace-status';
-            $workspaceNextLabel = 'Pregledaj status';
-            $workspaceNextTitle = 'Nastavi obradu porudžbine';
-            $workspaceNextText = 'Koristi poslovnu akciju koja odgovara stvarnom stanju porudžbine; ručna promena statusa je sekundarna.';
         } else {
             $workspaceNextTarget = '#order-workspace-items';
             $workspaceNextLabel = 'Pregledaj stavke';
             $workspaceNextTitle = 'Pregled porudžbine';
             $workspaceNextText = 'Proveri stavke, plaćanje, dokumente i istoriju pre sledeće dozvoljene akcije.';
         }
-        $canAcceptNow = ($actions['accept'] ?? false) && !empty($urls['accept']);
+        $canConfirmNow = ($actions['confirm'] ?? false) && !empty($urls['confirm']);
+        $canCancelNow = ($actions['cancel'] ?? false) && !empty($urls['cancel']);
     @endphp
 
     <header class="a1-card a1-od-head" data-order-detail-workspace="1" aria-labelledby="od-title">
@@ -149,11 +140,13 @@
             </div>
 
             <div class="a1-od-head__actions">
-                @if($canAcceptNow)
-                    <form id="order-workspace-accept" method="post" action="{{ $urls['accept'] }}">
+                @if($canConfirmNow)
+                    {{-- Jedan korak: potvrda preuzima porudžbinu i potvrđuje je; token svežine ide uz formu, napomena iz kartice "Sledeći korak" (atribut form). --}}
+                    <form id="order-confirm-form" method="post" action="{{ $urls['confirm'] }}">
                         @csrf
+                        <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
                         <button class="a1-btn a1-btn--primary" type="submit">
-                            <x-icon name="user-check" :size="20" :shell="true" /> Preuzmi porudžbinu
+                            <x-icon name="check-circle" :size="20" :shell="true" /> Potvrdi porudžbinu
                         </button>
                     </form>
                 @else
@@ -161,6 +154,9 @@
                     @if(!empty($order['accepted_at']))
                         <span class="a1-pill">Preuzeo: {{ $order['accepted_by'] ?? 'Administrator' }} · {{ $order['accepted_at'] }}</span>
                     @endif
+                @endif
+                @if($canCancelNow)
+                    <a class="a1-btn" href="#order-cancel">Otkaži porudžbinu</a>
                 @endif
                 @if(!empty($urls['invoice_pdf']))
                     @can('invoices.manage')
@@ -290,6 +286,36 @@
                     <li><a class="a1-tabs__link" href="#order-workspace-customer">Kupac i dostava</a></li>
                 </ul>
             </nav>
+            @if($canConfirmNow)
+                <div id="order-confirm" class="a1-form">
+                    <div class="a1-field">
+                        <label class="a1-label" for="od-confirm-note">Napomena uz potvrdu (opciono)</label>
+                        <textarea class="a1-textarea" id="od-confirm-note" name="note" form="order-confirm-form" rows="2" maxlength="1000"{!! $ctl('note', 'od-confirm-note') !!}></textarea>
+                        @error('note')<p class="a1-error" id="od-confirm-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                    </div>
+                    <div class="a1-od-actions">
+                        <button class="a1-btn" type="submit" form="order-confirm-form"><x-icon name="check-circle" :size="20" :shell="true" /> Potvrdi porudžbinu</button>
+                    </div>
+                </div>
+            @endif
+            @if($canCancelNow)
+                <details class="a1-acc" data-order-cancel @if($errors->has('reason') && old('status') === null) open @endif>
+                    <summary id="order-cancel"><span class="a1-od-acc-title"><strong>Otkaži porudžbinu</strong><small>{{ ($order['status'] ?? '') === 'shipped' ? 'Poslata, a neisporučena: otkazivanje odmah vraća rezervisani lager' : 'Razlog je obavezan; rezervisani lager se vraća odmah' }}</small></span></summary>
+                    <div class="a1-acc__body">
+                        <form method="post" action="{{ $urls['cancel'] }}" class="a1-form" aria-label="Otkazivanje porudžbine">
+                            @csrf
+                            <div class="a1-field">
+                                <label class="a1-label" for="od-cancel-reason">Razlog otkazivanja<span class="a1-req" aria-hidden="true">*</span></label>
+                                <textarea class="a1-textarea" id="od-cancel-reason" name="reason" rows="3" minlength="3" maxlength="1000" required{!! $ctl('reason', 'od-cancel-reason') !!}>{{ old('reason') }}</textarea>
+                                @error('reason')<p class="a1-error" id="od-cancel-reason-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                            </div>
+                            <div class="a1-od-actions">
+                                <button class="a1-btn a1-btn--danger" type="submit" data-confirm="Otkazati porudžbinu {{ $order['order_number'] ?? '' }}? Rezervisani lager se vraća odmah i otkazivanje se ne može poništiti.">Otkaži porudžbinu</button>
+                            </div>
+                        </form>
+                    </div>
+                </details>
+            @endif
         </section>
     </div>
 
@@ -621,6 +647,16 @@
                         @endif
                     </div>
                 @endif
+
+                @if(!empty($urls['receivable']) && is_array($detail['receivable'] ?? null))
+                    <div class="a1-od-commission" data-order-receivable-link>
+                        <span class="a1-od-commission__sum">
+                            <x-icon name="wallet" :size="20" :shell="true" />
+                            <strong>Potraživanje {{ $detail['receivable']['case_number'] ?? '' }}</strong>
+                        </span>
+                        <a class="a1-link" href="{{ $urls['receivable'] }}">Otvori slučaj potraživanja</a>
+                    </div>
+                @endif
             </section>
 
             <div id="order-workspace-payments" class="a1-od-anchor">
@@ -885,9 +921,10 @@
                 </section>
             @endif
 
-            @if(!($order['is_completed'] ?? false) && !empty($urls['status']))
+            {{-- Ručna promena statusa: samo superadmin, i samo prelazi dozvoljeni iz trenutnog statusa. --}}
+            @if(($actions['manual_status'] ?? false) && !empty($urls['status']))
                 <details class="a1-acc" data-order-workspace-secondary>
-                    <summary><span class="a1-od-acc-title"><strong>Ručna promena statusa</strong><small>Koristi samo kada primarna poslovna akcija ne rešava sledeći korak</small></span></summary>
+                    <summary><span class="a1-od-acc-title"><strong>Ručna promena statusa</strong><small>Samo superadmin; koristi kada glavna akcija ne rešava korak</small></span></summary>
                     <div class="a1-acc__body" id="order-workspace-status">
                         <form method="post" action="{{ $urls['status'] }}" class="a1-form" aria-label="Status porudžbine">
                             @csrf
@@ -895,23 +932,19 @@
                             <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
                             <div class="a1-field">
                                 <label class="a1-label" for="od-status">Novi status</label>
-                                <select class="a1-select" id="od-status" name="status"{!! $ctl('status', 'od-status') !!}>
-                                    @if(($order['status'] ?? '') === 'shipped')<option value="shipped" selected disabled>Poslata (evidentirano slanje)</option>@endif
-                                    @foreach([
-                                        'new' => 'Nova',
-                                        'processing' => 'U obradi',
-                                        'confirmed' => 'Potvrđena',
-                                        'cancelled' => 'Otkazana',
-                                    ] as $value => $label)
-                                        <option value="{{ $value }}" @if(($order['status'] ?? '') === $value) selected @endif>{{ $label }}</option>
+                                <select class="a1-select" id="od-status" name="status" required{!! $ctl('status', 'od-status') !!}>
+                                    <option value="" selected disabled>Sada: {{ $order['status_label'] ?? '—' }}</option>
+                                    @foreach(($detail['manual_status_options'] ?? []) as $option)
+                                        <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
                                     @endforeach
                                 </select>
                                 @error('status')<p class="a1-error" id="od-status-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
                             </div>
                             <div class="a1-field">
-                                <label class="a1-label" for="od-status-note">Napomena korisniku</label>
+                                <label class="a1-label" for="od-status-note">Napomena / razlog (obavezan za otkazivanje)</label>
                                 <textarea class="a1-textarea" id="od-status-note" name="note" rows="3" maxlength="1000"{!! $ctl('note', 'od-status-note') !!}></textarea>
                                 @error('note')<p class="a1-error" id="od-status-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                                @if(old('status') !== null)@error('reason')<p class="a1-error" id="od-status-reason-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror @endif
                             </div>
                             <div class="a1-od-actions">
                                 <button class="a1-btn" type="submit" data-confirm="Potvrditi promenu statusa?">Promeni status</button>

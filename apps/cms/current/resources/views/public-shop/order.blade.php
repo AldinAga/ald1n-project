@@ -6,9 +6,7 @@
 <p>Ovaj link omogućava pregled samo ove porudžbine. Nemoj ga deliti javno.</p></section>
 <div class="shop-detail">
 <section class="shop-detail-content">
-<h2>Status kupovine</h2><p><strong>{{ match($order->status) {
-'new'=>'Nova','processing'=>'U obradi','confirmed'=>'Potvrđena','shipped'=>'Poslata',
-'cancelled'=>'Otkazana', default=>'U obradi'} }}</strong></p>
+<h2>Status kupovine</h2><p><strong>{{ \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null) }}</strong></p>
 <p>Datum porudžbine: {{ $order->created_at?->format('d.m.Y H:i') }}</p>
 <p>Uplaćeno: {{ number_format((float)($order->paid_total_rsd ?? 0),2,',','.') }} RSD</p>
 <p>Status plaćanja: {{ $order->payment_state ?? 'unpaid' }}</p>

@@ -20,35 +20,6 @@ final class OrderOperationalService
         private readonly OrderEmailOutboxService $emails,
     ) {}
 
-    public function accept(Order $order, User $actor): Order
-    {
-        $this->access->authorizeManage($order, $actor);
-        $updated = DB::transaction(function () use ($order, $actor): Order {
-            /** @var Order $locked */
-            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $this->assertNotCompleted($locked);
-            if ($locked->source_system !== 'laravel') {
-                throw ValidationException::withMessages(['order' => 'Legacy porudžbina je read-only.']);
-            }
-            if ($locked->accepted_at !== null) {
-                return $locked;
-            }
-            $locked->update([
-                'accepted_by' => $actor->id,
-                'accepted_at' => now(),
-                'updated_by' => $actor->id,
-            ]);
-            $this->audit->log('order.accepted', 'Preuzeta porudžbina '.$locked->order_number, $locked, after: ['accepted_by' => $actor->id, 'accepted_at' => $locked->accepted_at], user: $actor);
-            return $locked->fresh(['user', 'supplier']);
-        }, 5);
-
-        if ($updated->user instanceof User) {
-            $this->notifications->order($updated->user, 'order.accepted', 'Porudžbina je preuzeta', 'Odgovorno lice je preuzelo obradu porudžbine '.$updated->order_number.'.', $updated);
-        }
-        $this->emails->orderChanged($updated, 'order_accepted', 'Porudžbina '.$updated->order_number.' je preuzeta', 'Odgovorno lice je preuzelo porudžbinu u obradu.', ['actor_id' => $actor->id, 'accepted_at' => $updated->accepted_at?->toISOString()]);
-        return $updated;
-    }
-
     public function addInternalNote(Order $order, User $actor, string $note): OrderInternalNote
     {
         $this->access->authorizeManage($order, $actor);

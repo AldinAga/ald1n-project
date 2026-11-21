@@ -154,7 +154,7 @@ foreach (['orders.create', 'orders.view_own', 'orders.cancel_own', 'orders.manag
 
 $web = (string) file_get_contents($root.'/routes/web.php');
 $api = (string) file_get_contents($root.'/routes/api.php');
-foreach (['orders.store', 'orders.cancel', 'admin.orders.status', 'admin.orders.tracking', 'admin.stock.adjust'] as $routeName) {
+foreach (['orders.store', 'orders.cancel', 'admin.orders.status', 'admin.orders.confirm', 'admin.orders.cancel', 'admin.stock.adjust'] as $routeName) {
     $check('web ruta '.$routeName, str_contains($web, "name('".str_replace('admin.', '', $routeName)."')") || str_contains($web, "name('{$routeName}')") || str_contains($web, "->name('".substr($routeName, strrpos($routeName, '.') + 1)."')"));
 }
 $check('batch516 ručna admin payment status ruta je uklonjena', !str_contains($web, "Route::patch('/orders/{order}/payment'") && !str_contains($web, "name('orders.payment')"));

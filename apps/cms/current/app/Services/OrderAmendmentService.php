@@ -237,7 +237,8 @@ final class OrderAmendmentService
         }
 
         $subtotal = round($subtotal, 2);
-        $newStatus = $oldStatus === 'confirmed' ? 'processing' : $oldStatus;
+        // Izmena kupca vraća potvrđenu porudžbinu u "Nova" (nema više "U obradi"); odgovorno lice je ponovo potvrđuje.
+        $newStatus = $oldStatus === 'confirmed' ? 'new' : $oldStatus;
         $locked->update([
             'shipping_full_name' => trim((string) $data['shipping_full_name']),
             'shipping_address' => trim((string) $data['shipping_address']),
@@ -248,14 +249,14 @@ final class OrderAmendmentService
             'subtotal_rsd' => $subtotal,
             'status' => $newStatus,
             'updated_by' => $actor->id,
-        ]);
+        ] + ($oldStatus === 'confirmed' ? ['accepted_at' => null, 'accepted_by' => null] : []));
 
         if ($oldStatus === 'confirmed') {
             DB::table('order_status_history')->insert([
                 'order_id' => $locked->id,
                 'changed_by' => $actor->id,
                 'old_status' => 'confirmed',
-                'new_status' => 'processing',
+                'new_status' => 'new',
                 'note' => 'Kupac je izmenio porudžbinu. Potrebna je ponovna potvrda pre slanja.',
                 'created_at' => now(),
             ]);
