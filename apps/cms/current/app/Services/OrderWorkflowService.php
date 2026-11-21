@@ -491,7 +491,7 @@ final class OrderWorkflowService
 
         $mail = 'Porudžbina '.$updated->order_number.' je isporučena.';
         $mail .= $invoice !== null ? ' Račun '.$invoice->document_number.' je u prilogu i dostupan u porudžbini.' : ' Račun će biti dostupan u porudžbini.';
-        $mail .= ' Garantni listovi su u delu Garancije u tvom nalogu.';
+        $mail .= ' Garantni listovi su dostupni u porudžbini.';
         $this->emails->orderChanged($updated, 'order_completed', 'Porudžbina '.$updated->order_number.' je isporučena', $mail, ['completed_at' => $updated->completed_at?->toISOString(), 'actor_id' => $actor->id, 'invoice_number' => $invoice?->document_number]);
 
         return $updated;
