@@ -137,7 +137,7 @@ final class OrderDetailPresenter
                 && $status === 'shipped'
                 && is_array($detail['shipment'])
                 && !($detail['shipment']['is_returned'] ?? false)
-                && $detail['urls']['return_shipment'] !== null,
+                && $detail['urls']['shipment_return'] !== null,
             // Reklamacija / servis u ime kupca: odgovorno lice i superadmin, samo posle isporuke (SubAgent otvara svoju sa svoje strane porudžbine).
             'open_after_sales' => ($isCompleted || $detail['delivery'] !== null)
                 && !$isDirectSale
