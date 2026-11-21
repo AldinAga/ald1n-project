@@ -171,8 +171,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $workflow=app(\App\Services\OrderWorkflowService::class);
         $versions=app(\App\Services\OrderVersionService::class);
 
-        $processing=$workflow->changeStatus($order,'processing',$admin);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+        $confirmed=$workflow->changeStatus($order,'confirmed',$admin,null,$versions->token($order));
         $courier=\App\Models\CourierService::query()->create([
             'name'=>'B800 Sinteticki Kurir','slug'=>'b800-synthetic-retail-courier',
             'tracking_url'=>'https://tracking.example.test/order',
@@ -283,8 +282,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
         $workflow=app(\App\Services\OrderWorkflowService::class);
         $versions=app(\App\Services\OrderVersionService::class);
-        $processing=$workflow->changeStatus($order,'processing',$admin);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+        $confirmed=$workflow->changeStatus($order,'confirmed',$admin,null,$versions->token($order));
 
         try {
             $workflow->complete($confirmed,$admin,[
@@ -413,11 +411,11 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->loginActor($admin);
         $this->get('/admin/orders/'.$order->id)->assertOk();
         $workflow=app(\App\Services\OrderWorkflowService::class);
-        $processing=$workflow->changeStatus($order->fresh(),'processing',$admin);
-        self::assertSame('processing',$processing->status);
-        $token=app(\App\Services\OrderVersionService::class)->token($processing);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$token);
+        $fresh=$order->fresh();
+        $token=app(\App\Services\OrderVersionService::class)->token($fresh);
+        $confirmed=$workflow->changeStatus($fresh,'confirmed',$admin,null,$token);
         self::assertSame('confirmed',$confirmed->status);
+        self::assertSame($admin->id,(int)$confirmed->accepted_by);
 
         $document=app(\App\Services\OrderDocumentService::class)
             ->issue($confirmed,'order_confirmation',$admin);
@@ -536,6 +534,18 @@ final class PublicRetailCheckoutB799Test extends TestCase
             'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
             'email_verified_at'=>now(),'portal_activated_at'=>now(),
         ]);
+    }
+
+    public function test_checkout_with_an_empty_cart_shows_a_friendly_page_with_a_link_back_not_a_bare_409(): void
+    {
+        $response=$this->get('/porucivanje')->assertStatus(409);
+
+        $response->assertSee('Korpa nije spremna za poručivanje')
+            ->assertSee('Korpa je prazna, pa nema šta da se poruči.')
+            ->assertSee('Pogledaj katalog');
+        self::assertStringContainsString('href="/katalog"',$response->getContent());
+        self::assertStringNotContainsString('Korpa mora sadržati dostupne artikle',$response->getContent());
+        self::assertSame(0,Order::query()->count());
     }
 
     private function loginActor(User $actor): void
