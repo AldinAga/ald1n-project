@@ -94,8 +94,8 @@ final class CommissionsInstallCoordinator
     public const SOURCE_COMMIT='2e5460b4573022321b71c36798413c5e42555f81';
     /**
      * The install order, [path under apps/cms/current, 'new'|'modified', group, source key M]. Groups: A the 13 new files, all inert (nothing old references them; the two migrations are files only until the migration step);
-     * B the libraries (two models, eleven services, the doctor command: every new constructor dependency is a class of group A, a public method only gains optional parameters); C the controllers (their new methods and constructor
-     * dependencies exist since A and B), the three bin tools and the admin stylesheet; D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
+     * B the libraries (two models, eleven services, the doctor command: every new constructor dependency is a class of group A, a public method only gains optional parameters); C six controllers (their new methods and constructor
+     * dependencies exist since A and B), the three bin tools and the admin stylesheet; DashboardController is NOT here: the new one stops passing $eurRsdRate that the OLD dashboard view still reads, so it goes into group F FIRST, right before its views; D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
      * (they name the controller methods of group C: GUARD group, classes again, route:clear); F the views: partials before pages and the layout before the pages; the three views that call a new route (the layout: notifications.recent,
      * admin/commissions/index and admin/settings/modules) sit here, AFTER the routes (GUARD group, assets: the admin stylesheet is served with the payload bytes first). A controller is always installed before the views it feeds.
      * Groups are non-decreasing in this list (plan() refuses anything else), every new file sits in a lower group than the first guard group, every path is under apps/cms/current, none under tests/, config/ or composer.*;
@@ -118,11 +118,11 @@ final class CommissionsInstallCoordinator
         ['app/Console/Commands/FinancialStateDoctorCommand.php','modified','B','M'],['app/Http/Controllers/Admin/CommissionController.php','modified','C','M'],
         ['app/Http/Controllers/Admin/ModuleSettingsController.php','modified','C','M'],['app/Http/Controllers/Api/V1/Admin/CommissionController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/CommissionController.php','modified','C','M'],['app/Http/Controllers/CommissionController.php','modified','C','M'],
-        ['app/Http/Controllers/DashboardController.php','modified','C','M'],['app/Http/Controllers/NotificationController.php','modified','C','M'],
-        ['bin/admin-orders-index-ux-smoke.php','modified','C','M'],['bin/commission-percentage-policy-smoke.php','modified','C','M'],
-        ['bin/static-check.php','modified','C','M'],['public/assets/css/ald1n-admin.css','modified','C','M'],
-        ['app/Providers/AppServiceProvider.php','modified','D','M'],['routes/api.php','modified','E','M'],
-        ['routes/web.php','modified','E','M'],['resources/views/admin/orders/partials/payments.blade.php','modified','F','M'],
+        ['app/Http/Controllers/NotificationController.php','modified','C','M'],['bin/admin-orders-index-ux-smoke.php','modified','C','M'],
+        ['bin/commission-percentage-policy-smoke.php','modified','C','M'],['bin/static-check.php','modified','C','M'],
+        ['public/assets/css/ald1n-admin.css','modified','C','M'],['app/Providers/AppServiceProvider.php','modified','D','M'],
+        ['routes/api.php','modified','E','M'],['routes/web.php','modified','E','M'],
+        ['app/Http/Controllers/DashboardController.php','modified','F','M'],['resources/views/admin/orders/partials/payments.blade.php','modified','F','M'],
         ['resources/views/dashboard/partials/priorities.blade.php','modified','F','M'],['resources/views/orders/partials/payments.blade.php','modified','F','M'],
         ['resources/views/layouts/app.blade.php','modified','F','M'],['resources/views/admin/after-sales/index.blade.php','modified','F','M'],
         ['resources/views/admin/after-sales/show.blade.php','modified','F','M'],['resources/views/admin/commissions/index.blade.php','modified','F','M'],
@@ -138,6 +138,7 @@ final class CommissionsInstallCoordinator
         ['resources/views/orders/edit.blade.php','modified','F','M'],['resources/views/orders/index.blade.php','modified','F','M'],
         ['resources/views/orders/show.blade.php','modified','F','M'],
     ];
+
     public const DIGESTS=[
         'app/Models/CommissionAdjustment.php'=>[null,'39458d4cc5fdd5a88ce3894e31e59b0b3fe8564ea7e70aac3ef5c22c7384e1e9'],
         'app/Services/CommissionAutoApprovalService.php'=>[null,'2b8bd89db20bf579af1f0abbc8fb5e1b236063b374023acb7e6bc4cae31942dc'],
@@ -171,7 +172,6 @@ final class CommissionsInstallCoordinator
         'app/Http/Controllers/Api/V1/Admin/CommissionController.php'=>['1ab60296b20f64794e9a18e9752e5106e0e36a3e7a992a33543d14b7cdc5bfb4','176a4887097c38aef299a4aac185cd79e169bdaaefba7b8fcb0e9599a1473c87'],
         'app/Http/Controllers/Api/V1/CommissionController.php'=>['f40c01380f8a0bb2f45286ebb6044575587bc42fb69bcd7f5abcc67697343bd0','3f9d56424f7aa5b1dba41284e77fe6b61ef52859b6c2ccdb08a223c9c0ff010b'],
         'app/Http/Controllers/CommissionController.php'=>['6f7bd75c8f0769a904264a111e348de3a6d84cec4e80c16f533cb0e0c4283e4f','cdec68606bb3963662057723269feb71b3340daf69049c1ab07391e9e6b57558'],
-        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','c5f71e8d7afecfdd2d65e9dfb5bf1de9251207ec1afb571501d2174722c388a7'],
         'app/Http/Controllers/NotificationController.php'=>['eb7114be0ac6c3a3b18c221e2aaa46c9bca6139d0c38f71b37c30963b32e82ec','ebb41c579391b6481f2c011624de1f2b101361db1e73873ef5b9732cb21489ff'],
         'bin/admin-orders-index-ux-smoke.php'=>['e9108084ca795e2514ccf107dd2c764e078c4616812a619331de861f857f5b2e','fcc3bfe5aae3ddbdd3fa788a4f564363f4525ad6f69da4793c0aa47b7dede1ab'],
         'bin/commission-percentage-policy-smoke.php'=>['25bf99079ef7cce71b49107442d11a3630c88b909f07490fbedba7ae124a2847','334d8e3fe7cb45e37ea1d5b7e5fe385f2020d421fe59d05c5426e4a76b1331b3'],
@@ -180,6 +180,7 @@ final class CommissionsInstallCoordinator
         'app/Providers/AppServiceProvider.php'=>['df53e1ed1592b11d6389ed9cd1920b1b075c79f2666d852d03cab1902b68b96c','94e0f369399feae85851017b2fdd4482774d68ffd2e8fb48028cf654d16020f0'],
         'routes/api.php'=>['779965934dfbcbc43390b6a7fe1577cc6f1aaddb73a2ee69fb6e2fdd5b26a7ab','e31b24975a2e3d648c1196a32d23e91334c825bf415733855a1b50a254366a47'],
         'routes/web.php'=>['b72b49f2dbcc6229955bacc2cbf85c402de9e46b5a862d1d8b92094cd93ff363','fe5c0beeed49bd1c161ad227511e54f34967a362aaddb301165e5272914a27c6'],
+        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','c5f71e8d7afecfdd2d65e9dfb5bf1de9251207ec1afb571501d2174722c388a7'],
         'resources/views/admin/orders/partials/payments.blade.php'=>['566dcd502e72b2ddeb7ab297223ef765db55c7f7e1d995fb5bb755996c90075d','43cab94f30698a28fe20c4f90ff1e286d664fbb8034338931698534fd97f0515'],
         'resources/views/dashboard/partials/priorities.blade.php'=>['61bc9e508db9061a2301eec728a7255441aa2030149341050c1aab0f8dc1f4ac','4e990d592704d3a6ad636e38f46d5421aac9f54ee56246387852630deacb98bf'],
         'resources/views/orders/partials/payments.blade.php'=>['a21036a63841b6738c57302daca9f393e26bb0fbcb5ff5047e1853e8d2c9a8c6','488df11596df4efa299c5b553ccc6749dff631deeb6ed600eeb6a5aa7ba42dad'],
@@ -209,6 +210,7 @@ final class CommissionsInstallCoordinator
         'resources/views/orders/index.blade.php'=>['f92dce9f080fe4ffe6337b3210dd61471a25087e1559d719e7e751f9d9ade498','1e39387225c65b8053f052ed1065727c9e3bc9b6aef5f1a1eef5ae423c01710b'],
         'resources/views/orders/show.blade.php'=>['533478919925410c2f0dd09758c9b7fff47da9b804a059579ca50f02ab8b983f','ffe493fbe6a3d7206ed1474325d36308367d11b9422c4dd142300c3cb97e8f6d'],
     ];
+
     public const ORPHANS=[
         'resources/views/dashboard/partials/kpi-delta.blade.php'=>'61c4e167f073a1e5ab464c1afd6ec69f276251d8c803bdb2a3e2a2a8248d2b1a',
         'resources/views/dashboard/partials/operator-orders.blade.php'=>'b46002803a914ff5c1c8c2015fe04ce36d842b423708e3761c70d7e183cf08b5',

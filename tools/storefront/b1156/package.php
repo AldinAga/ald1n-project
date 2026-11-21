@@ -260,7 +260,7 @@ foreach(DR::STEPS as $i=>[$path,$kind,$group,$s1]){
 if(count(DR::DIGESTS)!==count(DR::STEPS))throw new RuntimeException('PACKAGE_DIGESTS_NOT_ONE_PER_STEP');
 // The groups: A the new inert files (13, the two migrations among them), B libraries, C controllers + bin + the admin stylesheet, D the provider (guard: web-SAPI class proof), E the routes (guard: class proof, then route:clear), F the views (guard: asset proof).
 $idx=[];$grp=[];foreach(DR::STEPS as $i=>[$p,,$g]){$idx[$p]=$i;$grp[$p]=$g;}
-$counts=array_count_values(array_values($grp));ksort($counts);if($counts!==['A'=>13,'B'=>14,'C'=>11,'D'=>1,'E'=>2,'F'=>28])throw new RuntimeException('PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C11_D1_E2_F28');
+$counts=array_count_values(array_values($grp));ksort($counts);if($counts!==['A'=>13,'B'=>14,'C'=>10,'D'=>1,'E'=>2,'F'=>29])throw new RuntimeException('PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C10_D1_E2_F29');
 $prev='';foreach($grp as $g){if($g<$prev)throw new RuntimeException('PACKAGE_GROUPS_NOT_NON_DECREASING');$prev=$g;}
 if(array_keys(DR::GUARDS)!==['D','E','F']||DR::GUARDS!==['D'=>'classes','E'=>'classes','F'=>'assets'])throw new RuntimeException('PACKAGE_GUARD_GROUPS_NOT_D_CLASSES_E_CLASSES_F_ASSETS');
 // BACKWARD COMPATIBILITY and ORDER, proven on the shipped bytes (the OLD callers and the OLD views must keep working between the groups).
@@ -283,10 +283,10 @@ $code=static fn(string $c,string $e):string=>'PACKAGE_ORDER_EDGE_'.strtoupper(pr
 $ctl='app/Http/Controllers/';
 $strict=[['routes/web.php',$ctl.'Admin/CommissionController.php'],['routes/web.php',$ctl.'NotificationController.php'],['routes/web.php',$ctl.'Admin/ModuleSettingsController.php'],['routes/api.php',$ctl.'Api/V1/Admin/CommissionController.php'],
     ['resources/views/layouts/app.blade.php','routes/web.php'],['resources/views/admin/commissions/index.blade.php','routes/web.php'],['resources/views/admin/settings/modules.blade.php','routes/web.php'],
-    ['app/Providers/AppServiceProvider.php','app/Services/CommissionCalculator.php'],['resources/views/dashboard/index.blade.php',$ctl.'DashboardController.php'],['routes/web.php','app/Providers/AppServiceProvider.php']];
+    ['app/Providers/AppServiceProvider.php','app/Services/CommissionCalculator.php'],['routes/web.php','app/Providers/AppServiceProvider.php']];
 foreach($strict as [$caller,$callee])if(!isset($grp[$caller],$grp[$callee])||$grp[$caller]<=$grp[$callee])throw new RuntimeException($code($caller,$callee));
 $later=static fn(string $c,string $e):bool=>isset($grp[$c],$grp[$e])&&($grp[$c]>$grp[$e]||($grp[$c]===$grp[$e]&&$idx[$c]>$idx[$e]));
-if(!$later('app/Services/OrderService.php','app/Services/CommissionCalculator.php')||!$later('app/Services/CommissionWorkflowService.php','app/Services/OrderFinancialStateService.php'))throw new RuntimeException('PACKAGE_ORDER_EDGE_SERVICES');
+if(!$later('resources/views/dashboard/index.blade.php','app/Http/Controllers/DashboardController.php')||!$later('app/Services/OrderService.php','app/Services/CommissionCalculator.php')||!$later('app/Services/CommissionWorkflowService.php','app/Services/OrderFinancialStateService.php'))throw new RuntimeException('PACKAGE_ORDER_EDGE_SERVICES');
 // The `use App\...;` edges of every modified or new file outside group A, and the @include edges of the views: the callee is in a lower group or earlier in the same group (the model pair OrderCommission/CommissionPaymentBatch refers to each other by class name only, lazily, no `use`).
 foreach($new as $p=>$text){
     if($grp[$p]==='A'&&!str_ends_with($p,'.blade.php'))continue;

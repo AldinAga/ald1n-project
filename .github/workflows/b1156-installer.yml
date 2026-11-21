@@ -412,12 +412,12 @@ jobs:
           # package.php is run from the real directory but with the MUTANT tool directory as its second argument: the coordinator constants come from the mutant copy.
           flip PAYLOAD_DIGEST_NEW_MODEL 39458d4cc5fdd5a8 PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_1_app/Models/CommissionAdjustment.php
           flip PRE_STATE_DIGEST_CALCULATOR df2f82373bcd5342 PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_17_app/Services/CommissionCalculator.php
-          flip PRE_STATE_DIGEST_PROVIDER df53e1ed1592b11d PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_39_app/Providers/AppServiceProvider.php
-          flip PAYLOAD_DIGEST_ROUTES fe5c0beeed49bd1c PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_41_routes/web.php
+          flip PRE_STATE_DIGEST_PROVIDER df53e1ed1592b11d PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_38_app/Providers/AppServiceProvider.php
+          flip PAYLOAD_DIGEST_ROUTES fe5c0beeed49bd1c PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE_40_routes/web.php
           # The group layout is checked as well: routes/web.php moved into the controller group, the provider without its guard group and the layout before the routes must each be refused.
-          regroup ROUTES_IN_THE_CONTROLLER_GROUP routes/web.php E C PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C11_D1_E2_F28
-          regroup PROVIDER_WITHOUT_ITS_GUARD_GROUP app/Providers/AppServiceProvider.php D C PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C11_D1_E2_F28
-          regroup LAYOUT_BEFORE_THE_ROUTES resources/views/layouts/app.blade.php F E PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C11_D1_E2_F28
+          regroup ROUTES_IN_THE_CONTROLLER_GROUP routes/web.php E C PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C10_D1_E2_F29
+          regroup PROVIDER_WITHOUT_ITS_GUARD_GROUP app/Providers/AppServiceProvider.php D C PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C10_D1_E2_F29
+          regroup LAYOUT_BEFORE_THE_ROUTES resources/views/layouts/app.blade.php F E PACKAGE_GROUP_LAYOUT_NOT_A13_B14_C10_D1_E2_F29
           printf '{"mutation":"REFUSED_BY_THE_BUILD","payloadDigestNewModel":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","preStateDigestCalculator":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","preStateDigestProvider":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","payloadDigestRoutes":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","routesInTheControllerGroup":"PACKAGE_GROUP_LAYOUT","providerWithoutItsGuardGroup":"PACKAGE_GROUP_LAYOUT","layoutBeforeTheRoutes":"PACKAGE_GROUP_LAYOUT"}\n' | tee "$RUNNER_TEMP/mutation.json"
       - name: Real coordinator on Laravel + MariaDB 10.11.19 after real B1146 to B1155 installs, shop ON - chain gate on Report1121, backup window, guard groups, group order A to F, the migration behind a fresh backup, the evidence, rollbacks, kills, schema-ahead policy
         if: ${{ !cancelled() && steps.payload.outcome == 'success' && steps.package.outcome == 'success' }}
