@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { File } from 'expo-file-system';
 
 import { apiExpoMultipartRequest, apiRequest, queryString } from '@/lib/api/client';
@@ -215,6 +216,8 @@ export type AdminOrderPaymentEntryInput = {
   paid_at: string;
   reference?: string | null;
   note?: string | null;
+  /** Ključ jedne uplate: ponovljen zahtev sa istim ključem je jedan red. Ako se ne zada, generiše se UUID. */
+  idempotency_key?: string;
 };
 
 // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
@@ -341,7 +344,7 @@ export const apiAdminOrders = {
   salePriceCorrection: (orderId: number, input: AdminOrderSalePriceCorrectionInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/sale-price`, { method: 'PATCH', body: input }),
   paymentStore: (orderId: number, input: AdminOrderPaymentEntryInput) =>
-    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments`, { method: 'POST', body: input }),
+    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments`, { method: 'POST', body: { ...input, idempotency_key: input.idempotency_key ?? Crypto.randomUUID() } }),
   paymentVerify: (orderId: number, paymentId: number) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments/${paymentId}/verify`, { method: 'POST' }),
   paymentReject: (orderId: number, paymentId: number, reason: string) =>

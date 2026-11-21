@@ -363,6 +363,99 @@ final class OrderFlowDeliveryB1121Test extends TestCase
         $this->actingAs($this->super)->post('/admin/orders/'.$order->id.'/payments', ['amount_rsd' => '0'] + $body)->assertSessionHasErrors('amount_rsd');
         $this->actingAs($this->super)->post('/admin/receivables/'.$case->id.'/payments', array_diff_key($other, ['idempotency_key' => 1]))->assertSessionHasErrors('idempotency_key');
         self::assertSame(2, OrderPayment::query()->where('order_id', $order->id)->count());
+        // Obrazac porudžbine bez ključa se odbija i ne zove servis.
+        $this->actingAs($this->super)->post('/admin/orders/'.$order->id.'/payments', array_diff_key($body, ['idempotency_key' => 1]))->assertSessionHasErrors('idempotency_key');
+        self::assertSame(2, OrderPayment::query()->where('order_id', $order->id)->count());
+    }
+
+    public function test_api_payment_requires_key_and_same_key_is_one_row(): void
+    {
+        $order = $this->confirmedOrder(['payment_method' => 'bank_transfer']);
+        Sanctum::actingAs($this->admin, ['*']);
+        $url = '/api/v1/admin/orders/'.$order->id.'/payments';
+        $body = ['entry_type' => 'payment', 'amount_rsd' => '700.00', 'payment_method' => 'bank_transfer', 'paid_at' => now()->format('Y-m-d\TH:i')];
+
+        $this->postJson($url, $body)->assertStatus(422)->assertJsonValidationErrors('idempotency_key');
+        self::assertSame(0, OrderPayment::query()->where('order_id', $order->id)->count());
+
+        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1'])->assertSuccessful();
+        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1'])->assertSuccessful();
+        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count(), 'same key is one ledger row');
+    }
+
+    public function test_refund_cannot_exceed_net_paid_also_after_delivery(): void
+    {
+        $order = $this->confirmedOrder(['payment_method' => 'bank_transfer']);
+        $payments = app(OrderPaymentService::class);
+        $base = ['payment_method' => 'bank_transfer', 'paid_at' => now()->toDateTimeString()];
+        $payments->record($order->fresh(), ['entry_type' => 'payment', 'amount_rsd' => 500] + $base, $this->admin);
+
+        try {
+            $payments->record($order->fresh(), ['entry_type' => 'refund', 'amount_rsd' => 600] + $base, $this->admin);
+            self::fail('refund above net paid must be rejected');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('amount_rsd', $e->errors());
+        }
+        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count());
+
+        $done = app(OrderWorkflowService::class)->complete($order->fresh(), $this->admin, ['delivery_method' => 'own_transport', 'recipient_name' => 'Kupac']);
+        try {
+            $payments->record($done->fresh(), ['entry_type' => 'refund', 'amount_rsd' => 500.01] + $base, $this->admin);
+            self::fail('refund above net paid must be rejected after delivery too');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('amount_rsd', $e->errors());
+        }
+        $payments->record($done->fresh(), ['entry_type' => 'refund', 'amount_rsd' => 500] + $base, $this->admin);
+        self::assertSame(2, OrderPayment::query()->where('order_id', $order->id)->count());
+        try {
+            $payments->record($done->fresh(), ['entry_type' => 'refund', 'amount_rsd' => 1] + $base, $this->admin);
+            self::fail('nothing left to refund');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('amount_rsd', $e->errors());
+        }
+    }
+
+    public function test_repeated_complete_and_cancel_do_not_renotify(): void
+    {
+        $order = $this->confirmedOrder(['payment_method' => 'bank_transfer']);
+        $workflow = app(OrderWorkflowService::class);
+        $done = $workflow->complete($order->fresh(), $this->admin, ['delivery_method' => 'own_transport', 'recipient_name' => 'Kupac']);
+        $notified = $this->buyer->notifications()->count();
+        $outbox = DB::table('order_email_outbox')->count();
+        $workflow->complete($done->fresh(), $this->admin, ['delivery_method' => 'own_transport']);
+        self::assertSame($notified, $this->buyer->notifications()->count());
+        self::assertSame($outbox, DB::table('order_email_outbox')->count());
+
+        $second = $this->confirmedOrder();
+        $workflow->cancel($second->fresh(), $this->admin, 'Kupac odustao.');
+        $notified = $this->buyer->notifications()->count();
+        $outbox = DB::table('order_email_outbox')->count();
+        $workflow->cancel($second->fresh(), $this->admin, 'Kupac odustao.');
+        self::assertSame($notified, $this->buyer->notifications()->count());
+        self::assertSame($outbox, DB::table('order_email_outbox')->count());
+    }
+
+    public function test_returned_shipment_is_not_sent_to_buyer_and_hidden_in_buyer_view(): void
+    {
+        $order = $this->confirmedOrder();
+        app(OrderShipmentService::class)->record($order->fresh(), $this->admin, ['shipment_method' => 'courier', 'courier_service_id' => $this->courier()->id, 'tracking_number' => 'BUY-TRK-77', 'recipient_name' => 'Kupac'], null, $this->token($order));
+        $this->actingAs($this->buyer)->get('/orders/'.$order->id)->assertOk()->assertSee('BUY-TRK-77');
+        $notified = $this->buyer->notifications()->count();
+
+        app(OrderShipmentService::class)->markReturned($order->fresh(), $this->super, 'Interni razlog povrata XYZ.');
+
+        self::assertSame($notified, $this->buyer->notifications()->count(), 'buyer gets no return notification');
+        $this->actingAs($this->buyer)->get('/orders/'.$order->id)->assertOk()->assertDontSee('BUY-TRK-77')->assertDontSee('Interni razlog povrata XYZ.');
+    }
+
+    public function test_api_complete_without_method_takes_it_from_active_shipment(): void
+    {
+        $order = $this->confirmedOrder(['payment_method' => 'bank_transfer']);
+        app(OrderShipmentService::class)->record($order->fresh(), $this->admin, ['shipment_method' => 'courier', 'courier_service_id' => $this->courier()->id, 'tracking_number' => 'API-C-1', 'recipient_name' => 'Primalac Kurir'], null, $this->token($order));
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->postJson('/api/v1/admin/orders/'.$order->id.'/complete', [])->assertOk();
+        self::assertSame('courier', DB::table('order_deliveries')->where('order_id', $order->id)->value('delivery_method'));
     }
 
     public function test_open_after_sales_on_behalf_of_the_buyer_role_matrix_and_recorded_opener(): void

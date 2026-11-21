@@ -126,6 +126,16 @@ final class OrderPaymentService
                     ]);
                 }
             }
+            if ($type === 'refund') {
+                $netPaid = (float) OrderPayment::query()->where('order_id', $locked->id)->where('status', 'verified')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
+                    ->value('net_total');
+                if (round((float) ($data['amount_rsd'] ?? 0), 2) > round(max(0, $netPaid), 2) + 0.004) {
+                    throw ValidationException::withMessages([
+                        'amount_rsd' => 'Refundacija ne može biti veća od trenutno neto uplaćenog iznosa '.number_format(max(0, $netPaid), 2, ',', '.').' RSD.',
+                    ]);
+                }
+            }
             $payment = OrderPayment::query()->create([
                 'order_id' => $locked->id,
                 'payment_number' => $this->numbers->next($type === 'refund' ? 'refund' : 'payment', (int) now()->format('Y')),

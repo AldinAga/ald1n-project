@@ -2829,10 +2829,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [entry_type, amount_rsd, payment_method, paid_at]
+              required: [idempotency_key, entry_type, amount_rsd, payment_method, paid_at]
               properties:
+                idempotency_key: { type: string, maxLength: 200, description: 'Required. Repeating a request with the same key returns the same ledger row instead of creating a second one.' }
                 entry_type: { type: string, enum: [payment, refund] }
-                amount_rsd: { type: number, format: double, minimum: 0.01 }
+                amount_rsd: { type: number, format: double, minimum: 0.01, description: 'A refund cannot exceed the net amount paid so far.' }
                 payment_method: { type: string, enum: [bank_transfer, cash, cash_on_delivery, card, other] }
                 paid_at: { type: string, format: date-time }
                 reference: { type: string, nullable: true, maxLength: 190 }

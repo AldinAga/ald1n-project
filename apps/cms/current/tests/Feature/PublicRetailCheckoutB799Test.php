@@ -300,7 +300,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
 
         $this->loginActor($admin);
         $this->post('/admin/orders/'.$order->id.'/payments',[
-            'entry_type'=>'payment','amount_rsd'=>'24000.00',
+            'idempotency_key'=>'b800-bank-ack','entry_type'=>'payment','amount_rsd'=>'24000.00',
             'payment_method'=>'bank_transfer',
             'paid_at'=>now()->toDateTimeString(),
             'reference'=>'B800-SYNTHETIC-BANK-ACK',

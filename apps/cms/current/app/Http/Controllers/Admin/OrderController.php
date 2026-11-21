@@ -218,7 +218,18 @@ final class OrderController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
-        $updated = $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
+        try {
+            $updated = $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            // Polje ručne izmene se zove "note"; greška o razlogu mora da stoji uz njega.
+            $errors = $exception->errors();
+            if (isset($errors['reason']) && !isset($errors['note'])) {
+                $errors['note'] = $errors['reason'];
+                unset($errors['reason']);
+                throw \Illuminate\Validation\ValidationException::withMessages($errors);
+            }
+            throw $exception;
+        }
 
         return back()->with('status', $this->statusChangedMessage($updated));
     }

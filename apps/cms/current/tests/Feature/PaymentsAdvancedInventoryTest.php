@@ -98,6 +98,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
 
         $order = Order::query()->sole();
         $response = $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments', [
+            'idempotency_key' => 'pay-adv-1',
             'entry_type' => 'payment',
             'amount_rsd' => '5000.00',
             'payment_method' => 'cash',
@@ -135,6 +136,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
         $order->update(['source_system' => 'legacy', 'status' => 'shipped']);
 
         $response = $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments', [
+            'idempotency_key' => 'pay-adv-2',
             'entry_type' => 'payment',
             'amount_rsd' => '18000.00',
             'payment_method' => 'cash',
@@ -185,6 +187,7 @@ final class PaymentsAdvancedInventoryTest extends TestCase
         self::assertSame('cash_on_delivery', OrderPayment::query()->sole()->payment_method);
 
         $lockedResponse = $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/payments', [
+            'idempotency_key' => 'pay-adv-3',
             'entry_type' => 'payment',
             'amount_rsd' => '100.00',
             'payment_method' => 'cash',

@@ -225,7 +225,7 @@ final class OrderFlowSimplificationAB1121Test extends TestCase
         self::assertSame('new', $order->fresh()->status);
 
         $this->actingAs($this->super)->patch($url, ['status' => 'shipped'])->assertSessionHasErrors('status');
-        $this->actingAs($this->super)->patch($url, ['status' => 'cancelled'])->assertSessionHasErrors('reason');
+        $this->actingAs($this->super)->patch($url, ['status' => 'cancelled'])->assertSessionHasErrors('note')->assertSessionDoesntHaveErrors('reason');
         $this->actingAs($this->super)->patch($url, ['status' => 'confirmed', 'order_version_token' => app(OrderVersionService::class)->token($order->fresh())])
             ->assertSessionHas('status', fn (string $m): bool => str_contains($m, 'je potvrđena'));
         self::assertSame('confirmed', $order->fresh()->status);

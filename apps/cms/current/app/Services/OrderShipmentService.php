@@ -259,10 +259,10 @@ final class OrderShipmentService
         $returnedOrder = $shipment->order;
         if ($returnedOrder instanceof Order) {
             $message = 'Pošiljka za porudžbinu '.$returnedOrder->order_number.' je vraćena. Razlog: '.$reason.' Porudžbina je ponovo „Potvrđena“; pošalji je ponovo ili je otkaži.';
-            foreach (array_filter([$returnedOrder->supplier, $returnedOrder->user]) as $recipient) {
-                if ($recipient instanceof User && (int) $recipient->id !== (int) $actor->id) {
-                    $this->notifications->order($recipient, 'order.shipment_returned', 'Pošiljka je vraćena', $message, $returnedOrder, ['severity' => 'warning', 'icon' => 'alert-triangle']);
-                }
+            // Interni razlog povrata ide samo osoblju (dobavljaču); kupac ne dobija obaveštenje ni razlog.
+            $recipient = $returnedOrder->supplier;
+            if ($recipient instanceof User && (int) $recipient->id !== (int) $actor->id) {
+                $this->notifications->order($recipient, 'order.shipment_returned', 'Pošiljka je vraćena', $message, $returnedOrder, ['severity' => 'warning', 'icon' => 'alert-triangle']);
             }
         }
 

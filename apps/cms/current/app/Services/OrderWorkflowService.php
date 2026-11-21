@@ -84,7 +84,8 @@ final class OrderWorkflowService
 
     public function changeStatus(Order $order, string $newStatus, User $actor, ?string $note = null, ?string $expectedOrderToken = null, bool $ownCancellation = false): Order
     {
-        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note, $expectedOrderToken, $ownCancellation): Order {
+        $unchanged = false;
+        $updated = DB::transaction(function () use ($order, $newStatus, $actor, $note, $expectedOrderToken, $ownCancellation, &$unchanged): Order {
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
             if ($ownCancellation) abort_unless((int) $locked->user_id === (int) $actor->id, 404);
@@ -110,6 +111,7 @@ final class OrderWorkflowService
             }
 
             if ($oldStatus === $newStatus) {
+                $unchanged = true;
                 if ($newStatus === 'cancelled') $this->returnInventoryOnce($locked, $actor);
                 return $locked->fresh(['items', 'commission', 'user', 'supplier']) ?? $locked;
             }
@@ -181,6 +183,11 @@ final class OrderWorkflowService
 
             return $locked->load(['items', 'commission.user', 'user', 'supplier']);
         }, 5);
+
+        // Ponovljen zahtev na već otkazanoj/potvrđenoj porudžbini ne šalje ponovo obaveštenja ni usaglašavanje.
+        if ($unchanged) {
+            return $updated;
+        }
 
         if ($updated->user instanceof User) {
             $this->notifications->order(
@@ -262,6 +269,7 @@ final class OrderWorkflowService
         $paymentNumber = null;
         $newProof = null;
         $oldProof = null;
+        $alreadyCompleted = false;
 
         try {
             $updated = DB::transaction(function () use (
@@ -272,6 +280,7 @@ final class OrderWorkflowService
                 &$paymentNumber,
                 &$newProof,
                 &$oldProof,
+                &$alreadyCompleted,
             ): Order {
                 /** @var Order $locked */
                 $locked = Order::query()
@@ -281,6 +290,7 @@ final class OrderWorkflowService
 
                 $this->assertNotDirectSale($locked);
                 if ($locked->completed_at !== null) {
+                    $alreadyCompleted = true;
                     return $locked->fresh(['user', 'supplier', 'completedBy', 'delivery.confirmer']) ?? $locked;
                 }
                 if ($locked->status === 'cancelled') {
@@ -457,6 +467,11 @@ final class OrderWorkflowService
             if ($oldProof['disk'] !== $newDisk || $oldProof['path'] !== $newPath) {
                 $this->deletePrivateFile((string) $oldProof['disk'], (string) $oldProof['path']);
             }
+        }
+
+        // Ponovljeno kompletiranje već isporučene porudžbine ne šalje ponovo obaveštenja ni usaglašavanje.
+        if ($alreadyCompleted) {
+            return $updated;
         }
 
         $this->reconciliation->reconcile($updated);

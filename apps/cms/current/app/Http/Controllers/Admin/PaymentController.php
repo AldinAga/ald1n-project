@@ -27,17 +27,15 @@ final class PaymentController extends Controller
         unset($data['idempotency_key']);
 
         // Isti ključ iz obrasca = jedan red u ledgeru (dvostruki klik, ponovno slanje, spor internet).
-        $payment = $key === ''
-            ? $payments->record($order, $data, $actor)
-            : $idempotency->run(
-                $actor,
-                'admin.orders.payment.record',
-                $key,
-                ['order_id' => (int) $order->id] + $data,
-                OrderPayment::class,
-                fn (): OrderPayment => $payments->record($order, $data, $actor),
-                static fn (int $paymentId): OrderPayment => OrderPayment::query()->findOrFail($paymentId),
-            );
+        $payment = $idempotency->run(
+            $actor,
+            'admin.orders.payment.record',
+            $key,
+            ['order_id' => (int) $order->id] + $data,
+            OrderPayment::class,
+            fn (): OrderPayment => $payments->record($order, $data, $actor),
+            static fn (int $paymentId): OrderPayment => OrderPayment::query()->findOrFail($paymentId),
+        );
 
         $left = round(max(0.0, (float) $order->fresh()->subtotal_rsd - (float) $order->fresh()->paid_total_rsd), 2);
 

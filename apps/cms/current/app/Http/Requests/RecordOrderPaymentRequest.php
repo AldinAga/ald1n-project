@@ -32,7 +32,7 @@ final class RecordOrderPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'idempotency_key' => ['nullable', 'string', 'max:200'],
+            'idempotency_key' => ['required', 'string', 'max:200'],
             'entry_type' => ['sometimes', Rule::in(['payment', 'refund'])],
             'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
             'payment_method' => ['required', Rule::in(self::METHODS)],
