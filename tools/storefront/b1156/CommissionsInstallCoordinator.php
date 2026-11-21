@@ -576,7 +576,7 @@ final class CommissionsInstallCoordinator
     {
         $out=self::priorPlan($package['b1151Overlay']??null,self::B1151_FILES,self::B1151_TREE_FILES-self::B1150_TREE_FILES,'B1151');
         $expected=[];foreach(LegalAccountInstallCoordinator::STEPS as [$p,$k])$expected[$p]=$k;$got=array_map(static fn($e)=>$e['kind'],$out);ksort($expected);ksort($got);
-        if($got!==$expected||LegalAccountInstallCoordinator::EMAIL_COMMIT!==self::B1151_EMAIL_COMMIT||LegalAccountInstallCoordinator::THROTTLE_COMMIT!==self::B1151_THROTTLE_COMMIT||LegalAccountInstallCoordinator::BASE_COMMIT!==self::B1150_COMMIT||LegalAccountInstallCoordinator::installedTreeFiles()!==self::B1151_TREE_FILES||LegalAccountInstallCoordinator::FINAL_PASS!==self::B1151_PASS||LegalAccountInstallCoordinator::ROUTES!==self::ROUTES)throw new RuntimeException('B1151_PLAN_NOT_THE_APPROVED_B1151_SET');
+        if($got!==$expected||LegalAccountInstallCoordinator::EMAIL_COMMIT!==self::B1151_EMAIL_COMMIT||LegalAccountInstallCoordinator::THROTTLE_COMMIT!==self::B1151_THROTTLE_COMMIT||LegalAccountInstallCoordinator::BASE_COMMIT!==self::B1150_COMMIT||LegalAccountInstallCoordinator::installedTreeFiles()!==self::B1151_TREE_FILES||LegalAccountInstallCoordinator::FINAL_PASS!==self::B1151_PASS||LegalAccountInstallCoordinator::ROUTES!==DashboardReportsInstallCoordinator::ROUTES)throw new RuntimeException('B1151_PLAN_NOT_THE_APPROVED_B1151_SET');
         return $out;
     }
 
@@ -585,7 +585,7 @@ final class CommissionsInstallCoordinator
     {
         $out=self::priorPlan($package['b1152Overlay']??null,self::B1152_FILES,self::B1152_TREE_FILES-self::B1151_TREE_FILES,'B1152');
         $expected=[];foreach(OriginPinInstallCoordinator::STEPS as [$p,$k])$expected[$p]=$k;$got=array_map(static fn($e)=>$e['kind'],$out);ksort($expected);ksort($got);
-        if($got!==$expected||OriginPinInstallCoordinator::URL_COMMIT!==self::B1152_URL_COMMIT||OriginPinInstallCoordinator::PDF_COMMIT!==self::B1152_PDF_COMMIT||OriginPinInstallCoordinator::BASE_COMMIT!==self::B1152_BASE_COMMIT||OriginPinInstallCoordinator::MAIN_COMMIT!==self::B1152_MAIN_COMMIT||OriginPinInstallCoordinator::installedTreeFiles()!==self::B1152_TREE_FILES||OriginPinInstallCoordinator::FINAL_PASS!==self::B1152_PASS||OriginPinInstallCoordinator::ROUTES!==self::ROUTES||OriginPinInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL)throw new RuntimeException('B1152_PLAN_NOT_THE_APPROVED_B1152_SET');
+        if($got!==$expected||OriginPinInstallCoordinator::URL_COMMIT!==self::B1152_URL_COMMIT||OriginPinInstallCoordinator::PDF_COMMIT!==self::B1152_PDF_COMMIT||OriginPinInstallCoordinator::BASE_COMMIT!==self::B1152_BASE_COMMIT||OriginPinInstallCoordinator::MAIN_COMMIT!==self::B1152_MAIN_COMMIT||OriginPinInstallCoordinator::installedTreeFiles()!==self::B1152_TREE_FILES||OriginPinInstallCoordinator::FINAL_PASS!==self::B1152_PASS||OriginPinInstallCoordinator::ROUTES!==DashboardReportsInstallCoordinator::ROUTES||OriginPinInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL)throw new RuntimeException('B1152_PLAN_NOT_THE_APPROVED_B1152_SET');
         foreach(OriginPinInstallCoordinator::DIGESTS as $path=>[$pre,$post])if(($out[$path]['sha256']??null)!==$post||($out[$path]['preSHA256']??null)!==$pre)throw new RuntimeException('B1152_PLAN_DIGEST_NOT_THE_APPROVED_ONE');
         return $out;
     }
@@ -598,7 +598,7 @@ final class CommissionsInstallCoordinator
     {
         $out=self::priorPlan($package['b1153Overlay']??null,self::B1153_FILES,self::B1153_TREE_FILES-self::B1152_TREE_FILES,'B1153');
         $expected=[];foreach(LogoCatalogInstallCoordinator::STEPS as [$p,$k])$expected[$p]=$k;$got=array_map(static fn($e)=>$e['kind'],$out);ksort($expected);ksort($got);
-        if($got!==$expected||LogoCatalogInstallCoordinator::SOURCE_COMMIT!==self::B1153_COMMIT||LogoCatalogInstallCoordinator::BASE_COMMIT!==self::B1153_BASE_COMMIT||LogoCatalogInstallCoordinator::installedTreeFiles()!==self::B1153_TREE_FILES||LogoCatalogInstallCoordinator::FINAL_PASS!==self::B1153_PASS||LogoCatalogInstallCoordinator::ROUTES!==self::ROUTES||LogoCatalogInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL||LogoCatalogInstallCoordinator::MANIFEST_SHA!==self::MANIFEST_SHA)throw new RuntimeException('B1153_PLAN_NOT_THE_APPROVED_B1153_SET');
+        if($got!==$expected||LogoCatalogInstallCoordinator::SOURCE_COMMIT!==self::B1153_COMMIT||LogoCatalogInstallCoordinator::BASE_COMMIT!==self::B1153_BASE_COMMIT||LogoCatalogInstallCoordinator::installedTreeFiles()!==self::B1153_TREE_FILES||LogoCatalogInstallCoordinator::FINAL_PASS!==self::B1153_PASS||LogoCatalogInstallCoordinator::ROUTES!==DashboardReportsInstallCoordinator::ROUTES||LogoCatalogInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL||LogoCatalogInstallCoordinator::MANIFEST_SHA!==self::MANIFEST_SHA)throw new RuntimeException('B1153_PLAN_NOT_THE_APPROVED_B1153_SET');
         foreach(LogoCatalogInstallCoordinator::DIGESTS as $path=>[$pre,$post])if(($out[$path]['sha256']??null)!==$post||($out[$path]['preSHA256']??null)!==$pre)throw new RuntimeException('B1153_PLAN_DIGEST_NOT_THE_APPROVED_ONE');
         return $out;
     }
@@ -611,7 +611,7 @@ final class CommissionsInstallCoordinator
     {
         $out=self::priorPlan($package['b1154Overlay']??null,self::B1154_FILES,self::B1154_TREE_FILES-self::B1153_TREE_FILES,'B1154');
         $expected=[];foreach(AdminShellInstallCoordinator::STEPS as [$p,$k])$expected[$p]=$k;$got=array_map(static fn($e)=>$e['kind'],$out);ksort($expected);ksort($got);
-        if($got!==$expected||AdminShellInstallCoordinator::SOURCE_COMMIT!==self::B1154_COMMIT||AdminShellInstallCoordinator::BASE_COMMIT!==self::B1154_BASE_COMMIT||AdminShellInstallCoordinator::installedTreeFiles()!==self::B1154_TREE_FILES||AdminShellInstallCoordinator::FINAL_PASS!==self::B1154_PASS||AdminShellInstallCoordinator::ROUTES!==self::ROUTES||AdminShellInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL||AdminShellInstallCoordinator::MANIFEST_SHA!==self::MANIFEST_SHA)throw new RuntimeException('B1154_PLAN_NOT_THE_APPROVED_B1154_SET');
+        if($got!==$expected||AdminShellInstallCoordinator::SOURCE_COMMIT!==self::B1154_COMMIT||AdminShellInstallCoordinator::BASE_COMMIT!==self::B1154_BASE_COMMIT||AdminShellInstallCoordinator::installedTreeFiles()!==self::B1154_TREE_FILES||AdminShellInstallCoordinator::FINAL_PASS!==self::B1154_PASS||AdminShellInstallCoordinator::ROUTES!==DashboardReportsInstallCoordinator::ROUTES||AdminShellInstallCoordinator::EXPECTED_APP_URL!==self::EXPECTED_APP_URL||AdminShellInstallCoordinator::MANIFEST_SHA!==self::MANIFEST_SHA)throw new RuntimeException('B1154_PLAN_NOT_THE_APPROVED_B1154_SET');
         foreach(AdminShellInstallCoordinator::DIGESTS as $path=>[$pre,$post])if(($out[$path]['sha256']??null)!==$post||($out[$path]['preSHA256']??null)!==$pre)throw new RuntimeException('B1154_PLAN_DIGEST_NOT_THE_APPROVED_ONE');
         return $out;
     }
