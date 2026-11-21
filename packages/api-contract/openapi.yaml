@@ -2742,7 +2742,7 @@ paths:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     post:
-      summary: Confirm actual delivery and complete the order
+      summary: Confirm actual delivery (no payment required; the invoice is issued automatically and the warranty starts on the delivery date)
       operationId: adminOrdersComplete
       security:
         - bearerAuth: []
@@ -2927,6 +2927,28 @@ paths:
         '404': { description: Order or managed resource not found. }
         '422': { description: Shipment validation or domain invariant failed. }
         '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/shipment/return:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Mark a shipped, undelivered order's shipment as returned (the order goes back to Confirmed, stock stays reserved)
+      operationId: adminOrdersShipmentReturn
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 2000 }
+      responses:
+        '200': { description: Shipment kept and marked as returned; order status confirmed. }
+        '403': { description: orders.manage permission required. }
+        '404': { description: Order outside the managed scope. }
+        '422': { description: Missing reason or the order is not shipped and undelivered. }
   /api/v1/admin/orders/{order}/shipment-proof:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
