@@ -1,22 +1,22 @@
 <?php
 declare(strict_types=1);
 /**
- * CI-only web double for B1155: the same requests as MediaWeb (GET and HEAD), over plain HTTP to the loopback `php -S`
+ * CI-only web double for B1156: the same requests as MediaWeb (GET and HEAD), over plain HTTP to the loopback `php -S`
  * server with Host: cms.ald1n.com instead of HTTPS. The REAL public/.htaccess Header lines are applied to every response
  * (production runs them under LiteSpeed; `php -S` ignores .htaccess), unless the noHtaccess switch file exists. The real .htaccess carries
  * no Content-Type line; if one ever appears it is applied to delivered HTML only, never to a served static file (a stylesheet keeps text/css).
  * Negative switches (files): dropCsp (CSP headers dropped), dropJsonLd (JSON-LD block removed), dropVaryEdge (the Vary
  * header removed from edge responses only, the origin route still sends it), dropVaryAll (removed from every response),
  * rogueScript (one extra non-edge script in every HTML page), rate429 (every throttled route answers 429 with Retry-After: 3; the file holds the count left, or ALWAYS),
- * cssWrongType (the two admin stylesheets are answered with another content type) and cssTamperBody (their body is changed by a few bytes): the two ways the
- * web-SAPI asset proof of group E must refuse; upFails (every request answered 500, as a dead site would: the injected failure of the immediate liveness smoke after group D).
- * The ONE special request of the B1155 coordinator (DashboardReportsWeb): GET /katalog?stock=x with the single header Referer: https://evil.example/x is built here exactly as it is in the coordinator (the shared client refuses that
+ * cssWrongType (the admin stylesheet are answered with another content type) and cssTamperBody (their body is changed by a few bytes): the two ways the
+ * web-SAPI asset proof of group F must refuse; upFails (every request answered 500, as a dead site would: the injected failure of the immediate liveness smoke after group D).
+ * The ONE special request of the B1156 coordinator (CommissionsWeb): GET /katalog?stock=x with the single header Referer: https://evil.example/x is built here exactly as it is in the coordinator (the shared client refuses that
  * query key) and goes to the real Laravel app, so the validation redirect of the old and of the new code is what is measured; the redirect is never followed.
  * The origin route ($origin=true) is the same loopback server without the edge switches. getHost() sends a forged Host (CI only, for the origin pin proof).
  * jarGet(), csrfToken() and adminLogin() are CI-only browsing with a cookie jar (a real POST /login with a throwaway user of the fixture database; jarGet may carry extra request headers, e.g. a foreign Referer on a failed login POST); the shipped tool never logs in. Not shipped.
  * @author Ald1n <https://ald1n.com>
  */
-final class DashboardReportsFixtureWeb
+final class CommissionsFixtureWeb
 {
     private const HTACCESS_KEYS=['x-robots-tag'=>'robots','content-security-policy'=>'csp','x-frame-options'=>'frame','content-type'=>'contentType','vary'=>'vary','x-content-type-options'=>'nosniff'];
 
@@ -106,7 +106,7 @@ final class DashboardReportsFixtureWeb
         return ['status'=>$status,'location'=>$location,'body'=>is_string($body)?$body:''];
     }
 
-    /** The fast liveness request of the coordinator after group D (same contract as DashboardReportsWeb::fastGet): status and transport flag only. */
+    /** The fast liveness request of the coordinator after group D (same contract as CommissionsWeb::fastGet): status and transport flag only. */
     public function fastGet(string $path,string $marker,int $timeout):array
     {
         if(preg_match('~^/[A-Za-z0-9/_-]{1,40}$~D',$path)!==1||preg_match('/^[a-f0-9]{1,32}$/D',$marker)!==1)throw new RuntimeException('SMOKE_PATH');
@@ -117,19 +117,19 @@ final class DashboardReportsFixtureWeb
 
     public function fetch(string $path,array $query,?string $marker,string $method='GET',bool $origin=false,array $headers=[]):array
     {
-        $throttled=in_array($path,DashboardReportsInstallCoordinator::LEGAL,true)||in_array($path,DashboardReportsInstallCoordinator::SHOP,true)||str_starts_with($path,'/katalog/');
+        $throttled=in_array($path,CommissionsInstallCoordinator::LEGAL,true)||in_array($path,CommissionsInstallCoordinator::SHOP,true)||str_starts_with($path,'/katalog/');
         if(!$origin&&$throttled&&$this->on('rate429')){
             $left=trim((string)file_get_contents($this->switches['rate429']));
             if($left==='ALWAYS'||(int)$left>0){if($left!=='ALWAYS')file_put_contents($this->switches['rate429'],(string)((int)$left-1));$h=MediaWeb::headers();$h['retry'][]='3';return $this->applyHtaccess(MediaWeb::result(false,429,$h,'Too Many Attempts.'));}
         }
-        // The one request the shared client refuses (no stock key in its allowlist, only If-None-Match as a header): fixed in every byte, as in DashboardReportsWeb.
-        $referer=$headers===['Referer: '.DashboardReportsInstallCoordinator::FOREIGN_REFERER]&&$path===DashboardReportsInstallCoordinator::CATALOG_PATH&&$query===['stock'=>'x']&&$method==='GET'&&!$origin&&$marker!==null&&preg_match('/^[a-f0-9]{1,32}$/D',$marker)===1;
+        // The one request the shared client refuses (no stock key in its allowlist, only If-None-Match as a header): fixed in every byte, as in CommissionsWeb.
+        $referer=$headers===['Referer: '.CommissionsInstallCoordinator::FOREIGN_REFERER]&&$path===CommissionsInstallCoordinator::CATALOG_PATH&&$query===['stock'=>'x']&&$method==='GET'&&!$origin&&$marker!==null&&preg_match('/^[a-f0-9]{1,32}$/D',$marker)===1;
         $target=$referer?$path.'?'.http_build_query(['stock'=>'x','ald1n_release_check'=>$marker],'','&',PHP_QUERY_RFC3986):LogoCatalogWeb::target($path,$query,$marker);
         if($this->on('upFails')){$h=MediaWeb::headers();return $this->applyHtaccess(MediaWeb::result(false,500,$h,'Server Error'));}
         $r=$this->applyHtaccess(self::get($this->port,$target,$headers,null,$method));unset($r['cookies']);
         if($this->on('dropVaryAll')||(!$origin&&$this->on('dropVaryEdge')))$r['vary']=[];
         // The two changed stylesheets as a broken edge would answer them: another content type, or a body that is not the payload (the asset proof of group E refuses both).
-        if(array_key_exists($path,DashboardReportsInstallCoordinator::ADMIN_CSS_PATHS)&&$r['status']===200){
+        if(array_key_exists($path,CommissionsInstallCoordinator::ADMIN_CSS_PATHS)&&$r['status']===200){
             if($this->on('cssWrongType'))$r['contentType']='text/plain';
             if($this->on('cssTamperBody'))$r['body'].="\n/* tampered */";
         }
