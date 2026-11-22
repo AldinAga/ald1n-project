@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 declare(strict_types=1);
 
@@ -38,7 +38,7 @@ final class CommissionStatementPdfTest extends TestCase
         parent::setUp();
         CommissionMoney::$adjustmentsOverride = null;
         $this->seed(CoreAccessSeeder::class);
-        app(SettingsService::class)->putMany(['eur_rsd_rate' => '117.200000'], 0);
+        app(SettingsService::class)->putMany(['eur_rsd_rate' => '117.200000'], null);
         $this->alfa = $this->user('agent-alfa', 'user');
         $this->bravo = $this->user('agent-bravo', 'user');
         $this->admin = $this->user('agent-admin', 'admin');
