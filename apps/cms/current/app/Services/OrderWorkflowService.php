@@ -142,7 +142,8 @@ final class OrderWorkflowService
                 'created_at' => now(),
             ]);
 
-            if ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status === 'paid') {
+            // Bez tabele zaduženja (kod pre migracije) isplaćena provizija ide starom granom ispod i otkazuje se kao u produkciji.
+            if ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status === 'paid' && \App\Support\CommissionMoney::hasAdjustments()) {
                 // Isplata ostaje evidentirana; automatski potvrđeno zaduženje za ceo preostali iznos (odluka vlasnika 16.11.2026).
                 $paidCommission = OrderCommission::query()->lockForUpdate()->findOrFail($locked->commission->id);
                 app(CommissionReversalService::class)->debitForCancellation($paidCommission, $actor, (string) $note);
