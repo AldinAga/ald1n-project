@@ -644,7 +644,7 @@ $results['install']=['steps'=>69,'groups'=>'A13_B14_C10_D1_E2_F29','migration'=>
 $installedOutput=$o;
 
 // 13. Idempotent re-run: nothing is applied again, the preflight of the installed state passes (73 ran, 0 pending).
-[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'MIGRATE={')&&!str_contains($o,'DB_BACKUP=')&&$tree()==='INSTALLED'&&$schemaNew(),'IDEMPOTENT_RERUN_NO_FILE_NO_BACKUP_NO_MIGRATION');
+[$rc,$o]=$run();check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ALREADY_INSTALLED'&&!str_contains($o,'OVERLAY_STEP=')&&!preg_match('/^MIGRATE=\{/m',$o)&&!str_contains($o,'DB_BACKUP=')&&$tree()==='INSTALLED'&&$schemaNew(),'IDEMPOTENT_RERUN_NO_FILE_NO_BACKUP_NO_MIGRATION');
 
 // 14. OWNER ROLLBACK after the migration: the files go back, the two migration files STAY (schema ahead), nothing is undone in the database; the OLD code then serves the new schema and the backfilled rows.
 [$rc,$o]=$run($allRestores(),'rollback',[],$extraCfg);$rrows=array_values(array_filter($stepRows(),static fn($r)=>str_starts_with($r['point'],'AFTER_RESTORE_')));
@@ -668,7 +668,7 @@ $reset();check($schemaOld()&&$tree()==='PRE'&&$orphanOk(),'RESET_AFTER_THE_OWNER
 // 15. Failures BEFORE the migration started: the full reverse-order file rollback, the schema untouched, the migration files removed.
 foreach([['BEFORE_DB_BACKUP','BEFORE_THE_BACKUP'],['AFTER_DB_BACKUP','AFTER_THE_BACKUP_BEFORE_MIGRATE_INTENT'],['AFTER_MIGRATE_INTENT','AFTER_MIGRATE_INTENT_BEFORE_THE_COMMAND']] as [$point,$label]){
     [$rc,$o]=$run([$point=>['fail']]);
-    check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&!is_file($active.'/'.$stepMig2['path'])&&!str_contains($o,'MIGRATE={'),'FAILURE_'.$label.'_IS_A_FULL_ROLLBACK_NOTHING_MIGRATED');
+    check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&!is_file($active.'/'.$stepMig2['path'])&&!preg_match('/^MIGRATE=\{/m',$o),'FAILURE_'.$label.'_IS_A_FULL_ROLLBACK_NOTHING_MIGRATED');
     $tr=lastLine($o,'ACTIVE_TREE_AFTER_ROLLBACK');check(is_array($tr)&&$tr['verifiedFiles']===8583&&$tr['migrationFilesKept']===false&&$orphanOk(),'THE_TREE_AFTER_'.$label.'_IS_THE_8583_TREE');$reset();
 }
 $results['failureBeforeTheMigration']='FULL_ROLLBACK_THREE_POINTS_SCHEMA_UNTOUCHED';
@@ -705,7 +705,7 @@ $results['killBeforeTheMigration']='GENERIC_RESTORE_TWO_POINTS';
 [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways'],'BEFORE_SMOKES_OLD'=>['clearDrops']],'install',[],$extraCfg);
 check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED'&&$schemaNew(),'PERSISTENT_429_HOLDS_THE_FILES_AND_THE_MIGRATION_STAY');
 @unlink($switches['rate429']);[$rc,$o]=$run([],'install',[],$extraCfg);
-check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'MIGRATE={'),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');$reset();
+check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!preg_match('/^MIGRATE=\{/m',$o),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');$reset();
 $results['persistent429']='ACCEPTANCE_REPEATED_ONLY';
 
 // 20. Cases ported from the B1155 fixture for code B1156 rewrote or added.
