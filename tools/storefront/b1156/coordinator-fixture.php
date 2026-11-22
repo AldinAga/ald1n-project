@@ -690,6 +690,7 @@ foreach([['AFTER_MIGRATE_INTENT','BEFORE_THE_COMMAND'],['AFTER_MIGRATE_COMMAND',
     [$rc,$o]=$run([],'install',[],$extraCfg);
     check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_MIGRATION_FORWARD_ONLY=')&&!str_contains($o,'OVERLAY_ROLLBACK=')&&$tree()==='INSTALLED'&&$schemaNew(),'RESUMED_FORWARD_ONLY_'.$label);
     $st=$statusOf();$moved=[];foreach($st as $id=>$r)if($r['status']==='approved'&&$r['approved_by']===null)$moved[]=$id;sort($moved);check($moved===$expectedMoved&&(int)$pdo()->query('SELECT COUNT(*) FROM order_commissions WHERE auto_approved_at IS NOT NULL')->fetchColumn()===2,'THE_MOVED_SET_IS_THE_HARDCODED_ONE_AFTER_THE_RESUME_'.$label);
+    [$rc,$o]=$run([],'rollback',[],$extraCfg);check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ROLLED_BACK_FILES_SCHEMA_AHEAD','OWNER_ROLLBACK_AFTER_THE_RESUMED_INSTALL_'.$label);
     $reset();check($tree()==='PRE'&&$schemaOld(),'RESET_AFTER_THE_KILL_'.$label);
 }
 $results['killAroundTheMigration']='FORWARD_RESUME_PASS_BOTH_POINTS';
@@ -705,7 +706,8 @@ $results['killBeforeTheMigration']='GENERIC_RESTORE_TWO_POINTS';
 [$rc,$o]=$run(['BEFORE_SMOKES_INSTALLED'=>['rateLimitAlways'],'BEFORE_SMOKES_OLD'=>['clearDrops']],'install',[],$extraCfg);
 check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_INSTALLED_ACCEPTANCE_NOT_VERIFIED'&&$tree()==='INSTALLED'&&$schemaNew(),'PERSISTENT_429_HOLDS_THE_FILES_AND_THE_MIGRATION_STAY');
 @unlink($switches['rate429']);[$rc,$o]=$run([],'install',[],$extraCfg);
-check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!preg_match('/^MIGRATE=\{/m',$o),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');$reset();
+check($rc===0&&lastRaw($o,'B1156_FINAL')===CommissionsInstallCoordinator::FINAL_PASS&&str_contains($o,'RESUMED_ACCEPTANCE_ONLY=')&&!str_contains($o,'OVERLAY_STEP=')&&!preg_match('/^MIGRATE=\{/m',$o),'THE_SAME_COMMAND_REPEATS_ONLY_THE_ACCEPTANCE');
+[$rc,$o]=$run([],'rollback',[],$extraCfg);check($rc===0&&lastRaw($o,'B1156_FINAL')==='PASS_ROLLED_BACK_FILES_SCHEMA_AHEAD','OWNER_ROLLBACK_AFTER_THE_429_RESUME');$reset();
 $results['persistent429']='ACCEPTANCE_REPEATED_ONLY';
 
 // 20. Cases ported from the B1155 fixture for code B1156 rewrote or added.
