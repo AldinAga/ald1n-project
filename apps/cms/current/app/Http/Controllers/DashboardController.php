@@ -107,6 +107,15 @@ final class DashboardController extends Controller
             $this->reportDashboardWarning('settings', $exception);
             $shipDays = 2;
         }
+        // Kompatibilnost pri rollbacku: stari dashboard view (d2c07f62) čita $eurRsdRate/$eurRsdSource; novi ih ne koristi.
+        try {
+            $eurRsdRate = $settings->eurRsdRate();
+            $eurRsdSource = (string) ($settings->get('eur_rsd_source', 'Ručno') ?: 'Ručno');
+        } catch (Throwable $exception) {
+            $this->reportDashboardWarning('settings', $exception);
+            $eurRsdRate = null;
+            $eurRsdSource = 'Nije podešeno';
+        }
         $attention = $this->attentionCounters($user, $access, $shipDays);
         $priorityActions = $this->priorityActions($access, $orderStats, $productStats, $afterSalesStats, $fieldOperationsStats, $servicePartsStats, $warrantyStats, $receivableStats, $userStats, $attention, $shipDays, $user->hasRole('superadmin'));
         $portal = $this->portalData($user, $access, $portalService);
@@ -131,6 +140,8 @@ final class DashboardController extends Controller
             'inventoryValuation' => $inventoryValuation,
             'recentOrders' => $recentOrders,
             'priorityActions' => $priorityActions,
+            'eurRsdRate' => $eurRsdRate,
+            'eurRsdSource' => $eurRsdSource,
             'portal' => $portal,
             'subAgent' => $subAgent,
         ]);
