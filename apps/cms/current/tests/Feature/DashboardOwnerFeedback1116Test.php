@@ -297,6 +297,24 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         self::assertEqualsWithDelta(18000.0, $response->viewData('reportStats')['summary']['revenue_rsd'], 0.001);
     }
 
+    public function test_view_data_keeps_the_keys_the_production_view_reads_for_rollback(): void
+    {
+        // B1156 rollback: novi kontroler + stari view (d2c07f62) ne sme da da 500 dok radnici ne vide stari kontroler.
+        app(\App\Services\SettingsService::class)->putMany(['eur_rsd_rate' => '117.25', 'eur_rsd_source' => 'NBS'], null);
+        $oldViewKeys = ['user', 'access', 'orderStats', 'productStats', 'userStats', 'afterSalesStats', 'fieldOperationsStats',
+            'servicePartsStats', 'warrantyStats', 'receivableStats', 'reportStats', 'dashboardPeriod', 'dashboardBrandMix',
+            'dashboardOutstandingNow', 'inventoryValuation', 'recentOrders', 'priorityActions', 'eurRsdRate', 'eurRsdSource', 'portal'];
+
+        foreach (['superadmin', 'user'] as $role) {
+            $response = $this->actingAs($this->person($role, '-compat'))->get('/')->assertOk();
+            foreach ($oldViewKeys as $key) {
+                self::assertArrayHasKey($key, $response->original->getData(), $role.' view data must keep '.$key);
+            }
+            self::assertEqualsWithDelta(117.25, $response->viewData('eurRsdRate'), 0.0001, $role);
+            self::assertSame('NBS', $response->viewData('eurRsdSource'), $role);
+        }
+    }
+
     public function test_dodaj_artikal_in_the_header_band_follows_the_product_permission(): void
     {
         $super = $this->person('superadmin');
