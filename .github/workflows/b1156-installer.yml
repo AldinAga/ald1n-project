@@ -1,6 +1,6 @@
 # B1156 commissions (automatic payout, reversals and debits), orders and dashboard UI installer with two migrations. CI only, nothing is deployed.
 #
-# PAYLOAD GATE. The payload source (origin/main 2e5460b4, the merge of PR 195, 200, 201 and 202) and the code base it is applied to (d2c07f62, the B1155 payload commit: the code that is live after B1155, Report1121) are
+# PAYLOAD GATE. The payload source (origin/main 94de4be5, the merge of PR 195, 200, 201, 202 and 209) and the code base it is applied to (d2c07f62, the B1155 payload commit: the code that is live after B1155, Report1121) are
 # named in ONE place: the block marked B1156_PAYLOAD in tools/storefront/b1156/CommissionsInstallCoordinator.php (BASE_COMMIT, SOURCE_COMMIT, STEPS, DIGESTS and ORPHANS). If the source moves, change only that
 # block; this file reads the commits from it (step with id "payload") and exports them as B1156_SRC to the later steps. The step fails when a commit is missing or malformed.
 name: B1156 commissions orders dashboard installer with migrations (NO DEPLOY)
@@ -14,7 +14,7 @@ permissions:
   actions: read
 env:
   # The B1155 payload commit and its code base, the B1154 payload commit and its code base, the B1153 payload commit and its code base, the B1152 payload heads and their code base, the B1151 payload heads and the B1150
-  # payload head, the B1149 payload head, the operator tooling heads (B1150 2c74fd7b and B1149 bf5ac045) and the code base of this rollout (d2c07f62, the B1155 payload commit; the payload source 2e5460b4 is read from the coordinator).
+  # payload head, the B1149 payload head, the operator tooling heads (B1150 2c74fd7b and B1149 bf5ac045) and the code base of this rollout (d2c07f62, the B1155 payload commit; the payload source 94de4be5 is read from the coordinator).
   B1152_URL: 8505b11064589ea5514944fea954a6d5ef8acdb1
   B1152_PDF: cfe97253bf4c441b06d2ea6194e2180bf4e23f98
   B1152_CODE_BASE: 7e22afd4b7cde338d5198d9e1ad0e2e3c72f1d9a
@@ -31,7 +31,7 @@ env:
   B1154_COMMIT: ad901a580ea85fffbd6567f1f12965b396680d79
   B1155_COMMIT: d2c07f62cee09b22248bcff2d4a8361523d7fee6
   B1156_BASE: d2c07f62cee09b22248bcff2d4a8361523d7fee6
-  B1156_MAIN: 2e5460b4573022321b71c36798413c5e42555f81
+  B1156_MAIN: 94de4be58da7b016870720b22d0ca0d79d3586de
 jobs:
   installer:
     runs-on: ubuntu-24.04
@@ -58,7 +58,7 @@ jobs:
           persist-credentials: false
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Fetch the chain commits (B1146 base, B1146-B1155 heads, main eca7755c, the code bases 7e22afd4, af1e46a3, 482d2fa5, ad901a58 and d2c07f62, origin/main 2e5460b4, tooling bases) by SHA
+      - name: Fetch the chain commits (B1146 base, B1146-B1155 heads, main eca7755c, the code bases 7e22afd4, af1e46a3, 482d2fa5, ad901a58 and d2c07f62, origin/main 94de4be5, tooling bases) by SHA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

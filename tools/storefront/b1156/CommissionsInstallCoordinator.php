@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * B1156 commissions (automatic payout, reversals and debits), the orders and dashboard UI and the commission migrations: ships 69 reviewed files (13 new, 56 modified) over the live tree, which is the manifest + B1146 .. B1155
- * (8583 files, equals apps/cms/current of commit d2c07f62 without tests); tests, CI and docs stay out. PAYLOAD: ONE source commit, origin/main 2e5460b4 (the merge of PR 195, 200, 201 and 202) over BASE_COMMIT d2c07f62.
+ * (8583 files, equals apps/cms/current of commit d2c07f62 without tests); tests, CI and docs stay out. PAYLOAD: ONE source commit, origin/main 94de4be5 (the merge of PR 195, 200, 201, 202 and 209) over BASE_COMMIT d2c07f62.
  * The delta ALSO DELETES two files (resources/views/dashboard/partials/operator-orders.blade.php and kpi-delta.blade.php): the owner rule is no deletion on the host, so they stay as RETAINED ORPHANS with their
  * B1155 digests (ORPHANS); nothing in the new tree includes them; the expected tree is the payload tree plus exactly these two files, 8596 files. This rollout is the first one that MIGRATES since B1145:
  * the two migrations 2026_11_16_000001_create_commission_adjustments (additive schema) and 2026_11_16_000002_backfill_commissions_for_payout (pending commissions of an already paid or delivered order become
@@ -91,7 +91,7 @@ final class CommissionsInstallCoordinator
     /** The pre-state commit: the code that is live after B1155 (Report1121), commit d2c07f62 of origin/main; its apps/cms/current without tests equals the live tree (asserted at build time, byte for byte per file). */
     public const BASE_COMMIT='d2c07f62cee09b22248bcff2d4a8361523d7fee6';
     /** origin/main at the time of writing (the merge of PR 195, 200, 201 and 202 over BASE_COMMIT). Source key M in STEPS; its apps/cms/current is what the install produces (plus the tests that are not installed, plus the two retained orphans). */
-    public const SOURCE_COMMIT='2e5460b4573022321b71c36798413c5e42555f81';
+    public const SOURCE_COMMIT='94de4be58da7b016870720b22d0ca0d79d3586de';
     /**
      * The install order, [path under apps/cms/current, 'new'|'modified', group, source key M]. Groups: A the 13 new files, all inert (nothing old references them; the two migrations are files only until the migration step);
      * B the libraries (two models, eleven services, the doctor command: every new constructor dependency is a class of group A, a public method only gains optional parameters); C six controllers (their new methods and constructor
@@ -164,7 +164,7 @@ final class CommissionsInstallCoordinator
         'app/Services/ManagementReportService.php'=>['d178773693a59fbc0e92bd19a36f953b0ffe0634fa2b7f3982f11d1e15428151','00110114c72b0b95254a5d6697d4f501d75d7f5b7a6e02324f90f15f5831176f'],
         'app/Services/OrderDetailPresenter.php'=>['1566beca4bd230340297bafa448e641a54a59ff837627a9fb4d69653f3d8957c','5d31e59ef0685a8c8aadc03c2d573dc1d5cdcd96dba1aa1c5fdf057af0418415'],
         'app/Services/OrderService.php'=>['5bc6264e1c793860fc789105a735dad9eb526381b913ae439992208978c8a644','e729eac5e7a1c7875c0d8c13b8a85768a665e6bf9cc87418760bf1234cf7b25f'],
-        'app/Services/OrderWorkflowService.php'=>['2c268112a48a19876d7ea34e1b23348a6aa1f2a35ef0ca6f3722d64659f09ad5','e2acb7f2641c7f956eeb7cf635220ce5579b7366ab1d508f53bd5d2ff39c2b2c'],
+        'app/Services/OrderWorkflowService.php'=>['2c268112a48a19876d7ea34e1b23348a6aa1f2a35ef0ca6f3722d64659f09ad5','1029f358df7b42111945336b7f8318d364a34cf1b2212eb7c6f89d76c179c3a2'],
         'app/Services/SubagentSalesReportService.php'=>['1b97db53622ad8e5dd83485ebd98c53bbe18b7b811d79e6380847e982fc229a6','5aad2afd823dae765cbda8387b946d127bcb36874a9f3b2e655380457cbd4497'],
         'app/Console/Commands/FinancialStateDoctorCommand.php'=>['d21a20c2ec916c08bfdbe7d33f94504cc882cffddad8e1c734bcf8572f218189','416fe14f12f41a18afff37992a2259d112d4e0e4d1b6271a49c9ea20f1d48206'],
         'app/Http/Controllers/Admin/CommissionController.php'=>['3571f0baf96cfc5fddfba733b380aacb4952d667252ed9edb04153fdee59e1e0','1b1c5186c54929774ed3de174969ae22ac37314abd9eb8cbf815e510abd5b6c3'],
@@ -207,7 +207,7 @@ final class CommissionsInstallCoordinator
         'resources/views/orders/edit.blade.php'=>['ddcb35f1fe720a85d3a7b82387e9110c0f688bc14cd40c28b8597d01f7efd430','c7cc7a93063c32285d16d917a5c23321cbb5d299cf590a5e6185350acfe2ff96'],
         'resources/views/orders/index.blade.php'=>['f92dce9f080fe4ffe6337b3210dd61471a25087e1559d719e7e751f9d9ade498','1e39387225c65b8053f052ed1065727c9e3bc9b6aef5f1a1eef5ae423c01710b'],
         'resources/views/orders/show.blade.php'=>['533478919925410c2f0dd09758c9b7fff47da9b804a059579ca50f02ab8b983f','ffe493fbe6a3d7206ed1474325d36308367d11b9422c4dd142300c3cb97e8f6d'],
-        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','c5f71e8d7afecfdd2d65e9dfb5bf1de9251207ec1afb571501d2174722c388a7'],
+        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','706cdb967a26551129846caf42205953e88a909bbe8428c0850db5403f9449b0'],
         'resources/views/dashboard/index.blade.php'=>['7779926c524cba298de76fa2f43a2faeea32b7013107ddfe1da25e52802d4181','77714245836b5c8fddc714aaff7bb4bce12b75b17ee849408eb7f3c2cf4530c5'],
     ];
 

@@ -2,7 +2,7 @@
 
 Autor: Ald1n <https://ald1n.com>
 
-Ovaj paket prebacuje produkciju sa stanja B1155 (Izveštaj 1121, 8583 fajla, 570 ruta) na stanje `origin/main` 2e5460b4. Isti je tip instalatera kao B1155, uz jednu novost: prvi put posle B1145 pokreće migracije baze.
+Ovaj paket prebacuje produkciju sa stanja B1155 (Izveštaj 1121, 8583 fajla, 570 ruta) na stanje `origin/main` 94de4be5. Isti je tip instalatera kao B1155, uz jednu novost: prvi put posle B1145 pokreće migracije baze.
 
 ## Šta se menja
 
@@ -60,8 +60,6 @@ Zašto je stari kod bezbedan sa novom šemom: stari kod čita provizije i serije
 ## Poznata ograničenja (iskreno)
 
 1. Između fajlova i migracije (nekoliko minuta) novi kod radi nad starom šemom. Skoro sve staze imaju zaštitu (`CommissionMoney::hasAdjustments()`, `Schema::hasTable`). Dve vrste radnji NEMAJU zaštitu i u tom prozoru bi dale grešku 500 (transakcija se poništava, podaci se ne kvare): (a) izmena stavki porudžbine preko `OrderAmendmentService::amend`, koju mogu pokrenuti i kupac i sub-agent, na webu i u mobilnoj aplikaciji (stiže do upisa `auto_approved_at`, `CommissionWorkflowService.php:273`), i (b) vraćanje provizije u „Na čekanju“, koje pada ranije u `hasOpenDebits()`. Dakle nije samo administratorska radnja. Pokrenite instalaciju u satu sa malo saobraćaja.
-1a. Otkazivanje porudžbine čija je provizija već isplaćena, u istom prozoru (pre migracije), ostavlja proviziju kao isplaćenu bez traga (nema korekcije). Ako se to desi, ručno proverite otkazane porudžbine iz tog vremena.
-1b. Posle vraćanja fajlova (rollback) kontrolna tabla svih uloga može oko 2 minuta da vraća grešku 500 dok se OPcache ne osveži, jer novi `DashboardController` i stari pogled ne dele iste ključeve (`eurRsdRate`, `eurRsdSource`). Prolazno je i samo se osvežava; CI to preskače na tim tačkama. Zaštita u aplikaciji traži izmenu u main grani i novo pinovanje, van ovog PR-a.
 2. Alat nikad ne prijavljuje korisnika, pa strane iza prijave (kontrolna tabla, provizije, porudžbine, zvonce) proverava vlasnik: otvorite kontrolnu tablu, listu porudžbina i jednu porudžbinu, stranu Provizije i zvonce obaveštenja, na računaru i na telefonu.
 3. Stalne kopije: aplikacija čuva samo 2 najnovije proverene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izveštaju, `DB_BACKUP`) sačuvajte van servera pre sledeće noćne.
 4. Cloudflare se ne dira i nije potrebno čišćenje keša (`?v=<vreme fajla>` u pogledima).

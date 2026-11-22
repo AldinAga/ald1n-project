@@ -469,7 +469,7 @@ $stateFile=$private1155.'/'.$pin['state'].'/state.json';$stateOriginal=(string)f
 $gate('B1155_STATE_NOT_INSTALLED_PASS','B1155_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
 // A report that is the right PASS but one byte different (a changed digest) is the same HOLD as the production pin: the pin is the host file's bytes. The production pins are Report1120's facts:
 // its sha256 is that of the git blob (the CRLF worktree copy on a Windows checkout has another digest), its state id and its route count are the ones Report1120 printed.
-check(CommissionsInstallCoordinator::B1155_REPORT_SHA256==='1fa75edfdaca0ec8810a54ffa0900666db03f316c37922063102a59b4ff19267'&&CommissionsInstallCoordinator::B1155_STATE_ID==='48389cb1f7b6f435878fff98655ff202'&&CommissionsInstallCoordinator::ROUTES===570&&CommissionsInstallCoordinator::ROUTES_AFTER===579&&CommissionsInstallCoordinator::B1155_TREE_FILES===8583&&CommissionsInstallCoordinator::installedTreeFiles()===8596&&CommissionsInstallCoordinator::EXPECTED_APP_URL==='https://cms.ald1n.com'&&CommissionsInstallCoordinator::BASE_COMMIT==='d2c07f62cee09b22248bcff2d4a8361523d7fee6'&&CommissionsInstallCoordinator::SOURCE_COMMIT==='2e5460b4573022321b71c36798413c5e42555f81'&&CommissionsInstallCoordinator::B1155_COMMIT===CommissionsInstallCoordinator::BASE_COMMIT,'PRODUCTION_PINS_ARE_THE_REPORT1121_FACTS');
+check(CommissionsInstallCoordinator::B1155_REPORT_SHA256==='1fa75edfdaca0ec8810a54ffa0900666db03f316c37922063102a59b4ff19267'&&CommissionsInstallCoordinator::B1155_STATE_ID==='48389cb1f7b6f435878fff98655ff202'&&CommissionsInstallCoordinator::ROUTES===570&&CommissionsInstallCoordinator::ROUTES_AFTER===579&&CommissionsInstallCoordinator::B1155_TREE_FILES===8583&&CommissionsInstallCoordinator::installedTreeFiles()===8596&&CommissionsInstallCoordinator::EXPECTED_APP_URL==='https://cms.ald1n.com'&&CommissionsInstallCoordinator::BASE_COMMIT==='d2c07f62cee09b22248bcff2d4a8361523d7fee6'&&CommissionsInstallCoordinator::SOURCE_COMMIT==='94de4be58da7b016870720b22d0ca0d79d3586de'&&CommissionsInstallCoordinator::B1155_COMMIT===CommissionsInstallCoordinator::BASE_COMMIT,'PRODUCTION_PINS_ARE_THE_REPORT1121_FACTS');
 // The repository copy of Report1121 is the file the pin names: its git blob digest is the production pin (only checked where the repository is the checkout, as in CI).
 $repoReport=dirname($tools,3).'/docs/operations/1121-B1155-INSTALLER-20261116-052404.md';if(is_file($repoReport))check(hash_file('sha256',$repoReport)===CommissionsInstallCoordinator::B1155_REPORT_SHA256,'THE_ARCHIVED_REPORT1121_HAS_THE_PINNED_DIGEST');
 // 6c. The pin is strict: the effective config('app.url') must be exactly https://cms.ald1n.com. A trailing slash is a HOLD with nothing changed (the .env of the
@@ -567,20 +567,15 @@ check(($baselinePages['admin /']??0)===200&&($baselinePages['admin /admin/commis
 $results['baselinePages']=$baselinePages;
 $judge=static function(array $rows,string $label)use($stepRows,$baselinePages):void{
     $bad=[];
-    // Transient OPcache window of a rollback: right after the OLD DashboardController is restored, the web workers may still run the cached NEW one against the already restored OLD view for a few seconds (the fixture server has
-    // realpath_cache_ttl=10 and revalidate_freq=2). The superadmin and sub-agent dashboards are therefore not judged in the 14 seconds after that point; every later point is judged strictly, so a permanent 500 still fails the fixture.
-    $t68=null;foreach($rows as $r)if($r['point']==='AFTER_RESTORE_68')$t68=$r['t'];
     foreach($rows as $r){
-        $transient=$t68!==null&&str_starts_with($r['point'],'AFTER_RESTORE_')&&$r['t']>=$t68&&$r['t']-$t68<14;
         foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
         foreach(['/up','/login'] as $p)if(($r['anon'][$p]??null)!==200)$bad[]=$r['point'].' '.$p.' missing';
         if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
         foreach(['dashGuest','smtpGuest','merchantGuest','documentsGuest','reportGuest','reportCsvGuest'] as $k)if($r[$k]!==302)$bad[]=$r['point'].' '.$k.' '.$r[$k];
         if(!in_array($r['bellGuest'],[404,302],true))$bad[]=$r['point'].' guest bell URL '.$r['bellGuest'];
-        if(in_array($r['point'],['AFTER_STEP_68','AFTER_STEP_69','AFTER_RESTORE_69','AFTER_RESTORE_68'],true))continue;
-        if(!$transient&&(($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true))$bad[]=$r['point'].' AUTHENTICATED superadmin dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
-        if(!$transient&&($r['commissionsAuth']??null)!==200)$bad[]=$r['point'].' superadmin commissions page '.var_export($r['commissionsAuth']??null,true);
-        if(!$transient&&($r['dashSub']??null)!==200)$bad[]=$r['point'].' AUTHENTICATED sub-agent dashboard '.var_export($r['dashSub']??null,true);
+        if((($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true))$bad[]=$r['point'].' AUTHENTICATED superadmin dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
+        if(($r['commissionsAuth']??null)!==200)$bad[]=$r['point'].' superadmin commissions page '.var_export($r['commissionsAuth']??null,true);
+        if(($r['dashSub']??null)!==200)$bad[]=$r['point'].' AUTHENTICATED sub-agent dashboard '.var_export($r['dashSub']??null,true);
         if(!in_array($r['commissionsSub']??null,[200,403],true))$bad[]=$r['point'].' sub-agent commissions page '.var_export($r['commissionsSub']??null,true);
         if(isset($r['adminWindow'])){foreach(['admin','sub'] as $who)foreach($r['adminWindow'][$who] as $pg=>$f)if($f['status']>=500&&($baselinePages[$who.' '.$pg]??0)<500)$bad[]=$r['point'].' WINDOW '.$who.' '.$pg.' '.$f['status'];
             foreach(['/','/admin/commissions','/admin/orders'] as $pg)if(($r['adminWindow']['admin'][$pg]['status']??0)!==200)$bad[]=$r['point'].' WINDOW admin '.$pg.' '.($r['adminWindow']['admin'][$pg]['status']??'none');
@@ -601,8 +596,6 @@ $results['guardGroups']='D_E_F_REFUSED_WITHOUT_THEIR_PROOF_ROLLED_BACK';
 
 // 12. THE INSTALL. A smoke after EVERY step and every group boundary, after the database backup (all files in, OLD schema) and after the migration; both users' pages at every point (hard login gate passed).
 $allPoints=$allSteps()+['AFTER_DB_BACKUP'=>['stepSmoke'],'AFTER_MIGRATED'=>['stepSmoke']];
-// The ONE point between the new DashboardController and the new dashboard view (steps 68 and 69, back to back in the tool): the fixture's own per-step smoke would sit inside the one revalidation tick in which the new controller meets the old view, so the authenticated pages are not requested there (a fixture artefact; the tool writes the two files without any request in between).
-$extraCfg['pairPoint']='AFTER_STEP_68';
 $histBefore=(int)$pdo()->query('SELECT COUNT(*) FROM commission_status_history')->fetchColumn();$notifBefore=$notifCounts();
 [$rc,$o]=$run($allPoints,'install',[],$extraCfg);$rows=$stepRows();echo 'STEP_SMOKES='.json_encode($rows,JSON_UNESCAPED_SLASHES).PHP_EOL;
 check(!str_contains($o,$winPassword)&&!str_contains(json_encode($rows),$winPassword)&&!str_contains($o,$subPassword)&&!str_contains($o,$admPassword),'THE_THROWAWAY_PASSWORDS_ARE_IN_NO_OUTPUT');
