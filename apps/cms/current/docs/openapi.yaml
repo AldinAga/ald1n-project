@@ -2650,7 +2650,7 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [new, processing, confirmed, shipped, cancelled], description: 'Samo confirmed i cancelled su prihvaćeni; processing, new i shipped vraćaju 422 sa jasnom porukom.' }
+                status: { type: string, enum: [confirmed, cancelled], description: 'Samo confirmed i cancelled su prihvaćeni; svaka druga vrednost (npr. processing, new, shipped) vraća 422 sa greškom status.' }
                 note: { type: string, nullable: true, maxLength: 1000 }
                 reason: { type: string, nullable: true, maxLength: 1000, description: 'Obavezan za cancelled (ili note).' }
                 order_version_token: { type: string, minLength: 64, maxLength: 64, description: 'Obavezan za confirmed.' }

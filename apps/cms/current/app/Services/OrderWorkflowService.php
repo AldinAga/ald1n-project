@@ -87,7 +87,8 @@ final class OrderWorkflowService
             /** @var Order $locked */
             $locked = Order::query()->with(['items', 'commission'])->lockForUpdate()->findOrFail($order->id);
             if ($ownCancellation) abort_unless((int) $locked->user_id === (int) $actor->id, 404);
-            if ($newStatus === 'cancelled' && trim((string) $note) === '') {
+            // Ponovno otkazivanje već otkazane porudžbine je idempotentno i ne traži novi razlog.
+            if ($newStatus === 'cancelled' && (string) $locked->status !== 'cancelled' && trim((string) $note) === '') {
                 throw ValidationException::withMessages(['reason' => 'Razlog otkazivanja je obavezan.']);
             }
             if ($newStatus === 'processing') {
@@ -543,8 +544,8 @@ final class OrderWorkflowService
             $this->notifications->order(
                 $updated->user,
                 'order.reopened',
-                'Porudžbina je ponovo u obradi',
-                'Porudžbina '.$updated->order_number.' je ponovo otvorena radi korekcije podataka.',
+                'Porudžbina je ponovo otvorena',
+                'Porudžbina '.$updated->order_number.' je ponovo otvorena radi korekcije podataka. Status: '.OrderStatus::label((string) $updated->status, $updated->completed_at !== null).'.',
                 $updated,
                 ['severity' => 'warning', 'icon' => 'alert-triangle'],
             );

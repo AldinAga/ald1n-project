@@ -171,8 +171,10 @@ final class OrderFlowSimplificationAB1121Test extends TestCase
 
         Sanctum::actingAs($this->admin, ['*']);
         $this->patchJson('/api/v1/admin/orders/'.$order->id.'/status', ['status' => 'processing'])
-            ->assertStatus(422)->assertJsonValidationErrors('status')
-            ->assertJsonPath('errors.status.0', 'Korak „U obradi“ više ne postoji. Potvrdi porudžbinu ili je otkaži.');
+            ->assertStatus(422)->assertJsonValidationErrors('status');
+        foreach (['new', 'shipped'] as $removed) {
+            $this->patchJson('/api/v1/admin/orders/'.$order->id.'/status', ['status' => $removed])->assertStatus(422)->assertJsonValidationErrors('status');
+        }
         $this->postJson('/api/v1/admin/orders/'.$order->id.'/accept')
             ->assertStatus(422)->assertJsonPath('code', 'order_accept_removed')
             ->assertJsonPath('message', 'Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu: potvrda je ujedno preuzima na tvoje ime.');
