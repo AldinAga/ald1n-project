@@ -436,10 +436,10 @@ final class OrderFlowDeliveryB1121Test extends TestCase
         $this->postJson($url, ['amount_rsd' => '701.00'] + $body)->assertSuccessful();
         self::assertSame(2, OrderPayment::query()->where('order_id', $order->id)->count(), 'different content is a new row');
 
-        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'])->assertSuccessful();
-        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'])->assertSuccessful();
+        $this->postJson($url, ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'] + $body)->assertSuccessful();
+        $this->postJson($url, ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'] + $body)->assertSuccessful();
         self::assertSame(3, OrderPayment::query()->where('order_id', $order->id)->count(), 'same key is one ledger row');
-        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '11.00'])->assertStatus(422)->assertJsonValidationErrors('idempotency_key');
+        $this->postJson($url, ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '11.00'] + $body)->assertStatus(422)->assertJsonValidationErrors('idempotency_key');
     }
 
     public function test_api_and_web_payment_share_the_amount_ceiling(): void
