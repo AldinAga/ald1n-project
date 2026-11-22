@@ -240,7 +240,8 @@ final class OrderShipmentService
                 'changed_by' => $actor->id,
                 'old_status' => 'shipped',
                 'new_status' => 'confirmed',
-                'note' => 'Pošiljka je vraćena: '.$reason,
+                // Istorija je vidljiva i kupcu; interni razlog ostaje na zapisu o slanju i u audit logu.
+                'note' => 'Pošiljka je vraćena.',
                 'created_at' => now(),
             ]);
             $this->audit->log(

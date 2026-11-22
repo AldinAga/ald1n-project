@@ -41,7 +41,8 @@ final class OrderFinancialStateService
 
         $status = match ($state) {
             'cancelled' => 'cancelled',
-            'refunded' => 'refunded',
+            // Stara kolona payment_status je enum (pending, paid, cancelled) i ne zna za "refunded"; puna refundacija bi
+            // pala na MariaDB-u. Tačno stanje nosi payment_state, pa se ovde vraća "pending".
             'paid', 'overpaid' => 'paid',
             default => 'pending',
         };
