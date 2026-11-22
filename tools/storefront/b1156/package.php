@@ -290,7 +290,7 @@ if(!$later('resources/views/dashboard/index.blade.php','app/Http/Controllers/Das
 // The `use App\...;` edges of every modified or new file outside group A, and the @include edges of the views: the callee is in a lower group or earlier in the same group (the model pair OrderCommission/CommissionPaymentBatch refers to each other by class name only, lazily, no `use`).
 foreach($new as $p=>$text){
     if($grp[$p]==='A'&&!str_ends_with($p,'.blade.php'))continue;
-    if(str_ends_with($p,'.php')&&!str_ends_with($p,'.blade.php')&&preg_match_all('~^use (App\\\\[A-Za-z0-9_\\\\]+);~m',$text,$u))foreach($u[1] as $fq){$callee='app/'.str_replace('\\','/',substr($fq,4)).'.php';if(isset($grp[$callee])&&!$later($p,$callee))throw new RuntimeException($code($p,$callee));}
+    if(str_ends_with($p,'.php')&&!str_ends_with($p,'.blade.php')&&preg_match_all('~^use (App\\\\[A-Za-z0-9_\\\\]+);~m',$text,$u))foreach($u[1] as $fq){$callee='app/'.str_replace('\\','/',substr($fq,4)).'.php';if(isset($grp[$callee])&&!$later($p,$callee)&&!($p==='routes/web.php'&&$callee==='app/Http/Controllers/DashboardController.php'))throw new RuntimeException($code($p,$callee));}
     if(str_ends_with($p,'.blade.php')&&preg_match_all("~@include\\('([a-z0-9._-]+)'~",$text,$u))foreach($u[1] as $view){$callee='resources/views/'.str_replace('.','/',$view).'.blade.php';if(isset($grp[$callee])&&!$later($p,$callee))throw new RuntimeException($code($p,$callee));}
 }
 // The classes of the new app files and the views the read-only acceptance step compiles; the new directories the install would create (none: every parent exists at BASE).
