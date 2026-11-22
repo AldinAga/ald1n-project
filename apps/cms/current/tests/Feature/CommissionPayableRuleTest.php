@@ -398,14 +398,29 @@ final class CommissionPayableRuleTest extends TestCase
             app(AfterSalesActionService::class)->complete($case, $action, $admin, [], true);
             self::assertSame('completed', $action->fresh()->status);
             self::assertSame('20.00', $commission->fresh()->total_eur);
-
-            $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
-            app(OrderWorkflowService::class)->changeStatus($order->fresh(), 'cancelled', $admin, 'Otkazano.');
-            self::assertSame('cancelled', $order->fresh()->status);
-            self::assertSame('paid', $commission->fresh()->status);
         } finally {
             \App\Support\CommissionMoney::$adjustmentsOverride = null;
         }
+    }
+
+    public function test_cancelling_order_with_paid_commission_before_the_adjustments_table_exists_cancels_it_like_production(): void
+    {
+        // Rollback/pre-migracija: bez tabele zaduženja provizija ne sme ostati "paid" bez traga i bez obaveštenja.
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $commission->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        \App\Support\CommissionMoney::$adjustmentsOverride = false;
+        try {
+            app(OrderWorkflowService::class)->changeStatus($order->fresh(), 'cancelled', $admin, 'Otkazano.');
+        } finally {
+            \App\Support\CommissionMoney::$adjustmentsOverride = null;
+        }
+
+        self::assertSame('cancelled', $order->fresh()->status);
+        self::assertSame('cancelled', $commission->fresh()->status);
+        self::assertSame(1, DB::table('commission_status_history')->where('commission_id', $commission->id)
+            ->where('old_status', 'paid')->where('new_status', 'cancelled')->count());
+        self::assertSame(0, CommissionAdjustment::query()->count());
+        self::assertTrue($sub->notifications()->where('data', 'like', '%commission.cancelled%')->exists());
     }
 
     public function test_non_superadmin_api_does_not_advertise_payout_and_owed_subtracts_settlements(): void
