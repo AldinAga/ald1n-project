@@ -92,6 +92,9 @@
 <p class="a1-help">Isplatu provizija radi samo SuperAdministrator. Ovde vidiš provizije svojih porudžbina i možeš da ih storniraš dok nisu isplaćene.</p>
 @endif
 
+@if($isSuper)
+<form class="filter-panel admin-filter" method="get" action="{{ route('admin.commissions.statement.pdf') }}" target="_blank"><label><span>SubAgent</span><select name="user_id" required><option value="">Izaberi</option>@foreach($users as $agent)<option value="{{ $agent->id }}">{{ $agent->displayName() }}</option>@endforeach</select></label><label><span>Mesec obračuna</span><input type="month" name="month" value="{{ now()->format('Y-m') }}" required></label><div class="filter-actions"><button class="button button-ghost"><x-icon name="file-text" /> PDF obračun</button></div></form>
+@endif
 <div class="admin-table-wrap commission-table-wrap">
 <table class="admin-table commission-table">
 <thead><tr><th class="checkbox-col"><input type="checkbox" data-select-all="commission_ids[]" aria-label="Izaberi sve odobrene"></th><th>Porudžbina</th><th>Korisnik</th><th>Odgovorno lice</th><th>Iznos</th><th>Status</th><th>Isplata</th><th>Datum</th><th>Akcije</th></tr></thead>
@@ -105,7 +108,7 @@
     <td>{{ $row->order?->supplier_name_snapshot ?: $row->order?->supplier?->displayName() ?: '—' }}</td>
     <td><strong>{{ number_format((float)$row->total_eur, 2, ',', '.') }} EUR</strong></td>
     <td><span class="a1-pill a1-pill--{{ $statePill[$check['state']] }}">{{ $check['state_label'] }}</span><small class="muted">{{ $check['reason'] }}</small>@if($row->status_note)<small class="muted">{{ $row->status_note }}</small>@endif</td>
-    <td>@if($row->status==='paid')<strong>{{ $paymentLabels[$row->payment_method] ?? $row->payment_method ?? '—' }}</strong><small class="muted">{{ $row->payment_reference ?: $row->paymentBatch?->batch_number }}</small>@else—@endif</td>
+    <td>@if($row->status==='paid')<strong>{{ $paymentLabels[$row->payment_method] ?? $row->payment_method ?? '—' }}</strong><small class="muted">{{ $row->payment_reference ?: $row->paymentBatch?->batch_number }}</small>@if($isSuper && $row->payment_batch_id)<a class="button button-ghost button-small" target="_blank" rel="noopener" href="{{ route('admin.commissions.payout.pdf', ['batch' => $row->payment_batch_id, 'user_id' => $row->user_id]) }}">PDF potvrda</a>@endif @else—@endif</td>
     <td>{{ $row->status_updated_at?->format('d.m.Y H:i') ?: $row->created_at?->format('d.m.Y H:i') }}</td>
     <td>
         <details class="table-action-menu">
