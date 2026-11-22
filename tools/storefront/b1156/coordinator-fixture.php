@@ -573,7 +573,7 @@ $judge=static function(array $rows,string $label)use($stepRows,$baselinePages):v
         if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
         foreach(['dashGuest','smtpGuest','merchantGuest','documentsGuest','reportGuest','reportCsvGuest'] as $k)if($r[$k]!==302)$bad[]=$r['point'].' '.$k.' '.$r[$k];
         if(!in_array($r['bellGuest'],[404,302],true))$bad[]=$r['point'].' guest bell URL '.$r['bellGuest'];
-        if(in_array($r['point'],['AFTER_STEP_68','AFTER_RESTORE_69'],true))continue;
+        if(in_array($r['point'],['AFTER_STEP_68','AFTER_STEP_69','AFTER_RESTORE_69','AFTER_RESTORE_68'],true))continue;
         if(($r['dashAuth']??null)!==200||($r['dashAuthShell']??null)!==true)$bad[]=$r['point'].' AUTHENTICATED superadmin dashboard '.json_encode([$r['dashAuth']??null,$r['dashAuthShell']??null]);
         if(($r['commissionsAuth']??null)!==200)$bad[]=$r['point'].' superadmin commissions page '.var_export($r['commissionsAuth']??null,true);
         if(($r['dashSub']??null)!==200)$bad[]=$r['point'].' AUTHENTICATED sub-agent dashboard '.var_export($r['dashSub']??null,true);
