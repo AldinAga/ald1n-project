@@ -14,10 +14,14 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/** Podaci za PDF obračun i PDF potvrdu isplate. Iznosi su celi centi; provizija je u EUR, isplata u RSD po kursu na dan isplate. */
+/**
+ * Podaci za PDF obračun i PDF potvrdu isplate. Iznosi su celi centi; provizija je u EUR, isplata u RSD po kursu na dan isplate.
+ * RSD se zaokružuje po stavci, a zbirovi su zbir zaokruženih stavki (PDF je interno konzistentan).
+ */
 final class CommissionStatementService
 {
     private const METHODS = ['bank_transfer' => 'Prenos na račun', 'cash' => 'Gotovina', 'other' => 'Drugo'];
+    private const RECORDED = 'zabeležen pri isplati';
 
     public function __construct(
         private readonly SettingsService $settings,
@@ -33,12 +37,13 @@ final class CommissionStatementService
         $commissions = OrderCommission::query()->with(['order.items'])
             ->where('user_id', $agent->id)
             ->where(static fn ($q) => $q->whereBetween('created_at', [$from, $to])->orWhereBetween('paid_at', [$from, $to]))
-            ->orderBy('id')->limit(3000)->get();
+            ->orderBy('id')->get();
 
         $current = $this->currentRate();
         $batchRates = [];
+        $sources = [];
         $rows = [];
-        $total = $paid = $due = 0;
+        $total = $paid = $due = $dueRsd = 0;
         foreach ($commissions as $c) {
             $cents = M::cents($c->total_eur);
             if ($c->status !== 'cancelled') {
@@ -46,16 +51,26 @@ final class CommissionStatementService
             }
             if ($c->status === 'paid') {
                 $paid += $cents;
-            } elseif ($c->status === 'approved') {
-                $due += $cents;
             }
+            // Indikativno (*) je sve što nema kurs zabeležen pri isplati: neisplaćeno, isplata bez serije, stara serija bez kursa.
             $rate = $current;
             $estimate = true;
-            if ($c->status === 'paid' && $c->payment_batch_id) {
-                $batchRates[$c->payment_batch_id] ??= $this->batchRate(CommissionPaymentBatch::query()->find($c->payment_batch_id))[0];
-                $rate = $batchRates[$c->payment_batch_id];
-                $estimate = $rate === null;
-                $rate ??= $current;
+            $source = 'važeći kurs';
+            if ($c->status === 'paid') {
+                $source = 'isplata bez serije, važeći kurs';
+                if ($c->payment_batch_id) {
+                    $batchRates[$c->payment_batch_id] ??= $this->batchRate(CommissionPaymentBatch::query()->find($c->payment_batch_id));
+                    [$rate, $source, $recorded] = $batchRates[$c->payment_batch_id];
+                    $estimate = !$recorded;
+                }
+            }
+            $rsd = $rate === null ? null : $this->rsdCents($cents, $rate);
+            if ($c->status === 'approved') {
+                $due += $cents;
+                $dueRsd += $rsd ?? 0;
+            }
+            if ($estimate && $rate !== null) {
+                $sources[$source] = true;
             }
             [$base, $percent] = $this->baseAndPercent($c);
             $rows[] = [
@@ -63,14 +78,19 @@ final class CommissionStatementService
                 $base === null ? '-' : $this->eur($base),
                 $percent,
                 $this->eur($cents),
-                $this->rsd($cents, $rate).($estimate && $rate !== null ? ' *' : ''),
+                $rsd === null ? '-' : $this->rsdFormat($rsd).($estimate ? ' *' : ''),
                 ['pending' => 'Na čekanju', 'approved' => 'Za isplatu', 'paid' => 'Isplaćena', 'cancelled' => 'Stornirana'][$c->status] ?? (string) $c->status,
             ];
         }
 
         [$openDebt, $settledMonth, $debitRows] = $this->debits((int) $agent->id, $from, $to);
         $netDue = max(0, $due - $openDebt);
+        $netDueRsd = $current === null ? null : max(0, $dueRsd - $this->rsdCents(min($openDebt, $due), $current));
         $s = $this->settings->all();
+        $note = 'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. RSD je zaokružen po stavci; zbir je zbir stavki.';
+        if ($sources !== []) {
+            $note .= ' Iznosi sa * u RSD su indikativni (kurs isplate nije zabeležen). Izvor kursa: '.implode('; ', array_keys($sources)).'.';
+        }
 
         return $this->pdf->renderMonthly([
             'company' => $this->company($s),
@@ -81,12 +101,12 @@ final class CommissionStatementService
             'paid_eur' => $this->eur($paid),
             'due_eur' => $this->eur($due),
             'net_due_eur' => $this->eur($netDue),
-            'net_due_rsd' => $this->rsd($netDue, $current).' (po važećem kursu '.$this->rateLabel($current).')',
+            'net_due_rsd' => $netDueRsd === null ? '-' : $this->rsdFormat($netDueRsd).' (po važećem kursu '.$this->rateLabel($current).')',
             'settled_eur' => $this->eur($settledMonth),
             'open_debt_eur' => $this->eur($openDebt),
             'rows' => $rows,
             'debits' => $debitRows,
-            'note' => 'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. Iznosi sa * u RSD su orijentacioni (važeći kurs) dok provizija nije isplaćena.',
+            'note' => $note,
         ]);
     }
 
@@ -97,17 +117,20 @@ final class CommissionStatementService
             ->where('payment_batch_id', $batch->id)
             ->when($userId !== null, static fn ($q) => $q->where('user_id', $userId))
             ->orderBy('user_id')->orderBy('id')->get();
-        [$rate, $source] = $this->batchRate($batch);
+        [$rate, $source, $recorded] = $this->batchRate($batch);
 
         $gross = [];
+        $grossRsd = [];
         $names = [];
         $rows = [];
         foreach ($commissions as $c) {
             $cents = M::cents($c->total_eur);
             $uid = (int) $c->user_id;
+            $rowRsd = $rate === null ? 0 : $this->rsdCents($cents, $rate);
             $gross[$uid] = ($gross[$uid] ?? 0) + $cents;
+            $grossRsd[$uid] = ($grossRsd[$uid] ?? 0) + $rowRsd;
             $names[$uid] = (string) $c->user?->displayName();
-            $rows[] = [(string) $c->order?->order_number, $names[$uid], $this->eur($cents), $this->rsd($cents, $rate)];
+            $rows[] = [(string) $c->order?->order_number, $names[$uid], $this->eur($cents), $rate === null ? '-' : $this->rsdFormat($rowRsd).($recorded ? '' : ' *')];
         }
 
         $debit = [];
@@ -129,15 +152,22 @@ final class CommissionStatementService
         }
 
         $recipients = [];
-        $sumGross = $sumDebit = 0;
+        $sumGross = $sumDebit = $netRsd = 0;
         foreach ($gross as $uid => $g) {
             $d = $debit[$uid] ?? 0;
             $sumGross += $g;
             $sumDebit += $d;
-            $recipients[] = [$names[$uid], $this->eur($g), $this->eur($d), $this->eur($g - $d), $this->rsd($g - $d, $rate)];
+            // neto RSD = zbir zaokruženih redova minus zaokružen dug korisnika; zbir primalaca = kartica "NETO RSD"
+            $userRsd = $rate === null ? 0 : $grossRsd[$uid] - $this->rsdCents($d, $rate);
+            $netRsd += $userRsd;
+            $recipients[] = [$names[$uid], $this->eur($g), $this->eur($d), $this->eur($g - $d), $rate === null ? '-' : $this->rsdFormat($userRsd).($recorded ? '' : ' *')];
         }
-        $net = $sumGross - $sumDebit;
+        $this->assertConsistent($batch, $userId, $sumGross, $sumDebit, array_sum($debit));
         $payer = $batch->payer;
+        $note = 'Provizija je obračunata u EUR i isplaćena u RSD po kursu na dan isplate. Prebijeni debiti umanjuju isplatu. RSD je zaokružen po stavci; zbir je zbir stavki.';
+        if (!$recorded && $rate !== null) {
+            $note .= ' Iznosi sa * u RSD su indikativni: kurs isplate nije zabeležen ('.$source.').';
+        }
 
         return $this->pdf->renderPayout([
             'company' => $this->company($this->settings->all()),
@@ -146,37 +176,50 @@ final class CommissionStatementService
             'paid_by' => $payer instanceof User ? $payer->displayName() : '-',
             'gross_eur' => $this->eur($sumGross),
             'debit_eur' => $this->eur($sumDebit),
-            'net_eur' => $this->eur($net),
-            'net_rsd' => $this->rsd($net, $rate),
+            'net_eur' => $this->eur($sumGross - $sumDebit),
+            'net_rsd' => $rate === null ? '-' : $this->rsdFormat($netRsd).($recorded ? '' : ' *'),
             'rate' => $rate === null ? 'nije podešen' : $this->rateLabel($rate).' ('.$source.')',
             'method' => self::METHODS[$batch->payment_method] ?? (string) $batch->payment_method,
             'reference' => (string) ($batch->payment_reference ?: $batch->batch_number),
             'recipients' => $recipients,
             'rows' => $rows,
             'debits' => $debitRows,
-            'note' => 'Provizija je obračunata u EUR i isplaćena u RSD po kursu na dan isplate. Prebijeni debiti umanjuju isplatu.',
+            'note' => $note,
         ]);
     }
 
-    /** @return array{0:?float,1:string} kurs isplate i odakle je poznat */
+    /** Glasno pada ako se PDF ne slaže sa evidencijom isplate (dug van primalaca s bruto iznosom, ili zbir različit od serije). */
+    private function assertConsistent(CommissionPaymentBatch $batch, ?int $userId, int $sumGross, int $sumDebit, int $allDebit): void
+    {
+        if ($allDebit !== $sumDebit) {
+            throw new \RuntimeException('Potvrda isplate '.$batch->batch_number.': prebijeni debit postoji za korisnika bez provizije u seriji.');
+        }
+        if ($userId !== null) {
+            return;
+        }
+        if (M::cents($batch->total_eur) !== $sumGross || (Schema::hasColumn('commission_payment_batches', 'debit_eur') && M::cents($batch->debit_eur) !== $sumDebit)) {
+            throw new \RuntimeException('Potvrda isplate '.$batch->batch_number.': zbir provizija ili debita se ne slaže sa serijom isplate.');
+        }
+    }
+
+    /** @return array{0:?float,1:string,2:bool} kurs isplate, izvor, i da li je zabeležen pri isplati */
     private function batchRate(?CommissionPaymentBatch $batch): array
     {
         if ($batch === null) {
-            return [null, ''];
+            return [$this->currentRate(), 'isplata bez serije, važeći kurs', false];
         }
         $stored = Schema::hasColumn('commission_payment_batches', 'eur_rsd_rate') ? (float) $batch->getAttribute('eur_rsd_rate') : 0.0;
         if ($stored > 0) {
-            return [$stored, 'zabeležen pri isplati'];
+            return [$stored, self::RECORDED, true];
         }
         // Starije isplate nemaju zabeležen kurs: poslednja uspešna promena kursa do trenutka isplate, pa važeći kurs.
         $history = $batch->paid_at === null ? null : ExchangeRateHistory::query()->where('status', 'success')->where('new_rate', '>', 0)
             ->where('created_at', '<=', $batch->paid_at)->latest('id')->first();
         if ($history !== null) {
-            return [(float) $history->new_rate, 'iz istorije kursa'];
+            return [(float) $history->new_rate, 'iz istorije kursa', false];
         }
-        $current = $this->currentRate();
 
-        return [$current, $current === null ? '' : 'važeći kurs, kurs isplate nije zabeležen'];
+        return [$this->currentRate(), 'važeći kurs, kurs isplate nije zabeležen', false];
     }
 
     private function currentRate(): ?float
@@ -247,9 +290,14 @@ final class CommissionStatementService
         return number_format($cents / 100, 2, ',', '.').' EUR';
     }
 
-    private function rsd(int $cents, ?float $rate): string
+    private function rsdCents(int $cents, float $rate): int
     {
-        return $rate === null ? '-' : number_format(round($cents * $rate) / 100, 2, ',', '.').' RSD';
+        return (int) round($cents * $rate);
+    }
+
+    private function rsdFormat(int $paras): string
+    {
+        return number_format($paras / 100, 2, ',', '.').' RSD';
     }
 
     private function rateLabel(?float $rate): string

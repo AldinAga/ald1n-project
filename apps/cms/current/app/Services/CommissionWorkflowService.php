@@ -198,6 +198,9 @@ final class CommissionWorkflowService
             if (Schema::hasColumn('commission_payment_batches', 'eur_rsd_rate')) {
                 $rate = app(ExchangeRateService::class)->configuration()['rate'] ?? null;
                 $attributes['eur_rsd_rate'] = is_float($rate) && $rate > 0 ? number_format($rate, 6, '.', '') : null;
+                if ($attributes['eur_rsd_rate'] === null) {
+                    \Illuminate\Support\Facades\Log::warning('Isplata provizija bez važećeg kursa EUR/RSD: kurs isplate nije zabeležen.', ['actor_id' => $actor->id]);
+                }
             }
             $batch = CommissionPaymentBatch::query()->create($attributes);
             $batch->update(['batch_number' => sprintf('ISPL-%s-%06d', now()->format('Ymd'), $batch->id)]);

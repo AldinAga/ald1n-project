@@ -26,6 +26,8 @@ final class CommissionStatementPdfTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const REASON = 'Povrat čćšđž (deo) \\ ok';
+
     private int $seq = 0;
     private User $alfa;
     private User $bravo;
@@ -50,7 +52,7 @@ final class CommissionStatementPdfTest extends TestCase
         $old->forceFill(['status' => 'paid', 'paid_at' => now()->subDay()])->save();
         CommissionAdjustment::query()->create([
             'commission_id' => $old->id, 'order_id' => $old->order_id, 'kind' => 'debit', 'status' => 'confirmed',
-            'amount_eur' => '5.00', 'reason' => 'Povrat artikla', 'source' => 'manual', 'created_by' => $this->super->id,
+            'amount_eur' => '5.00', 'reason' => self::REASON, 'source' => 'manual', 'created_by' => $this->super->id,
         ]);
         $this->actingAs($this->super)->post('/admin/commissions/bulk-pay', [
             'commission_ids' => [$alfaOrder->id, $bravoOrder->id], 'payment_method' => 'bank_transfer',
@@ -66,7 +68,7 @@ final class CommissionStatementPdfTest extends TestCase
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         $pdf = $response->getContent();
         self::assertStringStartsWith('%PDF-1.4', $pdf);
-        foreach (['ISPL-', '117,2000', '1.758,00 RSD', '2.344,00 RSD', '5,00 EUR', 'Povrat artikla', 'Agent alfa', 'Agent bravo', 'Agent super'] as $expected) {
+        foreach (['ISPL-', '117,2000', '1.758,00 RSD', '2.344,00 RSD', '5,00 EUR', $this->pdfText(self::REASON), 'Agent alfa', 'Agent bravo', 'Agent super'] as $expected) {
             self::assertStringContainsString($expected, $pdf);
         }
     }
@@ -78,7 +80,7 @@ final class CommissionStatementPdfTest extends TestCase
         self::assertStringContainsString('Agent bravo', $pdf);
         self::assertStringContainsString('2.344,00 RSD', $pdf);
         self::assertStringNotContainsString('Agent alfa', $pdf);
-        self::assertStringNotContainsString('Povrat artikla', $pdf);
+        self::assertStringNotContainsString($this->pdfText(self::REASON), $pdf);
     }
 
     public function test_agent_gets_only_own_confirmation_and_statement(): void
@@ -92,7 +94,7 @@ final class CommissionStatementPdfTest extends TestCase
         $statement->assertOk()->assertHeader('content-type', 'application/pdf');
         self::assertStringContainsString('Agent alfa', $statement->getContent());
         self::assertStringNotContainsString('Agent bravo', $statement->getContent());
-        foreach (['2.344,00 RSD', '20,00 EUR', '5,00 EUR', 'Povrat artikla', now()->format('m.Y')] as $expected) {
+        foreach (['2.344,00 RSD', '20,00 EUR', '5,00 EUR', $this->pdfText(self::REASON), now()->format('m.Y')] as $expected) {
             self::assertStringContainsString($expected, $statement->getContent());
         }
     }
@@ -103,10 +105,10 @@ final class CommissionStatementPdfTest extends TestCase
         $this->actingAs($other)->get('/commissions/payouts/'.$this->batchId.'.pdf')->assertNotFound();
         $this->actingAs($other)->get('/commissions/payouts/999999.pdf')->assertNotFound();
 
+        // Običan korisnik pada na middleware permission:commissions.manage, admin na proveri superadmina u kontroleru: oba 403.
         foreach ([$this->alfa, $this->admin] as $actor) {
-            foreach (['/admin/commissions/payouts/'.$this->batchId.'.pdf', '/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->alfa->id] as $url) {
-                self::assertContains($this->actingAs($actor)->get($url)->getStatusCode(), [403, 404], $actor->username.' '.$url);
-            }
+            $this->actingAs($actor)->get('/admin/commissions/payouts/'.$this->batchId.'.pdf')->assertForbidden();
+            $this->actingAs($actor)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->alfa->id)->assertForbidden();
         }
     }
 
@@ -119,6 +121,62 @@ final class CommissionStatementPdfTest extends TestCase
             ->assertOk()->assertHeader('content-type', 'application/pdf')->getContent();
         self::assertStringContainsString('Agent alfa', $pdf);
         self::assertStringNotContainsString('Agent bravo', $pdf);
+    }
+
+    public function test_batch_without_recorded_rate_is_marked_indicative_with_its_source(): void
+    {
+        DB::table('commission_payment_batches')->where('id', $this->batchId)->update(['eur_rsd_rate' => null]);
+        app(SettingsService::class)->putMany(['eur_rsd_rate' => '120.000000'], null);
+
+        $payout = $this->actingAs($this->super)->get('/admin/commissions/payouts/'.$this->batchId.'.pdf')->assertOk()->getContent();
+        self::assertStringContainsString('2.400,00 RSD *', $payout);
+        self::assertStringNotContainsString('2.344,00 RSD', $payout);
+        self::assertStringContainsString('indikativni', $payout);
+
+        $statement = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        self::assertStringContainsString('2.400,00 RSD *', $statement);
+    }
+
+    public function test_recorded_rate_has_no_star_and_unpaid_or_batchless_rows_are_starred(): void
+    {
+        $lone = $this->approvedCommission($this->bravo);
+        $lone->forceFill(['status' => 'paid', 'paid_at' => now()])->save(); // isplata bez payment_batch_id
+        $pending = $this->approvedCommission($this->bravo);
+        $pending->forceFill(['status' => 'pending'])->save();
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        self::assertStringContainsString('2.344,00 RSD', $pdf);
+        self::assertSame(2, substr_count($pdf, '2.344,00 RSD *'), 'zvezdica samo na isplati bez serije i na neisplaćenoj proviziji');
+        self::assertStringContainsString('indikativni', $pdf);
+    }
+
+    public function test_other_month_and_cancelled_commissions(): void
+    {
+        $cancelled = $this->approvedCommission($this->alfa);
+        $cancelled->forceFill(['status' => 'cancelled'])->save();
+
+        $empty = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->subMonthsNoOverflow(3)->format('Y-m').'&user_id='.$this->alfa->id)->assertOk()->getContent();
+        self::assertStringContainsString('Nema stavki', $empty);
+        self::assertStringNotContainsString('2.344,00 RSD', $empty);
+        self::assertStringNotContainsString($this->pdfText(self::REASON), $empty);
+
+        $current = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->alfa->id)->assertOk()->getContent();
+        self::assertStringContainsString('Stornirana', $current);
+        self::assertStringContainsString('40,00 EUR', $current); // 2 isplaćene po 20,00; stornirana se ne računa
+        self::assertStringNotContainsString('60,00 EUR', $current);
+    }
+
+    public function test_payout_pdf_fails_loudly_when_it_disagrees_with_the_batch(): void
+    {
+        DB::table('commission_payment_batches')->where('id', $this->batchId)->update(['total_eur' => '99.00']);
+
+        $this->actingAs($this->super)->get('/admin/commissions/payouts/'.$this->batchId.'.pdf')->assertStatus(500);
+    }
+
+    private function pdfText(string $utf8): string
+    {
+        // isto što SimplePdfWriter radi: CP1250 i escape za \ ( )
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], (string) iconv('UTF-8', 'Windows-1250', $utf8));
     }
 
     private function approvedCommission(User $agent): OrderCommission
