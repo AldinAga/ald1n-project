@@ -204,16 +204,21 @@ final class OrderMutationController extends Controller
         $actor = $this->paymentActor($request);
         $access->authorizeManage($order, $actor);
         $data = $request->validate([
-            'idempotency_key' => ['required', 'string', 'max:200'],
+            // Opcioni: starija aplikacija (versionCode 29) ga ne šalje; tada ga server izvodi iz sadržaja zahteva.
+            'idempotency_key' => ['nullable', 'string', 'max:200'],
             'entry_type' => ['required', Rule::in(['payment', 'refund'])],
-            'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
             'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'cash_on_delivery', 'cod', 'card', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:190'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
-        $key = (string) $data['idempotency_key'];
+        $key = trim((string) ($data['idempotency_key'] ?? ''));
         unset($data['idempotency_key']);
+        if ($key === '') {
+            // shortcut: dva istovetna unosa (isti iznos, način, datum) istog korisnika spajaju se u jedan; nova aplikacija šalje svoj ključ.
+            $key = 'derived:'.hash('sha256', json_encode([(int) $order->getKey(), (int) $actor->getKey(), $data['entry_type'], number_format((float) $data['amount_rsd'], 2, '.', ''), $data['payment_method'], (string) $data['paid_at']], JSON_THROW_ON_ERROR));
+        }
         $payment = app(\App\Services\IdempotencyService::class)->run(
             $actor,
             'admin.orders.payment.record',

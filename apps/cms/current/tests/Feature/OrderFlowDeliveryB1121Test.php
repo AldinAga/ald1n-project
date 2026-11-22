@@ -216,7 +216,7 @@ final class OrderFlowDeliveryB1121Test extends TestCase
         $stock = $product->fresh()->stock_quantity;
         $courier = $this->courier();
         app(OrderShipmentService::class)->record($order->fresh(), $this->admin, ['shipment_method' => 'courier', 'courier_service_id' => $courier->id, 'tracking_number' => 'RET-1', 'recipient_name' => 'Kupac'], null, $this->token($order));
-        self::assertSame('shipped', $order->fresh()->status);
+        self::assertSame(['shipped', 'RET-1'], [$order->fresh()->status, $order->fresh()->tracking_number]);
         $url = '/admin/orders/'.$order->id.'/shipment/return';
 
         // Uloge: kupac/SubAgent 403, tuđi admin 404, bez razloga greška.
@@ -231,6 +231,7 @@ final class OrderFlowDeliveryB1121Test extends TestCase
 
         $fresh = $order->fresh();
         self::assertSame('confirmed', $fresh->status);
+        self::assertNull($fresh->tracking_number, 'the returned parcel tracking number is not shown to the buyer any more');
         self::assertSame('reserved', $fresh->inventory_state);
         self::assertSame($stock, $product->fresh()->stock_quantity, 'stock stays reserved');
         $shipment = OrderShipment::query()->where('order_id', $order->id)->sole();
@@ -289,6 +290,59 @@ final class OrderFlowDeliveryB1121Test extends TestCase
             OrderShipment::$returnColumnsOverride = null;
         }
         self::assertTrue(\Illuminate\Support\Facades\Schema::hasColumns('order_shipments', ['returned_at', 'returned_by', 'return_reason']));
+    }
+
+    public function test_reshipping_keeps_the_old_proof_when_the_commit_fails_and_audits_the_previous_shipment(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $order = $this->confirmedOrder();
+        $courier = $this->courier();
+        $service = app(OrderShipmentService::class);
+        $first = $service->record($order->fresh(), $this->admin, ['shipment_method' => 'courier', 'courier_service_id' => $courier->id, 'tracking_number' => 'OLD-1', 'recipient_name' => 'Kupac'], \Illuminate\Http\UploadedFile::fake()->create('old.pdf', 10, 'application/pdf'), $this->token($order));
+        $oldPath = (string) $first->proof_path;
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($oldPath);
+        $service->markReturned($order->fresh(), $this->admin, 'Vraćeno kuriru.');
+
+        $fail = true;
+        AuditLog::creating(static function (AuditLog $log) use (&$fail): void {
+            if ($fail && $log->action === 'order.shipment_recorded') {
+                throw new \RuntimeException('B205_SYNTHETIC_COMMIT_FAILURE');
+            }
+        });
+        $resend = ['shipment_method' => 'courier', 'courier_service_id' => $courier->id, 'tracking_number' => 'NEW-2', 'recipient_name' => 'Kupac'];
+        try {
+            $service->record($order->fresh(), $this->admin, $resend, \Illuminate\Http\UploadedFile::fake()->create('new.pdf', 10, 'application/pdf'), $this->token($order));
+            self::fail('the synthetic failure must surface');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('B205_SYNTHETIC_COMMIT_FAILURE', $exception->getMessage());
+        }
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($oldPath);
+        $row = OrderShipment::query()->where('order_id', $order->id)->sole();
+        self::assertSame(['OLD-1', $oldPath], [$row->tracking_number_snapshot, $row->proof_path], 'rolled back: old shipment and proof intact');
+        self::assertCount(1, \Illuminate\Support\Facades\Storage::disk('local')->allFiles(), 'the new upload of the failed attempt is cleaned up');
+
+        $fail = false;
+        $service->record($order->fresh(), $this->admin, $resend, \Illuminate\Http\UploadedFile::fake()->create('new.pdf', 10, 'application/pdf'), $this->token($order));
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($oldPath);
+        $audit = AuditLog::query()->where('action', 'order.shipment_recorded')->latest('id')->firstOrFail();
+        self::assertSame('OLD-1', $audit->before_json['previous_shipment']['tracking_number'] ?? null);
+        self::assertSame('Vraćeno kuriru.', $audit->before_json['previous_shipment']['return_reason'] ?? null);
+    }
+
+    public function test_return_columns_migration_is_reversible_and_repeatable(): void
+    {
+        $migration = require base_path('database/migrations/2026_11_21_000001_add_return_columns_to_order_shipments.php');
+        $columns = ['returned_at', 'returned_by', 'return_reason'];
+        $has = static fn (): bool => \Illuminate\Support\Facades\Schema::hasColumns('order_shipments', $columns);
+
+        self::assertTrue($has());
+        $migration->down();
+        self::assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('order_shipments', 'returned_at'));
+        $migration->down();
+        $migration->up();
+        self::assertTrue($has());
+        $migration->up();
+        self::assertTrue($has());
     }
 
     public function test_a_failing_invoice_never_rolls_back_the_delivery_and_is_reported(): void
@@ -375,12 +429,25 @@ final class OrderFlowDeliveryB1121Test extends TestCase
         $url = '/api/v1/admin/orders/'.$order->id.'/payments';
         $body = ['entry_type' => 'payment', 'amount_rsd' => '700.00', 'payment_method' => 'bank_transfer', 'paid_at' => now()->format('Y-m-d\TH:i')];
 
-        $this->postJson($url, $body)->assertStatus(422)->assertJsonValidationErrors('idempotency_key');
-        self::assertSame(0, OrderPayment::query()->where('order_id', $order->id)->count());
+        // Stara aplikacija (versionCode 29) ne šalje ključ: zahtev prolazi, a ponavljanje je isti red.
+        $this->postJson($url, $body)->assertSuccessful();
+        $this->postJson($url, $body)->assertSuccessful();
+        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count(), 'derived key: repeat is one ledger row');
+        $this->postJson($url, ['amount_rsd' => '701.00'] + $body)->assertSuccessful();
+        self::assertSame(2, OrderPayment::query()->where('order_id', $order->id)->count(), 'different content is a new row');
 
-        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1'])->assertSuccessful();
-        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1'])->assertSuccessful();
-        self::assertSame(1, OrderPayment::query()->where('order_id', $order->id)->count(), 'same key is one ledger row');
+        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'])->assertSuccessful();
+        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '10.00'])->assertSuccessful();
+        self::assertSame(3, OrderPayment::query()->where('order_id', $order->id)->count(), 'same key is one ledger row');
+        $this->postJson($url, $body + ['idempotency_key' => 'api-pay-key-1', 'amount_rsd' => '11.00'])->assertStatus(422)->assertJsonValidationErrors('idempotency_key');
+    }
+
+    public function test_api_and_web_payment_share_the_amount_ceiling(): void
+    {
+        $order = $this->confirmedOrder(['payment_method' => 'bank_transfer']);
+        Sanctum::actingAs($this->admin, ['*']);
+        $body = ['entry_type' => 'payment', 'payment_method' => 'bank_transfer', 'paid_at' => now()->format('Y-m-d\TH:i')];
+        $this->postJson('/api/v1/admin/orders/'.$order->id.'/payments', ['amount_rsd' => '10000000000.00'] + $body)->assertStatus(422)->assertJsonValidationErrors('amount_rsd');
     }
 
     public function test_refund_cannot_exceed_net_paid_also_after_delivery(): void

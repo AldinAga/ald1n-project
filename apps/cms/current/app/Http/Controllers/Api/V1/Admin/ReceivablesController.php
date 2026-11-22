@@ -192,15 +192,19 @@ final class ReceivablesController extends Controller
         $this->authorizeCase($receivable, $actor);
         abort_unless($actor->hasPermission('payments.manage'), 403);
         $data = $request->validate([
-            'idempotency_key' => ['required', 'string', 'max:200'],
+            'idempotency_key' => ['nullable', 'string', 'max:200'],
             'amount_rsd' => ['required', 'numeric', 'min:0.01'],
             'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'card', 'cod', 'cash_on_delivery', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
-        $idempotencyKey = (string) $data['idempotency_key'];
+        $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));
         unset($data['idempotency_key']);
+        if ($idempotencyKey === '') {
+            // Starija aplikacija ne šalje ključ: izvodi se iz sadržaja zahteva (isti unos = isti red).
+            $idempotencyKey = 'derived:'.hash('sha256', json_encode([(int) $receivable->id, (int) $actor->getKey(), number_format((float) $data['amount_rsd'], 2, '.', ''), $data['payment_method'], (string) $data['paid_at']], JSON_THROW_ON_ERROR));
+        }
         /** @var Order $order */
         $order = $receivable->order()->firstOrFail();
         $data['entry_type'] = 'payment';

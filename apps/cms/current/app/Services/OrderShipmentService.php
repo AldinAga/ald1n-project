@@ -133,13 +133,21 @@ final class OrderShipmentService
 
                 // order_shipments ima jedan red po porudžbini: ponovno slanje posle povrata menja taj red; prethodna pošiljka ostaje u auditu povrata.
                 $reshipped = $existing instanceof OrderShipment;
+                $previous = null;
                 if ($reshipped) {
+                    $previous = [
+                        'tracking_number' => $existing->tracking_number_snapshot,
+                        'courier' => $existing->courier_name_snapshot,
+                        'shipped_at' => $existing->shipped_at?->toISOString(),
+                        'return_reason' => $existing->return_reason,
+                    ];
                     $oldProofPath = (string) $existing->proof_path;
                     $existing->update($payload + ['proof_disk' => null, 'proof_path' => null, 'proof_original_name' => null, 'proof_mime_type' => null, 'proof_size' => null]
                         + (OrderShipment::hasReturnColumns() ? ['returned_at' => null, 'returned_by' => null, 'return_reason' => null] : []));
                     $created = $existing;
                     if ($oldProofPath !== '' && (!is_array($storedProof) || $oldProofPath !== (string) ($storedProof['proof_path'] ?? ''))) {
-                        $this->deletePrivateFile('local', $oldProofPath);
+                        // Stari dokaz se briše tek kad commit uspe; pri pucanju transakcije ostaje na disku.
+                        DB::afterCommit(fn () => $this->deletePrivateFile('local', $oldProofPath));
                     }
                 } else {
                     $created = OrderShipment::query()->create($payload);
@@ -148,6 +156,7 @@ final class OrderShipmentService
                     'order.shipment_recorded',
                     'Evidentirano slanje pošiljke '.$locked->order_number,
                     $created,
+                    before: $previous !== null ? ['previous_shipment' => $previous] : null,
                     after: [
                         'reshipped_after_return' => $reshipped,
                         'order_id' => $locked->id,
@@ -234,7 +243,8 @@ final class OrderShipmentService
 
             $shipment->update(['returned_at' => now(), 'returned_by' => $actor->id, 'return_reason' => $reason]);
             // Lager ostaje rezervisan (inventory_state se ne dira); komisija i garancija se ne menjaju jer isporuke nije bilo.
-            $locked->update(['status' => 'confirmed', 'updated_by' => $actor->id]);
+            // Broj za praćenje vraćene pošiljke ne ostaje na porudžbini (vidi ga kupac); ostaje u snapshotu pošiljke i auditu.
+            $locked->update(['status' => 'confirmed', 'tracking_number' => null, 'tracking_updated_at' => null, 'tracking_updated_by' => null, 'updated_by' => $actor->id]);
             DB::table('order_status_history')->insert([
                 'order_id' => $locked->id,
                 'changed_by' => $actor->id,
