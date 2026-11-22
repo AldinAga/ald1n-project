@@ -1,3 +1,4 @@
+# 2026-11-22 baseline touch: confirm this check on unchanged main code (comment only).
 name: B1106 bounded JS security compatibility (NOT RELEASE APPROVAL)
 on:
   pull_request:

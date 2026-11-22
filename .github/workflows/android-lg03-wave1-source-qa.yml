@@ -1,3 +1,4 @@
+# 2026-11-22 baseline touch: confirm this check on unchanged main code (comment only).
 name: Android LG-03 Wave 1 (isolated Build25-safe source QA)
 
 on:

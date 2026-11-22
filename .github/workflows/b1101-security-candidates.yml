@@ -1,3 +1,4 @@
+# 2026-11-22 baseline touch: confirm this check on unchanged main code (comment only).
 name: B1101 bounded security dependency candidates (NO DEPLOY)
 on:
   pull_request:
