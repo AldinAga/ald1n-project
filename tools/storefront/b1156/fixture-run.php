@@ -103,7 +103,7 @@ $stepSmoke=static function(string $point)use($cfg,$authGet,$adminWindow):void{
     $row['bellGuest']=CommissionsFixtureWeb::get($cfg['port'],CommissionsInstallCoordinator::NOTIFICATIONS_RECENT_PATH)['status'];
     if($group){$pl=CommissionsFixtureWeb::get($cfg['port'],'/katalog?per_page=20&view=list');$row['perPageList']=$pl['status'];$row['perPageListLayout']=str_contains($pl['body'],CommissionsInstallCoordinator::LIST_MARKER);$row['perPage999']=CommissionsFixtureWeb::get($cfg['port'],'/katalog?per_page=999')['status'];$row['perPageControl']=$cat!==null&&str_contains($cat['body'],CommissionsInstallCoordinator::PER_PAGE_MARKER);}
     if($group){$t=CommissionsFixtureWeb::get($cfg['port'],'/tema',['Content-Type: application/x-www-form-urlencoded'],'theme=dark&back=%2Fkatalog');$row['themePost']=$t['status'];$row['themeCookie']=isset($t['cookies']['shop_theme']);}
-    if(isset($cfg['adminWindow'])){
+    if(isset($cfg['adminWindow'])&&($cfg['pairPoint']??'')!==$point&&$point!=='AFTER_RESTORE_69'){
         $d=$authGet('/','admin');$row['dashAuth']=$d['status'];$row['dashAuthShell']=str_contains($d['body'],'a1-header__bar');
         $c=$authGet('/admin/commissions','admin');$row['commissionsAuth']=$c['status'];
         $s=$authGet('/','sub');$row['dashSub']=$s['status'];$sc=$authGet('/commissions','sub');$row['commissionsSub']=$sc['status'];

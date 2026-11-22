@@ -95,7 +95,7 @@ final class CommissionsInstallCoordinator
     /**
      * The install order, [path under apps/cms/current, 'new'|'modified', group, source key M]. Groups: A the 13 new files, all inert (nothing old references them; the two migrations are files only until the migration step);
      * B the libraries (two models, eleven services, the doctor command: every new constructor dependency is a class of group A, a public method only gains optional parameters); C six controllers (their new methods and constructor
-     * dependencies exist since A and B), the three bin tools and the admin stylesheet; DashboardController is NOT here: the new one stops passing $eurRsdRate that the OLD dashboard view still reads, so it goes into group F FIRST, right before its views; D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
+     * dependencies exist since A and B), the three bin tools and the admin stylesheet; DashboardController is NOT here: the new one stops passing $eurRsdRate that the OLD dashboard view still reads, so it goes into group F as the LAST-BUT-ONE step, directly before dashboard/index.blade.php (the two land back to back, within one revalidation tick; every other view of F is already in place); D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
      * (they name the controller methods of group C: GUARD group, classes again, route:clear); F the views: partials before pages and the layout before the pages; the three views that call a new route (the layout: notifications.recent,
      * admin/commissions/index and admin/settings/modules) sit here, AFTER the routes (GUARD group, assets: the admin stylesheet is served with the payload bytes first). A controller is always installed before the views it feeds.
      * Groups are non-decreasing in this list (plan() refuses anything else), every new file sits in a lower group than the first guard group, every path is under apps/cms/current, none under tests/, config/ or composer.*;
@@ -122,21 +122,21 @@ final class CommissionsInstallCoordinator
         ['bin/commission-percentage-policy-smoke.php','modified','C','M'],['bin/static-check.php','modified','C','M'],
         ['public/assets/css/ald1n-admin.css','modified','C','M'],['app/Providers/AppServiceProvider.php','modified','D','M'],
         ['routes/api.php','modified','E','M'],['routes/web.php','modified','E','M'],
-        ['app/Http/Controllers/DashboardController.php','modified','F','M'],['resources/views/admin/orders/partials/payments.blade.php','modified','F','M'],
-        ['resources/views/dashboard/partials/priorities.blade.php','modified','F','M'],['resources/views/orders/partials/payments.blade.php','modified','F','M'],
-        ['resources/views/layouts/app.blade.php','modified','F','M'],['resources/views/admin/after-sales/index.blade.php','modified','F','M'],
-        ['resources/views/admin/after-sales/show.blade.php','modified','F','M'],['resources/views/admin/commissions/index.blade.php','modified','F','M'],
-        ['resources/views/admin/field-operations/index.blade.php','modified','F','M'],['resources/views/admin/field-operations/show.blade.php','modified','F','M'],
-        ['resources/views/admin/field-operations/teams.blade.php','modified','F','M'],['resources/views/admin/orders/archived.blade.php','modified','F','M'],
-        ['resources/views/admin/orders/index.blade.php','modified','F','M'],['resources/views/admin/orders/show.blade.php','modified','F','M'],
-        ['resources/views/admin/reports/subagent-sales.blade.php','modified','F','M'],['resources/views/admin/service-parts/index.blade.php','modified','F','M'],
-        ['resources/views/admin/service-parts/purchase-requests.blade.php','modified','F','M'],['resources/views/admin/service-parts/purchase-show.blade.php','modified','F','M'],
-        ['resources/views/admin/settings/modules.blade.php','modified','F','M'],['resources/views/after-sales/create.blade.php','modified','F','M'],
-        ['resources/views/after-sales/index.blade.php','modified','F','M'],['resources/views/after-sales/show.blade.php','modified','F','M'],
-        ['resources/views/cart/index.blade.php','modified','F','M'],['resources/views/commissions/index.blade.php','modified','F','M'],
-        ['resources/views/dashboard/index.blade.php','modified','F','M'],['resources/views/orders/create.blade.php','modified','F','M'],
+        ['resources/views/admin/orders/partials/payments.blade.php','modified','F','M'],['resources/views/dashboard/partials/priorities.blade.php','modified','F','M'],
+        ['resources/views/orders/partials/payments.blade.php','modified','F','M'],['resources/views/layouts/app.blade.php','modified','F','M'],
+        ['resources/views/admin/after-sales/index.blade.php','modified','F','M'],['resources/views/admin/after-sales/show.blade.php','modified','F','M'],
+        ['resources/views/admin/commissions/index.blade.php','modified','F','M'],['resources/views/admin/field-operations/index.blade.php','modified','F','M'],
+        ['resources/views/admin/field-operations/show.blade.php','modified','F','M'],['resources/views/admin/field-operations/teams.blade.php','modified','F','M'],
+        ['resources/views/admin/orders/archived.blade.php','modified','F','M'],['resources/views/admin/orders/index.blade.php','modified','F','M'],
+        ['resources/views/admin/orders/show.blade.php','modified','F','M'],['resources/views/admin/reports/subagent-sales.blade.php','modified','F','M'],
+        ['resources/views/admin/service-parts/index.blade.php','modified','F','M'],['resources/views/admin/service-parts/purchase-requests.blade.php','modified','F','M'],
+        ['resources/views/admin/service-parts/purchase-show.blade.php','modified','F','M'],['resources/views/admin/settings/modules.blade.php','modified','F','M'],
+        ['resources/views/after-sales/create.blade.php','modified','F','M'],['resources/views/after-sales/index.blade.php','modified','F','M'],
+        ['resources/views/after-sales/show.blade.php','modified','F','M'],['resources/views/cart/index.blade.php','modified','F','M'],
+        ['resources/views/commissions/index.blade.php','modified','F','M'],['resources/views/orders/create.blade.php','modified','F','M'],
         ['resources/views/orders/edit.blade.php','modified','F','M'],['resources/views/orders/index.blade.php','modified','F','M'],
-        ['resources/views/orders/show.blade.php','modified','F','M'],
+        ['resources/views/orders/show.blade.php','modified','F','M'],['app/Http/Controllers/DashboardController.php','modified','F','M'],
+        ['resources/views/dashboard/index.blade.php','modified','F','M'],
     ];
 
     public const DIGESTS=[
@@ -180,7 +180,6 @@ final class CommissionsInstallCoordinator
         'app/Providers/AppServiceProvider.php'=>['df53e1ed1592b11d6389ed9cd1920b1b075c79f2666d852d03cab1902b68b96c','94e0f369399feae85851017b2fdd4482774d68ffd2e8fb48028cf654d16020f0'],
         'routes/api.php'=>['779965934dfbcbc43390b6a7fe1577cc6f1aaddb73a2ee69fb6e2fdd5b26a7ab','e31b24975a2e3d648c1196a32d23e91334c825bf415733855a1b50a254366a47'],
         'routes/web.php'=>['b72b49f2dbcc6229955bacc2cbf85c402de9e46b5a862d1d8b92094cd93ff363','fe5c0beeed49bd1c161ad227511e54f34967a362aaddb301165e5272914a27c6'],
-        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','c5f71e8d7afecfdd2d65e9dfb5bf1de9251207ec1afb571501d2174722c388a7'],
         'resources/views/admin/orders/partials/payments.blade.php'=>['566dcd502e72b2ddeb7ab297223ef765db55c7f7e1d995fb5bb755996c90075d','43cab94f30698a28fe20c4f90ff1e286d664fbb8034338931698534fd97f0515'],
         'resources/views/dashboard/partials/priorities.blade.php'=>['61bc9e508db9061a2301eec728a7255441aa2030149341050c1aab0f8dc1f4ac','4e990d592704d3a6ad636e38f46d5421aac9f54ee56246387852630deacb98bf'],
         'resources/views/orders/partials/payments.blade.php'=>['a21036a63841b6738c57302daca9f393e26bb0fbcb5ff5047e1853e8d2c9a8c6','488df11596df4efa299c5b553ccc6749dff631deeb6ed600eeb6a5aa7ba42dad'],
@@ -204,11 +203,12 @@ final class CommissionsInstallCoordinator
         'resources/views/after-sales/show.blade.php'=>['86fa636bd49ecc10079e52c4cef3c0e47ef3c721f4fa68e591df5d2a61da99ee','ab1c8a8edb0a9ad23ff2f6f9e2e24b2a3e6f0a643333dc3110dbd5096f7c52f9'],
         'resources/views/cart/index.blade.php'=>['54eca3225fe820c63de3f1c67fe1492902637fb1e6f81ebf4a3ccd67f20e00d8','c72d2b818c37a2bc17b3c10e963597d21216d2afb781134ef71134684acd11da'],
         'resources/views/commissions/index.blade.php'=>['b2be1743bffb92a1c02c575036c6a3a02272e1f35beca09f9e70b05667e61608','443f4dbd21451f333dc2cb7b4360a9c92282e9af2169528bbdfaacc0af0c5ceb'],
-        'resources/views/dashboard/index.blade.php'=>['7779926c524cba298de76fa2f43a2faeea32b7013107ddfe1da25e52802d4181','77714245836b5c8fddc714aaff7bb4bce12b75b17ee849408eb7f3c2cf4530c5'],
         'resources/views/orders/create.blade.php'=>['0c4fbc2a048e186f562ce89f960f9a7e6cb88ec806428e64ef077fc3c6549a8e','f765ee4bfb424c64233ac816335b47e523ce2da53df1232696d513b94c394a8c'],
         'resources/views/orders/edit.blade.php'=>['ddcb35f1fe720a85d3a7b82387e9110c0f688bc14cd40c28b8597d01f7efd430','c7cc7a93063c32285d16d917a5c23321cbb5d299cf590a5e6185350acfe2ff96'],
         'resources/views/orders/index.blade.php'=>['f92dce9f080fe4ffe6337b3210dd61471a25087e1559d719e7e751f9d9ade498','1e39387225c65b8053f052ed1065727c9e3bc9b6aef5f1a1eef5ae423c01710b'],
         'resources/views/orders/show.blade.php'=>['533478919925410c2f0dd09758c9b7fff47da9b804a059579ca50f02ab8b983f','ffe493fbe6a3d7206ed1474325d36308367d11b9422c4dd142300c3cb97e8f6d'],
+        'app/Http/Controllers/DashboardController.php'=>['b05f47bac35ce55d68e77341173b945f416077311aa79263cb7619a978efc2f4','c5f71e8d7afecfdd2d65e9dfb5bf1de9251207ec1afb571501d2174722c388a7'],
+        'resources/views/dashboard/index.blade.php'=>['7779926c524cba298de76fa2f43a2faeea32b7013107ddfe1da25e52802d4181','77714245836b5c8fddc714aaff7bb4bce12b75b17ee849408eb7f3c2cf4530c5'],
     ];
 
     public const ORPHANS=[
