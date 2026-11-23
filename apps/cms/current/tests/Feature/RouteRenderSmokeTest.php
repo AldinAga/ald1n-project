@@ -82,10 +82,10 @@ final class RouteRenderSmokeTest extends TestCase
         return $failures;
     }
 
-    /** The two pages that broke in production must answer 200 (not only "not 500") for every signed-in role. */
+    /** The dashboard ("/") and /warranties, the pages that broke in production must answer 200 (not only "not 500") for every signed-in role. */
     private function assertKeyPagesAnswer200(User $user): void
     {
-        foreach (['/dashboard', '/warranties'] as $uri) {
+        foreach (['/', '/warranties'] as $uri) {
             $this->actingAs($user)->get($uri)->assertOk();
         }
     }
