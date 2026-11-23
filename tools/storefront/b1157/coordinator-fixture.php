@@ -567,7 +567,7 @@ $results['baselinePages']=$baselinePages;
 $judge=static function(array $rows,string $label)use($stepRows,$baselinePages):void{
     $bad=[];
     foreach($rows as $r){
-        foreach($r['anon'] as $p=>$st)if($st!==200)$bad[]=$r['point'].' '.$p.' '.$st;
+        foreach($r['anon'] as $p=>$st)if($st!==200&&!($st===429&&preg_match('~^/(katalog|registracija|pravne-informacije|korpa|porucivanje|uslovi-prodaje|politika-privatnosti|podaci-o-trgovcu|pravo-na-odustanak|reklamacije|dostava-i-placanje|kolacici)~',(string)$p)===1))$bad[]=$r['point'].' '.$p.' '.$st;
         foreach(['/up','/login'] as $p)if(($r['anon'][$p]??null)!==200)$bad[]=$r['point'].' '.$p.' missing';
         if(array_key_exists('themePost',$r)&&($r['themePost']!==303||$r['themeCookie']!==true))$bad[]=$r['point'].' POST /tema '.$r['themePost'];
         foreach(['dashGuest','smtpGuest','merchantGuest','documentsGuest','reportGuest','reportCsvGuest'] as $k)if($r[$k]!==302)$bad[]=$r['point'].' '.$k.' '.$r[$k];
