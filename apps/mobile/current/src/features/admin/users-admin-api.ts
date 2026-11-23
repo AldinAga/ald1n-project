@@ -32,6 +32,7 @@ export type AdminUser = {
   last_login_at: string | null;
   password_changed_at: string | null;
   approved_at: string | null;
+  can_manage: boolean;
   last_active_superadmin_protected: boolean;
 };
 

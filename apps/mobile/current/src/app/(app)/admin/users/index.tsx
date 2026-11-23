@@ -229,6 +229,7 @@ function UserCard({
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={!user.can_manage}
       onPress={() => router.push({
         pathname: '/admin/users/[id]',
         params: { id: String(user.id) },

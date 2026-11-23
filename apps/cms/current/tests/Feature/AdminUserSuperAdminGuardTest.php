@@ -103,6 +103,26 @@ final class AdminUserSuperAdminGuardTest extends TestCase
         $this->assertSame($hash, $super->fresh()->password_hash);
     }
 
+    public function test_an_administrator_cannot_demote_or_block_a_super_administrator_even_when_two_are_active(): void
+    {
+        $admin = $this->user('guard-admin', 'admin');
+        $super = $this->user('guard-super', 'superadmin');
+        $this->user('guard-super-two', 'superadmin');
+
+        foreach ([['admin', []], ['superadmin', ['status' => 'blocked']]] as [$role, $override]) {
+            try {
+                app(AdminUserService::class)->update($super, $this->payload($super, $role, $override), $admin);
+                $this->fail('The change must be refused.');
+            } catch (HttpException $e) {
+                $this->assertSame(403, $e->getStatusCode());
+                $this->assertStringContainsString('SuperAdministrator', $e->getMessage());
+            }
+        }
+        $fresh = $super->fresh();
+        $this->assertSame('superadmin', $fresh->role->slug);
+        $this->assertSame('active', $fresh->status);
+    }
+
     public function test_a_super_administrator_can_still_manage_roles_and_an_administrator_can_manage_other_users(): void
     {
         $service = app(AdminUserService::class);
