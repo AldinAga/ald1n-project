@@ -320,7 +320,7 @@ $byPath=[];foreach($plan as $s)$byPath[$s['path']]=$s;
 $groupSteps=static fn(string $g):array=>array_values(array_filter($plan,static fn($s)=>$s['group']===$g));
 $stepProvider=$byPath['app/Providers/AppServiceProvider.php'];$stepRoutesWeb=$byPath['routes/web.php'];$stepRoutesApi=$byPath['routes/api.php'];$stepMig1=$byPath[B1157InstallCoordinator::migrationFiles()[0]];$stepMig2=$stepMig1;$nMig=count(B1157InstallCoordinator::NEW_MIGRATIONS);
 check($stepProvider['n']<$stepRoutesApi['n']&&$stepRoutesApi['n']<$stepRoutesWeb['n']&&$stepMig1['group']==='A','THE_PROVIDER_THE_ROUTES_AND_THE_MIGRATION_ARE_IN_THEIR_GROUPS');
-check(count($newSteps)===B1157Payload::NEW_FILES&&count($modifiedSteps)===B1157Payload::MODIFIED_FILES,'NEW_AND_MODIFIED_COUNTS');
+$newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));check(count($newSteps)===B1157Payload::NEW_FILES&&count($modifiedSteps)===B1157Payload::MODIFIED_FILES,'NEW_AND_MODIFIED_COUNTS');
 $stateOf=static function(array $s)use($active):string{$t=$active.'/'.$s['path'];if(!is_file($t))return 'absent';$h=hash_file('sha256',$t);return $h===$s['payloadSHA256']?'payload':($h===$s['preSHA256']?'pre':'foreign');};
 $cssUrls=array_keys(B1157InstallCoordinator::ADMIN_CSS_PATHS);
 $undoMigrationPlaceholder=null;
