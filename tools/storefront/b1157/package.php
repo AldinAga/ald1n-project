@@ -299,6 +299,16 @@ if($needles!==[]&&trim((string)$git(['grep','-l','-E',implode('|',$needles),$bas
 $pure=static function(string $o,string $n):bool{$o=explode("\n",$o);$n=explode("\n",$n);$j=0;$m=count($n);foreach($o as $line){while($j<$m&&$n[$j]!==$line)$j++;if($j>=$m)return false;$j++;}return true;};
 $routesPure=[];foreach(['routes/web.php','routes/api.php'] as $p)if(isset($new[$p]))$routesPure[$p]=$pure((string)$old[$p],$new[$p]);
 if(DR::ROUTES_BEFORE!==579||DR::ROUTES_AFTER<DR::ROUTES_BEFORE)throw new RuntimeException('PACKAGE_ROUTE_COUNTS');
+// 3b. A route name the payload removes must not be called by a view that is replaced AFTER the routes file (between the two the page ends in an error), nor by any view of the final tree. Names are matched by suffix (group prefixes).
+$rnames=static function(string $b):array{preg_match_all("~->name\\(\\s*'([^']+)'~",$b,$m);return array_values(array_unique($m[1]));};
+$removedNames=[];foreach(['routes/web.php','routes/api.php'] as $rf)if(isset($new[$rf]))$removedNames=array_merge($removedNames,array_diff($rnames((string)$old[$rf]),$rnames($new[$rf])));
+$removedNames=array_values(array_unique($removedNames));
+$callsRemoved=static function(string $b)use($removedNames):array{$hit=[];if(preg_match_all("~route\\(\\s*'([^']+)'~",$b,$m))foreach($m[1] as $c)foreach($removedNames as $n)if($c===$n||(str_contains($n,'.')&&str_ends_with($c,'.'.$n)))$hit[$c]=true;return array_keys($hit);};
+foreach($new as $q=>$qt)if(str_ends_with($q,'.blade.php')){
+    foreach($callsRemoved($qt) as $c)throw new RuntimeException('PACKAGE_A_NEW_VIEW_CALLS_A_REMOVED_ROUTE_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$q.'_'.$c)));
+    if(is_string($old[$q]??null)&&isset($grp['routes/web.php'],$grp[$q])&&$grp[$q]>=$grp['routes/web.php'])foreach($callsRemoved($old[$q]) as $c)$hazards[]=$q.' still calls the removed route '.$c.' until its own step, which comes after the routes file';}
+$targetViews=trim((string)$git(['grep','-l','-E','route\\(',$payloadCommit,'--','apps/cms/current/resources/views'],true));
+foreach(array_filter(explode("\n",$targetViews)) as $tv){$tp=preg_replace('~^[0-9a-f]{40}:'.preg_quote(CMS,'~').'~','',$tv);if(isset($new[$tp]))continue;foreach($callsRemoved($blob($payloadCommit,$tp)) as $c)throw new RuntimeException('PACKAGE_AN_UNCHANGED_VIEW_CALLS_A_REMOVED_ROUTE_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$tp.'_'.$c)));}
 // 4. The order edges (caller group above callee group, or later in the same group): every modified view after the routes, every `use` and @include edge below.
 $code=static fn(string $c,string $e):string=>'PACKAGE_ORDER_EDGE_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$c.'_AFTER_'.$e));
 $later=static fn(string $c,string $e):bool=>isset($grp[$c],$grp[$e])&&($grp[$c]>$grp[$e]||($grp[$c]===$grp[$e]&&$idx[$c]>$idx[$e]));

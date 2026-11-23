@@ -39,6 +39,11 @@ foreach($diff as $p=>$k){
     if($k==='A'&&isset($orphansBefore[$p])){$mod[$p]=$orphansBefore[$p];continue;}
     if($k==='A')$new[]=$p;else $mod[$p]=hash('sha256',$blob($base,$p));
 }
+// Route names (->name('x') of web.php and api.php, matched by suffix because of group prefixes) removed and added by the payload.
+$rn=static function(string $b):array{preg_match_all("~->name\\(\\s*'([^']+)'~",$b,$m);return array_values(array_unique($m[1]));};
+$removedN=[];$addedN=[];foreach(['routes/web.php','routes/api.php'] as $rf){$o=$rn($blob($base,$rf));$n=$rn($blob($src,$rf));$removedN=array_merge($removedN,array_diff($o,$n));$addedN=array_merge($addedN,array_diff($n,$o));}
+$removedN=array_values(array_unique($removedN));$addedN=array_values(array_unique($addedN));
+$callsAny=static function(string $b,array $names):bool{if(!preg_match_all("~route\\(\\s*'([^']+)'~",$b,$m))return false;foreach($m[1] as $c)foreach($names as $n)if($c===$n||(str_contains($n,'.')&&str_ends_with($c,'.'.$n)))return true;return false;};
 $groupOf=static function(string $p):string{
     if($p==='app/Providers/AppServiceProvider.php')return 'D';
     if($p==='routes/api.php'||$p==='routes/web.php'||$p==='routes/console.php')return 'E';
@@ -53,6 +58,7 @@ $newOrdered=array_merge(array_values(array_filter($new,static fn($p)=>!$isMig($p
 foreach($newOrdered as $p)$steps[]=[$p,'new','A'];
 $byGroup=[];$lateC=[];$mixed=[];$tight=[];
 foreach(array_keys($mod) as $p){$grp=$pins[$p]??$groupOf($p);
+    if($grp==='F'&&!isset($pins[$p])&&str_ends_with($p,'.blade.php')&&$removedN!==[]&&$callsAny($blob($base,$p),$removedN)&&!$callsAny($blob($src,$p),$addedN)){$grp='C';fwrite(STDERR,'NOTE '.$p.' calls a route the payload removes and none it adds: installed in group C, before the routes file'.PHP_EOL);}
     if($grp==='B'&&str_starts_with($p,'app/')&&str_ends_with($p,'.php')){$re='/\\bpublic\\s+(?:static\\s+)?function\\s+(\\w+)\\s*\\(/';preg_match_all($re,$blob($base,$p),$o1);preg_match_all($re,$blob($src,$p),$o2);
         // A service that loses a public method goes to the END of group C: the old controllers that still call it are replaced first (package.php proves that nothing new calls it). One that also gains methods stays in B and is reported (REVIEW) here and in the provenance.
         if(array_diff($o1[1],$o2[1])!==[]){if(array_diff($o2[1],$o1[1])!==[]){$mixed[$p]=[array_values(array_diff($o1[1],$o2[1])),array_values(array_diff($o2[1],$o1[1]))];continue;}else{$lateC[]=$p;continue;}}}

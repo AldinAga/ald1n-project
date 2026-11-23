@@ -47,7 +47,7 @@ Druga komanda zaobilazi samo provjeru prozora rezervne kopije i koristi se isklj
 
 ## Izvještaj
 
-Fajl se zove `1123-B1157-INSTALLER-<datum>-<vrijeme>.md` i nalazi se u `docs/operations`. Uspjeh je `B1157_FINAL=PASS_...` i `EXIT=0`, uz {{TREE}} fajlova i {{ROUTES_AFTER}} ruta.
+Fajl se zove `<broj>-B1157-INSTALLER-<datum>-<vrijeme>.md` i nalazi se u `docs/operations`. Broj je najveći postojeći broj izvještaja plus 1 (wrapper ga računa sam, iz `docs/operations` na serveru i iz `origin/main`); očekuje se 1123, osim ako već postoji veći. Uspjeh je `B1157_FINAL=PASS_...` i `EXIT=0`, uz {{TREE}} fajlova i {{ROUTES_AFTER}} ruta.
 
 ## Trajanje i prozor (tačne brojke)
 
@@ -57,6 +57,16 @@ Instalater planira najgori slučaj: kopija fajlova, kopija baze i jedno ponavlja
 - Sa podrazumijevanih 2400 s po kopiji: oko 16479 s, to jest oko 4 h 35 min. U tom slučaju alat sam odbija start sa `HOLD_PREFLIGHT_BLOCKED` i `SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_...`, i ništa nije promijenjeno.
 - Ponovna provjera poslije grupe (čekanje pune pauze od oko 125 s pa još jedna provjera) nije dokazana testom. U najgorem slučaju prozor može biti do oko 2200 s duži od gornjih brojki.
 - Stvarno trajanje na produkciji nije izmjereno. B1156 je na produkciji napravio rezervnu kopiju baze od oko 0,97 GB za oko 34 s i provjerio je za oko 6 s.
+
+## Šta se mijenja za korisnike
+
+- Obični Administratori gube `backups.manage` i `automation.manage`: od grupe B te dvije mogućnosti ima samo SuperAdministrator. Ako neko iz uprave koristi rezervne kopije ili automatizaciju kao Administrator, upozorite ga prije instalacije.
+- Dvije nove cron komande, `app:product-import-cleanup` (03:40) i `app:account-deletions-process` (04:20), rade samo ako cron na serveru poziva `php artisan schedule:run` svake minute. Provjerite da taj cron postoji; instalater ga ne dodaje i ne mijenja.
+
+## Prozori sa greškom 500 (poznati, kratki)
+
+- Akcije „Preuzmi porudžbinu“ (`accept`) i „Ažuriraj tracking“ (`updateTracking`): stari kontroleri ih zovu, a novi kod ih više nema. Od instalacije prvog kontrolera u grupi C do `route:clear` u grupi E te dvije akcije vraćaju grešku (transakcija se ne upisuje, podaci se ne kvare). Procjena iz pauza grupa C, D i E (svaka puna pauza oko 125 s): oko 3 do 6 minuta; nije mjereno, zato ne počinjite instalaciju dok se te akcije koriste.
+- Ostale strane iza prijave mogu dati kratku 500 do oko 2 minuta poslije svake grupe (keširani bajtkod). Jedan stvaran prozor je uklonjen: `admin/orders/partials/row-action.blade.php` se instalira u grupi C, prije ruta, jer novi partial koristi samo rutu koja već postoji (u prvoj verziji paketa lista porudžbina je dobijala 500 oko 2 do 5 minuta).
 
 ## Šta alat ne provjerava
 

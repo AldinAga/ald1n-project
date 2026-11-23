@@ -54,7 +54,7 @@ bash /home/icaffeco/ald1n-project/incoming/b1157-installer.sh --rollback
 bash /home/icaffeco/ald1n-project/incoming/b1157-installer.sh --rollback --ignore-schedule
 ```
 
-Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija se nikad ne poništava). Izvještaj se zove `docs/operations/1123-B1157-INSTALLER-<datum>-<vrijeme>.md`. Radnik radi odvojeno od SSH sesije; ako sesija padne, pratite izvještaj komandom `tail -f`. Posljednja linija je `EXIT=0` za uspjeh.
+Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija se nikad ne poništava). Izvještaj se zove `docs/operations/<broj>-B1157-INSTALLER-<datum>-<vrijeme>.md`, gdje je broj najveći postojeći plus 1 (očekuje se 1123). Radnik radi odvojeno od SSH sesije; ako sesija padne, pratite izvještaj komandom `tail -f`. Posljednja linija je `EXIT=0` za uspjeh.
 
 ## Pravila povlačenja unazad
 
@@ -70,9 +70,13 @@ Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija s
 1. Između fajlova i migracije novi kod radi nad starom šemom. Generator ne može da dokaže koje staze to podnose; CI pokreće stranice oba korisnika u svakoj tački. Pokrenite instalaciju u satu sa malo saobraćaja.
 2. Alat nikad ne prijavljuje korisnika, pa strane iza prijave proverava vlasnik (kontrolna tabla, lista porudžbina i jedna porudžbina, forma uplate, potraživanja, forma proizvoda).
 3. Aplikacija čuva samo 2 najnovije provjerene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izvještaju, `DB_BACKUP`) sačuvajte van servera prije sljedeće noćne.
-4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave.
+4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave. Akcije „Preuzmi porudžbinu“ i „Ažuriraj tracking“ daju grešku od instalacije prvog kontrolera u grupi C do `route:clear` u grupi E (procjena 3 do 6 minuta, nije mjereno). Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta (npr. `row-action.blade.php`).
 5. Redoslijed grupa je izveden pravilom (nove datoteke, biblioteke, kontroleri, provider, rute, prikazi; unutar grupe pozvani prije pozivaoca). Pravilo ne vidi da li stari prikaz pada na novu promjenljivu kontrolera; CI to hvata tek kad stranica ima podatke.
 6. Cloudflare se ne dira i nije potrebno čišćenje keša.
+
+## Šta se mijenja za korisnike
+
+Obični Administratori gube `backups.manage` i `automation.manage` (samo SuperAdministrator ih ima, od grupe B). Nove cron komande `app:product-import-cleanup` (03:40) i `app:account-deletions-process` (04:20) rade samo ako cron poziva `schedule:run`.
 
 ## Šta NIJE provjeravano ovim alatom
 

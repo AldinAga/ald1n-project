@@ -318,7 +318,7 @@ final class B1157InstallCoordinator
         // the groups are A..G without a gap and the management view (it renders the new route) is the LAST step, after routes/web.php.
         $newTop='';foreach(self::STEPS as [$p,$k,$g])if($k==='new'&&$g>$newTop)$newTop=$g;$groups=array_values(array_unique(array_column(self::STEPS,2)));$guards=array_keys(self::GUARDS);
         $inGroup=static fn(string $grp)=>array_values(array_map(static fn($s)=>$s[0],array_filter(self::STEPS,static fn($s)=>$s[2]===$grp)));
-        $mig=array_values(array_filter(self::STEPS,static fn($s)=>str_starts_with($s[0],'database/')));$viewsAfterRoutes=true;foreach(self::STEPS as [$sp,,$sg])if(str_ends_with($sp,'.blade.php')&&$sg!=='A'&&$sg!=='F')$viewsAfterRoutes=false;
+        $mig=array_values(array_filter(self::STEPS,static fn($s)=>str_starts_with($s[0],'database/')));$viewsAfterRoutes=true;foreach(self::STEPS as [$sp,,$sg])if(str_ends_with($sp,'.blade.php')&&$sg!=='A'&&$sg!=='C'&&$sg!=='F')$viewsAfterRoutes=false;
         // The groups are a subset of A..F; the provider is the whole of D, the routes files the whole of E, every D/E/F group that exists is guarded (F only when the admin stylesheet ships), the migrations are the new files of group A and there is at least one.
         $guardsOk=array_keys(self::GUARDS)===array_values(array_filter(['D','E','F'],static fn($g)=>in_array($g,$groups,true)&&($g!=='F'||self::ADMIN_CSS_PATHS!==[])));
         if($groups!==array_values(array_intersect(['A','B','C','D','E','F'],$groups))||!$guardsOk||($newTop!==''&&($newTop!=='A'||self::STEPS[0][2]!=='A'||self::STEPS[0][1]!=='new'))||(in_array('D',$groups,true)&&$inGroup('D')!==['app/Providers/AppServiceProvider.php'])||(in_array('E',$groups,true)&&array_diff($inGroup('E'),['routes/api.php','routes/web.php','routes/console.php'])!==[])||$mig===[]||array_map(static fn($s)=>$s[0],$mig)!==self::migrationFiles()||array_unique(array_map(static fn($s)=>$s[1].$s[2],$mig))!==['newA']||!$viewsAfterRoutes)throw new RuntimeException('OVERLAY_GUARD_GROUPS_NOT_D_E_F_THE_MIGRATIONS_NOT_NEW_FILES_OF_GROUP_A_OR_A_MODIFIED_VIEW_BEFORE_THE_ROUTES');
@@ -756,8 +756,8 @@ final class B1157InstallCoordinator
     private function shop():array {$s=self::shopOf($this->helper($this->appStateScript,['state']));if(!$s['known'])throw new RuntimeException('SHOP_SWITCH_VALUE_UNKNOWN');return $s;}
 
     /**
-     * migrate:status through the pinned strict parser: $ran migrations ran and exactly $pending are pending (names, in order). Before the files: 71 ran, none pending (and the two migration files are not there yet);
-     * with the files in place and before the migration: 71 ran, exactly the two NEW_MIGRATIONS pending; after it: 73 ran, none pending.
+     * migrate:status through the pinned strict parser: $ran migrations ran and exactly $pending are pending (names, in order). Before the files: RAN (73) ran, none pending (and the migration files are not there yet);
+     * with the files in place and before the migration: 73 ran, exactly the NEW_MIGRATIONS pending; after it: RAN_AFTER ran, none pending.
      */
     private function migrationStatus(int $ran=self::RAN,array $pending=[]):array
     {
@@ -1008,7 +1008,7 @@ final class B1157InstallCoordinator
     /**
      * The scheduled-backup window this run needs: install (the hold before each guard group D, E and F, the installed hold, and one revalidation pause per group), a full smokes() call, and if
      * the acceptance fails the rollback (the full hold after F, E and D are undone, the hold before the new files, the restored hold, a pause per group) with its smokes; 300 s for artisan,
-     * probes and helpers. Never below 30 min. Nine full holds in all (4 install, 5 rollback), plus one liveness retry hold per group (worst case), three backup durations (the file copy, the database backup, one retake of it) and the 900 s migration limit. With a 300 s last backup this is about 10200 s (2 h 50 min); with the 2400 s default about 3 h 50 min. The backup-window refusal of the preflight (02:30 daily, 03:10 Sunday) uses this value.
+     * probes and helpers. Never below 30 min. Nine full holds in all (4 install, 5 rollback), plus one liveness retry hold per group (worst case), three backup durations (the file copy, the database backup, one retake of it) and the 900 s migration limit. With a 300 s last backup this is about 10200 s (2 h 50 min); with the 2400 s default about 16479 s (4 h 35 min), and then the preflight refuses the start. The backup-window refusal of the preflight (02:30 daily, 03:10 Sunday) uses this value.
      */
     private function requiredWindowSeconds(int $holdSeconds):int
     {
@@ -1734,7 +1734,7 @@ final class B1157InstallCoordinator
     }
 
     /**
-     * After the last file and its liveness smoke: the migration. Gates in this order: the migration set (71 ran, exactly the two new files pending), the schema (none of it there), the read-only commission census, a FRESH backup of this
+     * After the last file and its liveness smoke: the migration. Gates in this order: the migration set (73 ran, exactly the new migration files pending), the schema (none of it there), the read-only commission census, a FRESH backup of this
      * run with its recheck and age bound (retaken once when stale), the artisan census and the backup window again, the migration set once more. Only then MIGRATE_INTENT is saved and the ONE migrate call runs.
      * A failure before MIGRATE_INTENT is a full file rollback (nothing ran); from MIGRATE_INTENT on the policy is forward-only resume or a rollback that keeps the migration files.
      */
@@ -1835,7 +1835,7 @@ final class B1157InstallCoordinator
             $group=$s['group'];
             $this->fault('BEFORE_STEP_'.$s['n']);$this->guardGroupCheck($s['group']);$t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
             if($s['kind']==='new'){
-                // Missing directories (resources/views/public-shop/partials is the only one expected; public/assets/css and the other parents exist) are created outermost first, each recorded in the saved
+                // Missing directories (the parents of the new files that do not exist yet; package.php lists them in the provenance as directoriesTheInstallCreates) are created outermost first, each recorded in the saved
                 // state BEFORE its mkdir, so a kill leaves a record; a rollback removes the empty ones in reverse (innermost first). Nothing outside the CMS tree is ever created.
                 $dir=dirname($t);$missing=[];for($d=$dir;!is_dir($d);$d=dirname($d)){if(is_link($d)||!str_starts_with($d,$this->active().'/'))throw new RuntimeException('TARGET_PARENT_MISSING');$missing[]=$d;}
                 foreach(array_reverse($missing) as $d){$this->state['createdDirs'][]=$d;$this->persist();if(!mkdir($d,0755))throw new RuntimeException('TARGET_DIRECTORY_CREATE');chmod($d,0755);$pg=stat(dirname($d))['gid'];if(stat($d)['gid']!==$pg)@chgrp($d,$pg);clearstatcache(true,$d);if(stat($d)['gid']!==$pg)throw new RuntimeException('OVERLAY_DIRECTORY_GID_NOT_PRESERVABLE');$this->emit('OVERLAY_DIRECTORY_CREATED',['path'=>substr($d,strlen($this->active())+1),'mode'=>'0755']);}
@@ -1850,7 +1850,7 @@ final class B1157InstallCoordinator
     }
 
     /**
-     * Read-only acceptance step after group G: the CLI helper compiles each changed or new Blade view (VIEW_CHECKS: 33 views) in memory (Blade::compileString, nothing is written to the
+     * Read-only acceptance step after the last group: the CLI helper compiles each changed or new Blade view (VIEW_CHECKS: every new and modified view of the payload) in memory (Blade::compileString, nothing is written to the
      * compiled-view directory) and parses the compiled PHP (token_get_all with TOKEN_PARSE). A view that does not compile or lint fails the acceptance and the normal automatic rollback follows.
      * This proves the syntax of the views, not how the authenticated dashboard or the report with data render: nobody logs in. No database write, no mail, no value printed.
      */

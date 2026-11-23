@@ -90,6 +90,7 @@ final class B1157Payload
         ['public/assets/css/ald1n-liquid-glass.css','modified','C','M'],
         ['public/assets/css/ald1n-public-register.css','modified','C','M'],
         ['public/assets/css/app.css','modified','C','M'],
+        ['resources/views/admin/orders/partials/row-action.blade.php','modified','C','M'],
         ['app/Services/OrderWorkflowService.php','modified','C','M'],
         ['app/Services/OrderDetailPresenter.php','modified','C','M'],
         ['app/Http/Controllers/Admin/OrderController.php','modified','C','M'],
@@ -103,7 +104,6 @@ final class B1157Payload
         ['resources/views/layouts/app.blade.php','modified','F','M'],
         ['resources/views/layouts/guest.blade.php','modified','F','M'],
         ['resources/views/admin/orders/partials/payments.blade.php','modified','F','M'],
-        ['resources/views/admin/orders/partials/row-action.blade.php','modified','F','M'],
         ['resources/views/account/show.blade.php','modified','F','M'],
         ['resources/views/admin/commissions/index.blade.php','modified','F','M'],
         ['resources/views/admin/orders/archived.blade.php','modified','F','M'],
@@ -215,6 +215,7 @@ final class B1157Payload
         'public/assets/css/ald1n-liquid-glass.css'=>['a1a12dec4fe0a84d06b856cde9dd81fb36af15eb733d8e884211caebadb0b76f','ace1930985f69a8f3d5f5fa5b0e3d4fbd2c6f2d701d78a66e8c9126c354b6a3d'],
         'public/assets/css/ald1n-public-register.css'=>['bd2dcd6d9b999fe4e56f82647edc77b528b928a8fc28081b3a3fe188b2095c2f','89f441f61da5a684edc5ed4e02eacd697f94e583d2072864785cb60a3318eb17'],
         'public/assets/css/app.css'=>['e67e142351c784f2beccc59da5e46fc7485b3d2a7444ead443df291274baf67c','397021a9267aa6b8e6684cd7fe187cd97319bfc71dc3b25e68a04b2c76e5103a'],
+        'resources/views/admin/orders/partials/row-action.blade.php'=>['a84c1cee12f27078b0e2e4e0f3ae8667543791978aa2ca8e2a96956aab5505e5','cf169a6620c47295d0c185d7f36d24a2f90455e6fbb0fcf009632a3285dd5d40'],
         'app/Services/OrderWorkflowService.php'=>['1029f358df7b42111945336b7f8318d364a34cf1b2212eb7c6f89d76c179c3a2','eb5ba6a5002c9bf355c9316130dd4d90caa05cdbf05506622967164f8ebdc5c3'],
         'app/Services/OrderDetailPresenter.php'=>['5d31e59ef0685a8c8aadc03c2d573dc1d5cdcd96dba1aa1c5fdf057af0418415','fa7f300bd26f628ec3095a3b053bd78ece46185a6e0248bac59db9fed4b65770'],
         'app/Http/Controllers/Admin/OrderController.php'=>['674d05a91834ddaa5490cefc1a677304e134b3c3977fb16a27061bbbfb17a04e','897f19ed1e3a1794a09cd6ae80ecf0a1e266c08fecf91dd114a5a7f00038a509'],
@@ -228,7 +229,6 @@ final class B1157Payload
         'resources/views/layouts/app.blade.php'=>['9612f1a304fcdbc18ddae94e27e5bba9f4bf744323b0ba2de8c0a47b03a8c6fa','19fea763a1a14f6b147a26758572150334582b0b2a52e98bc05590f1c11f142d'],
         'resources/views/layouts/guest.blade.php'=>['e81e6e405357c814f4d89565623032eeb2eed024694199cc1fee35e71976b7a6','898af9c6e03b3937ec5492d165c91112484d66ad601c5faaf546a72402cb9a9b'],
         'resources/views/admin/orders/partials/payments.blade.php'=>['43cab94f30698a28fe20c4f90ff1e286d664fbb8034338931698534fd97f0515','12eb1d0fb25b96241b8e1f521cc7b69c23f5e8f40755e04cbcffde493327aa99'],
-        'resources/views/admin/orders/partials/row-action.blade.php'=>['a84c1cee12f27078b0e2e4e0f3ae8667543791978aa2ca8e2a96956aab5505e5','cf169a6620c47295d0c185d7f36d24a2f90455e6fbb0fcf009632a3285dd5d40'],
         'resources/views/account/show.blade.php'=>['b36b99fecd90bf866e6b5decb3170f3915ab6961eed266ec3040f3a85aab45fa','bc7237b8ce7428f4e229e2cade24e7ea3cd3b66097e9457b820d2ce9bd1d0f98'],
         'resources/views/admin/commissions/index.blade.php'=>['059827f3033fe4ae75ebe87c9bf2b0337b9377ce55a7a560ad7ac92335f06b35','d292801a9e85a4158bfeab441cfd10a195a80f2da10fa30aac4870a5882f74f3'],
         'resources/views/admin/orders/archived.blade.php'=>['7a641fb2f3ef0f53022bc9f83c4db6f9fbb90d10ca7bcc549d94ac956c99fd2b','ddecda5b3b3c20e76ca7e734c2d577aede4a5e098e1cd3b98dcb95784a227e83'],
@@ -469,10 +469,10 @@ final class B1157Payload
   5 => 'resources/views/public-shop/account-deletion/show.blade.php',
   6 => 'resources/views/public-shop/account-deletion/token.blade.php',
   7 => 'resources/views/public-shop/checkout-empty.blade.php',
-  8 => 'resources/views/layouts/app.blade.php',
-  9 => 'resources/views/layouts/guest.blade.php',
-  10 => 'resources/views/admin/orders/partials/payments.blade.php',
-  11 => 'resources/views/admin/orders/partials/row-action.blade.php',
+  8 => 'resources/views/admin/orders/partials/row-action.blade.php',
+  9 => 'resources/views/layouts/app.blade.php',
+  10 => 'resources/views/layouts/guest.blade.php',
+  11 => 'resources/views/admin/orders/partials/payments.blade.php',
   12 => 'resources/views/account/show.blade.php',
   13 => 'resources/views/admin/commissions/index.blade.php',
   14 => 'resources/views/admin/orders/archived.blade.php',
@@ -644,23 +644,23 @@ final class B1157Payload
   ),
   'm80' => 
   array (
-    0 => 'app/Services/OrderDetailPresenter.php',
-    1 => 'use App\\Support\\OrderStatus;',
+    0 => 'app/Services/OrderWorkflowService.php',
+    1 => 'use App\\Models\\OrderShipment;',
   ),
   'm83' => 
   array (
-    0 => 'app/Providers/AppServiceProvider.php',
-    1 => 'if ($user->isSuperadminOnlyRestricted($ability)) return false;',
+    0 => 'app/Http/Controllers/OrderController.php',
+    1 => '$validated = $request->validate([\'reason\' => [\'required\', \'string\', \'min:3\', \'max:1000\']]);',
   ),
   'm85' => 
   array (
-    0 => 'routes/console.php',
-    1 => 'Schedule::command(\'app:product-import-cleanup\')',
+    0 => 'routes/api.php',
+    1 => 'Route::get(\'/account/deletion\', [AccountController::class, \'deletionStatus\'])->name(\'account.deletion.show\');',
   ),
   'm88' => 
   array (
-    0 => 'resources/views/layouts/guest.blade.php',
-    1 => '<body class="auth-body a1-body" id="a1-top">',
+    0 => 'resources/views/layouts/app.blade.php',
+    1 => '<body class="a1-body" id="a1-top">',
   ),
   'm91' => 
   array (
