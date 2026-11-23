@@ -29,10 +29,13 @@
 @else
 <form method="post" action="{{ route('admin.products.import.process') }}">@csrf
     <input type="hidden" name="token" value="{{ $token }}">
+    @if(!empty($analysis))<input type="hidden" name="mapping_hash" value="{{ $mappingHash }}" data-import-mapping-hash>@endif
+    @if($errors->has('mapping'))<div class="alert alert-error" role="alert">{{ $errors->first('mapping') }}</div>@endif
     <div class="admin-form-grid"><div class="form-main">
         <section class="panel form-section">
             <h2>2. Mapiranje kolona</h2>
             <p class="muted">Fajl ima {{ $rowCount }} redova. Za svako polje izaberi kolonu iz fajla ili ostavi „Ne uvozi“. Šifra artikla (SKU) se uvek generiše automatski.</p>
+            <p class="muted" data-import-price-rule>Pravilo za cene: tačka iza koje slede tačno tri cifre je separator hiljada („12.500“ je 12500, „1.234,50“ je 1234,50), a decimalni separator je zarez („12,5“ je 12,5). Engleski zapis sa zarezom kao hiljadama („1,234“) se čita kao 1,234; takve dvosmislene cene označene su upozorenjem u pregledu.</p>
             <div class="field-grid">
                 @foreach(\App\Services\ProductImportService::FIELDS as $field => $label)
                     <label><span>{{ $label }}</span>

@@ -64,7 +64,7 @@ final class ProductImportService
         $this->purgeOld();
         $token = Str::random(40);
         Storage::disk('local')->put($this->path($token, $user), $raw);
-        $this->saveMeta($token, $user, ['file' => $filename, 'done' => []]);
+        $this->saveMeta($token, $user, ['file' => $filename, 'runs' => []]);
 
         return $token;
     }
@@ -82,7 +82,7 @@ final class ProductImportService
     public function forget(string $token, User $user): void
     {
         if (preg_match('/^[A-Za-z0-9]{40}$/', $token)) {
-            Storage::disk('local')->delete([$this->path($token, $user), $this->path($token, $user).'.meta']);
+            Storage::disk('local')->delete([$this->path($token, $user), $this->path($token, $user).'.meta', $this->path($token, $user).'.meta.tmp']);
         }
     }
 
@@ -173,6 +173,14 @@ final class ProductImportService
             ], [], ['name' => 'Naziv', 'model_name' => 'Model', 'supplier_code' => 'Šifra dobavljača', 'ean' => 'EAN', 'price_amount' => 'Cena', 'price_currency' => 'Valuta', 'purchase_price_rsd' => 'Nabavna cena', 'description' => 'Opis', 'notes' => 'Napomena']);
             foreach ($validator->errors()->all() as $message) $errors[] = (string) $message;
 
+            // Jedan separator iza koga slede tačno tri cifre ('12.500', '1,234') je dvosmislen: pravilo je tačka = hiljade, zarez = decimale.
+            foreach (['price_amount' => 'Cena', 'purchase_price_rsd' => 'Nabavna cena'] as $priceField => $priceLabel) {
+                $rawPrice = $cell($priceField);
+                if ($rawPrice !== null && preg_match('/^\d{1,3}[.,]\d{3}$/', str_replace(' ', '', $rawPrice))) {
+                    $warnings[] = $priceLabel.' „'.$rawPrice.'“ je dvosmislena: protumačena kao '.$data[$priceField].' (tačka je separator hiljada, zarez decimalni). Ispravi u fajlu ako je mišljeno drugačije.';
+                }
+            }
+
             $duplicate = false;
             if ($data['brand_id'] !== null && $data['model_name'] !== null) {
                 $key = 'm|'.$data['brand_id'].'|'.mb_strtolower($data['model_name']);
@@ -208,19 +216,27 @@ final class ProductImportService
      * @param array{rows:list<array<string,mixed>>} $analysis
      * @return array{created:int,skipped:int,errors:list<array{line:int,message:string}>}
      */
-    public function execute(array $analysis, bool $skipDuplicates, User $user, string $token = ''): array
+    public function execute(array $analysis, bool $skipDuplicates, User $user, string $token = '', string $mappingHash = ''): array
     {
         @set_time_limit(300);
-        $meta = $token !== '' ? $this->meta($token, $user) : ['file' => '', 'done' => []];
-        $done = array_flip($meta['done']);
+        $key = $mappingHash !== '' ? $mappingHash : 'default';
+        $meta = $token !== '' ? $this->meta($token, $user) : ['file' => '', 'runs' => []];
+        $run = $meta['runs'][$key] ?? ['done' => [], 'pending' => []];
+        $done = array_flip($run['done']);
+        $uncertain = array_flip($run['pending']);
         $created = 0;
         $resumed = 0;
         $skipped = 0;
         $errors = [];
         foreach ($analysis['rows'] as $row) {
             if (isset($done[$row['line']])) {
-                // Red je uvezen u prekinutom pokušaju: ponovni pokušaj ga ne sme duplirati.
+                // Red je uvezen u prekinutom pokušaju sa istim mapiranjem: ponovni pokušaj ga ne sme duplirati.
                 $resumed++;
+                continue;
+            }
+            if (isset($uncertain[$row['line']])) {
+                // Prekid je nastupio dok je red bio u upisu: ne znamo da li je artikal nastao, pa ga ne dupliramo.
+                $errors[] = ['line' => $row['line'], 'message' => 'Red je možda već uvezen u prekinutom pokušaju. Proveri katalog pre ručnog unosa.'];
                 continue;
             }
             if ($row['errors'] !== []) {
@@ -232,17 +248,27 @@ final class ProductImportService
                 continue;
             }
             try {
+                // Red se evidentira PRE upisa; pad između create() i potvrde ostavlja trag "možda uvezeno" umesto duplikata.
+                if ($token !== '') {
+                    $run['pending'][] = $row['line'];
+                    $meta['runs'][$key] = $run;
+                    $this->saveMeta($token, $user, $meta);
+                }
                 $this->products->create($row['data'], $user);
                 $created++;
                 if ($token !== '') {
-                    $meta['done'][] = $row['line'];
+                    $run['pending'] = array_values(array_diff($run['pending'], [$row['line']]));
+                    $run['done'][] = $row['line'];
+                    $meta['runs'][$key] = $run;
                     $this->saveMeta($token, $user, $meta);
                 }
             } catch (ValidationException $exception) {
+                $this->clearPending($token, $user, $meta, $run, $key, $row['line']);
                 $errors[] = ['line' => $row['line'], 'message' => Str::limit(implode(' ', $exception->validator->errors()->all()), 300)];
             } catch (\Throwable $exception) {
                 // Jedan neočekivan red ne sme da prekine uvoz usred fajla i ostavi nejasno stanje.
                 report($exception);
+                $this->clearPending($token, $user, $meta, $run, $key, $row['line']);
                 $errors[] = ['line' => $row['line'], 'message' => 'Red nije uvezen zbog neočekivane greške.'];
             }
         }
@@ -260,20 +286,55 @@ final class ProductImportService
         return ['created' => $created, 'skipped' => $skipped, 'resumed' => $resumed, 'errors' => $errors];
     }
 
-    /** @return array{file:string,done:list<int>} */
+    /** Hash mapiranja i valute: evidencija uvezenih redova važi samo za isto mapiranje, a izvršenje traži isto mapiranje kao pregled. @param array<string,mixed> $mapping */
+    public function mappingHash(array $mapping, string $currency): string
+    {
+        $normalized = [];
+        foreach (array_keys(self::FIELDS) as $field) {
+            $value = $mapping[$field] ?? '';
+            $normalized[$field] = $value === null ? '' : (string) $value;
+        }
+
+        return hash('sha256', json_encode([$normalized, $currency], JSON_THROW_ON_ERROR));
+    }
+
+    /** @param array{file:string,runs:array<string,array{done:list<int>,pending:list<int>}>} $meta @param array{done:list<int>,pending:list<int>} $run */
+    private function clearPending(string $token, User $user, array &$meta, array &$run, string $key, int $line): void
+    {
+        if ($token === '') return;
+        $run['pending'] = array_values(array_diff($run['pending'], [$line]));
+        $meta['runs'][$key] = $run;
+        $this->saveMeta($token, $user, $meta);
+    }
+
+    /** @return array{file:string,runs:array<string,array{done:list<int>,pending:list<int>}>} */
     private function meta(string $token, User $user): array
     {
-        $raw = Storage::disk('local')->exists($this->path($token, $user).'.meta') ? json_decode((string) Storage::disk('local')->get($this->path($token, $user).'.meta'), true) : null;
+        $path = $this->path($token, $user).'.meta';
+        $raw = Storage::disk('local')->exists($path) ? json_decode((string) Storage::disk('local')->get($path), true) : null;
+        if (!is_array($raw) || !isset($raw['runs']) || !is_array($raw['runs'])) {
+            // Oštećena ili nedostajuća evidencija se ne tumači kao "ništa nije uvezeno": to bi duplirale artikle.
+            throw ValidationException::withMessages(['file' => 'Evidencija uvoza je oštećena ili nedostaje. Otpremi fajl ponovo i proveri katalog pre ponovnog uvoza.']);
+        }
+        $runs = [];
+        foreach ($raw['runs'] as $hash => $run) {
+            $runs[(string) $hash] = [
+                'done' => array_values(array_map('intval', (array) ($run['done'] ?? []))),
+                'pending' => array_values(array_map('intval', (array) ($run['pending'] ?? []))),
+            ];
+        }
 
-        return ['file' => (string) ($raw['file'] ?? ''), 'done' => array_values(array_map('intval', (array) ($raw['done'] ?? [])))];
+        return ['file' => (string) ($raw['file'] ?? ''), 'runs' => $runs];
     }
 
-    /** @param array{file:string,done:list<int>} $meta */
+    /** Atomarno: upis u privremeni fajl pa rename, da prekid usred upisa ne ostavi polovičan JSON. @param array{file:string,runs:array<string,mixed>} $meta */
     private function saveMeta(string $token, User $user, array $meta): void
     {
-        Storage::disk('local')->put($this->path($token, $user).'.meta', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $disk = Storage::disk('local');
+        $path = $this->path($token, $user).'.meta';
+        $disk->put($path.'.tmp', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), ['lock' => true]);
+        $disk->move($path.'.tmp', $path);
     }
-
     /** @return array{headers:list<string>,rows:list<list<string>>} */
     private function parse(string $raw): array
     {

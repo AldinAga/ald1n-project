@@ -273,10 +273,103 @@ final class ProductCsvImportTest extends TestCase
     /** @param array<string,mixed> $extra @return array<string,mixed> */
     private function mappingPost(string $token, string $mode, array $extra = []): array
     {
-        return array_replace([
+        $post = array_replace([
             'token' => $token, 'mode' => $mode, 'default_currency' => 'EUR',
             'mapping' => ['name' => '0', 'brand' => '1', 'product_type' => '2', 'model_name' => '3', 'supplier_code' => '4', 'ean' => '5', 'price_amount' => '6', 'price_currency' => '7', 'description' => '8'],
         ], $extra);
+        // Izvršenje traži hash mapiranja iz pregleda (kao skriveno polje u formi).
+        $post += ['mapping_hash' => app(ProductImportService::class)->mappingHash($post['mapping'], $post['default_currency'])];
+
+        return $post;
+    }
+
+    public function test_execute_requires_the_mapping_that_was_previewed(): void
+    {
+        $admin = $this->admin('imp-hash');
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv;Opis\nHash;x\n")])->viewData('token');
+
+        $stale = $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]);
+        $stale['mapping'] = ['name' => '1'];
+        $this->post('/admin/catalog/import', $stale)->assertOk()->assertSee('Osveži pregled');
+        self::assertSame(0, Product::query()->count());
+
+        $missing = $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]);
+        unset($missing['mapping_hash']);
+        $this->post('/admin/catalog/import', $missing)->assertOk()->assertSee('Osveži pregled');
+        self::assertSame(0, Product::query()->count());
+
+        $preview = $this->post('/admin/catalog/import', $this->mappingPost($token, 'preview', ['mapping' => ['name' => '0']]))->assertOk();
+        $preview->assertSee('data-import-mapping-hash', false)->assertSee('data-import-price-rule', false);
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]))->assertRedirect('/admin/catalog/import');
+        self::assertSame(1, Product::query()->count());
+    }
+
+    public function test_resume_bookkeeping_is_bound_to_the_mapping_hash(): void
+    {
+        $admin = $this->admin('imp-hash-run');
+        $svc = app(ProductImportService::class);
+        $token = $svc->stash("Naziv;Drugi\nPrvi;Zamena\n", $admin, 'hash.csv');
+        $rows = $svc->read($token, $admin)['rows'];
+
+        $a = ['name' => '0'];
+        $b = ['name' => '1'];
+        $first = $svc->execute($svc->analyze($rows, $a, 'EUR', $admin), false, $admin, $token, $svc->mappingHash($a, 'EUR'));
+        $second = $svc->execute($svc->analyze($rows, $b, 'EUR', $admin), false, $admin, $token, $svc->mappingHash($b, 'EUR'));
+
+        self::assertSame([1, 0, 1, 0], [$first['created'], $first['resumed'], $second['created'], $second['resumed']]);
+        self::assertSame(['Prvi', 'Zamena'], Product::query()->orderBy('name')->pluck('name')->all());
+    }
+
+    public function test_row_left_pending_by_an_interrupted_attempt_is_not_duplicated(): void
+    {
+        $admin = $this->admin('imp-pending');
+        $svc = app(ProductImportService::class);
+        $token = $svc->stash("Naziv\nPadne\nOstaje\n", $admin, 'pad.csv');
+        $mapping = ['name' => '0'];
+        $hash = $svc->mappingHash($mapping, 'EUR');
+        Storage::disk('local')->put('product-imports/'.$admin->id.'/'.$token.'.csv.meta', json_encode(['file' => 'pad.csv', 'runs' => [$hash => ['done' => [], 'pending' => [2]]]]));
+
+        $result = $svc->execute($svc->analyze($svc->read($token, $admin)['rows'], $mapping, 'EUR', $admin), false, $admin, $token, $hash);
+
+        self::assertSame(1, $result['created']);
+        self::assertSame(['Ostaje'], Product::query()->pluck('name')->all());
+        self::assertSame(2, $result['errors'][0]['line']);
+        self::assertStringContainsString('možda već uvezen', $result['errors'][0]['message']);
+        $meta = json_decode((string) Storage::disk('local')->get('product-imports/'.$admin->id.'/'.$token.'.csv.meta'), true);
+        self::assertSame([2], $meta['runs'][$hash]['pending']);
+        self::assertSame([3], $meta['runs'][$hash]['done']);
+        self::assertSame([], array_filter(Storage::disk('local')->allFiles('product-imports'), static fn (string $f): bool => str_ends_with($f, '.tmp')));
+    }
+
+    public function test_corrupt_progress_file_is_an_error_not_an_empty_history(): void
+    {
+        $admin = $this->admin('imp-corrupt');
+        $svc = app(ProductImportService::class);
+        $token = $svc->stash("Naziv\nA\n", $admin, 'k.csv');
+        Storage::disk('local')->put('product-imports/'.$admin->id.'/'.$token.'.csv.meta', '{ovo nije json');
+
+        try {
+            $svc->execute($svc->analyze($svc->read($token, $admin)['rows'], ['name' => '0'], 'EUR', $admin), false, $admin, $token, 'h');
+            self::fail('Oštećena evidencija mora zaustaviti uvoz.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            self::assertStringContainsString('oštećena', $exception->errors()['file'][0]);
+        }
+        self::assertSame(0, Product::query()->count());
+    }
+
+    public function test_ambiguous_prices_follow_the_documented_rule_and_are_flagged(): void
+    {
+        $admin = $this->admin('imp-ambig');
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv;Cena\nA;12.500\nB;1,234\nC;1.234,50\nD;12,5\n")])->viewData('token');
+        $rows = $this->post('/admin/catalog/import', $this->mappingPost($token, 'preview', ['mapping' => ['name' => '0', 'price_amount' => '1']]))->assertOk()->viewData('analysis')['rows'];
+
+        self::assertSame(['12500', '1.234', '1234.50', '12.5'], array_map(static fn (array $r): string => (string) $r['data']['price_amount'], $rows));
+        self::assertStringContainsString('dvosmislena', implode(' ', $rows[0]['warnings']));
+        self::assertStringContainsString('dvosmislena', implode(' ', $rows[1]['warnings']));
+        self::assertSame([], $rows[2]['warnings']);
+        self::assertSame([], $rows[3]['warnings']);
     }
 
     /** @param array<string,mixed> $extra @return array<string,mixed> */
