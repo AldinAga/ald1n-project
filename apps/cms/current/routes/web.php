@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductBulkController;
+use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\ProductPurchaseCostController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\PortalConversationController as AdminPortalConversationController;
@@ -324,6 +325,9 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'index'])->name('products.purchase-costs');
             Route::post('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'update'])->middleware('throttle:admin-write')->name('products.purchase-costs.update');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
+            Route::get('/catalog/import', [ProductImportController::class, 'index'])->name('products.import');
+            Route::post('/catalog/import/upload', [ProductImportController::class, 'upload'])->middleware('throttle:admin-write')->name('products.import.upload');
+            Route::post('/catalog/import', [ProductImportController::class, 'process'])->middleware('throttle:admin-write')->name('products.import.process');
             Route::get('/catalog/duplicate-check', [AdminProductController::class, 'duplicateCheck'])->name('products.duplicate-check');
             Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
                 ->whereNumber('product')

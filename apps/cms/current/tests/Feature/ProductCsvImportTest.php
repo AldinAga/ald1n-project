@@ -1,0 +1,216 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Models\AuditLog;
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductType;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\ProductImportService;
+use Database\Seeders\CoreAccessSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+/** CSV uvoz: mapiranje, pregled bez upisa, izvršenje kao nacrt, limiti, kodiranje i dozvole. */
+final class ProductCsvImportTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Brand $brand;
+    private ProductType $type;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(CoreAccessSeeder::class);
+        Storage::fake('local');
+        $this->brand = Brand::query()->create(['name' => 'Lenovo', 'slug' => 'lenovo', 'status' => 'active']);
+        $category = Category::query()->create(['name' => 'Laptopovi', 'slug' => 'laptopovi', 'status' => 'active']);
+        $this->type = ProductType::query()->create(['category_id' => $category->id, 'name' => 'Laptopovi', 'slug' => 'laptopovi', 'status' => 'active']);
+        DB::table('brand_product_type')->insert(['brand_id' => $this->brand->id, 'product_type_id' => $this->type->id]);
+    }
+
+    public function test_import_requires_manage_products_permission(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->get('/admin/catalog/import')->assertForbidden();
+        $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv\nA\n")])->assertForbidden();
+        $this->post('/admin/catalog/import', ['token' => str_repeat('a', 40), 'mode' => 'execute'])->assertForbidden();
+    }
+
+    public function test_upload_guesses_column_mapping_from_headers(): void
+    {
+        $this->actingAs($this->admin('imp-map'));
+        $page = $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv;Brend;Šifra dobavljača;Barkod;Cena\nT14;Lenovo;S-1;12345678;100\n")])->assertOk();
+
+        $mapping = $page->viewData('mapping');
+        self::assertSame('0', $mapping['name']);
+        self::assertSame('1', $mapping['brand']);
+        self::assertSame('2', $mapping['supplier_code']);
+        self::assertSame('3', $mapping['ean']);
+        self::assertSame('4', $mapping['price_amount']);
+        self::assertSame('', $mapping['model_name']);
+        $page->assertSee('Mapiranje kolona');
+    }
+
+    public function test_preview_validates_rows_and_warns_about_duplicates_without_writing(): void
+    {
+        $admin = $this->admin('imp-preview');
+        Product::query()->create($this->existing($admin, ['model_name' => 'T14 Gen 3']));
+        $content = "Naziv;Brend;Tip;Model;EAN;Cena\n"
+            ."Dobar;Lenovo;Laptopovi;X1;12345678;100\n"
+            ."Nepoznat brend;Nepostoji;Laptopovi;X2;;100\n"
+            ."Duplikat;Lenovo;Laptopovi;t14 gen 3;;100\n"
+            ."Loš EAN;Lenovo;Laptopovi;X3;12;100\n"
+            .";Lenovo;;X4;;100\n";
+        $before = Product::query()->count();
+
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($content)])->viewData('token');
+        $preview = $this->post('/admin/catalog/import', $this->mappingPost($token, 'preview', [
+            'mapping' => ['name' => '0', 'brand' => '1', 'product_type' => '2', 'model_name' => '3', 'ean' => '4', 'price_amount' => '5'],
+        ]))->assertOk();
+
+        $analysis = $preview->viewData('analysis');
+        self::assertSame(2, $analysis['valid']);
+        self::assertSame(3, $analysis['errors']);
+        self::assertSame(1, $analysis['duplicates']);
+        self::assertStringContainsString('ne postoji', implode(' ', $analysis['rows'][1]['errors']));
+        self::assertStringContainsString('Duplikat', implode(' ', $analysis['rows'][2]['warnings']));
+        self::assertSame($before, Product::query()->count());
+    }
+
+    public function test_execute_creates_drafts_through_service_and_reports_errors_and_skipped_duplicates(): void
+    {
+        $admin = $this->admin('imp-exec');
+        Product::query()->create($this->existing($admin, ['model_name' => 'T14 Gen 3']));
+        $content = "Naziv;Brend;Tip;Model;Šifra dobavljača;EAN;Cena;Valuta;Opis\n"
+            ."Prvi artikal;Lenovo;Laptopovi;X1;SUP-1;859 0123-4567;\"1.234,50\";RSD;Opis prvog\n"
+            ."Nepoznat;Nepostoji;;X2;;;5;;\n"
+            ."Duplikat;Lenovo;Laptopovi;T14 GEN 3;;;5;;\n";
+
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($content)])->viewData('token');
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['skip_duplicates' => '1']))
+            ->assertRedirect('/admin/catalog/import');
+
+        $imported = Product::query()->where('name', 'Prvi artikal')->sole();
+        self::assertSame('draft', $imported->status);
+        self::assertSame(0, (int) $imported->stock_quantity);
+        self::assertSame('1234.50', (string) $imported->price_amount);
+        self::assertSame('RSD', $imported->price_currency);
+        self::assertSame('SUP-1', $imported->supplier_code);
+        self::assertSame('85901234567', $imported->ean);
+        self::assertSame((int) $admin->id, (int) $imported->created_by);
+        self::assertSame((int) $this->brand->id, (int) $imported->brand_id);
+        self::assertNotSame('', (string) $imported->sku);
+        self::assertTrue($imported->categories()->exists());
+        self::assertTrue(AuditLog::query()->where('action', 'product.created')->exists());
+        self::assertSame(2, Product::query()->count());
+
+        $result = session('import_result');
+        self::assertSame(1, $result['created']);
+        self::assertSame(1, $result['skipped']);
+        self::assertCount(1, $result['errors']);
+        self::assertSame([], Storage::disk('local')->allFiles('product-imports'));
+
+        $this->get('/admin/catalog/import')->assertOk()->assertSee('Uvoz je završen');
+    }
+
+    public function test_status_stock_and_commission_cannot_be_mapped(): void
+    {
+        $admin = $this->admin('imp-forced');
+        $content = "Naziv;Status;Lager;Provizija\nForsiran;active;99;5\n";
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($content)])->viewData('token');
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0', 'status' => '1', 'stock_quantity' => '2', 'manual_commission_eur' => '3']]));
+
+        $product = Product::query()->where('name', 'Forsiran')->sole();
+        self::assertSame('draft', $product->status);
+        self::assertSame(0, (int) $product->stock_quantity);
+        self::assertNull($product->manual_commission_eur);
+    }
+
+    public function test_windows_1250_semicolon_file_with_bom_keeps_diacritics(): void
+    {
+        $admin = $this->admin('imp-enc');
+        $csv = "Naziv;Cena\nŠkolski računar ćžđ;10\n";
+        $content = (string) iconv('UTF-8', 'Windows-1250', $csv);
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($content)])->viewData('token');
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0', 'price_amount' => '1']]));
+
+        self::assertTrue(Product::query()->where('name', 'Školski računar ćžđ')->exists());
+
+        $bom = "\xEF\xBB\xBF".$csv;
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($bom)])->viewData('token');
+        self::assertSame('Naziv', app(ProductImportService::class)->read($token, $admin)['headers'][0]);
+    }
+
+    public function test_size_and_row_limits_are_enforced(): void
+    {
+        $this->actingAs($this->admin('imp-limits'));
+        $tooMany = "Naziv\n".implode("\n", array_map(static fn (int $i): string => 'Artikal '.$i, range(1, ProductImportService::MAX_ROWS + 1)))."\n";
+        $this->post('/admin/catalog/import/upload', ['file' => $this->csv($tooMany)])->assertSessionHasErrors('file');
+
+        $tooBig = "Naziv\n".str_repeat("Artikal sa dugim nazivom za test velicine fajla\n", 25000);
+        self::assertGreaterThan(1048576, strlen($tooBig));
+        $this->post('/admin/catalog/import/upload', ['file' => $this->csv($tooBig)])->assertSessionHasErrors('file');
+
+        $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv\n")])->assertSessionHasErrors('file');
+        self::assertSame(0, Product::query()->count());
+    }
+
+    public function test_uploaded_file_is_bound_to_the_uploading_user(): void
+    {
+        $owner = $this->admin('imp-owner');
+        $other = $this->admin('imp-other');
+        $token = (string) $this->actingAs($owner)->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv\nTuđ\n")])->viewData('token');
+
+        $this->actingAs($other)->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]))
+            ->assertSessionHasErrors('file');
+        self::assertSame(0, Product::query()->count());
+    }
+
+    private function csv(string $content): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('artikli.csv', $content);
+    }
+
+    /** @param array<string,mixed> $extra @return array<string,mixed> */
+    private function mappingPost(string $token, string $mode, array $extra = []): array
+    {
+        return array_replace([
+            'token' => $token, 'mode' => $mode, 'default_currency' => 'EUR',
+            'mapping' => ['name' => '0', 'brand' => '1', 'product_type' => '2', 'model_name' => '3', 'supplier_code' => '4', 'ean' => '5', 'price_amount' => '6', 'price_currency' => '7', 'description' => '8'],
+        ], $extra);
+    }
+
+    /** @param array<string,mixed> $extra @return array<string,mixed> */
+    private function existing(User $admin, array $extra): array
+    {
+        return $extra + [
+            'sku' => 'POSTOJI-1', 'name' => 'Postojeći artikal', 'slug' => 'postojeci-artikal', 'brand_id' => $this->brand->id,
+            'price_amount' => 100, 'price_currency' => 'EUR', 'description' => 'Opis', 'stock_quantity' => 1,
+            'low_stock_threshold' => 1, 'status' => 'active', 'created_by' => $admin->id, 'updated_by' => $admin->id,
+        ];
+    }
+
+    private function admin(string $username): User
+    {
+        return User::query()->create([
+            'role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id'),
+            'username' => $username, 'email' => $username.'@test.local',
+            'password_hash' => Hash::make('Secret123!'), 'status' => 'active',
+        ]);
+    }
+}
