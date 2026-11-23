@@ -43,16 +43,24 @@ final class ProductImportController extends Controller
             'skip_duplicates' => ['nullable', 'boolean'],
         ]);
         $mapping = array_intersect_key($data['mapping'], ProductImportService::FIELDS);
+        $hash = $service->mappingHash($mapping, $data['default_currency']);
         if ($data['mode'] === 'execute') {
+            // Izvršenje važi samo za mapiranje koje je korisnik video u pregledu.
+            if (!hash_equals($hash, (string) $request->input('mapping_hash', ''))) {
+                return $this->mappingView($service, $data['token'], $request, null, $mapping, $data['default_currency'])
+                    ->withErrors(['mapping' => 'Mapiranje ili valuta su promenjeni posle pregleda. Osveži pregled pa ponovo pokreni uvoz.']);
+            }
             // Dvostruko slanje (dupli klik, drugi tab): samo jedan zahtev po tokenu sme da izvršava uvoz.
+            // Lock traje 900 s: ako zahtev padne na ograničenju vremena, ponovni pokušaj je moguć tek posle isteka
+            // i nastavlja od evidencije već uvezenih redova (isto mapiranje), bez duplikata.
             $lock = Cache::lock('product-import:'.$data['token'], 900);
             if (!$lock->get()) {
-                return redirect()->route('admin.products.import')->withErrors(['file' => 'Uvoz ovog fajla je već u toku.']);
+                return redirect()->route('admin.products.import')->withErrors(['file' => 'Uvoz ovog fajla je već u toku ili je prekinut pre manje od 15 minuta. Sačekaj pa pokušaj ponovo.']);
             }
             try {
                 $file = $service->read($data['token'], $request->user());
                 $analysis = $service->analyze($file['rows'], $mapping, $data['default_currency'], $request->user());
-                $result = $service->execute($analysis, $request->boolean('skip_duplicates'), $request->user(), $data['token']);
+                $result = $service->execute($analysis, $request->boolean('skip_duplicates'), $request->user(), $data['token'], $hash);
                 $service->forget($data['token'], $request->user());
             } finally {
                 $lock->release();
@@ -78,6 +86,7 @@ final class ProductImportController extends Controller
             'sample' => array_slice($file['rows'], 0, 3),
             'rowCount' => count($file['rows']),
             'mapping' => $mapping ?? $service->guessMapping($file['headers']),
+            'mappingHash' => $service->mappingHash($mapping ?? $service->guessMapping($file['headers']), $currency),
             'currency' => $currency,
             'analysis' => $analysis,
             'result' => null,
