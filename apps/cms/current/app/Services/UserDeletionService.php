@@ -185,19 +185,25 @@ final class UserDeletionService
 
     public function successorFor(User $user): ?User
     {
+        return $this->superadmins((int) $user->getKey())->first();
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int,User> aktivni SuperAdministratori osim datog naloga */
+    private function superadmins(int $exceptUserId): \Illuminate\Database\Eloquent\Collection
+    {
         return User::query()
             ->where('status', 'active')
             ->whereNull('retired_at')
-            ->where('id', '!=', (int) $user->getKey())
+            ->where('id', '!=', $exceptUserId)
             ->whereIn('role_id', DB::table('roles')->where('slug', 'superadmin')->select('id'))
             ->orderBy('id')
-            ->first();
+            ->get();
     }
 
     private function startGrace(User $user, string $source): void
     {
         $plainCancel = Str::random(80);
-        $started = DB::transaction(function () use ($user, $source, $plainCancel): bool {
+        DB::transaction(function () use ($user, $source, $plainCancel): void {
             $locked = User::query()->lockForUpdate()->findOrFail((int) $user->getKey());
             abort_if($locked->status !== 'active' || $locked->retired_at !== null, 422, 'Nalog nije aktivan.');
             $problem = $this->successorProblem($locked);
@@ -210,7 +216,7 @@ final class UserDeletionService
                 ->orderByDesc('id')
                 ->first();
             if ($row !== null && $row->grace_until !== null) {
-                return false;
+                return;
             }
 
             $values = [
@@ -235,12 +241,15 @@ final class UserDeletionService
             $this->lockOut($locked);
             $this->audit('account.deletion_requested', (int) $locked->getKey(), ['source' => $source, 'grace_days' => self::GRACE_DAYS]);
 
-            return true;
+            // Link za poništavanje je jedini put nazad (nalog je blokiran, nema prijava): ako e-pošta
+            // ne može da se pošalje, ceo zahtev se poništava umesto da korisnik ostane bez izlaza.
+            try {
+                $locked->notify(new AccountDeletionNotification(AccountDeletionNotification::SCHEDULED, $plainCancel));
+            } catch (Throwable $exception) {
+                Log::error('Account deletion confirmation e-mail failed; request rolled back.', ['exception' => $exception::class]);
+                abort(503, 'E-pošta sa linkom za poništavanje nije mogla da se pošalje. Pokušajte kasnije.');
+            }
         }, 3);
-
-        if ($started) {
-            $this->send($user, new AccountDeletionNotification(AccountDeletionNotification::SCHEDULED, $plainCancel));
-        }
     }
 
     /** Blokira nalog i opoziva sve pristupe tokom roka mirovanja. */
@@ -341,11 +350,11 @@ final class UserDeletionService
     /**
      * Obrada isteklih zahteva (dnevno).
      *
-     * @return array{completed:int,waiting:int,failed:int}
+     * @return array{completed:int,waiting:int,failed:int,errors:list<string>}
      */
     public function processDue(): array
     {
-        $result = ['completed' => 0, 'waiting' => 0, 'failed' => 0];
+        $result = ['completed' => 0, 'waiting' => 0, 'failed' => 0, 'errors' => []];
         if (!self::available()) {
             return $result;
         }
@@ -364,11 +373,12 @@ final class UserDeletionService
         foreach ($ids as $id) {
             try {
                 $outcome = $this->complete((int) $id);
-                if (isset($result[$outcome])) {
+                if (is_int($result[$outcome] ?? null)) {
                     $result[$outcome]++;
                 }
             } catch (Throwable $exception) {
                 $result['failed']++;
+                $result['errors'][] = '#'.$id.' '.$exception::class.': '.$exception->getMessage();
                 Log::error('Account deletion failed.', [
                     'request_id' => (int) $id,
                     'exception' => $exception::class,
@@ -430,6 +440,10 @@ final class UserDeletionService
 
         if ($notifyWaiting instanceof User) {
             $this->send($notifyWaiting, new AccountDeletionNotification(AccountDeletionNotification::WAITING));
+            // Vlasnik poslovanja zatvara provizije i zaduženja, pa ga obaveštavamo bez ličnih podataka.
+            foreach ($this->superadmins((int) $notifyWaiting->getKey()) as $owner) {
+                $this->send($owner, new AccountDeletionNotification(AccountDeletionNotification::OWNER_WAITING, null, self::GRACE_DAYS, (int) $notifyWaiting->getKey()));
+            }
         }
 
         return $outcome;
@@ -460,6 +474,15 @@ final class UserDeletionService
                     $open++;
                 }
             }
+        }
+
+        // Neizmirena potraživanja po porudžbinama naloga (otvoreni slučajevi naplate).
+        if (Schema::hasTable('receivable_cases')) {
+            $open += (int) DB::table('receivable_cases')
+                ->whereIn('order_id', DB::table('orders')->where('user_id', $userId)->select('id'))
+                ->where('status', '!=', 'closed')
+                ->whereNull('closed_at')
+                ->count();
         }
 
         return $open;
@@ -502,9 +525,8 @@ final class UserDeletionService
 
         // Audit zapisi o samom korisniku nose IP, user agent i stare vrednosti profila.
         $morph = (new User())->getMorphClass();
-        AuditLog::query()->where('user_id', $id)->update([
-            'ip_address' => null, 'user_agent' => null, 'before_json' => null, 'after_json' => null, 'metadata_json' => null,
-        ]);
+        // Radnje koje je nalog izvršio ostaju kao istorija poslovanja; brišemo samo IP i uređaj.
+        AuditLog::query()->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
         AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)->update([
             'ip_address' => null, 'user_agent' => null, 'before_json' => null, 'after_json' => null,
         ]);

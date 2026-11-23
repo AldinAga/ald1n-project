@@ -22,11 +22,13 @@ final class AccountDeletionNotification extends Notification
     public const CONFIRM = 'confirm';
     public const SCHEDULED = 'scheduled';
     public const WAITING = 'waiting';
+    public const OWNER_WAITING = 'owner_waiting';
 
     public function __construct(
         public readonly string $kind,
         public readonly ?string $token = null,
         public readonly int $graceDays = 14,
+        public readonly ?int $subjectUserId = null,
     ) {
     }
 
@@ -56,6 +58,12 @@ final class AccountDeletionNotification extends Notification
                 ->line('Ako ste se predomislili, poništite zahtev dok rok traje.')
                 ->action('Poništi brisanje naloga', $base.route('account-deletion.cancel.show', ['token' => (string) $this->token], false))
                 ->line('Posle isteka roka brisanje se ne može poništiti.');
+        }
+
+        if ($this->kind === self::OWNER_WAITING) {
+            return $mail->subject('Brisanje naloga čeka zatvaranje obaveza')
+                ->line('Korisnik sa ID-jem '.(int) $this->subjectUserId.' tražio je brisanje naloga i rok mirovanja je istekao.')
+                ->line('Nalog ima otvorene provizije, zaduženja ili slučajeve naplate. Brisanje se nastavlja automatski čim se zatvore.');
         }
 
         return $mail->subject('Brisanje naloga čeka zatvaranje obaveza')

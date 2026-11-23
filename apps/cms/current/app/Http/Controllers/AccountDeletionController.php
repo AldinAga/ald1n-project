@@ -45,6 +45,11 @@ final class AccountDeletionController extends Controller
             return AppUrlOrigin::redirect($request, 'account-deletion.show')->withErrors($validator)->withInput($request->only('email'));
         }
 
+        if (!UserDeletionService::available()) {
+            return AppUrlOrigin::redirect($request, 'account-deletion.show')
+                ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($request->only('email'));
+        }
+
         $verified = $turnstile->verify($request->input('cf-turnstile-response'), $request->ip(), 'account_deletion_request');
         if (!$verified['success']) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
@@ -59,9 +64,14 @@ final class AccountDeletionController extends Controller
     /** Prijavljen korisnik: isti tok, link stiže na e-poštu naloga. */
     public function requestOwn(Request $request, UserDeletionService $deletions): RedirectResponse
     {
+        // Prijavljeni korisnik ne mora da se skriva od sebe: jasna poruka umesto lažnog "poslato".
+        $problem = $deletions->successorProblem($request->user());
+        if ($problem !== null) {
+            return redirect()->route('account.show')->withErrors(['deletion' => $problem]);
+        }
         $this->start($deletions, (string) $request->user()->email);
 
-        return redirect()->route('account.show')->with('status', $this->neutralMessage());
+        return redirect()->route('account.show')->with('status', 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.');
     }
 
     public function confirmShow(string $token, UserDeletionService $deletions): View

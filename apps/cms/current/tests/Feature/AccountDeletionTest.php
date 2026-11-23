@@ -220,17 +220,25 @@ final class AccountDeletionTest extends TestCase
         $this->loginSession($target, '203.0.113.7');
         AuditLog::query()->create([
             'user_id' => $target->id, 'action' => 'account.profile_updated', 'level' => 'info', 'subject' => 'Profil',
+            'auditable_type' => (new User())->getMorphClass(), 'auditable_id' => $target->id,
             'before_json' => ['phone' => '0601234567'], 'after_json' => ['phone' => '0609999999'],
+            'ip_address' => '203.0.113.7', 'user_agent' => 'Mozilla', 'created_at' => now(),
+        ]);
+        // Radnja koju je nalog izvrsio nad poslovnim podatkom: istorija ostaje, brise se samo IP.
+        AuditLog::query()->create([
+            'user_id' => $target->id, 'action' => 'order.status_changed', 'level' => 'info', 'subject' => 'Porudzbina',
+            'auditable_type' => 'order', 'auditable_id' => $order,
+            'before_json' => ['status' => 'new'], 'after_json' => ['status' => 'done'],
             'ip_address' => '203.0.113.7', 'user_agent' => 'Mozilla', 'created_at' => now(),
         ]);
         $oldHash = (string) $target->password_hash;
 
         app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
-        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-full'], 'rok mirovanja jos traje');
+        $this->processDeletions();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-full']); // rok mirovanja jos traje
 
         DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
 
         $fresh = DB::table('users')->where('id', $target->id)->first();
         self::assertSame('deleted_'.$target->id, $fresh->username);
@@ -253,7 +261,10 @@ final class AccountDeletionTest extends TestCase
         self::assertNull($profileAudit->ip_address);
         self::assertNull($profileAudit->before_json);
         self::assertNull($profileAudit->after_json);
-        self::assertSame(0, AuditLog::query()->whereNotNull('ip_address')->where('ip_address', '203.0.113.7')->count());
+        self::assertSame(0, AuditLog::query()->where('ip_address', '203.0.113.7')->count());
+        $business = AuditLog::query()->where('action', 'order.status_changed')->firstOrFail();
+        self::assertSame(['status' => 'new'], $business->before_json);
+        self::assertSame(['status' => 'done'], $business->after_json);
 
         // Poslovna istorija ostaje na anonimizovanom korisniku.
         $this->assertDatabaseHas('orders', ['id' => $order, 'user_id' => $target->id]);
@@ -271,6 +282,7 @@ final class AccountDeletionTest extends TestCase
         $this->requireMysql();
         Notification::fake();
         $target = $this->user('del-wait', 'customer');
+        $owner = $this->user('del-owner', 'superadmin');
         $order = $this->order($target, 'DEL-W');
         $commissionId = DB::table('order_commissions')->insertGetId([
             'order_id' => $order, 'user_id' => $target->id, 'total_eur' => '50.00', 'status' => 'approved',
@@ -279,13 +291,15 @@ final class AccountDeletionTest extends TestCase
         app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
         DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
 
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
+        $this->processDeletions();
 
         $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'waiting_obligations']);
         $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-wait', 'status' => 'blocked']);
         Notification::assertSentToTimes($target, AccountDeletionNotification::class, 2); // zakazano + jedno "ceka"
         Notification::assertSentTo($target, AccountDeletionNotification::class, static fn ($n): bool => $n->kind === 'waiting');
+        Notification::assertSentToTimes($owner, AccountDeletionNotification::class, 1);
+        Notification::assertSentTo($owner, AccountDeletionNotification::class, static fn ($n): bool => $n->kind === 'owner_waiting' && $n->subjectUserId === $target->id);
 
         // Neisplacena potvrdjena zaduzenja takodje blokiraju.
         DB::table('order_commissions')->where('id', $commissionId)->update(['status' => 'paid']);
@@ -293,13 +307,13 @@ final class AccountDeletionTest extends TestCase
             'commission_id' => $commissionId, 'order_id' => $order, 'kind' => 'debit', 'status' => 'confirmed',
             'amount_eur' => '10.00', 'reason' => 'povrat', 'source' => 'test', 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
         $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'waiting_obligations']);
 
         DB::table('commission_debit_settlements')->insert([
             'adjustment_id' => $adjustment, 'batch_id' => 1, 'amount_eur' => '10.00', 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
         $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'completed']);
         $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'deleted_'.$target->id]);
     }
@@ -317,7 +331,7 @@ final class AccountDeletionTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $cancelled->id, 'status' => 'active']);
         DB::table('account_deletion_requests')->where('user_id', $cancelled->id)->update(['grace_until' => now()->subDay()]);
 
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
 
         $this->assertDatabaseHas('users', ['id' => $early->id, 'username' => 'del-early']);
         $this->assertDatabaseHas('users', ['id' => $cancelled->id, 'username' => 'del-cancelled', 'status' => 'active']);
@@ -336,12 +350,12 @@ final class AccountDeletionTest extends TestCase
 
         // Nasljednik nestaje tokom roka: brisanje ceka, nista se ne prenosi.
         $successor->forceFill(['status' => 'blocked'])->save();
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
         $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $leaving->id, 'status' => 'waiting_obligations']);
         $this->assertDatabaseHas('orders', ['id' => $order, 'user_id' => $leaving->id]);
 
         $successor->forceFill(['status' => 'active'])->save();
-        $this->artisan('app:account-deletions-process')->assertExitCode(0);
+        $this->processDeletions();
 
         $this->assertDatabaseHas('orders', ['id' => $order, 'user_id' => $successor->id]);
         $this->assertDatabaseHas('users', ['id' => $leaving->id, 'username' => 'deleted_'.$leaving->id]);
@@ -350,6 +364,12 @@ final class AccountDeletionTest extends TestCase
     }
 
     // ---- pomocno -----------------------------------------------------------
+
+    private function processDeletions(): void
+    {
+        $code = \Illuminate\Support\Facades\Artisan::call('app:account-deletions-process');
+        self::assertSame(0, $code, \Illuminate\Support\Facades\Artisan::output());
+    }
 
     private function capturedToken(User $user, string $kind): string
     {

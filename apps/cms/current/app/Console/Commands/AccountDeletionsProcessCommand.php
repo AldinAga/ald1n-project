@@ -23,6 +23,10 @@ final class AccountDeletionsProcessCommand extends Command
         $result = $deletions->processDue();
         $this->info(sprintf('Obrisano: %d, čeka obaveze: %d, greške: %d', $result['completed'], $result['waiting'], $result['failed']));
 
+        foreach ($result['errors'] as $error) {
+            $this->error($error);
+        }
+
         return $result['failed'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
