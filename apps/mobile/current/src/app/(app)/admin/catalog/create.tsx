@@ -127,6 +127,23 @@ function emptyStorageRow(): StorageRow {
   return { type: '', capacityValue: '', unit: 'GB' };
 }
 
+function initialSpecState(fields: AdminCatalogSpecificationField[]) {
+  const specs: Record<string, string> = {};
+  const storageRows: Record<string, StorageRow[]> = {};
+  for (const field of fields) {
+    if (field.storage_repeater?.enabled) {
+      storageRows[String(field.id)] = [emptyStorageRow()];
+      continue;
+    }
+    if (!field.read_only_derived && field.default_value !== null && field.default_value !== undefined) {
+      specs[String(field.id)] = String(field.default_value);
+    }
+  }
+  return { specs, storageRows };
+}
+
+type SavedProduct = { id: number; slug: string; sku: string; name: string; status: 'draft' | 'active' | 'inactive' };
+
 export default function AdminCatalogCreateScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -141,6 +158,9 @@ export default function AdminCatalogCreateScreen() {
   const [brandId, setBrandId] = useState('');
   const [lineId, setLineId] = useState('');
   const [modelName, setModelName] = useState('');
+  const [supplierCode, setSupplierCode] = useState('');
+  const [ean, setEan] = useState('');
+  const [lastSaved, setLastSaved] = useState<SavedProduct | null> (null);
   const [name, setName] = useState('');
   const [priceAmount, setPriceAmount] = useState('');
   const [currency, setCurrency] = useState<'EUR' | 'RSD'> ('EUR');
@@ -235,18 +255,15 @@ export default function AdminCatalogCreateScreen() {
             },
       );
 
-      if (savedAsDraft) {
-        router.replace({
-          pathname: '/admin/catalog/[id]',
-          params: { id: String(response.data.id) },
-        } as Href);
-        return;
-      }
-
-      router.replace({
-        pathname: '/product/[slug]',
-        params: { slug: response.data.slug },
+      // Ostajemo na praznom formularu (tip, brend, linija i valuta zapamćeni); snimljeni artikal otvara dugme u traci.
+      setLastSaved({
+        id: response.data.id,
+        slug: response.data.slug,
+        sku: response.data.sku,
+        name: response.data.name,
+        status: savedAsDraft ? 'draft' : response.data.status,
       });
+      resetForNextEntry();
     },
     onError: (error) => {
       const nextErrors = serverFieldErrors(error);
@@ -324,19 +341,46 @@ export default function AdminCatalogCreateScreen() {
       return;
     }
 
-    const defaults: Record<string, string> = {};
-    const nextStorageRows: Record<string, StorageRow[]> = {};
-    for (const field of type.fields) {
-      if (field.storage_repeater?.enabled) {
-        nextStorageRows[String(field.id)] = [emptyStorageRow()];
-        continue;
-      }
-      if (!field.read_only_derived && field.default_value !== null && field.default_value !== undefined) {
-        defaults[String(field.id)] = String(field.default_value);
-      }
+    const initial = initialSpecState(type.fields);
+    setSpecs(initial.specs);
+    setStorageRows(initial.storageRows);
+  };
+
+  // Prazan formular za sledeći unos: tip, brend, linija i valuta ostaju zapamćeni.
+  const resetForNextEntry = () => {
+    const initial = initialSpecState(selectedType?.fields ?? []);
+    setModelName('');
+    setSupplierCode('');
+    setEan('');
+    setName('');
+    setPriceAmount('');
+    setPurchasePriceRsd('');
+    setManualCommissionEur('');
+    setDescription('');
+    setNotes('');
+    setStockQuantity('0');
+    setLowStockThreshold('1');
+    setStatus('draft');
+    setSpecs(initial.specs);
+    setSpecDetails({});
+    setStorageRows(initial.storageRows);
+    setImages([]);
+    setErrors({});
+    setSubmitError(null);
+    setActiveWorkspace('identity');
+    createAttemptRef.current = null;
+  };
+
+  const openSaved = () => {
+    if (!lastSaved) return;
+    if (lastSaved.status === 'draft') {
+      router.push({ pathname: '/admin/catalog/[id]', params: { id: String(lastSaved.id) } } as Href);
+      return;
     }
-    setSpecs(defaults);
-    setStorageRows(nextStorageRows);
+    router.push({
+      pathname: '/product/[slug]',
+      params: { slug: lastSaved.slug },
+    });
   };
 
   const setSpecValue = (field: AdminCatalogSpecificationField, value: string) => {
@@ -497,6 +541,8 @@ export default function AdminCatalogCreateScreen() {
       brand_id: optionalPositiveId(brandId),
       product_line_id: optionalPositiveId(lineId),
       model_name: modelName.trim() || undefined,
+      supplier_code: supplierCode.trim() || undefined,
+      ean: ean.trim() || undefined,
       name: name.trim() || undefined,
       regenerate_name: Boolean(selectedType?.auto_name_enabled && !name.trim()),
       regenerate_sku: true,
@@ -573,6 +619,14 @@ export default function AdminCatalogCreateScreen() {
         </Text>
       </Card>
 
+      {lastSaved ? (
+        <Card muted style={styles.notice}>
+          <Text style={styles.noticeTitle}>Snimljeno: {lastSaved.name} · {lastSaved.sku}</Text>
+          <Text style={styles.noticeCopy}>Formular je spreman za sledeći unos; tip, brend, linija i valuta su zapamćeni.</Text>
+          <Button variant="secondary" onPress={openSaved}>Otvori snimljeni artikal</Button>
+        </Card>
+      ) : null}
+
       {submitError ? (
         <Card style={styles.errorCard}>
           <Text style={styles.errorTitle}>Artikal nije sačuvan</Text>
@@ -623,6 +677,20 @@ export default function AdminCatalogCreateScreen() {
           value={modelName}
           onChangeText={setModelName}
           placeholder="npr. IdeaPad Slim 5"
+        />
+        <TextField
+          label="Šifra dobavljača"
+          value={supplierCode}
+          onChangeText={setSupplierCode}
+          error={errors.supplier_code}
+        />
+        <TextField
+          label="EAN (bar-kod)"
+          value={ean}
+          onChangeText={setEan}
+          error={errors.ean}
+          keyboardType="number-pad"
+          placeholder="8 do 14 cifara"
         />
         <TextField
           label="Naziv"
