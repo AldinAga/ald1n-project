@@ -114,8 +114,8 @@ final class UiRefinement794Test extends TestCase
         $target = $this->person('user');
         $target->update(['first_name' => 'Demo', 'last_name' => 'Kupac', 'phone' => '0600000000']);
         $response = $this->actingAs($actor)->get('/admin/users')->assertOk();
-        $response->assertSee('data-user-editor-sections', false)->assertSee('access-control-user-avatar', false)
-            ->assertSee('access-control-user-danger-zone', false)
+        $response->assertSee('data-user-editor-sections', false)->assertSee('data-user-avatar', false)
+            ->assertSee('data-user-danger-zone', false)
             ->assertSee(route('admin.users.retirement.preview', $target), false)
             ->assertDontSee(route('admin.users.retirement.preview', $actor), false)
             ->assertSee('name="_token"', false)->assertSee('name="_method" value="put"', false);

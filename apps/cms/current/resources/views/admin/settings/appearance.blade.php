@@ -15,211 +15,221 @@
         ->values()
         ->all();
 @endphp
+<div class="a1-ops a1-set">
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Izgled i interfejs'])
-<div class="page-heading">
-    <div><span class="eyebrow">Podešavanja</span><h1>Izgled sajta</h1><p>Podesi identitet, footer i vizuelni doživljaj stranice za prijavu.</p></div>
-</div>
+<header class="a1-pagehead">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Podešavanja</span>
+        <h1 class="a1-title">Izgled sajta</h1>
+        <p class="a1-lead">Podesi identitet, footer i vizuelni doživljaj stranice za prijavu.</p>
+    </div>
+</header>
 @if($uploadTooLarge ?? null)
-    <div class="alert error" role="alert" data-upload-too-large>{{ $uploadTooLarge }}</div>
+    <div class="a1-alert a1-alert--danger" role="alert" data-upload-too-large><x-icon name="alert" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $uploadTooLarge }}</p></div></div>
 @endif
-<form method="post" action="{{ route('admin.settings.appearance.update') }}" enctype="multipart/form-data" class="admin-form-grid settings-primary-form">
+<form method="post" action="{{ route('admin.settings.appearance.update') }}" enctype="multipart/form-data" class="a1-set-split">
     @csrf
     @method('put')
-    <div class="form-main">
-        <section class="panel form-section">
-            <h2>Osnovni podaci</h2>
-            <div class="field-grid">
-                <label class="field-span-2"><span>Naziv sajta</span><input name="site_name" value="{{ old('site_name', $settings['site_name']) }}" required maxlength="120"></label>
-                <label><span>Alternativni tekst logotipa</span><input name="site_logo_alt" value="{{ old('site_logo_alt', $settings['site_logo_alt']) }}" maxlength="160"></label>
-                <label><span>Visina logotipa u zaglavlju (px)</span><input type="number" name="site_header_logo_height" min="24" max="80" step="1" value="{{ old('site_header_logo_height', $settings['site_header_logo_height']) }}" required aria-describedby="hint-site_header_logo_height"><small class="muted" id="hint-site_header_logo_height">Javni sajt: od 24 do 80 px, podrazumevano 32 px. Na ekranima do 720 px širine logo se ograničava na 44 px, a do 420 px na 40 px.</small>@error('site_header_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
-                <label><span>Visina logotipa u admin zaglavlju (px)</span><input type="number" name="site_admin_logo_height" min="20" max="56" step="1" value="{{ old('site_admin_logo_height', $settings['site_admin_logo_height']) }}" required aria-describedby="hint-site_admin_logo_height"><small class="muted" id="hint-site_admin_logo_height">Admin panel: od 20 do 56 px, podrazumevano 32 px.</small>@error('site_admin_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
-                <label><span>Visina logotipa na stranicama za prijavu (px)</span><input type="number" name="site_auth_logo_height" min="32" max="80" step="1" value="{{ old('site_auth_logo_height', $settings['site_auth_logo_height']) }}" required aria-describedby="hint-site_auth_logo_height"><small class="muted" id="hint-site_auth_logo_height">Prijava, aktivacija i reset lozinke: od 32 do 80 px, podrazumevano 48 px.</small>@error('site_auth_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
-                <label><span>Visina logotipa u e-mailovima (px)</span><input type="number" name="email_logo_height" min="20" max="64" step="1" value="{{ old('email_logo_height', $settings['email_logo_height']) }}" required aria-describedby="hint-email_logo_height"><small class="muted" id="hint-email_logo_height">E-mail poruke: od 20 do 64 px, podrazumevano 36 px. E-mail klijenti ne prikazuju SVG, pa se logo za svetlu temu prikazuje samo ako je PNG ili JPG; inače se u e-mailu ispisuje naziv sajta.</small>@error('email_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
+    <div class="a1-set-main">
+        <section class="a1-card" aria-labelledby="ap-basic-title">
+            <h2 class="a1-h2" id="ap-basic-title">Osnovni podaci</h2>
+            <div class="a1-set-fields">
+                <label class="a1-field a1-set-wide"><span class="a1-label">Naziv sajta</span><input class="a1-input" name="site_name" value="{{ old('site_name', $settings['site_name']) }}" required maxlength="120"></label>
+                <label class="a1-field"><span class="a1-label">Alternativni tekst logotipa</span><input class="a1-input" name="site_logo_alt" value="{{ old('site_logo_alt', $settings['site_logo_alt']) }}" maxlength="160"></label>
+                <label class="a1-field"><span class="a1-label">Visina logotipa u zaglavlju (px)</span><input class="a1-input" type="number" name="site_header_logo_height" min="24" max="80" step="1" value="{{ old('site_header_logo_height', $settings['site_header_logo_height']) }}" required aria-describedby="hint-site_header_logo_height"><small class="a1-help" id="hint-site_header_logo_height">Javni sajt: od 24 do 80 px, podrazumevano 32 px. Na ekranima do 720 px širine logo se ograničava na 44 px, a do 420 px na 40 px.</small>@error('site_header_logo_height')<span class="a1-error" role="alert">{{ $message }}</span>@enderror</label>
+                <label class="a1-field"><span class="a1-label">Visina logotipa u admin zaglavlju (px)</span><input class="a1-input" type="number" name="site_admin_logo_height" min="20" max="56" step="1" value="{{ old('site_admin_logo_height', $settings['site_admin_logo_height']) }}" required aria-describedby="hint-site_admin_logo_height"><small class="a1-help" id="hint-site_admin_logo_height">Admin panel: od 20 do 56 px, podrazumevano 32 px.</small>@error('site_admin_logo_height')<span class="a1-error" role="alert">{{ $message }}</span>@enderror</label>
+                <label class="a1-field"><span class="a1-label">Visina logotipa na stranicama za prijavu (px)</span><input class="a1-input" type="number" name="site_auth_logo_height" min="32" max="80" step="1" value="{{ old('site_auth_logo_height', $settings['site_auth_logo_height']) }}" required aria-describedby="hint-site_auth_logo_height"><small class="a1-help" id="hint-site_auth_logo_height">Prijava, aktivacija i reset lozinke: od 32 do 80 px, podrazumevano 48 px.</small>@error('site_auth_logo_height')<span class="a1-error" role="alert">{{ $message }}</span>@enderror</label>
+                <label class="a1-field"><span class="a1-label">Visina logotipa u e-mailovima (px)</span><input class="a1-input" type="number" name="email_logo_height" min="20" max="64" step="1" value="{{ old('email_logo_height', $settings['email_logo_height']) }}" required aria-describedby="hint-email_logo_height"><small class="a1-help" id="hint-email_logo_height">E-mail poruke: od 20 do 64 px, podrazumevano 36 px. E-mail klijenti ne prikazuju SVG, pa se logo za svetlu temu prikazuje samo ako je PNG ili JPG; inače se u e-mailu ispisuje naziv sajta.</small>@error('email_logo_height')<span class="a1-error" role="alert">{{ $message }}</span>@enderror</label>
             </div>
         </section>
 
-        <section class="panel form-section">
-            <h2>Logotipi i favicon</h2>
+        <section class="a1-card" aria-labelledby="ap-logos-title">
+            <h2 class="a1-h2" id="ap-logos-title">Logotipi i favicon</h2>
             @include('admin.settings.partials.svg-logo-panel')
-            <div class="asset-setting-grid">
+            <div class="a1-set-assets">
                 @foreach([
                     ['key' => 'logo_light', 'title' => 'Logo za svetlu temu', 'input' => 'site_logo_light', 'accept' => '.png,.jpg,.jpeg,.webp,.svg', 'preview' => 'light', 'url' => $logoLightUrl, 'path' => $settings['site_logo_light_path'], 'remove' => 'remove-logo-light'],
                     ['key' => 'logo_dark', 'title' => 'Logo za tamnu temu', 'input' => 'site_logo_dark', 'accept' => '.png,.jpg,.jpeg,.webp,.svg', 'preview' => 'dark', 'url' => $logoDarkUrl, 'path' => $settings['site_logo_dark_path'], 'remove' => 'remove-logo-dark'],
                     ['key' => 'favicon', 'title' => 'Favicon', 'input' => 'site_favicon', 'accept' => '.png,.ico,.svg', 'preview' => 'favicon', 'url' => $faviconUrl, 'path' => $settings['site_favicon_path'], 'remove' => 'remove-favicon'],
                 ] as $asset)
                     @php $status = $assetStatus[$asset['key']] ?? ['state' => 'none', 'label' => 'Nije postavljen', 'url' => null, 'path' => '']; @endphp
-                    <article class="asset-setting-card" data-asset-status="{{ $status['state'] }}">
+                    <article class="a1-set-asset" data-asset-status="{{ $status['state'] }}">
                         <strong>{{ $asset['title'] }}</strong>
-                        <div class="asset-preview {{ $asset['preview'] }}">
+                        <div class="a1-set-preview a1-set-preview--{{ $asset['preview'] === 'dark' ? 'dark' : 'light' }}{{ $asset['preview'] === 'favicon' ? ' a1-set-preview--favicon' : '' }}">
                             @if($asset['url'] && $status['state'] !== 'missing')<img src="{{ $asset['url'] }}" alt="Trenutno sačuvan: {{ mb_strtolower($asset['title']) }}">@else<span>{{ $status['state'] === 'missing' ? 'Datoteka nedostaje na disku' : 'Nije postavljen' }}</span>@endif
                         </div>
                         @if($status['state'] !== 'none')
-                            <small class="muted" style="overflow-wrap:anywhere">
-                                <span class="status-badge status-{{ $status['state'] === 'present' ? 'active' : ($status['state'] === 'missing' ? 'archived' : 'draft') }}">{{ $status['label'] }}</span>
-                                @if($status['url'])<br><a href="{{ $status['url'] }}" target="_blank" rel="noopener noreferrer">{{ \Illuminate\Support\Str::limit($status['url'], 70) }}</a>@endif
-                            </small>
+                            <p class="a1-muted">
+                                <span class="a1-pill a1-pill--{{ $status['state'] === 'present' ? 'ok' : ($status['state'] === 'missing' ? 'danger' : 'warning') }}">{{ $status['label'] }}</span>
+                                @if($status['url'])<br><a class="a1-link a1-link--inline" href="{{ $status['url'] }}" target="_blank" rel="noopener noreferrer">{{ \Illuminate\Support\Str::limit($status['url'], 70) }}</a>@endif
+                            </p>
                         @endif
-                        <label>
-                            <span class="sr-only">{{ $asset['title'] }}: izaberite datoteku</span>
+                        <label class="a1-set-file">
+                            <span class="a1-sr">{{ $asset['title'] }}: izaberite datoteku</span>
                             <input type="file" name="{{ $asset['input'] }}" accept="{{ $asset['accept'] }}" aria-describedby="hint-{{ $asset['input'] }}">
                         </label>
-                        <small class="muted" id="hint-{{ $asset['input'] }}">{{ \Illuminate\Support\Str::ucfirst($uploadHints[$asset['input']] ?? '') }}.</small>
-                        @error($asset['input'])<small class="field-error" role="alert">{{ $message }}</small>@enderror
-                        @if($asset['path'])<button class="button button-danger button-small" type="submit" form="{{ $asset['remove'] }}">Ukloni</button>@endif
+                        <small class="a1-help" id="hint-{{ $asset['input'] }}">{{ \Illuminate\Support\Str::ucfirst($uploadHints[$asset['input']] ?? '') }}.</small>
+                        @error($asset['input'])<span class="a1-error" role="alert">{{ $message }}</span>@enderror
+                        @if($asset['path'])<div><button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" form="{{ $asset['remove'] }}">Ukloni</button></div>@endif
                     </article>
                 @endforeach
             </div>
-            <p class="muted">Ukupna veličina jednog snimanja ne sme preći ograničenje servera (post_max_size).</p>
+            <p class="a1-muted">Ukupna veličina jednog snimanja ne sme preći ograničenje servera (post_max_size).</p>
         </section>
 
         @if($canManageLoginBackground)
-            <section class="panel form-section login-background-settings" data-login-background-settings>
-                <div class="section-heading-row">
-                    <div>
-                        <span class="eyebrow">Super Administrator</span>
-                        <h2>Pozadina stranice za prijavu</h2>
-                        <p class="muted">Izaberi statičnu sliku, slideshow ili YouTube video iza cele login stranice. Autentikacija i forma za prijavu ostaju potpuno odvojene od ovih vizuelnih podešavanja.</p>
+            <section class="a1-card" data-login-background-settings aria-labelledby="ap-login-title">
+                <div class="a1-card__head">
+                    <div class="a1-card__title">
+                        <span class="a1-eyebrow">Super Administrator</span>
+                        <h2 class="a1-h2" id="ap-login-title">Pozadina stranice za prijavu</h2>
+                        <p class="a1-muted">Izaberi statičnu sliku, slideshow ili YouTube video iza cele login stranice. Autentikacija i forma za prijavu ostaju potpuno odvojene od ovih vizuelnih podešavanja.</p>
                     </div>
-                    <span class="status-badge status-active">SuperAdmin</span>
+                    <span class="a1-pill a1-pill--ok">SuperAdmin</span>
                 </div>
 
-                <div class="field-grid login-background-control-grid">
-                    <label>
-                        <span>Režim pozadine</span>
-                        <select name="login_background_mode" data-login-background-mode>
+                <div class="a1-set-fields">
+                    <label class="a1-field">
+                        <span class="a1-label">Režim pozadine</span>
+                        <select class="a1-select" name="login_background_mode" data-login-background-mode>
                             <option value="default" @selected($loginMode === 'default')>Podrazumevana</option>
                             <option value="image" @selected($loginMode === 'image')>Jedna slika</option>
                             <option value="slideshow" @selected($loginMode === 'slideshow')>Slideshow</option>
                             <option value="youtube" @selected($loginMode === 'youtube')>YouTube video</option>
                         </select>
                     </label>
-                    <label>
-                        <span>Zatamnjenje pozadine (%)</span>
-                        <input type="number" name="login_background_overlay_opacity" min="0" max="90" step="1" value="{{ $loginOverlay }}" data-login-overlay>
+                    <label class="a1-field">
+                        <span class="a1-label">Zatamnjenje pozadine (%)</span>
+                        <input class="a1-input" type="number" name="login_background_overlay_opacity" min="0" max="90" step="1" value="{{ $loginOverlay }}" data-login-overlay>
                     </label>
-                    <label>
-                        <span>Blagi blur (px)</span>
-                        <input type="number" name="login_background_blur_px" min="0" max="10" step="1" value="{{ $loginBlur }}" data-login-blur>
+                    <label class="a1-field">
+                        <span class="a1-label">Blagi blur (px)</span>
+                        <input class="a1-input" type="number" name="login_background_blur_px" min="0" max="10" step="1" value="{{ $loginBlur }}" data-login-blur>
                     </label>
-                    <label>
-                        <span>Slideshow interval (sekunde)</span>
-                        <input type="number" name="login_background_slide_interval" min="3" max="30" step="1" value="{{ $loginInterval }}">
+                    <label class="a1-field">
+                        <span class="a1-label">Slideshow interval (sekunde)</span>
+                        <input class="a1-input" type="number" name="login_background_slide_interval" min="3" max="30" step="1" value="{{ $loginInterval }}">
                     </label>
                 </div>
 
-                <label class="check-card">
-                    <input type="checkbox" name="login_background_mobile_static" value="1" @checked($loginMobileStatic)>
+                <label class="a1-check">
+                    <input class="a1-check__input" type="checkbox" name="login_background_mobile_static" value="1" @checked($loginMobileStatic)>
+                    <span class="a1-check__box" aria-hidden="true"></span>
                     <span>Na telefonu koristi statičnu fallback sliku umesto videa/slideshow-a</span>
                 </label>
 
-                <div class="login-background-source-grid">
-                    <article class="asset-setting-card" data-mode-panel="image">
+                <div class="a1-set-assets">
+                    <article class="a1-set-asset" data-mode-panel="image">
                         <strong>Glavna pozadinska slika</strong>
-                        <div class="asset-preview login-background-asset-preview">
+                        <div class="a1-set-preview a1-set-preview--cover">
                             @if($loginBackgroundImageUrl)<img src="{{ $loginBackgroundImageUrl }}" alt="" data-current-login-image>@else<span>Nije postavljena</span>@endif
                         </div>
-                        <input type="file" name="login_background_image" accept=".png,.jpg,.jpeg,.webp" data-login-image-input>
-                        <small class="muted">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_image'] ?? '') }}.</small>
-                        @error('login_background_image')<small class="field-error" role="alert">{{ $message }}</small>@enderror
-                        @if($settings['login_background_image_path'] ?? '')<button class="button button-danger button-small" type="submit" form="remove-login-background">Ukloni</button>@endif
+                        <input type="file" name="login_background_image" accept=".png,.jpg,.jpeg,.webp" data-login-image-input aria-label="Glavna pozadinska slika: izaberite datoteku">
+                        <small class="a1-help">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_image'] ?? '') }}.</small>
+                        @error('login_background_image')<span class="a1-error" role="alert">{{ $message }}</span>@enderror
+                        @if($settings['login_background_image_path'] ?? '')<div><button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" form="remove-login-background">Ukloni</button></div>@endif
                     </article>
 
-                    <article class="asset-setting-card">
+                    <article class="a1-set-asset">
                         <strong>Fallback slika</strong>
-                        <div class="asset-preview login-background-asset-preview">
+                        <div class="a1-set-preview a1-set-preview--cover">
                             @if($loginBackgroundFallbackUrl)<img src="{{ $loginBackgroundFallbackUrl }}" alt="" data-current-login-fallback>@else<span>Nije postavljena</span>@endif
                         </div>
-                        <input type="file" name="login_background_fallback" accept=".png,.jpg,.jpeg,.webp" data-login-fallback-input>
-                        <small class="muted">Koristi se za mobilni prikaz i kao bezbedna rezerva. {{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_fallback'] ?? '') }}.</small>
-                        @error('login_background_fallback')<small class="field-error" role="alert">{{ $message }}</small>@enderror
-                        @if($settings['login_background_fallback_path'] ?? '')<button class="button button-danger button-small" type="submit" form="remove-login-fallback">Ukloni</button>@endif
+                        <input type="file" name="login_background_fallback" accept=".png,.jpg,.jpeg,.webp" data-login-fallback-input aria-label="Fallback slika: izaberite datoteku">
+                        <small class="a1-help">Koristi se za mobilni prikaz i kao bezbedna rezerva. {{ \Illuminate\Support\Str::ucfirst($uploadHints['login_background_fallback'] ?? '') }}.</small>
+                        @error('login_background_fallback')<span class="a1-error" role="alert">{{ $message }}</span>@enderror
+                        @if($settings['login_background_fallback_path'] ?? '')<div><button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" form="remove-login-fallback">Ukloni</button></div>@endif
                     </article>
                 </div>
 
-                <div class="login-background-mode-panel" data-mode-panel="slideshow">
-                    <div class="section-heading-row compact">
-                        <div><strong>Slideshow slike</strong><p class="muted">Najviše 8 slika. Redosled je manji broj → ranije prikazivanje.</p></div>
-                        <input type="file" name="login_slideshow_images[]" accept=".png,.jpg,.jpeg,.webp" multiple data-login-slides-input>
-                        <small class="muted">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_slideshow_images'] ?? '') }}, do 8 slika.</small>
+                <div class="a1-set-bgmode" data-mode-panel="slideshow">
+                    <div class="a1-card__head">
+                        <div class="a1-card__title"><strong>Slideshow slike</strong><p class="a1-muted">Najviše 8 slika. Redosled je manji broj → ranije prikazivanje.</p></div>
+                        <div class="a1-stack">
+                            <input type="file" name="login_slideshow_images[]" accept=".png,.jpg,.jpeg,.webp" multiple data-login-slides-input aria-label="Slideshow slike: izaberite datoteke">
+                            <small class="a1-help">{{ \Illuminate\Support\Str::ucfirst($uploadHints['login_slideshow_images'] ?? '') }}, do 8 slika.</small>
+                        </div>
                     </div>
                     <input type="hidden" name="login_background_slide_state_present" value="1">
-                    <div class="login-slide-admin-grid">
+                    <div class="a1-set-slides">
                         @forelse($loginBackgroundSlides as $slide)
                             @if($slide['path'] !== '')
-                                <article class="login-slide-admin-card">
-                                    <div class="login-slide-admin-image">@if($slide['url'])<img src="{{ $slide['url'] }}" alt="">@endif</div>
-                                    <div class="login-slide-admin-meta">
+                                <article class="a1-set-slide">
+                                    <div class="a1-set-slide__img">@if($slide['url'])<img src="{{ $slide['url'] }}" alt="">@endif</div>
+                                    <div class="a1-set-slide__meta">
                                         <strong>Slika {{ $slide['slot'] }}</strong>
-                                        <label class="check-row"><input type="checkbox" name="login_background_slide_active[]" value="{{ $slide['slot'] }}" @checked($slide['active'])><span>Aktivna</span></label>
-                                        <label><span>Redosled</span><input type="number" name="login_background_slide_order[{{ $slide['slot'] }}]" min="1" max="99" value="{{ $slide['order'] }}"></label>
-                                        <button class="button button-danger button-small" type="submit" form="remove-login-slide-{{ $slide['slot'] }}">Ukloni</button>
+                                        <label class="a1-check"><input class="a1-check__input" type="checkbox" name="login_background_slide_active[]" value="{{ $slide['slot'] }}" @checked($slide['active'])><span class="a1-check__box" aria-hidden="true"></span><span>Aktivna</span></label>
+                                        <label class="a1-field"><span class="a1-label">Redosled</span><input class="a1-input" type="number" name="login_background_slide_order[{{ $slide['slot'] }}]" min="1" max="99" value="{{ $slide['order'] }}"></label>
+                                        <div><button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" form="remove-login-slide-{{ $slide['slot'] }}">Ukloni</button></div>
                                     </div>
                                 </article>
                             @endif
                         @empty
                         @endforelse
-                        @if(collect($loginBackgroundSlides)->where('path', '!=', '')->isEmpty())
-                            <p class="muted">Još nema slideshow slika.</p>
-                        @endif
                     </div>
+                    @if(collect($loginBackgroundSlides)->where('path', '!=', '')->isEmpty())
+                        <div class="a1-empty"><p>Još nema slideshow slika.</p></div>
+                    @endif
                 </div>
 
-                <div class="login-background-mode-panel" data-mode-panel="youtube">
-                    <label class="field-span-2">
-                        <span>YouTube link ili video ID</span>
-                        <input name="login_background_youtube_url" value="{{ $loginYoutubeValue }}" maxlength="500" placeholder="https://www.youtube.com/watch?v=..." data-login-youtube-input>
+                <div class="a1-set-bgmode" data-mode-panel="youtube">
+                    <label class="a1-field">
+                        <span class="a1-label">YouTube link ili video ID</span>
+                        <input class="a1-input" name="login_background_youtube_url" value="{{ $loginYoutubeValue }}" maxlength="500" placeholder="https://www.youtube.com/watch?v=..." data-login-youtube-input>
                     </label>
-                    <p class="muted">Čuva se samo validiran 11-karakterni video ID. CMS ne prihvata iframe/HTML kod. Video na login stranici radi bez zvuka, autoplay/loop i bez kontrola.</p>
+                    <p class="a1-muted">Čuva se samo validiran 11-karakterni video ID. CMS ne prihvata iframe/HTML kod. Video na login stranici radi bez zvuka, autoplay/loop i bez kontrola.</p>
                 </div>
 
-                <div class="login-background-preview-shell">
-                    <div class="section-heading-row compact">
-                        <div><strong>Pregled</strong><p class="muted">Preview je samo vizuelan i ne izvršava login niti druge auth akcije.</p></div>
-                        <span class="login-preview-mode" data-login-preview-label>Podrazumevana</span>
+                <div class="a1-stack">
+                    <div class="a1-card__head">
+                        <div class="a1-card__title"><strong>Pregled</strong><p class="a1-muted">Preview je samo vizuelan i ne izvršava login niti druge auth akcije.</p></div>
+                        <span class="a1-pill a1-pill--info" data-login-preview-label>Podrazumevana</span>
                     </div>
                     <div
-                        class="login-background-preview"
+                        class="a1-set-bgprev"
                         data-login-preview
                         data-image-url="{{ $loginBackgroundImageUrl }}"
                         data-fallback-url="{{ $loginBackgroundFallbackUrl }}"
                         data-slide-urls='@json($previewSlideUrls)'
                     >
-                        <div class="login-background-preview-media" data-login-preview-media></div>
-                        <div class="login-background-preview-overlay" data-login-preview-overlay></div>
-                        <div class="login-background-preview-card">
-                            <span class="eyebrow">Dobro došli</span>
+                        <div class="a1-set-bgprev__media" data-login-preview-media></div>
+                        <div class="a1-set-bgprev__scrim" data-login-preview-overlay></div>
+                        <div class="a1-set-bgprev__card">
+                            <span class="a1-eyebrow">Dobro došli</span>
                             <strong>Prijava</strong>
-                            <span>Ovako će login kartica izgledati iznad izabrane pozadine.</span>
+                            <span class="a1-muted">Ovako će login kartica izgledati iznad izabrane pozadine.</span>
                         </div>
                     </div>
                 </div>
             </section>
         @endif
 
-        <section class="panel form-section">
-            <h2>Footer</h2>
-            <label class="check-card"><input type="checkbox" name="site_footer_show_logo" value="1" @checked(old('site_footer_show_logo', $settings['site_footer_show_logo']) === '1')><span>Prikaži logo u footeru</span></label>
-            <label class="check-card"><input type="checkbox" name="site_footer_links_new_tab" value="1" @checked(old('site_footer_links_new_tab', $settings['site_footer_links_new_tab']) === '1')><span>Otvori footer linkove u novom tabu</span></label>
-            <div class="field-grid">
-                <label><span>Visina logotipa u podnožju (px)</span><input type="number" name="site_footer_logo_height" min="20" max="96" step="1" value="{{ old('site_footer_logo_height', $settings['site_footer_logo_height']) }}" required aria-describedby="hint-site_footer_logo_height"><small class="muted" id="hint-site_footer_logo_height">Od 20 do 96 px, podrazumevano 28 px. Važi za javni sajt i za footer admin panela (tamo najviše 42 px).</small>@error('site_footer_logo_height')<small class="field-error" role="alert">{{ $message }}</small>@enderror</label>
-                <label><span>Raspored</span><select name="site_footer_layout"><option value="split" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'split')>Levo i desno</option><option value="centered" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'centered')>Sve centrirano</option></select></label>
-                <label><span>Copyright tekst</span><input name="site_footer_copyright_text" value="{{ old('site_footer_copyright_text', $settings['site_footer_copyright_text']) }}" maxlength="300"></label>
-                <label class="field-span-2"><span>Dodatni tekst</span><input name="site_footer_secondary_text" value="{{ old('site_footer_secondary_text', $settings['site_footer_secondary_text']) }}" maxlength="300"></label>
+        <section class="a1-card" aria-labelledby="ap-footer-title">
+            <h2 class="a1-h2" id="ap-footer-title">Footer</h2>
+            <div class="a1-set-checks">
+                <label class="a1-check"><input class="a1-check__input" type="checkbox" name="site_footer_show_logo" value="1" @checked(old('site_footer_show_logo', $settings['site_footer_show_logo']) === '1')><span class="a1-check__box" aria-hidden="true"></span><span>Prikaži logo u footeru</span></label>
+                <label class="a1-check"><input class="a1-check__input" type="checkbox" name="site_footer_links_new_tab" value="1" @checked(old('site_footer_links_new_tab', $settings['site_footer_links_new_tab']) === '1')><span class="a1-check__box" aria-hidden="true"></span><span>Otvori footer linkove u novom tabu</span></label>
             </div>
-            <p class="muted">Dostupne promenljive: <code>{year}</code>, <code>{site_name}</code>, <code>{version}</code>.</p>
+            <div class="a1-set-fields">
+                <label class="a1-field"><span class="a1-label">Visina logotipa u podnožju (px)</span><input class="a1-input" type="number" name="site_footer_logo_height" min="20" max="96" step="1" value="{{ old('site_footer_logo_height', $settings['site_footer_logo_height']) }}" required aria-describedby="hint-site_footer_logo_height"><small class="a1-help" id="hint-site_footer_logo_height">Od 20 do 96 px, podrazumevano 28 px. Važi za javni sajt i za footer admin panela (tamo najviše 42 px).</small>@error('site_footer_logo_height')<span class="a1-error" role="alert">{{ $message }}</span>@enderror</label>
+                <label class="a1-field"><span class="a1-label">Raspored</span><select class="a1-select" name="site_footer_layout"><option value="split" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'split')>Levo i desno</option><option value="centered" @selected(old('site_footer_layout', $settings['site_footer_layout']) === 'centered')>Sve centrirano</option></select></label>
+                <label class="a1-field"><span class="a1-label">Copyright tekst</span><input class="a1-input" name="site_footer_copyright_text" value="{{ old('site_footer_copyright_text', $settings['site_footer_copyright_text']) }}" maxlength="300"></label>
+                <label class="a1-field a1-set-wide"><span class="a1-label">Dodatni tekst</span><input class="a1-input" name="site_footer_secondary_text" value="{{ old('site_footer_secondary_text', $settings['site_footer_secondary_text']) }}" maxlength="300"></label>
+            </div>
+            <p class="a1-muted">Dostupne promenljive: <code>{year}</code>, <code>{site_name}</code>, <code>{version}</code>.</p>
             @for($i = 1; $i <= 3; $i++)
-                <div class="field-grid">
-                    <label><span>Link {{ $i }} — naziv</span><input name="site_footer_link_{{ $i }}_label" value="{{ old('site_footer_link_'.$i.'_label', $settings['site_footer_link_'.$i.'_label']) }}" maxlength="80"></label>
-                    <label><span>Link {{ $i }} — URL</span><input type="url" name="site_footer_link_{{ $i }}_url" value="{{ old('site_footer_link_'.$i.'_url', $settings['site_footer_link_'.$i.'_url']) }}" maxlength="500"></label>
+                <div class="a1-set-fields">
+                    <label class="a1-field"><span class="a1-label">Link {{ $i }} — naziv</span><input class="a1-input" name="site_footer_link_{{ $i }}_label" value="{{ old('site_footer_link_'.$i.'_label', $settings['site_footer_link_'.$i.'_label']) }}" maxlength="80"></label>
+                    <label class="a1-field"><span class="a1-label">Link {{ $i }} — URL</span><input class="a1-input" type="url" name="site_footer_link_{{ $i }}_url" value="{{ old('site_footer_link_'.$i.'_url', $settings['site_footer_link_'.$i.'_url']) }}" maxlength="500"></label>
                 </div>
             @endfor
         </section>
     </div>
-    <aside class="form-side">
-        <section class="panel sticky-card form-section">
-            <h2>Sačuvaj izmene</h2>
-            <p class="muted">Promene se odmah primenjuju na izgled sajta. Pozadinu prijave može menjati isključivo Super Administrator.</p>
-            <button class="button button-primary" type="submit">Sačuvaj izgled</button>
+    <aside class="a1-set-side">
+        <section class="a1-card" aria-labelledby="ap-save-title">
+            <h2 class="a1-h2" id="ap-save-title">Sačuvaj izmene</h2>
+            <p class="a1-muted">Promene se odmah primenjuju na izgled sajta. Pozadinu prijave može menjati isključivo Super Administrator.</p>
+            <button class="a1-btn a1-btn--primary" type="submit">Sačuvaj izgled</button>
         </section>
     </aside>
 </form>
@@ -303,11 +313,11 @@
             const selected = mode.value || 'default';
             const opacity = Math.max(0, Math.min(90, Number(overlayInput?.value || 45)));
             const blur = Math.max(0, Math.min(10, Number(blurInput?.value || 0)));
-            overlay.style.background = `rgba(4, 10, 20, ${opacity / 100})`;
+            overlay.style.opacity = String(opacity / 100);
             media.style.filter = `blur(${blur}px)`;
             media.replaceChildren();
             media.style.backgroundImage = '';
-            media.className = 'login-background-preview-media';
+            media.className = 'a1-set-bgprev__media';
             if (label) label.textContent = modeLabels[selected] || modeLabels.default;
 
             root.querySelectorAll('[data-mode-panel]').forEach((panel) => {
@@ -356,4 +366,5 @@
     })();
     </script>
 @endif
+</div>
 @endsection
