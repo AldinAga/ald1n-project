@@ -85,6 +85,11 @@ final class ProductRequest extends FormRequest
         $validator->after(function (\Illuminate\Validation\Validator $validator) use ($webDraft): void {
             $product = $this->route('product');
 
+            // Autosave sme samo da piše nacrt: save_draft bi inače aktivan artikal vratio u nacrt.
+            if ($product !== null && $this->boolean('autosave') && (string) $product->status !== 'draft') {
+                $validator->errors()->add('autosave', 'Automatsko čuvanje je dozvoljeno samo za artikal koji je nacrt.');
+            }
+
             $brandId = $this->input('brand_id');
             $lineId = $this->input('product_line_id');
             if ($lineId !== null) {
