@@ -229,7 +229,7 @@ if($perSource!==$expected){fwrite(STDERR,json_encode(['diff'=>$perSource,'expect
 if(count(DR::STEPS)!==count($expected)||count($expected)!==B1158Payload::FILES||count(array_filter($expected,static fn($k)=>$k==='A'))!==B1158Payload::NEW_FILES)throw new RuntimeException('PACKAGE_STEPS_NOT_THE_GENERATED_COUNTS');
 // The orphans: their bytes at BASE are their B1155 payload digests (the host holds them), they are in the runtime manifest roots (resources/), and no file of the SOURCE tree (app, bootstrap, resources, routes, public, config, database, bin) includes them.
 foreach(DR::ORPHANS as $p=>$sha){
-    if(hash('sha256',$blob($base,$p))!==$sha||$earlier($p)[0]!==$sha&&(DR56::ORPHANS[$p]??null)!==$sha)throw new RuntimeException('PACKAGE_ORPHAN_DIGEST_IS_NOT_THE_LIVE_ONE_'.$p);
+    if(hash('sha256',$blob($base,$p))!==$sha||($b1157Sha[$p]??($b1156Sha[$p]??($b1155Sha[$p]??($b1154Sha[$p]??($b1153Sha[$p]??($b1152Sha[$p]??($b1151Sha[$p]??($b1150Sha[$p]??($b1149Sha[$p]??($b1148Sha[$p]??($b1147Sha[$p]??($b1146Sha[$p]??($byPath[$p]??null)))))))))))))!==$sha&&(DR56::ORPHANS[$p]??null)!==$sha)throw new RuntimeException('PACKAGE_ORPHAN_DIGEST_IS_NOT_THE_LIVE_ONE_'.$p);
     if($git(['cat-file','-e',$payloadCommit.':'.CMS.$p],true)!==null)throw new RuntimeException('PACKAGE_ORPHAN_STILL_EXISTS_IN_THE_SOURCE_'.$p);
 }
 if(DR::ORPHANS!==[]){$pats=[];foreach(array_keys(DR::ORPHANS) as $p)$pats[]=str_ends_with($p,'.blade.php')?preg_quote(str_replace('/','.',substr($p,16,-10)),'~').'|'.preg_quote(substr($p,16,-10),'~'):preg_quote(basename($p,'.php'),'~');
