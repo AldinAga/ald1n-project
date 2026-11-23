@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ import { useAppTheme } from '@/theme/app-theme';
 import { formatDecimal } from '@/lib/formatters';
 
 type Panel =
-  | 'accept'
+  | 'confirm'
   | 'status'
   | 'note'
   | 'reassign'
@@ -59,7 +60,7 @@ type Props = {
   data: AdminOrderDetailRecord;
   capabilities: AdminOrderDetailCapabilities;
   onShipmentSuccess?: () => void;
-  requestedAction?: { kind: 'accept' | 'shipment' | 'complete'; sequence: number } | null;
+  requestedAction?: { kind: 'confirm' | 'shipment' | 'complete'; sequence: number } | null;
 };
 
 function asRecord(value: AdminOrderDetailValue | undefined): AdminOrderDetailRecord | null {
@@ -121,7 +122,7 @@ function localDateTimeNow(): string {
 }
 
 function isStatus(value: string): value is AdminOrderStatus {
-  return value === 'new' || value === 'processing' || value === 'confirmed' || value === 'cancelled';
+  return value === 'confirmed' || value === 'cancelled';
 }
 
 function isShipmentMethod(value: string): value is AdminOrderShipmentMethod {
@@ -165,7 +166,6 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   const orderStatus = recordText(order, 'status');
   const orderVersionToken = recordText(order, 'order_version_token');
   const completed = recordBool(order, 'is_completed') || recordText(order, 'completed_at') !== '';
-  const accepted = recordText(order, 'accepted_at') !== '';
   const workflowEnabled = capabilities.workflow_mutations && capabilities.orders_manage;
   const hasShipment = shipment !== null;
   // MOBILE_SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513
@@ -180,7 +180,8 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   const recipientPhone = recordText(shipping, 'phone', recordText(order, 'shipping_phone'));
   const currentTracking = recordText(order, 'tracking_number');
 
-  const canAccept = actionFlag(actions, 'accept', workflowEnabled && !completed && !accepted && orderStatus !== 'cancelled');
+  // Potvrda je jedan korak (status confirmed); "processing" je ostao samo u starim redovima i prikazuje se kao Nova.
+  const canConfirm = actionFlag(actions, 'confirm', workflowEnabled && !completed && (orderStatus === 'new' || orderStatus === 'processing'));
   const canShipment = actionFlag(actions, 'shipment', workflowEnabled && !completed && !hasShipment && orderStatus !== 'cancelled');
   const canComplete = capabilities.confirm_delivery && actionFlag(actions, 'complete', workflowEnabled && !completed && orderStatus !== 'cancelled');
   const canReopen = capabilities.reopen && actionFlag(actions, 'reopen', workflowEnabled && completed);
@@ -190,12 +191,15 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   useEffect(() => {
     if (!requestedAction || lastRequestedSequence.current === requestedAction.sequence) return;
     lastRequestedSequence.current = requestedAction.sequence;
-    if (requestedAction.kind === 'accept' && canAccept) setPanel('accept');
+    if (requestedAction.kind === 'confirm' && canConfirm) setPanel('confirm');
     if (requestedAction.kind === 'shipment' && canShipment) setPanel('shipment');
     if (requestedAction.kind === 'complete' && canComplete) setPanel('complete');
-  }, [requestedAction, canAccept, canShipment, canComplete]);
-  const [statusValue, setStatusValue] = useState<AdminOrderStatus> ('processing');
+  }, [requestedAction, canConfirm, canShipment, canComplete]);
+  const [statusValue, setStatusValue] = useState<AdminOrderStatus> ('confirmed');
   const [statusNote, setStatusNote] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  // Ključ se pravi jednom po otvaranju forme; ponovni pokušaj nakon greške šalje isti ključ.
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState('');
   const [internalNote, setInternalNote] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [reassignReason, setReassignReason] = useState('');
@@ -307,7 +311,24 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
       paid_at: paidAt.trim(),
       reference: paymentReference.trim() || null,
       note: paymentNote.trim() || null,
+      idempotency_key: paymentIdempotencyKey,
     }));
+  }
+
+  function openPaymentEntry(): void {
+    setPaymentIdempotencyKey(Crypto.randomUUID());
+    setPanel('payment-entry');
+  }
+
+  function submitStatus(): void {
+    const reason = cancelReason.trim();
+    if (statusValue === 'cancelled' && reason.length < 3) return notifyInputError(feedback, 'Razlog otkazivanja je obavezan (najmanje 3 znaka).');
+    execute('status', statusValue === 'cancelled' ? 'Porudžbina je otkazana' : 'Porudžbina je potvrđena', () => apiAdminOrders.status(orderId, {
+      status: statusValue,
+      note: statusNote.trim() || null,
+      ...(statusValue === 'cancelled' ? { reason } : {}),
+      order_version_token: orderVersionToken,
+    }), () => setCancelReason(''));
   }
 
   function submitSalePriceCorrection(): void {
@@ -399,10 +420,10 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
   });
 
   const quickActions: QuickAction[] = [];
-  if (canAccept) quickActions.push({ id: 'accept', label: 'Preuzmi porudžbinu', glyph: 'check', kind: 'primary', onPress: () => setPanel('accept') });
+  if (canConfirm) quickActions.push({ id: 'confirm', label: 'Potvrdi porudžbinu', glyph: 'check', kind: 'primary', onPress: () => setPanel('confirm') });
   if (capabilities.internal_notes) quickActions.push({ id: 'note', label: 'Interna napomena', glyph: 'messages', onPress: () => setPanel('note') });
   if (capabilities.reassign) quickActions.push({ id: 'reassign', label: 'Odgovorno lice', glyph: 'account', onPress: () => setPanel('reassign') });
-  if (capabilities.payments) quickActions.push({ id: 'payment-entry', label: 'Uplata / refundacija', glyph: 'commission', onPress: () => setPanel('payment-entry') });
+  if (capabilities.payments) quickActions.push({ id: 'payment-entry', label: 'Uplata / refundacija', glyph: 'commission', onPress: openPaymentEntry });
   if (capabilities.payments && paymentOptions.length > 0) quickActions.push({ id: 'payment-ledger', label: 'Obradi uplatu', glyph: 'commission', onPress: () => setPanel('payment-ledger') });
   if (shipmentTrackingUrl) quickActions.push({ id: 'tracking', label: 'Tracking', glyph: 'orders', onPress: () => void openTrackingUrl(shipmentTrackingUrl) });
   if (recordBool(shipment, 'has_proof')) quickActions.push({ id: 'shipment-proof', label: 'Dokaz slanja', glyph: 'box', pending: openingProof, onPress: () => void openShipmentProof() });
@@ -430,23 +451,22 @@ export function AdminOrderActions({ orderId, data, capabilities, onShipmentSucce
       ) : null}
       <QuickActionHub actions={quickActions} />
 
-      {panel === 'accept' ? (
-        <ActionPanel title="Preuzimanje porudžbine" onClose={() => setPanel(null)} styles={styles}>
-          <Text style={styles.muted}>Potvrdi da preuzimaš porudžbinu u obradu.</Text>
-          <Button loading={busy('accept')} onPress={() => execute('accept', 'Porudžbina je preuzeta', () => apiAdminOrders.accept(orderId))}>Potvrdi preuzimanje</Button>
+      {panel === 'confirm' ? (
+        <ActionPanel title="Potvrda porudžbine" onClose={() => setPanel(null)} styles={styles}>
+          <Text style={styles.muted}>Potvrda ujedno preuzima porudžbinu. Sledeći korak je slanje i isporuka.</Text>
+          <Button loading={busy('confirm')} onPress={() => execute('confirm', 'Porudžbina je potvrđena', () => apiAdminOrders.status(orderId, { status: 'confirmed', order_version_token: orderVersionToken }))}>Potvrdi</Button>
         </ActionPanel>
       ) : null}
 
       {panel === 'status' ? (
         <ActionPanel title="Promena statusa" onClose={() => setPanel(null)} styles={styles}>
           <SelectSheet label="Novi status" value={statusValue} options={[
-            { value: 'new', label: 'Nova' },
-            { value: 'processing', label: 'U obradi' },
             { value: 'confirmed', label: 'Potvrđena' },
             { value: 'cancelled', label: 'Otkazana' },
           ]} onChange={(value) => { if (isStatus(value)) setStatusValue(value); }} />
+          {statusValue === 'cancelled' ? <TextField label="Razlog otkazivanja" value={cancelReason} onChangeText={setCancelReason} multiline maxLength={1000} /> : null}
           <TextField label="Napomena" value={statusNote} onChangeText={setStatusNote} multiline />
-          <Button loading={busy('status')} onPress={() => execute('status', 'Status porudžbine je promenjen', () => apiAdminOrders.status(orderId, { status: statusValue, note: statusNote.trim() || null, order_version_token: orderVersionToken }))}>Sačuvaj status</Button>
+          <Button loading={busy('status')} onPress={submitStatus}>Sačuvaj status</Button>
         </ActionPanel>
       ) : null}
 

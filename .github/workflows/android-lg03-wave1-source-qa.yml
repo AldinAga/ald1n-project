@@ -82,6 +82,11 @@ jobs:
         run: npm run test:release25
       - name: Build25-compatible Android JS bundle export (never publish)
         working-directory: apps/mobile/current
+        env:
+          # app.config.js fails closed without an approved identity (no default runtime on SDK58).
+          # Source-only Play identity (as in LG-03 wave 2): keeps the production env, is not a build, OTA or submit approval.
+          ALD1N_M17_SDK58_PLAY_RC: source-only
+          ALD1N_M17_SDK58_PLAY_PROFILE: m17-sdk58-play-rc
         run: |
           set -euo pipefail
           npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg03-wave1-android-export"

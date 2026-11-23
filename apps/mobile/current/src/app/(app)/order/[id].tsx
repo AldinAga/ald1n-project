@@ -82,6 +82,8 @@ export default function OrderDetailScreen() {
   const [proofSuccess, setProofSuccess] = useState<string | null>(null);
   const [pickingProof, setPickingProof] = useState(false);
   const [openingFile, setOpeningFile] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ['order', orderId],
@@ -97,8 +99,10 @@ export default function OrderDetailScreen() {
   });
 
   const cancel = useMutation({
-    mutationFn: () => api.orders.cancel(orderId),
+    mutationFn: (reason: string) => api.orders.cancel(orderId, reason),
     onSuccess: async () => {
+      setCancelReason('');
+      setCancelError(null);
       await client.invalidateQueries({ queryKey: ['orders'] });
       await client.invalidateQueries({ queryKey: ['order', orderId] });
       await client.invalidateQueries({ queryKey: ['order-post-create', orderId] });
@@ -165,6 +169,12 @@ export default function OrderDetailScreen() {
   };
 
   const confirmCancel = () => {
+    const reason = cancelReason.trim();
+    if (reason.length < 3) {
+      setCancelError('Unesi razlog otkazivanja (najmanje 3 znaka).');
+      return;
+    }
+    setCancelError(null);
     void (async () => {
       const confirmed = await feedback.confirm({
         tone: 'danger',
@@ -175,7 +185,9 @@ export default function OrderDetailScreen() {
       });
 
       if (confirmed) {
-        cancel.mutate();
+        cancel.mutate(reason, {
+          onError: (error) => setCancelError(apiMessage(error, 'Porudžbinu trenutno nije moguće otkazati.')),
+        });
       }
     })();
   };
@@ -610,9 +622,23 @@ export default function OrderDetailScreen() {
       ) : null}
 
       {canCancel ? (
-        <Button variant="danger" onPress={confirmCancel} loading={cancel.isPending}>
-          Otkaži porudžbinu
-        </Button>
+        <>
+          <TextField
+            label="Razlog otkazivanja"
+            value={cancelReason}
+            onChangeText={(value) => {
+              setCancelReason(value);
+              if (cancelError) setCancelError(null);
+            }}
+            error={cancelError ?? undefined}
+            multiline
+            maxLength={1000}
+            textAlignVertical="top"
+          />
+          <Button variant="danger" onPress={confirmCancel} loading={cancel.isPending}>
+            Otkaži porudžbinu
+          </Button>
+        </>
       ) : null}
     </Screen>
   );

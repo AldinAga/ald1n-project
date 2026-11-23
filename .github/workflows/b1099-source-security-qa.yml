@@ -180,6 +180,7 @@ jobs:
           }
           fs.writeFileSync(path.join(dir,'summary.json'),JSON.stringify(summary,null,2)+'\n');
           console.log('B1099_REDACTED_FINDING_COUNTS='+JSON.stringify(summary));
+          for(const name of ['current-tree','head-history'])for(const r of metadata(JSON.parse(fs.readFileSync(path.join(dir,name+'-redacted.json'),'utf8'))))console.log('B1099_FINDING '+name+' '+r.RuleID+' '+r.File+':'+r.StartLine+' '+String(r.Commit||'').slice(0,8));
           NODE
           test "$(cat "$evidence/current-tree.exit")" = 0
           test "$(cat "$evidence/head-history.exit")" = 0

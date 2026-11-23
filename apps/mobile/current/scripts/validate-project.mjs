@@ -576,7 +576,7 @@ assert(
     && orderDetailDirectLinkCallCount === 1,
   'Order detalj privatne fajlove otvara kroz secure Bearer/cache/share helper; jedini direktan URL je javni HTTPS shipment tracking link.',
 );
-assert(orderDetailScreen.includes('api.orders.cancel(orderId)') && orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Post-create UI čuva postojeći customer cancel i After-sales create tok.');
+assert(orderDetailScreen.includes('api.orders.cancel(orderId, reason)') && orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Post-create UI čuva postojeći customer cancel i After-sales create tok.');
 assert(!/\b(?:verifyPayment|rejectPayment|voidPayment|completeOrder|reopenOrder|submitted_by|verified_by|rejected_by|voided_by|confirmed_by|issued_by|proof_path|proof_disk|admin\.)\b/.test(`${orderDetailScreen}\n${orderPostCreateFileHelper}`), 'Order customer post-create UI/helper ne izlažu admin akcije, actor ID-jeve ili storage putanje.');
 assert(endpoints.includes('afterSales:') && endpoints.includes('after-sales'), 'API klijent sadrži after-sales ugovor.');
 assert(afterSalesListScreen.includes('api.afterSales.list') && afterSalesListScreen.includes("can('after_sales.view_own')") && afterSalesListScreen.includes("pathname: '/after-sales/[id]'"), 'After-sales lista koristi API, dozvolu i detalj rutu.');
@@ -898,7 +898,7 @@ assert(
     && build16OrderDetailBatch129.includes('postCreate.capabilities.can_upload_payment_proof')
     && build16OrderDetailBatch129.includes('postCreate.capabilities.can_view_documents')
     && build16OrderDetailBatch129.includes('postCreate.delivery')
-    && build16OrderDetailBatch129.includes('api.orders.cancel(orderId)')
+    && build16OrderDetailBatch129.includes('api.orders.cancel(orderId, reason)')
     && build16OrderDetailBatch129.includes("pathname: '/after-sales/create/[orderId]'"),
   'Build16 Order detail koristi Operator section hierarchy i čuva post-create, payment proof, documents, delivery, cancel i after-sales authority.'
 );
