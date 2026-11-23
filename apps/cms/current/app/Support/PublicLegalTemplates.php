@@ -127,6 +127,10 @@ Rukovalac podacima o ličnosti je {{naziv_firme}}, {{adresa}}, {{mesto}}, PIB {{
 - Podatke naloga Kupca: ime, prezime, adresu, mesto, telefon i e-poštu. Lozinku čuvamo samo u zaštićenom obliku.
 - Podatke o porudžbini: artikle, cene, način dostave i plaćanja, adresu isporuke i status porudžbine.
 - Podatke o prijavi: IP adresu i vreme sesije, radi bezbednosti naloga.
+- Podatke mobilne aplikacije: naziv uređaja, platformu, verziju aplikacije, jezik, vremensku zonu i nasumičnu oznaku instalacije (installation_id).
+- Expo push token, samo ako uključite obaveštenja u aplikaciji. Token služi za slanje obaveštenja na uređaj.
+- Podatke Google prijave, ako se prijavljujete Google nalogom: identifikator Google naloga i e-poštu iz tog naloga. Lozinku Google naloga ne dobijamo.
+- Dnevnik izmena (audit log): koja radnja je izvršena na nalogu i kada, uz IP adresu i podatke o pregledaču ili uređaju.
 - Sadržaj reklamacija i poruka koje nam pošaljete.
 
 ## Svrha i pravni osnov
@@ -139,6 +143,10 @@ Osnov su odredbe člana 12. stav 1:
 ## Ko prima podatke
 Podatke dajemo samo onima koji su potrebni za izvršenje porudžbine i rad sajta: kurirskoj službi koju izaberete, pružaocu hostinga, pružaocu usluge slanja e-pošte i pružaocu zaštite od automatskih zloupotreba. Podatke ne prodajemo.
 
+Obaveštenja u mobilnoj aplikaciji šaljemo preko usluge Expo (Expo Push Service) i Google ili Apple servisa za isporuku obaveštenja na uređaj. Expo je primalac obrade i prima push token, platformu i sadržaj obaveštenja. Ako se prijavljujete Google nalogom, Google obrađuje podatke tokom prijave.
+
+[Pravna provera: ugovor o obradi sa Expo-om, država obrade i osnov prenosa, kao i da li je Expo obrađivač ili zaseban rukovalac.]
+
 ## Prenos podataka u druge države
 Neki pružaoci usluga mogu obrađivati podatke van Republike Srbije, ako se njihovi serveri ili sedište nalaze u drugoj državi. To se može odnositi na pružaoca hostinga, pružaoca usluge slanja e-pošte i Cloudflare (zaštita od botova Turnstile i isporuka sadržaja).
 
@@ -148,6 +156,17 @@ Podatke u drugu državu prenosimo samo pod uslovima iz čl. 63. do 65.
 
 ## Koliko dugo čuvamo podatke
 Podatke naloga čuvamo dok nalog postoji. Podatke o porudžbinama čuvamo onoliko koliko propisi o računovodstvu i zaštiti potrošača zahtevaju. Evidenciju reklamacija čuvamo najmanje dve godine od dana podnošenja reklamacije (Zakon o zaštiti potrošača, "Sl. glasnik RS", br. 35/2026, član 63).
+
+## Brisanje naloga
+Nalog možete obrisati sami, na dva načina: u aplikaciji (Nalog, Bezbednost, Brisanje naloga) ili na stranici Brisanje naloga ({{internet_adresa}}/brisanje-naloga), bez prijave, uz potvrdu e-poštom.
+
+Posle zahteva nalog se odmah blokira i odjavljuje sa svih uređaja. Rok mirovanja je 14 dana i u tom roku zahtev možete poništiti linkom iz e-pošte. Posle roka brišemo ime, e-poštu, telefon, adresu, vezu sa Google nalogom, sačuvane prijavne podatke, push token, nazive i oznake uređaja. IP adrese i podatke o uređaju uklanjamo iz evidencije prijava i dnevnika izmena. Nalog postaje anoniman.
+
+Brisanje čeka ako nalog ima otvorene provizije ili zaduženja, dok se one ne zatvore. Nalog administratora može da se obriše samo kada postoji drugi aktivni SuperAdministrator koji preuzima porudžbine i aktivan rad.
+
+Ostaje ono što moramo ili imamo pravo da zadržimo: porudžbine sa podacima o isporuci i dokumentima, provizije i isplate, garancije, evidencije reklamacija i servisa, razgovori i beleške o korisnicima. Te zapise više ne vezujemo za vaše ime, ali podaci o isporuci unutar porudžbine (na primer ime i adresa primaoca) ostaju onakvi kakvi su bili u trenutku porudžbine. Rokovi čuvanja: [trgovac upisuje rokove čuvanja po vrstama zapisa i zakonski osnov, na primer za knjigovodstvene isprave i evidenciju reklamacija].
+
+Dnevnik izmena i bezbednosne evidencije čuvamo [trgovac upisuje rok čuvanja]. Pri brisanju naloga uklanjamo IP adrese i podatke o uređaju iz zapisa u kojima ste vi bili akter, kao i stare i nove vrednosti profila, naslove i metapodatke zapisa o samom nalogu. Zapisi o izmenama vašeg naloga koje je izvršio administrator zadržavaju IP adresu i uređaj administratora. Zapisi o radnjama koje je nalog izvršio nad poslovnim podacima (na primer promena statusa porudžbine) ostaju bez IP adrese i uređaja, jer su deo istorije poslovanja; vezani su za anonimizovani nalog, a sadržaj tih zapisa može nositi poslovne podatke.
 
 ## Vaša prava
 - pristup podacima i kopija podataka (član 26);

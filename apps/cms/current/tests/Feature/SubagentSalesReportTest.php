@@ -274,7 +274,7 @@ final class SubagentSalesReportTest extends TestCase
         $get(self::RANGE)->assertOk()->assertSee('01.10.2026');
     }
 
-    public function test_page_renders_totals_empty_state_and_has_no_back_to_top(): void
+    public function test_page_renders_totals_empty_state_and_has_back_to_top(): void
     {
         $page = $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE));
         $page->assertOk()
@@ -286,8 +286,8 @@ final class SubagentSalesReportTest extends TestCase
             ->assertSee('74.000,00 RSD')
             ->assertSee('Deo prometa nema nabavnu cenu')
             ->assertSee('Ukupno za izabrani period')
-            // The admin has no "Nazad na vrh" button: owner decision of 2026-11-10 (docs/redesign/admin-shell.md).
-            ->assertDontSee('Nazad na vrh');
+            // The admin carries the "Nazad na vrh" button: owner decision of 2026-11-23 (replaces the 2026-11-10 one).
+            ->assertSee('aria-label="Nazad na vrh"', false);
 
         $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['customer' => 'ne postoji nijedan takav']))
             ->assertOk()->assertSee('Nema prodaje za izabrane filtere')->assertDontSee('Ukupno za izabrani period');
@@ -318,7 +318,7 @@ final class SubagentSalesReportTest extends TestCase
         $lines = array_values(array_filter(explode("\n", substr($content, 3)), static fn (string $l): bool => $l !== ''));
         $table = array_map(static fn (string $l): array => str_getcsv($l, ';', '"', ''), $lines);
 
-        self::assertSame(['Subagent', 'Porudžbina', 'Komada', 'Promet RSD', 'Zarada RSD', 'Marža %', 'Provizija RSD', 'Provizija isplaćena RSD', 'Provizija neisplaćena RSD', 'Neto posle provizije RSD', 'Prosečna porudžbina RSD', 'Udeo u prometu %'], $table[0]);
+        self::assertSame(['Subagent', 'Porudžbina', 'Komada', 'Promet RSD', 'Zarada RSD', 'Marža %', 'Provizija RSD', 'Provizija isplaćena (neto) RSD', 'Provizija neisplaćena (neto) RSD', 'Neto posle provizije RSD', 'Prosečna porudžbina RSD', 'Udeo u prometu %'], $table[0]);
         $byLabel = array_column($table, null, 0);
         self::assertSame(['Ana Anić', '3', '5', '35000.00', '12000.00', '40.00', '4166.00', '2340.00', '1826.00', '7834.00', '11666.67', '47.30'], $byLabel['Ana Anić']);
         self::assertSame(['Ukupno', '6', '11', '74000.00', '24400.00', '35.36', '8643.00', '3292.00', '5351.00', '15757.00', '12333.33', '100.00'], $byLabel['Ukupno']);

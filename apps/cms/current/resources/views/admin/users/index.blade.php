@@ -166,6 +166,7 @@
                     ? \Illuminate\Support\Carbon::parse($user->last_login_at)->format('d.m.Y H:i')
                     : 'Nije evidentirano';
                 $fullAccessRole = in_array($roleSlug, ['admin', 'superadmin'], true);
+                $canManage = $roleSlug !== 'superadmin' || auth()->user()?->hasRole('superadmin');
             @endphp
 
             <article class="panel access-control-user-card" data-access-user="{{ $user->id }}">
@@ -216,6 +217,7 @@
                     @endif
                 </div>
 
+                @if($canManage)
                 <details class="access-control-disclosure access-control-user-edit">
                     <summary>
                         <span>
@@ -311,6 +313,9 @@
                         </form>
                     </div>
                 </details>
+                @else
+                    <div class="access-control-callout" data-superadmin-readonly>Nalog SuperAdministratora može da menja samo SuperAdministrator.</div>
+                @endif
                 @if(auth()->user()?->hasRole('superadmin') && (int) auth()->id() !== (int) $user->id && $roleSlug !== 'superadmin' && $status !== 'blocked')
                     <div class="access-control-user-danger-zone">
                         <div><strong>Uklanjanje naloga</strong><small>Najpre pregled zavisnosti i postojeća bezbednosna provera.</small></div>

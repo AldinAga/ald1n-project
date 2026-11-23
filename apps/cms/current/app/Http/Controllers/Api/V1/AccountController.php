@@ -10,6 +10,9 @@ use App\Http\Requests\Api\V1\UpdatePasswordRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Http\Resources\Api\V1\NotificationPreferenceResource;
 use App\Http\Resources\Api\V1\UserResource;
+use App\Http\Requests\Api\V1\AccountDeletionRequest;
+use App\Services\GoogleIdentityVerifier;
+use App\Services\UserDeletionService;
 use App\Services\AccountSessionService;
 use App\Services\AuditLogger;
 use App\Services\PasswordChangeThrottle;
@@ -177,6 +180,58 @@ final class AccountController extends Controller
             'message' => 'Sve druge aktivne prijave su opozvane.',
             'data' => $result,
         ]);
+    }
+
+    public function deletionStatus(Request $request, UserDeletionService $deletions): JsonResponse
+    {
+        return response()->json(['data' => $deletions->state($request->user())]);
+    }
+
+    /**
+     * Brisanje naloga uz ponovnu proveru identiteta: lozinka ili Google ID token
+     * (Google identitet mora biti već povezan sa ovim nalogom). Nalog se odmah blokira,
+     * a konačno brisanje sledi posle roka mirovanja.
+     */
+    public function requestDeletion(
+        AccountDeletionRequest $request,
+        UserDeletionService $deletions,
+        GoogleIdentityVerifier $google,
+        PasswordChangeThrottle $throttle,
+    ): JsonResponse {
+        abort_unless(UserDeletionService::available(), 503, 'Brisanje naloga trenutno nije dostupno.');
+        $user = $request->user();
+        $data = $request->validated();
+
+        if (!empty($data['id_token'])) {
+            $identity = $google->verify((string) $data['id_token']);
+            $deletions->assertGoogleIdentity($user, $identity);
+        } else {
+            // Isti budžet pokušaja kao za promenu lozinke, da provera ne postane alat za pogađanje.
+            $attempt = $throttle->begin($user);
+            if ($attempt === null) {
+                throw ValidationException::withMessages(['password' => [$throttle->message($user)]]);
+            }
+            if (!Hash::check((string) $data['password'], (string) $user->password_hash)) {
+                $throttle->failed($user, $request, 'api', $attempt);
+                throw ValidationException::withMessages(['password' => ['Lozinka nije ispravna.']]);
+            }
+            $throttle->clear($user);
+        }
+
+        $state = $deletions->startForVerifiedUser($user);
+
+        return response()->json([
+            'message' => 'Brisanje naloga je zakazano. Nalog je blokiran, a poništavanje je moguće linkom iz e-pošte u narednih '.UserDeletionService::GRACE_DAYS.' dana.',
+            'data' => $state,
+            'reauthenticate' => true,
+        ], 202);
+    }
+
+    public function cancelDeletion(Request $request, UserDeletionService $deletions): JsonResponse
+    {
+        abort_unless($deletions->cancelForUser($request->user()), 404, 'Nema aktivnog zahteva za brisanje naloga.');
+
+        return response()->json(['message' => 'Zahtev za brisanje naloga je poništen.', 'data' => $deletions->state($request->user())]);
     }
 
     private function currentTokenId(Request $request): ?int

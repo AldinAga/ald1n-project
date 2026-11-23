@@ -75,6 +75,8 @@ export type AdminCatalogProductDetail = {
   name: string;
   slug: string;
   model_name: string | null;
+  supplier_code?: string | null;
+  ean?: string | null;
   status: AdminCatalogProductStatus;
   is_archived: boolean;
   deleted_at: string | null;

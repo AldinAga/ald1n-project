@@ -1013,6 +1013,72 @@ paths:
                   reauthenticate: { type: boolean, const: true }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/account/deletion:
+    get:
+      tags: [Account]
+      summary: Stanje zahteva za brisanje naloga
+      operationId: getAccountDeletionStatus
+      responses:
+        '200':
+          description: Stanje zahteva (none dok zahtev ne postoji)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Account]
+      summary: Zahtev za brisanje naloga uz ponovnu proveru identiteta
+      description: Traži lozinku ili Google ID token (Google nalog mora biti povezan sa ovim nalogom). Nalog se odmah blokira, API tokeni i push tokeni se opozivaju, a konačno brisanje sledi posle roka mirovanja od 14 dana. Poništavanje je moguće linkom iz e-pošte, jer posle zahteva nijedna prijava nije važeća. Administratorski nalog traži drugog aktivnog SuperAdministratora (inače 422). Otvorene provizije i zaduženja zadržavaju zahtev u statusu waiting_obligations.
+      operationId: requestAccountDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string, description: Obavezno ako nije poslat id_token }
+                id_token: { type: string, description: Svež Google ID token; obavezan ako nije poslata lozinka }
+      responses:
+        '202':
+          description: Brisanje je zakazano; klijent mora da odjavi korisnika
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data, reauthenticate]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+                  reauthenticate: { type: boolean, const: true }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: Brisanje naloga trenutno nije dostupno
+    delete:
+      tags: [Account]
+      summary: Poništavanje zahteva za brisanje naloga
+      operationId: cancelAccountDeletion
+      responses:
+        '200':
+          description: Zahtev je poništen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404':
+          description: Nema aktivnog zahteva
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/me/notification-preferences:
     put:
       tags: [Account]
@@ -4918,6 +4984,13 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AccountDeletionState:
+      type: object
+      required: [status, grace_until, requested_at]
+      properties:
+        status: { type: string, enum: [none, pending, waiting_obligations] }
+        grace_until: { type: [string, 'null'], format: date-time }
+        requested_at: { type: [string, 'null'], format: date-time }
     RestoreCredentialCeremony:
       type: object
       additionalProperties: false
@@ -5290,6 +5363,7 @@ components:
         last_login_at: { type: [string, 'null'], format: date-time }
         password_changed_at: { type: [string, 'null'], format: date-time }
         approved_at: { type: [string, 'null'], format: date-time }
+        can_manage: { type: boolean, description: 'False kada je red SuperAdmin nalog, a pozivalac nije SuperAdmin (nalog se ne može mijenjati). Odsutno na starijim serverima; klijent tada ništa ne zaključava.' }
         last_active_superadmin_protected: { type: boolean }
     AdminUserStatusOption:
       type: object
@@ -6791,6 +6865,8 @@ components:
         brand_id: { type: integer }
         product_line_id: { type: integer }
         model_name: { type: string, maxLength: 190 }
+        supplier_code: { type: [string, "null"], maxLength: 100, description: "Supplier product code. Optional, searchable in the catalog." }
+        ean: { type: [string, "null"], pattern: '^[0-9]{8,14}$', description: "EAN/GTIN barcode, 8 to 14 digits (spaces and dashes are removed). Optional, searchable in the catalog." }
         name: { type: string, maxLength: 190 }
         regenerate_sku: { type: boolean }
         regenerate_name: { type: boolean }

@@ -27,8 +27,10 @@ final class ExchangeRateController extends Controller
     {
         $data = $request->validate(['rate' => ['required', 'numeric', 'min:50', 'max:250']]);
         try {
-            $service->saveManual((float) $data['rate'], (int) $request->user()->getAuthIdentifier());
-            return back()->with('status', 'Ručni EUR/RSD kurs je sačuvan.');
+            $released = $service->saveManual((float) $data['rate'], (int) $request->user()->getAuthIdentifier());
+            $back = back()->with('status', 'Ručni EUR/RSD kurs je sačuvan.');
+
+            return $released ? $back : $back->withErrors(['rate' => 'Kurs je sačuvan, ali provizije koje su čekale kurs nisu oslobođene. Pokušaj se ponavlja automatski; ako se ne reši, sačuvaj kurs ponovo.']);
         } catch (RuntimeException $exception) {
             return back()->withErrors(['rate' => $exception->getMessage()])->withInput();
         }

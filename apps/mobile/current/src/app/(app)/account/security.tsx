@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -147,6 +147,9 @@ export default function AccountSecurityScreen() {
 
       <Button variant="secondary" onPress={() => router.push('/sessions')}>
         Aktivne prijave i sesije
+      </Button>
+      <Button variant="secondary" onPress={() => router.push('/account/delete' as Href)}>
+        Brisanje naloga
       </Button>
     </Screen>
   );

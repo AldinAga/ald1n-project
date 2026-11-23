@@ -82,6 +82,14 @@ final class RouteRenderSmokeTest extends TestCase
         return $failures;
     }
 
+    /** The dashboard ("/") and /warranties, the pages that broke in production must answer 200 (not only "not 500") for every signed-in role. */
+    private function assertKeyPagesAnswer200(User $user): void
+    {
+        foreach (['/', '/warranties'] as $uri) {
+            $this->actingAs($user)->get($uri)->assertOk();
+        }
+    }
+
     public function test_the_page_list_is_not_empty(): void
     {
         $this->assertGreaterThan(30, count(self::pages()));
@@ -95,19 +103,25 @@ final class RouteRenderSmokeTest extends TestCase
 
     public function test_pages_render_for_a_customer(): void
     {
-        $failures = $this->failuresFor($this->user('user'));
+        $user = $this->user('user');
+        $failures = $this->failuresFor($user);
         $this->assertSame([], $failures, implode("\n", $failures));
+        $this->assertKeyPagesAnswer200($user);
     }
 
     public function test_pages_render_for_an_administrator(): void
     {
-        $failures = $this->failuresFor($this->user('admin'));
+        $user = $this->user('admin');
+        $failures = $this->failuresFor($user);
         $this->assertSame([], $failures, implode("\n", $failures));
+        $this->assertKeyPagesAnswer200($user);
     }
 
     public function test_pages_render_for_a_super_administrator(): void
     {
-        $failures = $this->failuresFor($this->user('superadmin'));
+        $user = $this->user('superadmin');
+        $failures = $this->failuresFor($user);
         $this->assertSame([], $failures, implode("\n", $failures));
+        $this->assertKeyPagesAnswer200($user);
     }
 }

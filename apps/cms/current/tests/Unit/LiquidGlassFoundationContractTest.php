@@ -25,7 +25,7 @@ final class LiquidGlassFoundationContractTest extends TestCase
             '--ald-background: #13181C;', '--ald-background: #F3F5F6;',
             '--ald-surface: #1B2329;', '--ald-surface: #FCFDFE;',
             '--ald-text: #E9EEF1;', '--ald-text: #24313A;',
-            '--ald-primary: #BFA590;', '--ald-primary: #68584D;',
+            '--ald-primary: #287CFF;', '--ald-primary: #165DCB;',
         ] as $required) {
             self::assertStringContainsString($required, $css);
         }

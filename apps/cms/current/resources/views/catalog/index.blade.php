@@ -83,6 +83,7 @@
         @if($canManageCatalog)
             <a class="button button-ghost" href="{{ route('admin.products.archived') }}"><x-icon name="archive" size="16" />Arhivirani</a>
             <a class="button button-ghost" href="{{ route('admin.products.bulk') }}"><x-icon name="sliders" size="16" />Bulk centar</a>
+            <a class="button button-ghost" href="{{ route('admin.products.import') }}"><x-icon name="sliders" size="16" />Uvoz CSV</a>
             <a class="button button-primary" href="{{ route('admin.products.create') }}"><x-icon name="plus-circle" size="16" />Dodaj artikal</a>
         @endif
     </div>

@@ -70,7 +70,11 @@ final class AdminUserService
             $before = $locked->toArray();
             $newRole = Role::query()->findOrFail((int) $data['role_id']);
             // Only a SuperAdmin may touch a SuperAdmin account or hand out the SuperAdmin role.
-            abort_if($locked->hasRole('superadmin') && !$actor->hasRole('superadmin'), 403);
+            abort_if(
+                $locked->hasRole('superadmin') && !$actor->hasRole('superadmin'),
+                403,
+                'Nalog SuperAdministratora može da menja samo SuperAdministrator.',
+            );
             $this->guardSuperAdminRole($actor, (int) $newRole->getKey());
             $nextStatus = (string) $data['status'];
             if ($newRole->slug === 'customer') $data['user_group_id'] = null;
@@ -108,7 +112,12 @@ final class AdminUserService
                 $data['approved_at'] = now();
             }
 
+            $previousStatus = (string) $locked->status;
             $locked->update($data);
+            // Zahtjev za brisanje naloga u roku mirovanja: odblokiranje ga zatvara, blokada ga preuzima.
+            if ($previousStatus !== $nextStatus && UserDeletionService::available()) {
+                app(UserDeletionService::class)->adminChangedStatus($locked, $previousStatus, $nextStatus);
+            }
             if ($passwordChanged) {
                 $locked->tokens()->delete();
             }

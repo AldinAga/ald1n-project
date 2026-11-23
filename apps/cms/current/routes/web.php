@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductBulkController;
+use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\ProductPurchaseCostController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\PortalConversationController as AdminPortalConversationController;
@@ -119,6 +120,21 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
         ->defaults('page', $legalKey)
         ->middleware('throttle:public-shop-browse')->name('legal.'.$legalKey);
 }
+
+// Brisanje naloga (Google Play): javna stranica, potvrda e-poštom i poništavanje linkom.
+// Potvrda i poništavanje su POST, da skeneri linkova ne pokrenu radnju.
+Route::get('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'show'])
+    ->middleware('throttle:public-shop-browse')->name('account-deletion.show');
+Route::post('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'request'])
+    ->middleware('throttle:password-reset-link')->name('account-deletion.request');
+Route::get('/brisanje-naloga/potvrda/{token}', [\App\Http\Controllers\AccountDeletionController::class, 'confirmShow'])
+    ->where('token', '[A-Za-z0-9]{80}')->middleware('throttle:password-reset')->name('account-deletion.confirm.show');
+Route::post('/brisanje-naloga/potvrda', [\App\Http\Controllers\AccountDeletionController::class, 'confirm'])
+    ->middleware('throttle:password-reset')->name('account-deletion.confirm');
+Route::get('/brisanje-naloga/ponisti/{token}', [\App\Http\Controllers\AccountDeletionController::class, 'cancelShow'])
+    ->where('token', '[A-Za-z0-9]{80}')->middleware('throttle:password-reset')->name('account-deletion.cancel.show');
+Route::post('/brisanje-naloga/ponisti', [\App\Http\Controllers\AccountDeletionController::class, 'cancel'])
+    ->middleware('throttle:password-reset')->name('account-deletion.cancel');
 
 // Site logos, favicon and login backgrounds (SiteLogoAssetService), served
 // without the /storage symlink. Public like the logo itself, throttled,
@@ -205,6 +221,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::get('/media/product/{image}', ProductMediaController::class)->whereNumber('image')->name('media.product');
     Route::get('/media/product/{image}/download', ProductMediaDownloadController::class)->whereNumber('image')->name('media.product.download');
+    Route::post('/account/deletion', [\App\Http\Controllers\AccountDeletionController::class, 'requestOwn'])
+        ->middleware('throttle:password-reset-link')->name('account.deletion.request');
     Route::put('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
     Route::put('/account/password', [AccountController::class, 'password'])->name('account.password');
     Route::put('/account/notifications', [AccountController::class, 'notifications'])->name('account.notifications');
@@ -324,6 +342,9 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'index'])->name('products.purchase-costs');
             Route::post('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'update'])->middleware('throttle:admin-write')->name('products.purchase-costs.update');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
+            Route::get('/catalog/import', [ProductImportController::class, 'index'])->name('products.import');
+            Route::post('/catalog/import/upload', [ProductImportController::class, 'upload'])->middleware('throttle:admin-write')->name('products.import.upload');
+            Route::post('/catalog/import', [ProductImportController::class, 'process'])->middleware('throttle:admin-write')->name('products.import.process');
             Route::get('/catalog/duplicate-check', [AdminProductController::class, 'duplicateCheck'])->name('products.duplicate-check');
             Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
                 ->whereNumber('product')

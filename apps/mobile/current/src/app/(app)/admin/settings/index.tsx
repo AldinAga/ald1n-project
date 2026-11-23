@@ -37,7 +37,7 @@ export default function AdminSystemSettingsHub() {
         <Text style={styles.title}>Centralna konfiguracija</Text>
         <Text style={styles.muted}>Podešavanja su podeljena po odgovornosti kako bi ekran ostao brz i pregledan.</Text>
         <View style={styles.actions}>
-          {DESTINATIONS.map(([label, route]) => (
+          {DESTINATIONS.filter(([, route]) => route !== '/admin/settings/automation' || can('automation.manage')).map(([label, route]) => (
             <Button key={route} variant="secondary" onPress={() => router.push(route as Href)}>{label}</Button>
           ))}
         </View>

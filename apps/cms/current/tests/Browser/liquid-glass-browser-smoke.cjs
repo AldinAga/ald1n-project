@@ -227,11 +227,15 @@ async function headerGeometry(page, persona, mode, width) {
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
   if (mode !== 'auto') check(state.docTheme === mode, 'THEME_RESOLVED', tag + ': ' + state.docTheme);
-  const bg = state.docTheme === 'dark' ? '#09142B' : '#F2F6FF';
+  // Kobalt G0 (23.11.2026): the legacy --ald-* / --lg5-* palette is an alias layer over the --a1-* tokens (ald1n-admin.css).
+  const dark = state.docTheme === 'dark';
+  const bg = dark ? '#0D1216' : '#EDF0F4';
   check(state.themeBackground.toUpperCase() === bg, 'R5_THEME_BACKGROUND',
     tag + ': ' + state.themeBackground);
-  for (const [name,expected] of Object.entries({
-    blue:'#287CFF',violet:'#885BFF',cyan:'#20CAFF',teal:'#16CAA7',amber:'#FFBB62',rose:'#FF658E'
+  for (const [name,expected] of Object.entries(dark ? {
+    blue:'#3557C7',violet:'#A9C3FF',cyan:'#4FB7A3',teal:'#5FE29A',amber:'#E0B45C',rose:'#D7788F'
+  } : {
+    blue:'#2D50BF',violet:'#2546AD',cyan:'#2F9E88',teal:'#16A34A',amber:'#C58A1A',rose:'#C4415F'
   })) check(state.r5.palette[name] === expected, 'R5_FUNCTIONAL_COLOR_'+name.toUpperCase(), tag+': '+state.r5.palette[name]);
   // Module 2 retired R5_AMBIENT_BLOBS_40_PERCENT_REDUCTION (the old dashboard aurora on .page-shell::before) and
   // R5_KPI_VIOLET_SEMANTIC_ROLE (old KPI tiles): the dashboard paints the Kobalt page glows on the body

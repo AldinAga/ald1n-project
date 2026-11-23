@@ -10,6 +10,7 @@ use App\Services\AdminUserService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\Sanctum;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -101,6 +102,46 @@ final class AdminUserSuperAdminGuardTest extends TestCase
             $this->assertSame(403, $e->getStatusCode());
         }
         $this->assertSame($hash, $super->fresh()->password_hash);
+    }
+
+    public function test_an_administrator_cannot_demote_or_block_a_super_administrator_even_when_two_are_active(): void
+    {
+        $admin = $this->user('guard-admin', 'admin');
+        $super = $this->user('guard-super', 'superadmin');
+        $this->user('guard-super-two', 'superadmin');
+
+        foreach ([['admin', []], ['superadmin', ['status' => 'blocked']]] as [$role, $override]) {
+            try {
+                app(AdminUserService::class)->update($super, $this->payload($super, $role, $override), $admin);
+                $this->fail('The change must be refused.');
+            } catch (HttpException $e) {
+                $this->assertSame(403, $e->getStatusCode());
+                $this->assertStringContainsString('SuperAdministrator', $e->getMessage());
+            }
+        }
+        $fresh = $super->fresh();
+        $this->assertSame('superadmin', $fresh->role->slug);
+        $this->assertSame('active', $fresh->status);
+    }
+
+    public function test_api_marks_super_administrator_rows_unmanageable_and_hides_the_role_from_an_administrator(): void
+    {
+        $admin = $this->user('guard-admin', 'admin');
+        $super = $this->user('guard-super', 'superadmin');
+        $agent = $this->user('guard-agent', 'user');
+
+        Sanctum::actingAs($admin, ['*']);
+        $list = $this->getJson('/api/v1/admin/users?per_page=100')->assertOk();
+        $byId = collect($list->json('data'))->keyBy('id');
+        $this->assertFalse($byId[$super->id]['can_manage']);
+        $this->assertTrue($byId[$agent->id]['can_manage']);
+        $this->assertNotContains('superadmin', collect($list->json('filter_options.roles'))->pluck('slug')->all());
+        $this->assertFalse($this->getJson('/api/v1/admin/users/'.$super->id)->assertOk()->json('data.can_manage'));
+        $this->assertNotContains('superadmin', collect($this->getJson('/api/v1/admin/users/options')->json('data.roles'))->pluck('slug')->all());
+
+        Sanctum::actingAs($super, ['*']);
+        $this->assertTrue($this->getJson('/api/v1/admin/users/'.$super->id)->json('data.can_manage'));
+        $this->assertContains('superadmin', collect($this->getJson('/api/v1/admin/users/options')->json('data.roles'))->pluck('slug')->all());
     }
 
     public function test_a_super_administrator_can_still_manage_roles_and_an_administrator_can_manage_other_users(): void

@@ -49,14 +49,20 @@ final class CatalogQueryService
         $escaped = addcslashes($search, '\\%_');
         $contains = '%'.$escaped.'%';
         $prefix = $escaped.'%';
+        $canManage = $this->access->canCreateProducts($user);
 
         $query = Product::query()
             ->select(['id', 'brand_id', 'sku', 'name', 'model_name', 'slug', 'stock_quantity', 'status', 'deleted_at'])
             ->with('brand:id,name')
-            ->where(static function (Builder $nested) use ($contains): void {
+            ->where(static function (Builder $nested) use ($contains, $canManage): void {
                 $nested->where('name', 'like', $contains)
                     ->orWhere('sku', 'like', $contains)
                     ->orWhere('model_name', 'like', $contains);
+                if (Product::hasIdentifierColumns()) {
+                    $nested->orWhere('ean', 'like', $contains);
+                    // Šifra dobavljača je interna: partneri ne smeju da je rekonstruišu pretragom.
+                    if ($canManage) $nested->orWhere('supplier_code', 'like', $contains);
+                }
             });
 
         $this->access->applyVisibleCatalog($query, $user);
@@ -91,12 +97,17 @@ final class CatalogQueryService
 
         $search = trim((string) ($filters['q'] ?? ''));
         if ($search !== '') {
-            $query->where(static function (Builder $nested) use ($search): void {
-                $like = '%'.$search.'%';
+            $query->where(static function (Builder $nested) use ($search, $canManage): void {
+                $like = '%'.addcslashes($search, '\\%_').'%';
                 $nested->where('name', 'like', $like)
                     ->orWhere('model_name', 'like', $like)
                     ->orWhere('sku', 'like', $like)
                     ->orWhere('description', 'like', $like);
+                if (Product::hasIdentifierColumns()) {
+                    $nested->orWhere('ean', 'like', $like);
+                    // Šifra dobavljača je interna: partneri ne smeju da je rekonstruišu pretragom.
+                    if ($canManage) $nested->orWhere('supplier_code', 'like', $like);
+                }
             });
         }
 

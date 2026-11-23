@@ -55,10 +55,16 @@ final class BladeTemplateIntegrityTest extends TestCase
     public static function gluedDirectives(string $source): array
     {
         $masked = self::mask($source);
-        // (?<=\w): a word character right before "@". (?!\w|[.-]\w): not an e-mail domain such as a@if.com.
-        preg_match_all('/(?<=\w)@('.self::DIRECTIVES.')(?![\w]|[.-]\w)/', $masked, $m, PREG_OFFSET_CAPTURE);
+        // (?<=\w): a word character right before "@".
+        preg_match_all('/(?<=\w)@('.self::DIRECTIVES.')(?!\w)/', $masked, $m, PREG_OFFSET_CAPTURE);
         $found = [];
         foreach ($m[0] as [$text, $offset]) {
+            // "a@if.com" is an e-mail address, unless the word before the "@" is the tail of another directive
+            // ("@endif@endif.", "@empty@if-"): that one is glued and stays raw.
+            $after = substr($masked, $offset + strlen($text), 2);
+            if (preg_match('/^[.-]\w$/', $after) && !preg_match('/@\w+$/', substr($masked, 0, $offset))) {
+                continue;
+            }
             $line = substr_count($masked, "\n", 0, $offset) + 1;
             $found[] = 'line '.$line.': '.trim(substr($masked, max(0, $offset - 20), 44));
         }
@@ -189,10 +195,16 @@ final class BladeTemplateIntegrityTest extends TestCase
             '<p>@if($a)aktivna@endif</p>',
             '@if($a)x@else@if($b)y@endif@endif',
             '@foreach($a as $b){{ $b }}@endforeach@endsection',
+            '@if($a)x@endif@endif.',
+            '@if($a)x@endif@endif-ok',
+            '@if($a)@else@if.com@endif@endif',
+            '@forelse($a as $b)x@empty@if-b($c)y@endif@endforelse',
         ];
         foreach ($bad as $source) {
             $this->assertNotSame([], self::gluedDirectives($source), $source);
         }
+        // Jedini primjer koji stari regex propušta (iza @endif stoji .x): samo nova provjera ga hvata.
+        $this->assertNotSame([], self::gluedDirectives('@if($a) @endif@endif.x'));
         $this->assertCount(2, self::gluedDirectives('@forelse($a as $b)<b></b>@empty@if($c)<i></i>@endif@endforelse'));
 
         $good = [
