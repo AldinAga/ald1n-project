@@ -427,7 +427,7 @@
     const normalize = (value) => String(value || '')
         .toLocaleLowerCase('sr-Latn')
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '');
+        .replace(/[\u0300-\u036f]/g, '');
 
     document.querySelectorAll('[data-access-group-editor]').forEach((editor) => {
         const filter = editor.querySelector('[data-permission-filter]');
