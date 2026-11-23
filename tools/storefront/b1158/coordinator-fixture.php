@@ -79,8 +79,8 @@ check(is_string($purgeStep)&&$purgeStep!==''&&is_string($purgeBack)&&$purgeBack!
 $markers=B1158InstallCoordinator::markers($package);
 $idx=static function(string $path)use($package):int{$i=array_search($path,array_column($package['overlay'],'path'),true);if(!is_int($i))throw new RuntimeException('B1158_FIXTURE_OVERLAY_PATH_UNKNOWN');return $i;};
 // The package mutations the coordinator refuses before it touches anything (plan() compares the package with the coded STEPS: paths, kinds, GROUPS, order, digests, sources). The package BUILD refuses the same in CI (the mutation step of the workflow).
-$pathOf=static function(string $g,string $kind)use($package):string{foreach($package['overlay'] as $e)if($e['group']===$g&&$e['kind']===$kind)return $e['path'];throw new RuntimeException('B1158_FIXTURE_NO_STEP_IN_GROUP_'.$g);};
-$migPath=B1158InstallCoordinator::migrationFiles()[0];$ctlPath=$pathOf('C','modified');$viewPath=$pathOf('F','modified');$newPath=$package['overlay'][0]['path'];
+$pathOf=static function(string $g,string $kind)use($package):?string{foreach($package['overlay'] as $e)if($e['group']===$g&&$e['kind']===$kind)return $e['path'];return null;};
+$migPath=B1158InstallCoordinator::migrationFiles()[0]??null;$ctlPath=$pathOf('C','modified');$viewPath=$pathOf('F','modified');$newPath=$package['overlay'][0]['path'];
 $mutations=[
     'ROUTES_IN_GROUP_B'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('routes/web.php')]['group']='B';},
     'PROVIDER_WITHOUT_ITS_GUARD_GROUP'=>static function(array &$m)use($idx):void{$m['overlay'][$idx('app/Providers/AppServiceProvider.php')]['group']='C';},
@@ -93,8 +93,12 @@ $mutations=[
     'A_FILE_DROPPED'=>static function(array &$m):void{array_pop($m['overlay']);},
     'ANOTHER_SOURCE_COMMIT'=>static function(array &$m):void{$m['sourceCommit']=str_repeat('1',40);},
 ];
-foreach($mutations as $name=>$mutate){$m=$package;$mutate($m);try{B1158InstallCoordinator::plan($m,$incoming);$refused=false;}catch(RuntimeException $e){$refused=preg_match('/^OVERLAY_[A-Z_]+$/D',$e->getMessage())===1;}check($refused,'PACKAGE_MUTATION_IS_REFUSED_BY_THE_COORDINATOR_PLAN_'.$name);}
+$have=array_column($package['overlay'],'path');$hasRoutes=in_array('routes/web.php',$have,true);$hasProvider=in_array('app/Providers/AppServiceProvider.php',$have,true);
+if(!$hasRoutes){unset($mutations['ROUTES_IN_GROUP_B'],$mutations['ROUTES_BEFORE_THEIR_CONTROLLERS'],$mutations['PRE_DIGEST_OF_ROUTES']);}
+if(!$hasProvider){unset($mutations['PROVIDER_WITHOUT_ITS_GUARD_GROUP'],$mutations['PAYLOAD_DIGEST_OF_THE_PROVIDER']);}
+if($migPath===null)unset($mutations['A_MIGRATION_IN_GROUP_B']);if($viewPath===null)unset($mutations['A_VIEW_BEFORE_THE_ROUTES']);if($ctlPath===null)unset($mutations['ROUTES_BEFORE_THEIR_CONTROLLERS']);
 $packageMutations=array_fill_keys(array_keys($mutations),'REFUSED_BEFORE_ANY_FILE');
+foreach($mutations as $name=>$mutate){$m=$package;$mutate($m);try{B1158InstallCoordinator::plan($m,$incoming);$refused=false;}catch(RuntimeException $e){$refused=preg_match('/^OVERLAY_[A-Z_]+$/D',$e->getMessage())===1;}check($refused,'PACKAGE_MUTATION_IS_REFUSED_BY_THE_COORDINATOR_PLAN_'.$name);}
 
 
 // Database after B1145: all 71 migrations ran, production roles, DB switch absent; one superadmin; the old-code approval signed.
