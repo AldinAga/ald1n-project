@@ -129,6 +129,18 @@
         </section>
     </div>
 
+    @if(\App\Services\UserDeletionService::available())
+    <section class="a1-card" id="brisanje-naloga" aria-labelledby="ac-delete-title">
+        <div>
+            <h2 class="a1-h2" id="ac-delete-title">Brisanje naloga</h2>
+            <p class="a1-muted">Poslaćemo link za potvrdu na {{ $user->email }}. Posle potvrde nalog se blokira, a konačno brisanje sledi posle {{ \App\Services\UserDeletionService::GRACE_DAYS }} dana, uz mogućnost poništavanja. Porudžbine i poslovna istorija ostaju bez veze sa vašim imenom. Više na <a href="{{ route('account-deletion.show', [], false) }}">stranici o brisanju naloga</a>.</p>
+        </div>
+        <form method="post" action="{{ route('account.deletion.request') }}" data-confirm-submit="Poslati link za potvrdu brisanja naloga?">
+            @csrf
+            <button class="a1-btn a1-btn--danger" type="submit">Zatraži brisanje naloga</button>
+        </form>
+    </section>
+    @endif
     <section class="a1-card" aria-labelledby="ac-notify-title">
         <div>
             <h2 class="a1-h2" id="ac-notify-title">Poslovna obaveštenja</h2>

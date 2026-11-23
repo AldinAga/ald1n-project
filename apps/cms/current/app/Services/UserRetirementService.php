@@ -33,6 +33,41 @@ final class UserRetirementService
         abort_if((int) $actor->getKey() === (int) $target->getKey(), 422);
         abort_if($target->hasRole('superadmin'), 422);
 
+        return $this->counts($target);
+    }
+
+    /**
+     * @return array<string,int|string>
+     */
+    public function retire(User $target, User $actor): array
+    {
+        abort_unless($actor->status === 'active' && $actor->retired_at === null && $actor->hasRole('superadmin'), 403);
+        abort_if((int) $actor->getKey() === (int) $target->getKey(), 422, 'Ne možete obrisati sopstveni nalog.');
+
+        return $this->execute($target, $actor, false);
+    }
+
+    /**
+     * Retirement step of the account-deletion flow (UserDeletionService). The
+     * system acts as the successor: the account may be blocked already (grace
+     * period) and may be a SuperAdministrator, but only when a different active
+     * SuperAdministrator receives the work. Orders owned by a customer stay on
+     * the account (they become the anonymised user); orders owned by staff move
+     * to the successor like in retire(). Without a successor nothing may need
+     * transferring.
+     *
+     * @return array<string,int|string>
+     */
+    public function retireForAccountDeletion(User $target, ?User $successor): array
+    {
+        abort_if($successor !== null && (int) $successor->getKey() === (int) $target->getKey(), 422);
+
+        return $this->execute($target, $successor, true);
+    }
+
+    /** @return array<string,int> */
+    private function counts(User $target): array
+    {
         // Verify EVERY known foreign key and non-FK actor field, never rely
         // on a partial preview or a stale production schema.
         $schema = $this->relations->verifySchema();
@@ -54,76 +89,93 @@ final class UserRetirementService
     /**
      * @return array<string,int|string>
      */
-    public function retire(User $target, User $actor): array
+    private function execute(User $target, ?User $actor, bool $accountDeletion): array
     {
-        abort_unless($actor->status === 'active' && $actor->retired_at === null && $actor->hasRole('superadmin'), 403);
-        abort_if((int) $actor->getKey() === (int) $target->getKey(), 422, 'Ne možete obrisati sopstveni nalog.');
-
-        return DB::transaction(function () use ($target, $actor): array {
-            $recipient = User::query()
-                ->whereKey((int) $actor->getKey())
-                ->where('status', 'active')
-                ->whereNull('retired_at')
-                ->lockForUpdate()
-                ->firstOrFail();
-            abort_unless($recipient->hasRole('superadmin'), 403);
+        return DB::transaction(function () use ($target, $actor, $accountDeletion): array {
+            $recipient = null;
+            if ($actor !== null) {
+                $recipient = User::query()
+                    ->whereKey((int) $actor->getKey())
+                    ->where('status', 'active')
+                    ->whereNull('retired_at')
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                abort_unless($recipient->hasRole('superadmin'), 403);
+            }
 
             $locked = User::query()->lockForUpdate()->findOrFail((int) $target->getKey());
-            abort_if($locked->hasRole('superadmin'), 422, 'SuperAdministrator nalog se ne briše ovim postupkom.');
+            if (!$accountDeletion) {
+                abort_if($locked->hasRole('superadmin'), 422, 'SuperAdministrator nalog se ne briše ovim postupkom.');
+            }
             abort_if($locked->retired_at !== null, 422, 'Nalog je već trajno deaktiviran.');
-            abort_if($locked->status === 'blocked', 422, 'Nalog je već blokiran. Potrebna je zasebna provera.');
+            if (!$accountDeletion) {
+                abort_if($locked->status === 'blocked', 422, 'Nalog je već blokiran. Potrebna je zasebna provera.');
+            }
 
             // 121 FK + 7 unconstrained columns are classified and schema-checked.
             // Commission ownership, warranties, conversations, assignments and
             // audit actors are historical. They remain on this retained user row.
-            $impact = $this->impact($locked, $recipient);
+            $impact = $this->counts($locked);
+
+            // Account deletion without a successor is only possible when there is nothing to hand over.
+            $transferOrders = !$accountDeletion || $locked->hasRole('admin', 'superadmin');
+            if ($recipient === null) {
+                abort_if(
+                    ($transferOrders && $impact['orders'] > 0) || array_sum($this->work->counts((int) $locked->getKey())) > 0,
+                    422,
+                    'Nalog ima aktivna zaduženja, a nasledni SuperAdministrator ne postoji.',
+                );
+            }
 
             // A business entity is never deleted by cascading FK effects because
             // the user record survives. Keep original attribution in an append-only
             // owner-link history before reassigning the operational order owner.
             // Lock each source order; rollback includes histories if a later step fails.
-            $orderIds = DB::table('orders')
-                ->where('user_id', (int) $locked->getKey())
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->pluck('id');
+            $orders = 0;
+            if ($transferOrders && $recipient !== null) {
+                $orderIds = DB::table('orders')
+                    ->where('user_id', (int) $locked->getKey())
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->pluck('id');
 
-            $orders = $orderIds->count();
-            abort_if($orders !== $impact['orders'], 409, 'Lista porudžbina se promenila. Ponovite pregled.');
+                $orders = $orderIds->count();
+                abort_if($orders !== $impact['orders'], 409, 'Lista porudžbina se promenila. Ponovite pregled.');
 
-            if ($orders > 0) {
-                $at = now();
-                foreach ($orderIds->chunk(300) as $chunk) {
-                    $rows = [];
-                    foreach ($chunk as $orderId) {
-                        $rows[] = [
-                            'order_id' => (int) $orderId,
-                            'from_user_id' => (int) $locked->getKey(),
-                            'to_user_id' => (int) $recipient->getKey(),
-                            'changed_by' => (int) $recipient->getKey(),
-                            'reason' => 'Bezbedno povlačenje korisničkog naloga (user.retired)',
-                            'created_at' => $at,
-                        ];
+                if ($orders > 0) {
+                    $at = now();
+                    foreach ($orderIds->chunk(300) as $chunk) {
+                        $rows = [];
+                        foreach ($chunk as $orderId) {
+                            $rows[] = [
+                                'order_id' => (int) $orderId,
+                                'from_user_id' => (int) $locked->getKey(),
+                                'to_user_id' => (int) $recipient->getKey(),
+                                'changed_by' => (int) $recipient->getKey(),
+                                'reason' => 'Bezbedno povlačenje korisničkog naloga (user.retired)',
+                                'created_at' => $at,
+                            ];
+                        }
+
+                        DB::table('portal_order_link_history')->insert($rows);
                     }
 
-                    DB::table('portal_order_link_history')->insert($rows);
+                    // DB uniqueness/FK failures MUST abort the entire transaction.
+                    try {
+                        $affected = DB::table('orders')
+                            ->where('user_id', (int) $locked->getKey())
+                            ->whereIn('id', $orderIds->all())
+                            ->update(['user_id' => (int) $recipient->getKey()]);
+                    } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
+                        abort(409, 'Prenos nije bezbedan zbog konflikta ključa porudžbine. Nijedan podatak nije izmenjen.');
+                    }
+                    abort_if($affected !== $orders, 409, 'Prenos porudžbina nije potpun.');
                 }
-
-                // DB uniqueness/FK failures MUST abort the entire transaction.
-                try {
-                    $affected = DB::table('orders')
-                        ->where('user_id', (int) $locked->getKey())
-                        ->whereIn('id', $orderIds->all())
-                        ->update(['user_id' => (int) $recipient->getKey()]);
-                } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
-                    abort(409, 'Prenos nije bezbedan zbog konflikta ključa porudžbine. Nijedan podatak nije izmenjen.');
-                }
-                abort_if($affected !== $orders, 409, 'Prenos porudžbina nije potpun.');
             }
 
             // Move ONLY active operational assignments and append durable audit
             // records in this same transaction; terminal assignment history stays.
-            $transfers = $this->work->transfer($locked, $recipient, $impact);
+            $transfers = $recipient !== null ? $this->work->transfer($locked, $recipient, $impact) : [];
 
             // Block login immediately while retaining the original user row,
             // financial ownership, warranties, CRM and historical actor IDs.
@@ -132,7 +184,7 @@ final class UserRetirementService
                 ->where('user_id', (int) $locked->getKey())
                 ->whereNull('revoked_at')
                 ->whereNull('logged_out_at')
-                ->update(['revoked_at' => now(), 'revoked_by' => (int) $recipient->getKey()]);
+                ->update(['revoked_at' => now(), 'revoked_by' => $recipient?->getKey()]);
             // Preserve device records for security history; neutralize every push
             // destination and revoke device access before deleting bearer tokens.
             DB::table('mobile_devices')
@@ -173,9 +225,9 @@ final class UserRetirementService
                 ['status' => $target->status],
                 ['status' => 'blocked'],
                 [
-                    'mode' => 'non_destructive_retirement',
+                    'mode' => $accountDeletion ? 'account_deletion_retirement' : 'non_destructive_retirement',
                     'transferred_orders' => $orders,
-                    'recipient_user_id' => (int) $recipient->getKey(),
+                    'recipient_user_id' => $recipient?->getKey(),
                     'preserved_commissions' => $impact['commissions'],
                     'preserved_warranties' => $impact['warranties'],
                     'preserved_conversations' => $impact['conversations'],
@@ -184,13 +236,13 @@ final class UserRetirementService
                     'schema_unconstrained_history' => $impact['unconstrained_history'],
                     'active_work_transfers' => $transfers,
                 ],
-                user: $actor,
+                user: $recipient ?? $actor,
             );
 
             return [
                 'orders' => $orders,
-                'recipient_id' => (int) $recipient->getKey(),
-                'mode' => 'non_destructive_retirement',
+                'recipient_id' => $recipient?->getKey() === null ? 0 : (int) $recipient->getKey(),
+                'mode' => $accountDeletion ? 'account_deletion_retirement' : 'non_destructive_retirement',
                 ...$transfers,
             ];
         }, 5);

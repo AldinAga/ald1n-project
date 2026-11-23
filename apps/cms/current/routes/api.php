@@ -529,6 +529,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:api-sensitive')
             ->name('me.password');
         Route::put('/me/notification-preferences', [AccountController::class, 'notifications'])->name('me.notification-preferences');
+        // Google Play: brisanje naloga iz aplikacije (rok mirovanja 14 dana, poništavanje linkom iz e-pošte).
+        Route::get('/account/deletion', [AccountController::class, 'deletionStatus'])->name('account.deletion.show');
+        Route::post('/account/deletion', [AccountController::class, 'requestDeletion'])
+            ->middleware('throttle:api-sensitive')->name('account.deletion.store');
+        Route::delete('/account/deletion', [AccountController::class, 'cancelDeletion'])
+            ->middleware('throttle:api-sensitive')->name('account.deletion.destroy');
         // MOBILE_V1_0_ACCOUNT_LOGIN_SESSIONS_PARITY_BATCH32
         Route::get('/me/sessions', [AccountController::class, 'sessions'])->name('me.sessions.index');
         Route::delete('/me/sessions/others', [AccountController::class, 'revokeOtherSessions'])

@@ -56,6 +56,10 @@ Schedule::command('app:backup-create --type=weekly')
     ->weeklyOn(0, '03:10')
     ->withoutOverlapping(180);
 
+Schedule::command('app:account-deletions-process')
+    ->dailyAt('04:20')
+    ->withoutOverlapping(60);
+
 Schedule::command('app:system-health --snapshot')
     ->dailyAt('07:45')
     ->withoutOverlapping(30);
