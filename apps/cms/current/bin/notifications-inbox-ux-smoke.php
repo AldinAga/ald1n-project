@@ -13,11 +13,11 @@ if ($blade === false || $css === false) {
 }
 $rules = [
     'Existing responsive page identity and new scoped inbox class' =>
-        str_contains($blade, 'class="build16-notifications-shell ald-inbox-ux"')
+        str_contains($blade, 'class="a1-ops build16-notifications-shell"')
         && str_contains($blade, 'data-build16-notifications="1"'),
     'Original user-facing title and helper message preserved' =>
         str_contains($blade, "@section('title', 'Obaveštenja')")
-        && str_contains($blade, '<h1>Obaveštenja</h1>')
+        && str_contains($blade, '>Obaveštenja</h1>')
         && str_contains($blade, 'Promene porudžbina, tracking, dodele i statusi provizija.'),
     'Unread total is the real controller-provided count' =>
         str_contains($blade, '{{ $unreadCount }}')
@@ -31,9 +31,8 @@ $rules = [
         && str_contains($blade, 'method="post"')
         && str_contains($blade, 'type="submit"'),
     'List preserves existing pagination and empty state' =>
-        str_contains($blade, '$notifications->links()')
-        && str_contains($blade, '@forelse($notifications as $notification)')
-        && str_contains($blade, '@empty')
+        str_contains($blade, '$notifications->links(')
+        && str_contains($blade, '$notifications->isEmpty()')
         && str_contains($blade, 'Nema obaveštenja'),
     'Read and unread visual states use original read_at' =>
         str_contains($blade, '$notification->read_at')
@@ -59,21 +58,11 @@ $rules = [
     'Read-all and item forms remain non-nested' =>
         strpos($blade, "route('notifications.read-all')") < strpos($blade, '@endif', strpos($blade, "route('notifications.read-all')"))
         && strpos($blade, "route('notifications.read', \$notification->id)") > strpos($blade, '@endif', strpos($blade, "route('notifications.read-all')")),
-    'New card is one keyboard focusable native button' =>
-        str_contains($blade, 'class="notification-card-button ald-inbox-ux-card-button"')
-        && str_contains($blade, 'data-inbox-action'),
-    'Scoped desktop inbox rules and no legacy stripping' =>
-        str_contains($css, 'ALD1N_NOTIFICATIONS_INBOX_UX_BATCH567')
-        && str_contains($css, '.ald-inbox-ux .build16-notification-list .notification-card'),
-    'Touch-size CTA and focus-visible keyboard treatment' =>
-        str_contains($css, '.ald-inbox-ux .ald-inbox-ux-card-button:focus-visible')
-        && str_contains($css, 'min-height: 44px;'),
-    'Mobile single-column layout at compact width' =>
-        str_contains($css, '@media (max-width: 640px)')
-        && str_contains($css, '.ald-inbox-ux .ald-inbox-ux-card-layout'),
-    'Reduced-motion preferences respected' =>
-        str_contains($css, '@media (prefers-reduced-motion: reduce)')
-        && str_contains($css, '.ald-inbox-ux .notification-card'),
+    'New card is one keyboard focusable native button using shared a1 components' =>
+        str_contains($blade, 'class="a1-btn a1-btn--sm" data-inbox-action')
+        && str_contains($blade, 'class="a1-item a1-item--static')
+        && !str_contains($blade, 'ald-inbox-ux')
+        && !str_contains($blade, '<style'),
     'Batch564/565/566 CSS is intact' =>
         str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
         && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')

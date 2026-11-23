@@ -151,7 +151,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
         self::assertSame(2, OrderCommission::query()->whereNotNull('payment_batch_id')->count());
     }
 
-    public function test_commission_action_uses_large_viewport_modal_without_table_scroll(): void
+    public function test_commission_action_uses_native_dialog_without_table_scroll(): void
     {
         $admin = $this->user('modal-admin', 'admin');
         $customer = $this->user('modal-owner', 'user');
@@ -161,10 +161,10 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/commissions')
             ->assertOk()
-            ->assertSee('commission-table-wrap', false)
-            ->assertSee('table-action-popover-head', false)
-            ->assertSee('commission-popover-close', false)
-            ->assertSee("event.key !== 'Escape'", false);
+            ->assertSee('a1-tablewrap', false)
+            ->assertSee('class="a1-dialog" id="process-', false)
+            ->assertSee('data-process-open', false)
+            ->assertSee('data-dialog-close', false);
     }
 
     // ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
