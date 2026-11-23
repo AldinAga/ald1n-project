@@ -49,7 +49,7 @@ final class SmartProductManagementTest extends TestCase
         ]);
 
         $product = Product::query()->firstOrFail();
-        $response->assertRedirect('/admin/catalog/'.$product->id.'/edit');
+        $response->assertRedirect('/admin/catalog/create');
         self::assertSame('HP EliteBook Intel Core i5 1135G7', $product->name);
         self::assertSame(100, $product->completeness_percent);
         self::assertFalse($product->name_is_manual);

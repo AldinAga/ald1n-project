@@ -324,6 +324,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'index'])->name('products.purchase-costs');
             Route::post('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'update'])->middleware('throttle:admin-write')->name('products.purchase-costs.update');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
+            Route::get('/catalog/duplicate-check', [AdminProductController::class, 'duplicateCheck'])->name('products.duplicate-check');
             Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
                 ->whereNumber('product')
                 ->middleware('throttle:admin-write')

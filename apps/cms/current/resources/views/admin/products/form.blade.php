@@ -1,8 +1,14 @@
 @extends('layouts.app')
 @section('title', $product->exists ? 'Izmeni artikal' : 'Dodaj artikal')
 @section('content')
-<div data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}">
+<div data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-product-id="{{ $product->exists ? $product->id : '' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}" data-duplicate-url="{{ route('admin.products.duplicate-check') }}">
     <a class="back-link" href="{{ route('catalog.index') }}">← Nazad na artikle</a>
+    @if(!$product->exists && session('created_product'))
+        <div class="alert alert-success" role="status" data-created-product-banner>
+            Snimljeno: <strong>{{ session('created_product.name') }}</strong> ({{ session('created_product.sku') }}). Formular je spreman za sledeći unos; tip, brend, linija i valuta su zapamćeni.
+            <a class="button button-ghost button-small" href="{{ route('admin.products.edit', session('created_product.id')) }}">Otvori snimljeni artikal</a>
+        </div>
+    @endif
     <div class="page-heading">
         <div>
             <span class="eyebrow">Administracija kataloga</span>
@@ -133,7 +139,7 @@
         data-image-upload-mode="redirect"
     >
         @csrf
-        @if($product->exists)@method('PUT')@endif
+        @if($product->exists)@method('PUT')<input type="hidden" name="autosave_version" value="{{ $product->updated_at?->getTimestamp() }}" data-autosave-version>@endif
         <div class="admin-form-grid">
             <div class="form-main">
                 <section class="panel form-section form-section-priority product-fast-start" data-product-fast-start>
@@ -150,6 +156,7 @@
                         <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
                         <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
                         <label class="field-span-2 product-model-field"><span>Model proizvoda</span><input name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="muted">Tačna oznaka modela ulazi u automatski naziv artikla.</small></label>
+                        <div class="field-span-2 alert alert-warning" role="status" hidden data-duplicate-warning></div>
                         <div class="field-span-2 auto-category-card"><span>Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="muted">Kategorija se ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
                         <div class="field-span-2 product-name-editor product-fast-name">
                             <label><span>Naziv artikla</span><input name="name" maxlength="190" value="{{ old('name',$product->name) }}" data-product-name></label>
@@ -403,6 +410,7 @@
                         <label><span>Prag niskog lagera</span><input type="number" value="{{ $product->low_stock_threshold }}" disabled></label>
                     @endif
 
+                    <small class="muted" role="status" aria-live="polite" data-autosave-status></small>
                     <div class="product-save-actions product-save-actions-sidebar">
                         <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
                         <button class="button button-primary button-large" type="submit" data-product-save-context>{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
@@ -1291,11 +1299,116 @@
     form?.querySelectorAll('input,select,textarea').forEach((input) => input.addEventListener(input.matches('input[type="text"],input[type="number"],textarea') ? 'input' : 'change', refreshCompleteness));
     root?.querySelectorAll('[data-spec-field-id]').forEach((input) => input.addEventListener('change', () => { refreshDependencies(input.closest('[data-spec-panel]')); refreshCompleteness(); }));
 
+    // Upozorenje na duplikat (isti brend + model) uz kloniranje jednim klikom.
+    const duplicateBox = root?.querySelector('[data-duplicate-warning]');
+    const checkDuplicates = async () => {
+        if (!duplicateBox) return;
+        const model = (modelInput?.value || '').trim();
+        if (!brandSelect?.value || model === '') { duplicateBox.hidden = true; return; }
+        try {
+            const params = new URLSearchParams({brand_id: brandSelect.value, model_name: model});
+            if (root.dataset.productId) params.set('exclude_id', root.dataset.productId);
+            const response = await fetch(root.dataset.duplicateUrl + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});
+            if (!response.ok) return;
+            const matches = (await response.json()).matches || [];
+            duplicateBox.replaceChildren();
+            duplicateBox.hidden = matches.length === 0;
+            if (!matches.length) return;
+            const intro = document.createElement('strong');
+            intro.textContent = 'Artikal sa istim brendom i modelom već postoji:';
+            duplicateBox.append(intro);
+            matches.forEach((match) => {
+                const row = document.createElement('div');
+                const link = document.createElement('a');
+                link.href = match.edit_url;
+                link.textContent = match.name + ' (' + match.sku + ')';
+                const clone = document.createElement('button');
+                clone.type = 'button';
+                clone.className = 'button button-ghost button-small';
+                clone.textContent = 'Kloniraj';
+                clone.addEventListener('click', () => {
+                    if (!window.confirm('Kloniranje otvara novi nacrt i napušta ovaj formular. Nastaviti?')) return;
+                    const cloneForm = document.createElement('form');
+                    cloneForm.method = 'post';
+                    cloneForm.action = match.clone_url;
+                    const token = document.createElement('input');
+                    token.type = 'hidden';
+                    token.name = '_token';
+                    token.value = form.querySelector('[name="_token"]')?.value || '';
+                    cloneForm.append(token);
+                    document.body.append(cloneForm);
+                    cloneForm.submit();
+                });
+                row.append(link, ' ', clone);
+                duplicateBox.append(row);
+            });
+        } catch (_) { /* upozorenje je informativno */ }
+    };
+    brandSelect?.addEventListener('change', checkDuplicates);
+    modelInput?.addEventListener('change', checkDuplicates);
+
+    // Automatsko čuvanje nacrta: samo postojeći artikal koji je nacrt (save_draft nikad ne sme da deaktivira aktivan artikal).
+    const autosaveStatus = root?.querySelector('[data-autosave-status]');
+    const autosaveAllowed = () => root?.dataset.productExists === '1' && root.dataset.initialProductStatus === 'draft' && (statusSelect?.value || 'draft') === 'draft';
+    let revision = 0;
+    let savedRevision = 0;
+    let saving = false;
+    let submitting = false;
+    let autosaveTimer = null;
+    const runAutosave = async () => {
+        if (!form || saving || submitting || savedRevision === revision || !autosaveAllowed()) return;
+        saving = true;
+        const current = revision;
+        try {
+            const data = new FormData(form);
+            ['images', 'images[]', 'stock_quantity', 'low_stock_threshold', 'regenerate_sku'].forEach((key) => data.delete(key));
+            data.set('save_draft', '1');
+            data.set('autosave', '1');
+            const response = await fetch(form.action, {method:'POST', body:data, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});
+            if (response.ok) {
+                savedRevision = current;
+                const payload = await response.json().catch(() => ({}));
+                const versionInput = form.querySelector('[data-autosave-version]');
+                if (versionInput && payload.version) versionInput.value = String(payload.version);
+                if (autosaveStatus) autosaveStatus.textContent = 'Nacrt je automatski sačuvan u ' + new Date().toLocaleTimeString('sr-RS', {hour:'2-digit', minute:'2-digit'}) + '.';
+            } else if (autosaveStatus) {
+                const payload = await response.json().catch(() => ({}));
+                if (response.status === 409) {
+                    autosaveStatus.textContent = 'Artikal je izmenjen u drugom tabu ili na drugom uređaju. Osveži stranicu pre nastavka.';
+                    savedRevision = -1;
+                    submitting = true;
+                } else if (response.status === 422 && payload.errors && payload.errors.autosave) {
+                    autosaveStatus.textContent = 'Automatsko čuvanje je isključeno: artikal više nije nacrt.';
+                    submitting = true;
+                } else {
+                    autosaveStatus.textContent = response.status === 422 ? 'Automatsko čuvanje preskočeno: podaci su nepotpuni.' : 'Automatsko čuvanje nije uspelo.';
+                }
+            }
+        } catch (_) {
+            if (autosaveStatus) autosaveStatus.textContent = 'Automatsko čuvanje nije uspelo.';
+        } finally {
+            saving = false;
+        }
+    };
+    const scheduleAutosave = () => {
+        revision += 1;
+        window.clearTimeout(autosaveTimer);
+        if (autosaveAllowed()) autosaveTimer = window.setTimeout(runAutosave, 30000);
+    };
+    form?.addEventListener('input', scheduleAutosave);
+    form?.addEventListener('change', scheduleAutosave);
+    form?.addEventListener('submit', () => {
+        submitting = true;
+        window.clearTimeout(autosaveTimer);
+        window.setTimeout(() => { submitting = false; }, 20000);
+    });
+
     refreshPublicationMode();
     updateBrands();
     updateProductLines();
     updateSpecificationPanel(false);
     refreshCompleteness();
+    checkDuplicates();
 })();
 </script>
 @endpush
