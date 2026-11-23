@@ -23,80 +23,122 @@ const defaultFlags = {
   ordersEnabled: true,
   notificationsEnabled: true,
   canManageOrders: true,
+  cartEnabled: true,
+  commissionsEnabled: true,
+  receivablesEnabled: true,
   unread: 4,
 };
 function items(roleSlug, extra = {}) {
   return buildBottomNavItems({ ...defaultFlags, roleSlug, ...extra });
 }
+const labels = (role) => Array.from(items(role), (item) => item.label);
+const routes = (role) => Array.from(items(role), (item) => item.route);
 
-test('five fixed positions and centered Home, independent of role', () => {
-  for (const role of ['superadmin', 'admin', 'user', null]) {
+test('owner decision 2026-11-16: exact tabs per role, raised Home always in the middle', () => {
+  assert.deepEqual(labels('superadmin'), ['Katalog', 'Porudžbine', 'Početna', 'Administracija', 'Nalog']);
+  assert.deepEqual(routes('superadmin'), ['/catalog', '/admin/orders', '/home', '/admin', '/account']);
+  assert.deepEqual(labels('admin'), ['Katalog', 'Porudžbine', 'Početna', 'Potraživanja', 'Nalog']);
+  assert.deepEqual(routes('admin'), ['/catalog', '/admin/orders', '/home', '/admin/receivables', '/account']);
+  assert.deepEqual(labels('user'), ['Katalog', 'Korpa', 'Početna', 'Porudžbine', 'Provizije']);
+  assert.deepEqual(routes('user'), ['/catalog', '/cart', '/home', '/orders', '/commissions']);
+  for (const role of ['superadmin', 'admin', 'user', null, 'unknown']) {
     const list = items(role);
-    assert.deepEqual(Array.from(list, (item) => item.key), ['catalog', 'orders', 'home', 'secondary', 'account']);
     assert.equal(list.length, 5);
+    assert.equal(list[2].key, 'home');
     assert.equal(list[2].center, true);
     assert.equal(list[2].route, '/home');
-    assert.equal(list[4].route, '/account');
+    assert.equal(list.filter((item) => item.center).length, 1);
   }
 });
 
-test('Admin and SuperAdmin open managed orders and admin hub', () => {
-  for (const role of ['superadmin', 'admin']) {
-    assert.equal(hasBottomNavAdminRole(role), true);
-    assert.equal(items(role)[1].route, '/admin/orders');
-    assert.equal(items(role)[1].enabled, true);
-    assert.equal(items(role)[3].label, 'Administracija');
-    assert.equal(items(role)[3].route, '/admin');
-    assert.equal(items(role)[3].badge, undefined);
+test('roles without an owner decision keep the previous layout', () => {
+  for (const role of [null, undefined, 'unknown']) {
+    assert.deepEqual(labels(role), ['Katalog', 'Porudžbine', 'Početna', 'Notifikacije', 'Nalog']);
+    assert.equal(items(role)[1].route, '/orders');
+    assert.equal(items(role)[3].badge, 4);
   }
 });
 
-test('customer opens only personal orders and notification inbox', () => {
+test('admin tabs: Administracija is not a tab for Admin, no notification badge on tabs', () => {
+  assert.equal(hasBottomNavAdminRole('admin'), true);
+  assert.equal(hasBottomNavAdminRole('superadmin'), true);
   assert.equal(hasBottomNavAdminRole('user'), false);
-  assert.equal(items('user')[1].route, '/orders');
-  assert.equal(items('user')[3].label, 'Notifikacije');
-  assert.equal(items('user')[3].route, '/notifications');
-  assert.equal(items('user')[3].badge, 4);
+  for (const role of ['superadmin', 'admin', 'user']) {
+    assert.ok(items(role).every((item) => item.badge === undefined), role + ' tabs carry no badge; the header bell shows unread');
+  }
+  assert.ok(!labels('admin').includes('Administracija'));
+  assert.ok(!labels('user').includes('Notifikacije'));
 });
 
 test('capability gates do not grant access just because a tab is rendered', () => {
-  const admin = items('admin', { canManageOrders: false });
-  assert.equal(admin[1].route, '/admin/orders');
+  const admin = items('admin', { canManageOrders: false, receivablesEnabled: false });
   assert.equal(admin[1].enabled, false);
-  const customer = items('user', { ordersEnabled: false, notificationsEnabled: false, catalogEnabled: false });
-  assert.equal(customer.length, 5);
-  assert.equal(customer[0].enabled, false);
-  assert.equal(customer[1].enabled, false);
-  assert.equal(customer[3].enabled, false);
-  assert.equal(customer[2].enabled, true);
-  assert.equal(customer[4].enabled, true);
+  assert.equal(admin[3].enabled, false);
+  assert.equal(admin[3].route, '/admin/receivables');
+  const subAgent = items('user', { ordersEnabled: false, cartEnabled: false, commissionsEnabled: false, catalogEnabled: false });
+  assert.deepEqual(Array.from(subAgent, (item) => item.enabled), [false, false, true, false, false]);
+  const fallback = items(null, { notificationsEnabled: false });
+  assert.equal(fallback[3].enabled, false);
+  assert.equal(items('admin')[3].enabled, true);
+  assert.equal(items('user')[1].enabled, true);
 });
 
-test('notification unread is customer-only and rejects invalid counts', () => {
-  assert.equal(items('user', { unread: -3 })[3].badge, undefined);
-  assert.equal(items('user', { unread: 0 })[3].badge, undefined);
-  assert.equal(items('user', { unread: 123 })[3].badge, 123);
+test('notification unread badge only exists in the fallback layout and rejects invalid counts', () => {
+  assert.equal(items(null, { unread: -3 })[3].badge, undefined);
+  assert.equal(items(null, { unread: 0 })[3].badge, undefined);
+  assert.equal(items(null, { unread: 123 })[3].badge, 123);
   assert.equal(items('admin', { unread: 10 })[3].badge, undefined);
 });
 
-test('active destination follows admin and customer order detail routes', () => {
+test('active destination follows admin and SubAgent routes', () => {
   for (const route of ['/orders', '/order/42', '/assigned-orders', '/admin/orders', '/admin/orders/42', '/admin/orders/archived']) {
     assert.equal(activeBottomNavKey(route, 'admin'), 'orders');
+    assert.equal(activeBottomNavKey(route, 'user'), 'orders');
   }
   for (const route of ['/catalog', '/product/desk', '/cart', '/checkout', '/admin/catalog/42']) {
     assert.equal(activeBottomNavKey(route, 'admin'), 'catalog');
   }
+  assert.equal(activeBottomNavKey('/cart', 'user'), 'cart');
+  assert.equal(activeBottomNavKey('/checkout', 'user'), 'cart');
+  assert.equal(activeBottomNavKey('/catalog', 'user'), 'catalog');
+  assert.equal(activeBottomNavKey('/commissions', 'user'), 'commissions');
+  assert.equal(activeBottomNavKey('/commissions/7', 'user'), 'commissions');
+  assert.equal(activeBottomNavKey('/commissions', null), 'home');
 });
 
-test('secondary tab follows role, account settings remain account', () => {
+test('Admin highlights Potraživanja, SuperAdmin highlights Administracija, bell routes have no tab', () => {
+  assert.equal(activeBottomNavKey('/admin/receivables', 'admin'), 'receivables');
+  assert.equal(activeBottomNavKey('/admin/receivables/9', 'admin'), 'receivables');
+  assert.equal(activeBottomNavKey('/admin/receivables', 'superadmin'), 'secondary');
   assert.equal(activeBottomNavKey('/admin', 'superadmin'), 'secondary');
-  assert.equal(activeBottomNavKey('/admin/users', 'admin'), 'secondary');
-  assert.equal(activeBottomNavKey('/notifications', 'user'), 'secondary');
-  assert.equal(activeBottomNavKey('/notifications', 'admin'), null);
+  assert.equal(activeBottomNavKey('/admin/users', 'superadmin'), 'secondary');
+  assert.equal(activeBottomNavKey('/admin', 'admin'), null);
+  assert.equal(activeBottomNavKey('/admin/users', 'admin'), null);
   assert.equal(activeBottomNavKey('/admin', 'user'), null);
+  assert.equal(activeBottomNavKey('/notifications', 'admin'), null);
+  assert.equal(activeBottomNavKey('/notifications', 'superadmin'), null);
+  assert.equal(activeBottomNavKey('/notifications', 'user'), null);
+  assert.equal(activeBottomNavKey('/notifications', null), 'secondary');
   assert.equal(activeBottomNavKey('/account/preferences', 'user'), 'account');
   assert.equal(activeBottomNavKey('/notification-settings', 'admin'), 'account');
   assert.equal(activeBottomNavKey('/home', 'user'), 'home');
+});
+
+test('every policy route is a real screen and every glyph exists', () => {
+  const glyphSource = readFileSync(new URL('../../src/components/ui/glyph.tsx', import.meta.url), 'utf8');
+  const screens = {
+    '/catalog': '(tabs)/catalog.tsx', '/cart': 'cart.tsx', '/orders': '(tabs)/orders.tsx',
+    '/admin/orders': 'admin/orders/index.tsx', '/home': '(tabs)/home.tsx', '/commissions': 'commissions/index.tsx',
+    '/admin/receivables': 'admin/receivables/index.tsx', '/admin': 'admin/index.tsx',
+    '/notifications': '(tabs)/notifications.tsx', '/account': '(tabs)/account.tsx',
+  };
+  for (const role of ['superadmin', 'admin', 'user', null]) {
+    for (const item of items(role)) {
+      assert.ok(screens[item.route], 'unknown route ' + item.route);
+      readFileSync(new URL('../../src/app/(app)/' + screens[item.route], import.meta.url), 'utf8');
+      assert.match(glyphSource, new RegExp('\\b' + item.glyph + ': \\{'), 'missing glyph ' + item.glyph);
+    }
+  }
 });
 
 test('screen renders policy with role-aware routes, accessibility, and no Home caption in bottom bar', () => {

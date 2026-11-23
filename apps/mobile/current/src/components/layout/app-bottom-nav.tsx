@@ -62,6 +62,9 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
     ordersEnabled: hasFeature('orders'),
     notificationsEnabled: hasFeature('notifications'),
     canManageOrders: can('orders.manage'),
+    cartEnabled: hasFeature('order_create'),
+    commissionsEnabled: can('commissions.view_own'),
+    receivablesEnabled: can('receivables.manage'),
     unread,
   }), [roleSlug, hasFeature, can, unread]);
 

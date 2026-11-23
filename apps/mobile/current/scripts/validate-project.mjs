@@ -708,13 +708,14 @@ const bottomNavRolePolicy = fs.readFileSync(
   path.join(root, 'src/components/layout/app-bottom-nav-policy.ts'),
   'utf8'
 );
-const bottomNavSlotKeys = ['catalog', 'orders', 'home', 'secondary', 'account'];
-const bottomNavFiveStableSlots = bottomNavSlotKeys.every((key, index) => {
-  const position = bottomNavRolePolicy.indexOf(`key: '${key}'`);
-  return position >= 0 && (
-    index === 0 || position > bottomNavRolePolicy.indexOf(`key: '${bottomNavSlotKeys[index - 1]}'`)
-  );
-});
+// Owner decision 2026-11-16: per-role tabs, Home always raised in the middle (behaviour is covered by batch664 tests).
+const bottomNavFiveStableSlots = [
+  "label: 'Potraživanja', route: '/admin/receivables'",
+  "label: 'Administracija', route: '/admin'",
+  "label: 'Korpa', route: '/cart'",
+  "label: 'Provizije', route: '/commissions'",
+  "label: 'Početna', route: '/home'",
+].every((fragment) => bottomNavRolePolicy.includes(fragment));
 
 assert(
   appBottomNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
@@ -729,7 +730,8 @@ assert(
     && appBottomNav.includes('disabled={!item.enabled}')
     && appBottomNav.includes('activeBottomNavKey(pathname, roleSlug)')
     && appBottomNav.includes('buildBottomNavItems({')
-    && bottomNavRolePolicy.includes("route: admin ? '/admin/orders' : '/orders'")
+    && bottomNavRolePolicy.includes("route: '/admin/orders'")
+    && bottomNavRolePolicy.includes("route: '/orders'")
     && bottomNavRolePolicy.includes("label: 'Administracija'")
     && bottomNavRolePolicy.includes("label: 'Notifikacije'")
     && bottomNavFiveStableSlots,
@@ -2652,8 +2654,8 @@ assert(
 assert(
   bottomNavRolePolicy.includes("matches(pathname, '/admin/catalog')")
     && bottomNavRolePolicy.includes("matches(pathname, '/admin/orders')")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) ? null : 'secondary';")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) || subAgent ? null : 'secondary';")
     && bottomNavRolePolicy.indexOf("matches(pathname, '/admin/orders')") < bottomNavRolePolicy.indexOf("if (matches(pathname, '/admin'))"),
   'Batch664 keeps admin/catalog in Catalog, admin/orders in Orders, and Admin in the role-aware secondary tab.',
 );
@@ -4479,7 +4481,7 @@ assert(
   ['/after-sales', '/warranties', '/commissions', '/portal/messages'].every(
     (route) => bottomNavRolePolicy.includes(`matches(pathname, '${route}')`)
   )
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
     && bottomNavRolePolicy.includes("return 'home';")
     && bottomNavFiveStableSlots,
   'Batch664 preserves Home context for personal activities and Admin context for authorized admin screens.',

@@ -10,6 +10,7 @@ const symbolNames = {
   cart: { ios: 'cart.fill', android: 'shopping_cart', web: 'shopping_cart' },
   orders: { ios: 'shippingbox.fill', android: 'receipt_long', web: 'receipt_long' },
   commission: { ios: 'banknote.fill', android: 'payments', web: 'payments' },
+  receivables: { ios: 'creditcard.fill', android: 'request_quote', web: 'request_quote' },
   warranty: { ios: 'checkmark.shield.fill', android: 'verified_user', web: 'verified_user' },
   service: { ios: 'wrench.and.screwdriver.fill', android: 'build', web: 'build' },
   messages: { ios: 'bubble.left.and.bubble.right.fill', android: 'forum', web: 'forum' },
