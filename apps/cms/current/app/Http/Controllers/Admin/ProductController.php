@@ -56,18 +56,61 @@ final class ProductController extends Controller
 
     public function create(ProductTemplateService $templates): View
     {
-        return $this->formView(new Product(['status' => 'draft', 'price_currency' => 'EUR', 'stock_quantity' => 0, 'low_stock_threshold' => 1]), $templates);
+        // Zapamćeni izbori iz prethodnog snimanja (flash): tip, brend, linija i valuta.
+        $remembered = array_intersect_key((array) session('product_defaults', []), array_flip(['product_type_id', 'brand_id', 'product_line_id', 'price_currency']));
+
+        return $this->formView(new Product($remembered + ['status' => 'draft', 'price_currency' => 'EUR', 'stock_quantity' => 0, 'low_stock_threshold' => 1]), $templates);
+    }
+
+    public function duplicateCheck(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'brand_id' => ['required', 'integer'],
+            'model_name' => ['required', 'string', 'max:190'],
+            'exclude_id' => ['nullable', 'integer'],
+        ]);
+        $model = preg_replace('/\s+/u', ' ', trim((string) $data['model_name'])) ?: '';
+        $query = Product::query()
+            ->where('brand_id', (int) $data['brand_id'])
+            ->whereRaw('LOWER(model_name) = ?', [mb_strtolower($model)])
+            ->whereNull('deleted_at')
+            ->when(!empty($data['exclude_id']), fn ($q) => $q->where('id', '!=', (int) $data['exclude_id']));
+        $this->catalogAccess->applyManageable($query, $request->user());
+
+        return response()->json(['matches' => $query->orderBy('id')->limit(5)->get(['id', 'sku', 'name', 'status'])->map(fn (Product $p): array => [
+            'id' => (int) $p->id,
+            'sku' => (string) $p->sku,
+            'name' => (string) $p->name,
+            'status' => (string) $p->status,
+            'edit_url' => route('admin.products.edit', $p),
+            'clone_url' => route('admin.products.clone.store', $p),
+        ])->all()]);
+    }
+
+    /** Prazan formular za sledeći unos: pamti tip, brend, liniju i valutu i nudi link na snimljeni artikal. */
+    private function nextEntryRedirect(Product $product, Request $request): string
+    {
+        $request->session()->flash('product_defaults', [
+            'product_type_id' => $product->product_type_id,
+            'brand_id' => $product->brand_id,
+            'product_line_id' => $product->product_line_id,
+            'price_currency' => $product->price_currency,
+        ]);
+        $request->session()->flash('created_product', ['id' => (int) $product->id, 'sku' => (string) $product->sku, 'name' => (string) $product->name]);
+
+        return route('admin.products.create');
     }
 
     public function store(ProductRequest $request, ProductAdminService $service, ProductAnnouncementService $announcements): RedirectResponse|JsonResponse
     {
         $product = $service->create($request->validated(), $request->user());
         $announcementCount = $announcements->queueForNewlyPublished($product, $request->user());
-        $redirect = route('admin.products.edit', $product);
+        $redirect = $this->nextEntryRedirect($product, $request);
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Artikal je kreiran.',
                 'redirect_url' => $redirect,
+                'edit_url' => route('admin.products.edit', $product),
                 'product_id' => (int) $product->id,
                 'announcement_count' => $announcementCount,
             ], 201);
@@ -88,7 +131,13 @@ final class ProductController extends Controller
     {
         $this->authorizeProduct($product, $request);
         $wasActive = (string) $product->status === 'active';
-        $updated = $service->update($product, $request->validated(), $request->user());
+        $updated = $service->update(
+            $product,
+            $request->validated(),
+            $request->user(),
+            $request->boolean('autosave'),
+            $request->filled('autosave_version') ? (int) $request->input('autosave_version') : null,
+        );
         $announcementCount = !$wasActive && (string) $updated->status === 'active'
             ? $announcements->queueForNewlyPublished($updated, $request->user())
             : 0;
@@ -96,6 +145,7 @@ final class ProductController extends Controller
             return response()->json([
                 'message' => 'Izmene su sačuvane.',
                 'redirect_url' => route('admin.products.edit', $updated),
+                'version' => (int) $updated->updated_at?->getTimestamp(),
                 'product_id' => (int) $updated->id,
                 'announcement_count' => $announcementCount,
             ]);

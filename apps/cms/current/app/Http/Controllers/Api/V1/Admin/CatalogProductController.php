@@ -249,7 +249,7 @@ final class CatalogProductController extends Controller
         abort_if($product->deleted_at !== null, 409, 'Arhivirani artikal prvo vrati iz arhive.');
 
         $wasActive = (string) $product->status === 'active';
-        $updated = $service->update($product, $request->validated(), $actor);
+        $updated = $service->update($product, $request->validated(), $actor, $request->boolean('autosave'));
         $announcementCount = !$wasActive && (string) $updated->status === 'active'
             ? $announcements->queueForNewlyPublished($updated, $actor)
             : 0;
