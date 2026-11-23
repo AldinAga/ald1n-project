@@ -165,6 +165,7 @@ export default function AdminCatalogEditScreen() {
   const submitRef = useRef<((saveDraft?: boolean, autosave?: boolean) => void) | null> (null);
   const autosaveBaselineRef = useRef<string | null> (null);
   const autosaveInFlightRef = useRef(false);
+  const autosavePromiseRef = useRef<Promise<unknown> | null> (null);
   const formFingerprint = JSON.stringify([
     productTypeId, brandId, lineId, sku, modelName, supplierCode, ean, name, priceAmount, currency, purchasePriceRsd,
     manualCommissionEur, description, notes, stockQuantity, lowStockThreshold, status, specs, specDetails, storageRows,
@@ -286,11 +287,14 @@ export default function AdminCatalogEditScreen() {
     },
   });
 
-  // Tihi autosave: bez ponovnog učitavanja forme (hidratacija) i bez poruka o grešci.
+  // Tihi autosave: bez ponovnog učitavanja forme (hidratacija); uspeh je nečujan, neuspeh daje diskretnu poruku.
   const autosaveMutation = useMutation({
     mutationFn: (input: AdminCatalogProductUpdateInput) => apiAdminCatalog.update(productId, input),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['admin', 'catalog'] });
+    },
+    onError: (error) => {
+      feedback.notify({ tone: 'info', title: 'Automatsko čuvanje nije uspelo', message: apiMessage(error, 'Sačuvaj nacrt ručno.'), durationMs: 3200 });
     },
     onSettled: () => {
       autosaveInFlightRef.current = false;
@@ -382,6 +386,11 @@ export default function AdminCatalogEditScreen() {
     .reduce((sum, row) => sum + (storageCapacityGb(row) ?? 0), 0);
 
   const submit = (saveDraft = false, autosave = false) => {
+    // Ručno snimanje čeka autosave koji je u toku, da ga ne pregazi ili ne dobije staru verziju.
+    if (!autosave && autosavePromiseRef.current) {
+      void autosavePromiseRef.current.then(() => submitRef.current?.(saveDraft, false));
+      return;
+    }
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
@@ -471,8 +480,9 @@ export default function AdminCatalogEditScreen() {
       ...(isSuperAdmin ? { manual_commission_eur: commission ?? undefined } : {}),
       description: description.trim() || undefined,
       notes: notes.trim() || undefined,
-      stock_quantity: stock ?? undefined,
-      low_stock_threshold: threshold ?? undefined,
+      // Autosave ne šalje lager (isto kao na webu): izostavljeno polje ostavlja stanje i ne traži dozvolu korekcije lagera.
+      stock_quantity: autosave ? undefined : stock ?? undefined,
+      low_stock_threshold: autosave ? undefined : threshold ?? undefined,
       status: saveDraft ? 'draft' : status,
       save_draft: saveDraft || undefined,
       // Server odbija autosave ako artikal u međuvremenu više nije nacrt (npr. aktiviran na webu).
@@ -487,7 +497,9 @@ export default function AdminCatalogEditScreen() {
       if (autosaveInFlightRef.current || saveMutation.isPending) return;
       autosaveInFlightRef.current = true;
       autosaveBaselineRef.current = formFingerprint;
-      autosaveMutation.mutate(input);
+      autosavePromiseRef.current = autosaveMutation.mutateAsync(input)
+        .catch(() => undefined)
+        .finally(() => { autosavePromiseRef.current = null; });
       return;
     }
     saveMutation.mutate(input);

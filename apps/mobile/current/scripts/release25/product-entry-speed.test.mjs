@@ -45,7 +45,11 @@ test('draft autosave uses save_draft, only for drafts, and never rehydrates the 
   assert.match(edit, /setTimeout\(\(\) => submitRef\.current\?\.\(true, true\), 30000\)/);
   assert.match(edit, /product\?\.status !== 'draft' \|\| status !== 'draft' \|\| product\.is_archived/);
   const autosave = edit.slice(edit.indexOf('const autosaveMutation'), edit.indexOf('const archiveMutation'));
-  assert.doesNotMatch(autosave, /setHydratedId|refetch|feedback\.notify/);
+  assert.doesNotMatch(autosave, /setHydratedId|refetch/);
+  assert.match(autosave, /Automatsko čuvanje nije uspelo/);
+  assert.match(edit, /stock_quantity: autosave \? undefined : stock \?\? undefined/);
+  assert.match(edit, /low_stock_threshold: autosave \? undefined : threshold \?\? undefined/);
+  assert.match(edit, /if \(!autosave && autosavePromiseRef\.current\) \{/);
   assert.match(edit, /status: saveDraft \? 'draft' : status,\s+save_draft: saveDraft \|\| undefined,/);
   assert.match(edit, /if \(autosave && Object\.keys\(nextErrors\)\.length > 0\) return;/);
   assert.match(edit, /\.\.\.\(autosave \? \{ autosave: true \} : \{\}\)/);
