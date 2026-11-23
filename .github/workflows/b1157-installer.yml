@@ -397,7 +397,7 @@ jobs:
           if grep -vE '^incoming/b1157-[A-Za-z0-9._-]+$' "$RUNNER_TEMP/members.txt"; then exit 2; fi
           # 9 fixed members (installer.sh, installer.php, coordinator, payload, app-check, README, package.json, provenance.json, package.sha256; the HTTP client is the pinned B1153 LogoCatalogWeb, the web probe is the pinned b1153-load-probe.php and the B1151 to B1155 files are the pinned ones already on the host) plus one payload per step.
           test "$(wc -l < "$RUNNER_TEMP/members.txt")" = "$((steps + 9))"
-          test "$(grep -cE '^incoming/b1157-payload-[0-9]{2}\.bin$' "$RUNNER_TEMP/members.txt")" = "$steps"
+          test "$(grep -cE '^incoming/b1157-payload-[0-9]{2,4}\.bin$' "$RUNNER_TEMP/members.txt")" = "$steps"
           test "$(wc -l < "$RUNNER_TEMP/package/b1157-digests.tsv")" = "$((steps + 1))"
           cp "$RUNNER_TEMP/package/b1157-digests.tsv" "$RUNNER_TEMP/digests.tsv"
           # Two builds give the same bytes.
