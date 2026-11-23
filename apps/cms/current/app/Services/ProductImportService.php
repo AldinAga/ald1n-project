@@ -224,6 +224,10 @@ final class ProductImportService
                 $created++;
             } catch (ValidationException $exception) {
                 $errors[] = ['line' => $row['line'], 'message' => implode(' ', $exception->validator->errors()->all())];
+            } catch (\Throwable $exception) {
+                // Jedan neočekivan red ne sme da prekine uvoz usred fajla i ostavi nejasno stanje.
+                report($exception);
+                $errors[] = ['line' => $row['line'], 'message' => 'Red nije uvezen zbog neočekivane greške.'];
             }
         }
 
