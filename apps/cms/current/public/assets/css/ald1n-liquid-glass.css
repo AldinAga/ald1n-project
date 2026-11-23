@@ -14,8 +14,8 @@ html[data-theme="dark"] {
   --ald-muted: #B6C2C9;
   --ald-border: #36434C;
   --ald-outline: #748590;
-  --ald-primary: #BFA590;
-  --ald-primary-strong: #D2BCA9;
+  --ald-primary: #287CFF;
+  --ald-primary-strong: #63A2FF;
   --ald-on-primary: #172027;
   --ald-primary-container: #34302E;
   --ald-on-primary-container: #EADDD2;
@@ -38,8 +38,8 @@ html[data-theme="light"] {
   --ald-muted: #52606A;
   --ald-border: #CBD3D9;
   --ald-outline: #70818C;
-  --ald-primary: #68584D;
-  --ald-primary-strong: #54463D;
+  --ald-primary: #165DCB;
+  --ald-primary-strong: #104EAD;
   --ald-on-primary: #FFFFFF;
   --ald-primary-container: #E8E2DC;
   --ald-on-primary-container: #41372F;

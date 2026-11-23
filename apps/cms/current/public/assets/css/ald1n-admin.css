@@ -1505,6 +1505,191 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 @media (max-width:1250px){.a1-body .page-shell{width:min(100% - 30px,1440px)}}
 @media (max-width:700px){.a1-body .page-shell{width:min(100% - 22px,1440px)}}
 
+/* ==========================================================================
+   LEGACY COMPAT LAYER (Kobalt G0, 23.11.2026)
+   Re-skins the old classes (panel, button, form-section, stat-card, tables, forms, status-badge, alert)
+   with the --a1-* tokens so a page that is not migrated yet reads as Kobalt in both themes, without
+   touching its markup. Step 1 rebinds the old palette variables (--ald-*, --lg5-*, --lg2-*, --bg,
+   --panel, --primary ...) so app.css, ald1n-ui-v2.css and ald1n-liquid-glass.css follow the tokens.
+   Step 2 restyles the components whose old rules hard-code paint. Delete this whole section in G7,
+   when those three files go. Pages that already use a1-* classes are not selected by anything here.
+   Author: Ald1n <https://ald1n.com>
+   ========================================================================== */
+
+/* Step 1a: palette for both themes. --ald-primary is also used as TEXT (links, active nav), so it takes the
+   readable accent (--a1-accent-link); filled controls rebind it locally to the button fill in step 2. */
+:root[data-theme="dark"],:root[data-theme="light"]{
+  --ald-background:var(--a1-surface-page);
+  --ald-surface:var(--a1-surface-solid);
+  --ald-surface-muted:color-mix(in srgb,var(--a1-text-primary) 4%,var(--a1-surface-solid));
+  --ald-surface-container:color-mix(in srgb,var(--a1-text-primary) 7%,var(--a1-surface-solid));
+  --ald-surface-container-high:color-mix(in srgb,var(--a1-text-primary) 11%,var(--a1-surface-solid));
+  --ald-secondary-container:color-mix(in srgb,var(--a1-text-primary) 8%,var(--a1-surface-solid));
+  --ald-text:var(--a1-text-primary);
+  --ald-muted:var(--a1-text-tertiary);
+  --ald-border:var(--a1-border-normal);
+  --ald-outline:var(--a1-border-strong);
+  --ald-primary:var(--a1-accent-link);
+  --ald-primary-strong:var(--a1-heading-to);
+  --ald-on-primary:var(--a1-surface-page);
+  --ald-primary-container:var(--a1-accent-soft);
+  --ald-on-primary-container:var(--a1-text-primary);
+  --ald-accent:var(--a1-accent-link);
+  --ald-accent-soft:var(--a1-accent-soft);
+  --ald-on-danger:var(--a1-surface-solid);
+  --ald-success-soft:var(--a1-status-ok-bg);
+  --ald-warning-soft:var(--a1-status-warning-bg);
+  --ald-danger-soft:var(--a1-status-danger-bg);
+  --ald-info-soft:var(--a1-status-info-bg);
+  --lg5-blue:var(--a1-button-primary-bg);
+  --lg5-violet:var(--a1-accent-link);
+  --lg5-cyan:var(--a1-status-info-dot);
+  --lg5-teal:var(--a1-status-ok-dot);
+  --lg5-amber:var(--a1-status-warning-dot);
+  --lg5-rose:var(--a1-status-danger-dot);
+  --lg5-focus:var(--a1-focus-ring);
+  --lg5-glass-tint:var(--a1-glass-soft);
+  --lg5-panel-tint:var(--a1-glass-standard);
+  --lg5-panel-edge:var(--a1-border-strong);
+  --lg5-sheen:var(--a1-edge-sheen);
+  --lg5-disabled-bg:color-mix(in srgb,var(--a1-text-primary) 12%,var(--a1-surface-solid));
+  --lg5-disabled-ink:var(--a1-text-tertiary);
+  --lg2-shell:var(--a1-surface-solid);
+  --lg2-edge:var(--a1-border-strong);
+  --lg2-highlight:var(--a1-edge-light);
+  --lg2-glow:var(--a1-glow-2);
+  --lg2-ink-shadow:rgba(7,9,12,.28);
+  --lg-hairline:var(--a1-border-normal);
+  --bg:var(--ald-background);
+  --panel:var(--ald-surface);
+  --panel-2:var(--ald-surface-container);
+  --text:var(--ald-text);
+  --muted:var(--ald-muted);
+  --line:var(--ald-border);
+  --primary:var(--ald-primary);
+  --primary-2:var(--ald-primary-strong);
+  --violet:var(--ald-accent);
+  --green:var(--ald-success);
+  --red:var(--ald-danger);
+  --amber:var(--ald-warning);
+  --header:color-mix(in srgb,var(--a1-surface-solid) 92%,transparent);
+  --shadow:var(--a1-shadow-card);
+  --radius:var(--a1-radius-lg);
+  --input-bg:var(--a1-surface-field);
+  --input-brd:var(--a1-border-strong);
+  --btn-bg:var(--a1-button-ghost-bg);
+  --btn-brd:var(--a1-border-strong);
+  --btn-txt:var(--a1-text-primary);
+  --tbl-hover:var(--a1-button-ghost-hover);
+  --ux-focus-ring:0 0 0 var(--a1-focus-width) var(--a1-focus-ring);
+  --ux-surface-hover:var(--a1-button-ghost-hover);
+  --ux-panel-accent:var(--a1-glass-fill);
+}
+/* Step 1b: status inks. Dark theme uses the bright dots (readable on the dark card); light theme uses the
+   dark text tones, because the light dots are below 4.5:1 on white. */
+:root[data-theme="dark"]{
+  --ald-success:var(--a1-status-ok-dot);
+  --ald-warning:var(--a1-status-warning-dot);
+  --ald-danger:var(--a1-status-danger-dot);
+  --ald-info:var(--a1-status-info-dot);
+  --lg5-positive-ink:var(--a1-status-ok-dot);
+  --lg5-warning-ink:var(--a1-status-warning-dot);
+  --lg5-error-ink:var(--a1-status-danger-dot);
+}
+:root[data-theme="light"]{
+  --ald-success:var(--a1-status-ok-text);
+  --ald-warning:var(--a1-status-warning-text);
+  --ald-danger:var(--a1-status-danger-dot);
+  --ald-info:var(--a1-status-info-text);
+  --lg5-positive-ink:var(--a1-status-ok-text);
+  --lg5-warning-ink:var(--a1-status-warning-text);
+  --lg5-error-ink:var(--a1-status-danger-dot);
+}
+/* The old stylesheets paint the body with fixed navy gradients; the Kobalt page wash replaces them. */
+:root[data-theme] body.a1-body{background:radial-gradient(1100px 620px at 4% -6%,var(--a1-glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--a1-glow-2),transparent 64%),var(--a1-surface-page);background-attachment:fixed;color:var(--a1-text-primary)}
+:root[data-theme]{background:var(--a1-surface-page)}
+
+/* Step 2a: filled controls keep a white label on the button blue, so they rebind the primary locally. */
+:root[data-theme] .a1-body :is(.button-primary,.brand-mark,.user-chip>span,.profile-avatar,.form-section-number,.notification-count){--ald-primary:var(--a1-button-primary-bg);--ald-primary-strong:var(--a1-button-primary-hover);--ald-on-primary:var(--a1-button-primary-on);--primary:var(--a1-button-primary-bg);--primary-2:var(--a1-button-primary-hover);--accent:var(--a1-button-primary-bg)}
+:root[data-theme] .a1-body .button-primary{background-color:var(--a1-button-primary-bg);background-image:var(--a1-gradient-button-gloss);border-color:transparent;color:var(--a1-button-primary-on);box-shadow:var(--a1-shadow-button)}
+:root[data-theme] .a1-body .button-primary:hover:not(:disabled):not([aria-disabled="true"]){background-color:var(--a1-button-primary-hover);border-color:transparent;color:var(--a1-button-primary-on)}
+:root[data-theme] .a1-body :is(.button,.button-ghost,.button-secondary):not(.button-primary):not(.button-danger){border-color:var(--a1-border-strong);background-color:var(--a1-button-ghost-bg);background-image:none;color:var(--a1-text-primary)}
+:root[data-theme] .a1-body :is(.button,.button-ghost,.button-secondary):not(.button-primary):not(.button-danger):hover:not(:disabled):not([aria-disabled="true"]){background-color:var(--a1-button-ghost-hover);color:var(--a1-text-primary)}
+:root[data-theme] .a1-body .button-danger{border-color:transparent;background-color:var(--a1-status-danger-dot);background-image:none;color:var(--a1-surface-solid);box-shadow:none}
+:root[data-theme] .a1-body .button:disabled,:root[data-theme] .a1-body .button[aria-disabled="true"]{opacity:var(--a1x-disabled-opacity);box-shadow:none}
+:root[data-theme] .a1-body :is(.button,.button-ghost,.button-secondary,.button-primary,.button-danger):focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset)}
+
+/* Step 2b: cards and panels. */
+:root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card,.report-summary-card,.settings-hub-card,.empty-state,.access-control-metric,.sticky-card,.detail-panel,.hero-panel,.gallery-panel){border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-lg);background-color:var(--a1-glass-fill);background-image:linear-gradient(180deg,var(--a1-edge-sheen),transparent 38%);box-shadow:var(--a1-shadow-card);color:var(--a1-text-primary)}
+:root[data-theme] .a1-body :is(.check-card,.check-row){border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-field);background-image:none;box-shadow:none}
+@media (min-width:900px) and (hover:hover){
+  :root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card,.report-summary-card,.settings-hub-card){-webkit-backdrop-filter:var(--a1-fx);backdrop-filter:var(--a1-fx)}
+}
+:root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card) :is(h1,h2,h3,h4){color:var(--a1-text-primary)}
+:root[data-theme] .a1-body :is(.muted,small,.eyebrow+p,.page-heading p){color:var(--a1-text-tertiary);opacity:1}
+:root[data-theme] .a1-body .eyebrow{color:var(--a1-accent-link)}
+:root[data-theme] .a1-body .page-heading h1{color:var(--a1-text-primary)}
+
+/* Step 2c: forms. Elements that carry an a1- class are left to their own component rules. */
+:root[data-theme] .a1-body :is(input:not([type="checkbox"],[type="radio"],[type="range"],[type="color"],[type="file"],[type="hidden"],[type="submit"],[type="button"]),select,textarea):not([class*="a1-"]){border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);caret-color:var(--a1-accent-link)}
+:root[data-theme] .a1-body :is(input,select,textarea):not([class*="a1-"])::placeholder{color:var(--a1-text-tertiary);opacity:1}
+:root[data-theme] .a1-body :is(input:not([type="checkbox"],[type="radio"]),select,textarea):not([class*="a1-"]):focus-visible{border-color:var(--a1-focus-ring);outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset-inset);box-shadow:none}
+:root[data-theme] .a1-body :is(input,select,textarea):disabled:not([class*="a1-"]){opacity:var(--a1x-disabled-opacity)}
+:root[data-theme] .a1-body :is(input[type="checkbox"],input[type="radio"],input[type="range"]){accent-color:var(--a1-button-primary-bg)}
+:root[data-theme] .a1-body :is(label,.field>span,.form-grid label>span){color:var(--a1-text-secondary)}
+:root[data-theme] .a1-body :is(.field-error,.text-danger){color:var(--a1-status-danger-dot)}
+
+/* Step 2d: tables. */
+:root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap){border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill);box-shadow:none}
+:root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table :is(th,td),:root[data-theme] .a1-body table:is(.admin-table,.flat-table) :is(th,td){border-bottom-color:var(--a1-border-normal);color:var(--a1-text-primary)}
+:root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table th,:root[data-theme] .a1-body table:is(.admin-table,.flat-table) th{background-color:color-mix(in srgb,var(--a1-text-primary) 6%,var(--a1-surface-solid));color:var(--a1-text-secondary)}
+:root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table tbody tr:hover td,:root[data-theme] .a1-body table:is(.admin-table,.flat-table) tbody tr:hover td{background-color:var(--a1-button-ghost-hover)}
+:root[data-theme] .a1-body table :is(td,th) small{color:var(--a1-text-tertiary);opacity:1}
+
+/* Step 2e: badges and counters. */
+:root[data-theme] .a1-body :is(.status-badge,.count-pill){border:var(--a1x-border-width) solid var(--a1-border-strong);background-color:var(--a1-button-ghost-bg);background-image:none;color:var(--a1-text-primary)}
+:root[data-theme] .a1-body :is(.status-badge.status-active,.status-badge.status-ok,.status-badge.status-completed,.status-badge.status-paid){border-color:var(--a1-status-ok-dot);background-color:var(--a1-status-ok-bg);color:var(--a1-status-ok-text)}
+:root[data-theme] .a1-body :is(.status-badge.status-warning,.status-badge.status-pending){border-color:var(--a1-status-warning-dot);background-color:var(--a1-status-warning-bg);color:var(--a1-status-warning-text)}
+:root[data-theme] .a1-body :is(.status-badge.status-danger,.status-badge.status-cancelled,.status-badge.status-failed){border-color:var(--a1-status-danger-dot);background-color:var(--a1-status-danger-bg);color:var(--a1-status-danger-text)}
+:root[data-theme] .a1-body :is(.status-badge.status-inactive,.status-badge.status-archived,.status-badge.status-off){border-color:var(--a1-status-off-dot);background-color:var(--a1-status-off-bg);color:var(--a1-status-off-text)}
+
+/* Step 2f: alerts (old names alert, alert-success, alert-error, alert-danger, alert-warning, alert-info). */
+:root[data-theme] .a1-body .alert{border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-dense);color:var(--a1-text-primary);box-shadow:none}
+:root[data-theme] .a1-body .alert::before{display:grid;place-items:center;content:"i";color:var(--a1-accent-link);background:var(--a1-accent-soft)}
+:root[data-theme] .a1-body :is(.alert.success,.alert-success){border-color:var(--a1-status-ok-dot);background-color:var(--a1-status-ok-bg);color:var(--a1-status-ok-text)}
+:root[data-theme] .a1-body :is(.alert.success,.alert-success)::before{content:"\2713";color:var(--a1-status-ok-text);background:color-mix(in srgb,var(--a1-status-ok-dot) 28%,transparent)}
+:root[data-theme] .a1-body :is(.alert.error,.alert-error,.alert-danger){border-color:var(--a1-status-danger-dot);background-color:var(--a1-status-danger-bg);color:var(--a1-status-danger-text)}
+:root[data-theme] .a1-body :is(.alert.error,.alert-error,.alert-danger)::before{content:"!";color:var(--a1-status-danger-text);background:color-mix(in srgb,var(--a1-status-danger-dot) 28%,transparent)}
+:root[data-theme] .a1-body :is(.alert.warning,.alert-warning){border-color:var(--a1-status-warning-dot);background-color:var(--a1-status-warning-bg);color:var(--a1-status-warning-text)}
+:root[data-theme] .a1-body :is(.alert.warning,.alert-warning)::before{content:"!";color:var(--a1-status-warning-text);background:color-mix(in srgb,var(--a1-status-warning-dot) 28%,transparent)}
+:root[data-theme] .a1-body :is(.alert.info,.alert-info){border-color:var(--a1-status-info-dot);background-color:var(--a1-status-info-bg);color:var(--a1-status-info-text)}
+:root[data-theme] .a1-body :is(.alert.info,.alert-info)::before{content:"i";color:var(--a1-status-info-text);background:color-mix(in srgb,var(--a1-status-info-dot) 28%,transparent)}
+@media (forced-colors:active){
+  :root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card,.report-summary-card,.settings-hub-card,.check-card,.alert,.table-wrap,.admin-table-wrap){border:var(--a1x-border-width) solid CanvasText;background:Canvas;box-shadow:none}
+}
+
+/* ==========================================================================
+   Back to top (all layouts: layouts.app, layouts.guest, errors.minimal; the public shop keeps .shop-back-to-top).
+   Markup: resources/views/layouts/partials/back-to-top.blade.php. Without JavaScript the link is always shown;
+   the script marks it data-js and reveals it after the first screen of scrolling.
+   ========================================================================== */
+.a1-btt{position:fixed;z-index:35;right:max(var(--a1-space-16),env(safe-area-inset-right,0px));bottom:max(var(--a1-space-16),env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:var(--a1-size-control);height:var(--a1-size-control);padding:0;border:var(--a1x-border-width-strong) solid var(--a1-back-to-top-border);border-radius:50%;background:var(--a1-back-to-top-bg);color:var(--a1-button-primary-on);box-shadow:var(--a1-shadow-button);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.a1-btt:hover{background:var(--a1-back-to-top-hover)}
+.a1-btt:focus-visible{outline:var(--a1-focus-width) solid var(--a1-back-to-top-ring);outline-offset:var(--a1-focus-offset)}
+.a1-btt svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.a1-btt[data-js]:not(.is-shown){visibility:hidden;opacity:0;pointer-events:none;transform:translateY(var(--a1-space-8))}
+@media (prefers-reduced-motion:no-preference){
+  .a1-btt[data-js]{transition:opacity var(--a1-motion-duration-base) var(--a1-motion-easing-standard),transform var(--a1-motion-duration-base) var(--a1-motion-easing-standard),visibility 0s linear var(--a1-motion-duration-base),background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
+  .a1-btt[data-js].is-shown{transition-delay:0s}
+}
+/* Sticky bottom bars: the product editor action bar and the phone action dock sit where the button would be, so it rides above them. */
+body.has-ux-action-dock .a1-btt{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+body:has([data-product-editor-action-bar]) .a1-btt{bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+@media (max-width:720px){body:has([data-product-editor-action-bar]) .a1-btt{bottom:calc(176px + env(safe-area-inset-bottom,0px))}}
+body[tabindex="-1"]:focus{outline:0}
+@media (forced-colors:active){.a1-btt{border-color:ButtonText;background:ButtonFace;color:ButtonText;box-shadow:none}}
+@media print{.a1-btt{display:none}}
+
 /* Desktop navigation stays a top bar; the active item also gets a heavier weight (not colour alone). */
 .a1-header .a1-nav__link--active{font-weight:var(--a1-typography-font-weight-semibold)}
 
