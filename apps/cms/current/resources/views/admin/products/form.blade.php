@@ -1365,6 +1365,7 @@
             const data = new FormData(form);
             ['images', 'images[]', 'stock_quantity', 'low_stock_threshold', 'regenerate_sku'].forEach((key) => data.delete(key));
             data.set('save_draft', '1');
+            data.set('autosave', '1');
             const response = await fetch(form.action, {method:'POST', body:data, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});
             if (response.ok) {
                 savedRevision = current;
