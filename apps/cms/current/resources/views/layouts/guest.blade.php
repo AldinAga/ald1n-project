@@ -15,6 +15,9 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
 
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
+
     @stack('styles')
 
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
@@ -50,7 +53,7 @@
 
     @stack('head')
 </head>
-<body class="auth-body">
+<body class="auth-body a1-body" id="a1-top">
     <button
         class="icon-button floating-theme"
         type="button"
@@ -237,5 +240,6 @@
     </script>
 
     @stack('scripts')
+    @include('layouts.partials.back-to-top')
 </body>
 </html>
