@@ -284,11 +284,11 @@ $counts=array_count_values(array_values($grp));ksort($counts);if(array_diff(arra
 $prev='';foreach($grp as $g){if($g<$prev)throw new RuntimeException('PACKAGE_GROUPS_NOT_NON_DECREASING');$prev=$g;}
 // The guard groups are validated by DR::plan() below (provider alone in D, routes in E, guard F only with the admin stylesheet).
 // BACKWARD COMPATIBILITY and ORDER, proven on the shipped bytes (the OLD callers and the OLD views must keep working between the groups).
-$hazards=[];$later=static fn(string $c,string $e):bool=>isset($grp[$c],$grp[$e])&&($grp[$c]>$grp[$e]||($grp[$c]===$grp[$e]&&$idx[$c]>$idx[$e]));
+$hazards=[];$removalOnly=[];$later=static fn(string $c,string $e):bool=>isset($grp[$c],$grp[$e])&&($grp[$c]>$grp[$e]||($grp[$c]===$grp[$e]&&$idx[$c]>$idx[$e]));
 // 1. A public method of a modified PHP class may disappear only after every step that still calls it (the new code only adds methods and optional parameters; constructor dependencies are classes of group A).
 foreach($new as $p=>$text)if($old[$p]!==null&&str_starts_with($p,'app/')&&str_ends_with($p,'.php')){
     preg_match_all('/\bpublic\s+(?:static\s+)?function\s+(\w+)\s*\(/',(string)$old[$p],$o);preg_match_all('/\bpublic\s+(?:static\s+)?function\s+(\w+)\s*\(/',$text,$nm);
-    $gone=array_diff($o[1],$nm[1]);
+    $gone=array_diff($o[1],$nm[1]);if($gone!==[]&&array_diff($nm[1],$o[1])===[])$removalOnly[$p]=true;
     foreach($gone as $m){foreach($new as $q=>$qt){if($q!==$p&&!str_ends_with($q,'.blade.php')&&str_contains($qt,'->'.$m.'(')&&!str_contains((string)$old[$q],'->'.$m.'('))throw new RuntimeException('PACKAGE_A_REMOVED_PUBLIC_METHOD_IS_CALLED_BY_NEW_CODE_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$p.'_'.$m.'_'.$q)));
         if($q!==$p&&is_string($old[$q]??null)&&str_contains($old[$q],'->'.$m.'(')&&!$later($p,$q))$hazards[]=$p.' removes '.$m.'() but '.$q.' still calls it until its own step (a call in that window ends in an error, not in data loss)';}}
 }
@@ -305,7 +305,7 @@ $later=static fn(string $c,string $e):bool=>isset($grp[$c],$grp[$e])&&($grp[$c]>
 // The `use App\...;` edges of every modified or new file outside group A, and the @include edges of the views: the callee is in a lower group or earlier in the same group (the model pair OrderCommission/CommissionPaymentBatch refers to each other by class name only, lazily, no `use`).
 foreach($new as $p=>$text){
     if($grp[$p]==='A'&&!str_ends_with($p,'.blade.php'))continue;
-    if(str_ends_with($p,'.php')&&!str_ends_with($p,'.blade.php')&&preg_match_all('~^use (App\\\\[A-Za-z0-9_\\\\]+);~m',$text,$u))foreach($u[1] as $fq){$callee='app/'.str_replace('\\','/',substr($fq,4)).'.php';if(isset($grp[$callee])&&!$later($p,$callee)&&!($p==='routes/web.php'&&str_starts_with($callee,'app/Http/Controllers/')))throw new RuntimeException($code($p,$callee));}
+    if(str_ends_with($p,'.php')&&!str_ends_with($p,'.blade.php')&&preg_match_all('~^use (App\\\\[A-Za-z0-9_\\\\]+);~m',$text,$u))foreach($u[1] as $fq){$callee='app/'.str_replace('\\','/',substr($fq,4)).'.php';if(isset($grp[$callee])&&!isset($removalOnly[$callee])&&!$later($p,$callee)&&!($p==='routes/web.php'&&str_starts_with($callee,'app/Http/Controllers/')))throw new RuntimeException($code($p,$callee));}
     if(str_ends_with($p,'.blade.php')&&preg_match_all("~@include\\('([a-z0-9._-]+)'~",$text,$u))foreach($u[1] as $view){$callee='resources/views/'.str_replace('.','/',$view).'.blade.php';if(isset($grp[$callee])&&!$later($p,$callee))throw new RuntimeException($code($p,$callee));}
 }
 // The classes of the new app files and the views the read-only acceptance step compiles; the new directories the install would create (none: every parent exists at BASE).
