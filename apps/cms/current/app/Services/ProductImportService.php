@@ -191,8 +191,8 @@ final class ProductImportService
                 $seen[$key] ??= $index + 2;
             }
 
-            $errors = array_map(static fn (string $m): string => Str::limit($m, 200), $errors);
-            $warnings = array_map(static fn (string $m): string => Str::limit($m, 200), $warnings);
+            $errors = array_map(static fn (string $m): string => Str::limit($m, 197), $errors);
+            $warnings = array_map(static fn (string $m): string => Str::limit($m, 197), $warnings);
             $result[] = ['line' => $index + 2, 'label' => $data['name'] !== '' ? $data['name'] : (string) ($data['model_name'] ?? '—'), 'data' => $data, 'errors' => $errors, 'warnings' => $warnings, 'duplicate' => $duplicate];
         }
 
