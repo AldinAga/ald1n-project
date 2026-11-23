@@ -156,6 +156,17 @@
         @endif
     </section>
 
+    @if(\App\Services\UserDeletionService::available())
+    <section class="panel form-section field-span-2" id="brisanje-naloga">
+        <h2>Brisanje naloga</h2>
+        <p class="muted">Poslaćemo link za potvrdu na {{ $user->email }}. Posle potvrde nalog se blokira, a konačno brisanje sledi posle {{ \App\Services\UserDeletionService::GRACE_DAYS }} dana, uz mogućnost poništavanja. Porudžbine i poslovna istorija ostaju bez veze sa vašim imenom. Više na <a href="{{ route('account-deletion.show', [], false) }}">stranici o brisanju naloga</a>.</p>
+        <form method="post" action="{{ route('account.deletion.request') }}" data-confirm-submit="Poslati link za potvrdu brisanja naloga?">
+            @csrf
+            <button class="button button-danger" type="submit">Zatraži brisanje naloga</button>
+        </form>
+    </section>
+    @endif
+
     <section class="panel form-section field-span-2">
         <h2>Poslovna obaveštenja</h2>
         <p class="muted">E-mail se šalje samo kada je globalno omogućen na serveru i kada ga ovde uključite.</p>
