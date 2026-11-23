@@ -148,9 +148,9 @@ $shopOn();sleep(3);check($status('/katalog')===200,'SHOP_ON_B1146_CATALOG_SERVED
 
 // 3. B1157 long before B1154 (no Report1120 yet, the B1147 to B1154 files absent): HOLD before any change. A decoy Report1114
 // of B1149 (the HOLD of production, EXIT=2) sits beside the real reports later and must never satisfy a chain gate.
-[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'REFUSED_BEFORE_B1154');rmTree($private);
+[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1156_REPORT1122_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP='),'REFUSED_BEFORE_B1154');rmTree($private);
 $decoy=$root.'/docs/operations/1114-B1149-INSTALLER-20261110-235500.md';file_put_contents($decoy,"B1149_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");
-[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP='),'DECOY_1114_HOLD_REPORT_DOES_NOT_SATISFY_THE_CHAIN');rmTree($private);$results['beforeB1154']='HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED';
+[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');check($rc===2&&in_array('B1156_REPORT1122_MISSING',$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP='),'DECOY_1114_HOLD_REPORT_DOES_NOT_SATISFY_THE_CHAIN');rmTree($private);$results['beforeB1154']='HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED';
 
 // 4. The real B1147 coordinator installs the catalog overlay with the shop ON; its output becomes Report1112.
 $cfg1147=$base.'/run1147.json';file_put_contents($cfg1147,json_encode($common+['overrides'=>[],'dropCsp'=>$base.'/drop-csp-1147','dropJsonLd'=>$base.'/drop-json-ld-1147','rate429'=>$base.'/rate-429-1147','noHtaccess'=>$base.'/no-htaccess-1147','tools'=>$b1147,'base'=>$private1147,'pointer'=>$private1147.'/current.json','b1146Base'=>$private1146,
@@ -237,10 +237,10 @@ $pin1152=['report'=>hash_file('sha256',$report1118),'state'=>$ptr1152['id'],'rou
 check(preg_match('/^[a-f0-9]{32}$/D',$pin1152['state'])===1&&is_int($pin1152['routes'])&&$pin1152['routes']>500&&$pin1152['routes']===$pin1151['routes'],'FIXTURE_PINS_READ_FROM_THE_REAL_B1152_RUN');
 sleep(3);check($status('/katalog')===200&&$status('/pravne-informacije')===200&&$status('/admin/settings/documents')===302,'B1152_SERVED');
 $results['chain']+=['b1152'=>'REAL_PASS_REPORT1118'];
-// 5f. A B1157 attempt while only B1152 is installed (no Report1120, no B1154 state): HOLD with B1155_REPORT1121_MISSING, nothing changed (no new file, no backup, no state of this rollout kept).
+// 5f. A B1157 attempt while only B1152 is installed (no Report1120, no B1154 state): HOLD with B1156_REPORT1122_MISSING, nothing changed (no new file, no backup, no state of this rollout kept).
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_ONLY_B1152_INSTALLED_NOTHING_CHANGED');rmTree($private);
-$results['beforeB1154']=['onlyB1146'=>'HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED','onlyB1152'=>'HOLD_B1155_REPORT1121_MISSING_NOTHING_CHANGED'];
+check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1156_REPORT1122_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_ONLY_B1152_INSTALLED_NOTHING_CHANGED');rmTree($private);
+$results['beforeB1154']=['onlyB1146'=>'HOLD_NOTHING_CHANGED_DECOY_1114_IGNORED','onlyB1152'=>'HOLD_B1156_REPORT1122_MISSING_NOTHING_CHANGED'];
 // The merchant e-mail the legal pages show (support e-mail of the merchant policy), set before the B1153 baseline; the stored approval digest follows it.
 $pdo()->exec("INSERT INTO settings (setting_key,setting_value,created_at,updated_at) VALUES ('public_checkout_support_email','podrska@example.test',NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value='podrska@example.test'");$artisan(['cache:clear']);
 $pdo()->prepare("UPDATE settings SET setting_value=? WHERE setting_key='public_checkout_approval_digest'")->execute([sh(['php','-d','opcache.enable=0',$fingerprintScript,$active])]);$artisan(['cache:clear']);
@@ -263,9 +263,9 @@ $results['chain']+=['b1153'=>'REAL_PASS_REPORT1119','fixtureRouteCount'=>$pin115
 $trader=$edgeGet(AdminShellInstallCoordinator::TRADER_PATH);
 check($trader['status']===200&&AdminShellInstallCoordinator::emailArtifacts($trader['body'])===0&&MediaWeb::edgeScriptCount($trader['body'])===1,'FIXTURE_PREMISE_STILL_HOLDS_AFTER_B1153:'.json_encode([$trader['status'],AdminShellInstallCoordinator::emailArtifacts($trader['body']),MediaWeb::edgeScriptCount($trader['body'])]));
 
-// 5g2. A B1157 attempt with B1153 installed and B1154 not yet: HOLD with B1155_REPORT1121_MISSING, nothing changed.
+// 5g2. A B1157 attempt with B1153 installed and B1154 not yet: HOLD with B1156_REPORT1122_MISSING, nothing changed.
 [$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1155_REPORT1121_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_B1153_INSTALLED_NOTHING_CHANGED');rmTree($private);$results['beforeB1154']['onlyB1153']='HOLD_B1155_REPORT1121_MISSING_NOTHING_CHANGED';
+check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array('B1156_REPORT1122_MISSING',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&array_filter(array_filter($plan,static fn($s)=>$s['kind']==='new'),static fn($s)=>is_file($active.'/'.$s['path']))===[],'REFUSED_BEFORE_B1154_WITH_B1153_INSTALLED_NOTHING_CHANGED');rmTree($private);$results['beforeB1154']['onlyB1153']='HOLD_B1156_REPORT1122_MISSING_NOTHING_CHANGED';
 $results['packageMutations']=$packageMutations;
 
 // 5h. The real B1154 coordinator installs the admin shell (navigation, stylesheets and views) with the shop ON; its output becomes Report1120, the chain predecessor of B1157. The B1154 tree is the tree production has today (8574 files, commit ad901a58): every pre digest of the B1157 plan must hold in it.
@@ -460,13 +460,13 @@ $gate=static function(string $code,string $name,array $overrides=[])use($run,$tr
     check($rc===2&&lastLine($o,'B1157_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&in_array($code,$p['blockers'],true)&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','CHAIN_GATE_'.$name.':'.json_encode($p['blockers']));$reset();
 };
 $decoy1122=$root.'/docs/operations/1122-B1156-INSTALLER-20261121-101000.md';
-rename($report1122,$report1122.'.moved');$gate('B1155_REPORT1121_MISSING','REPORT_1121_MISSING');
-file_put_contents($decoy1122,"B1154_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");$gate('B1155_REPORT_NOT_TERMINAL_PASS','DECOY_1121_IS_NOT_A_PASS');
-rename($report1122.'.moved',$report1122);$gate('B1155_REPORT1121_AMBIGUOUS','TWO_1121_REPORTS');unlink($decoy1122);
-$gate('B1155_REPORT1121_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1156ReportSHA256'=>str_repeat('d',64)]);
-$gate('B1155_STATE_ID_DIFFERS_FROM_THE_PINNED_ONE','STATE_ID_DIFFERS',['b1156StateId'=>str_repeat('a',32)]);
+rename($report1122,$report1122.'.moved');$gate('B1156_REPORT1122_MISSING','REPORT_1121_MISSING');
+file_put_contents($decoy1122,"B1154_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");$gate('B1156_REPORT_NOT_TERMINAL_PASS','DECOY_1121_IS_NOT_A_PASS');
+rename($report1122.'.moved',$report1122);$gate('B1156_REPORT1122_AMBIGUOUS','TWO_1121_REPORTS');unlink($decoy1122);
+$gate('B1156_REPORT1122_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1156ReportSHA256'=>str_repeat('d',64)]);
+$gate('B1156_STATE_ID_DIFFERS_FROM_THE_PINNED_ONE','STATE_ID_DIFFERS',['b1156StateId'=>str_repeat('a',32)]);
 $stateFile=$private1156.'/'.$pin['state'].'/state.json';$stateOriginal=(string)file_get_contents($stateFile);check(str_contains($stateOriginal,'"phase":"INSTALLED_PASS"'),'THE_B1156_STATE_IS_INSTALLED_PASS');file_put_contents($stateFile,str_replace('"phase":"INSTALLED_PASS"','"phase":"ROLLED_BACK"',$stateOriginal));
-$gate('B1155_STATE_NOT_INSTALLED_PASS','B1155_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
+$gate('B1156_STATE_NOT_INSTALLED_PASS','B1156_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
 // A report that is the right PASS but one byte different (a changed digest) is the same HOLD as the production pin: the pin is the host file's bytes. The production pins are Report1120's facts:
 // its sha256 is that of the git blob (the CRLF worktree copy on a Windows checkout has another digest), its state id and its route count are the ones Report1120 printed.
 check(B1157InstallCoordinator::ROUTES===579&&B1157InstallCoordinator::ROUTES_AFTER===B1157Payload::ROUTES_AFTER&&B1157InstallCoordinator::B1156_TREE_FILES===8596&&B1157InstallCoordinator::installedTreeFiles()===B1157Payload::TREE_FILES_AFTER&&B1157InstallCoordinator::EXPECTED_APP_URL==='https://cms.ald1n.com'&&B1157InstallCoordinator::RAN===73&&B1157InstallCoordinator::RAN_AFTER===73+count(B1157InstallCoordinator::NEW_MIGRATIONS),'THE_PRODUCTION_CONSTANTS_ARE_579_ROUTES_8596_FILES_73_RAN_AND_THE_GENERATED_DELTAS');
