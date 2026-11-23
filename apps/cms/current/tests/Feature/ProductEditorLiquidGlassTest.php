@@ -39,7 +39,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         self::assertStringContainsString('name="save_draft" value="1" formnovalidate', $bar);
         self::assertSame(1, substr_count($bar, 'data-product-save-draft'));
         self::assertSame(1, substr_count($bar, 'data-product-save-primary'));
-        self::assertStringNotContainsString('button-large', $bar);
+        self::assertStringContainsString('a1-btn', $bar);
         self::assertStringNotContainsString('product-editor-action-direct', $bar);
     }
 
@@ -60,7 +60,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         self::assertStringContainsString('name="save_draft" value="1" formnovalidate', $bar);
         self::assertStringContainsString('class="a1-btn a1-btn--quiet product-editor-action-direct"', $bar);
         self::assertStringContainsString('href="'.route('catalog.show', ['slug' => $product->slug]).'#direct-sale-title"', $bar);
-        self::assertStringNotContainsString('button-large', $bar);
+        self::assertStringContainsString('a1-btn', $bar);
     }
 
     public function test_non_superadmin_edit_does_not_show_direct_sale_action(): void

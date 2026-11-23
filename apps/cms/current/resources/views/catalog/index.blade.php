@@ -71,36 +71,36 @@
     $catalogActiveFilterCount = count($catalogFilterChips);
 @endphp
 
-<div class="build16-catalog-shell" data-build16-catalog-redesign="1">
-<div class="page-heading unified-catalog-heading build16-catalog-heading" data-unified-catalog-ready="1" data-ux-catalog-workspace="1">
-    <div>
-        <span class="eyebrow">Katalog i lager</span>
-        <h1>Artikli</h1>
-        <p>Brza pretraga, jasni filteri i operativni pregled artikala bez menjanja postojećih pravila pristupa.</p>
+@pushOnce('head', 'a1-admin-catalog-css')
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin-catalog.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin-catalog.css')) ?: config('app.version') }}">
+@endPushOnce
+
+<div class="a1-cat" data-build16-catalog-redesign="1">
+<header class="a1-pagehead" data-unified-catalog-ready="1" data-ux-catalog-workspace="1">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Katalog i lager</span>
+        <h1 class="a1-title">Artikli</h1>
+        <p class="a1-lead">Brza pretraga, jasni filteri i operativni pregled artikala bez menjanja postojećih pravila pristupa.</p>
     </div>
-    <div class="page-heading-actions ux-catalog-command-actions" aria-label="Katalog komande">
-        <span class="count-pill"><x-icon name="boxes" size="16" />{{ $products->total() }} artikala</span>
+    <div class="a1-pagehead__actions" role="group" aria-label="Katalog komande">
+        <span class="a1-pill a1-pill--info"><x-icon name="boxes" size="16" :shell="true" />{{ $products->total() }} artikala</span>
         @if($canManageCatalog)
-            <a class="button button-ghost" href="{{ route('admin.products.archived') }}"><x-icon name="archive" size="16" />Arhivirani</a>
-            <a class="button button-ghost" href="{{ route('admin.products.bulk') }}"><x-icon name="sliders" size="16" />Bulk centar</a>
-            <a class="button button-ghost" href="{{ route('admin.products.import') }}"><x-icon name="sliders" size="16" />Uvoz CSV</a>
-            <a class="button button-primary" href="{{ route('admin.products.create') }}"><x-icon name="plus-circle" size="16" />Dodaj artikal</a>
+            <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.archived') }}"><x-icon name="archive" size="16" :shell="true" />Arhivirani</a>
+            <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.bulk') }}"><x-icon name="sliders" size="16" :shell="true" />Bulk centar</a>
+            <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.import') }}"><x-icon name="sliders" size="16" :shell="true" />Uvoz CSV</a>
+            <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.products.create') }}"><x-icon name="plus-circle" size="16" :shell="true" />Dodaj artikal</a>
         @endif
     </div>
-</div>
+</header>
 
-
-
-<form method="get" action="{{ route('catalog.index') }}" class="catalog-filter-shell" data-correlated-spec-filter-form data-catalog-filter-form>
-    <div class="catalog-filter-toolbar">
-        <div class="catalog-search-field ux-catalog-search-field">
-            <label class="ux-catalog-search-label" for="catalog-workspace-search">
-                <span>Pretraga kataloga</span>
-                <kbd aria-hidden="true">/</kbd>
-            </label>
-            <div class="ux-catalog-search-control">
-                <x-icon name="search" size="18" />
+<form method="get" action="{{ route('catalog.index') }}" class="a1-filters a1-cat-filters" role="search" aria-label="Pretraga i filteri kataloga" data-correlated-spec-filter-form data-catalog-filter-form>
+    <div class="a1-cat-bar">
+        <div class="a1-field a1-cat-search">
+            <label class="a1-label" for="catalog-workspace-search">Pretraga kataloga <kbd class="a1-cat-kbd" aria-hidden="true">/</kbd></label>
+            <div class="a1-cat-box">
+                <x-icon name="search" size="18" :shell="true" />
                 <input
+                    class="a1-input"
                     id="catalog-workspace-search"
                     type="search"
                     name="q"
@@ -112,77 +112,75 @@
                     data-catalog-workspace-search
                 >
                 <button
-                    class="ux-catalog-search-clear"
+                    class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm a1-cat-clear"
                     type="button"
                     data-catalog-search-clear
-                    aria-label="Obri&#353;i tekst pretrage"
+                    aria-label="Obriši tekst pretrage"
                     @if(blank(request('q'))) hidden @endif
-                ><x-icon name="x" size="15" /></button>
+                ><x-icon name="x" size="15" :shell="true" /></button>
             </div>
         </div>
 
         @if($canManageCatalog)
-            <label>
-                <span>Status</span>
-                <select name="status">
+            <label class="a1-field">
+                <span class="a1-label">Status</span>
+                <select class="a1-select" name="status">
                     <option value="">Svi dostupni statusi</option>
                     @foreach($catalogStatusLabels as $value => $label)
                         <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>
-        @else
-            <span></span>
         @endif
 
-        <label>
-            <span>Po strani</span>
-            <select name="per_page" data-catalog-per-page>
+        <label class="a1-field">
+            <span class="a1-label">Po strani</span>
+            <select class="a1-select" name="per_page" data-catalog-per-page>
                 @foreach(['20' => '20', '50' => '50', '100' => '100', 'all' => 'All'] as $value => $label)
                     <option value="{{ $value }}" @selected((string) $catalogPerPage === (string) $value)>{{ $label }}</option>
                 @endforeach
             </select>
         </label>
 
-        <button class="button button-ghost" type="button" data-catalog-filter-open aria-expanded="false" aria-controls="catalog-filter-drawer">
-            <x-icon name="sliders" size="16" />Filteri
-            @if($catalogActiveFilterCount > 0)<span class="catalog-filter-count">{{ $catalogActiveFilterCount }}</span>@endif
+        <button class="a1-btn" type="button" data-catalog-filter-open aria-expanded="false" aria-controls="catalog-filter-drawer">
+            <x-icon name="sliders" size="16" :shell="true" />Filteri
+            @if($catalogActiveFilterCount > 0)<span class="a1-count">{{ $catalogActiveFilterCount }}</span>@endif
         </button>
-        <button class="button button-primary" type="submit"><x-icon name="check-circle" size="16" />Primeni</button>
+        <button class="a1-btn a1-btn--primary" type="submit"><x-icon name="check-circle" size="16" :shell="true" />Primeni</button>
     </div>
 
-    <div class="catalog-filter-summary">
-        <span class="catalog-result-note" id="catalog-result-summary" aria-live="polite">
+    <div class="a1-cat-summary">
+        <p id="catalog-result-summary" aria-live="polite">
             Prikazano {{ $products->count() }} od {{ $products->total() }} artikala
             @if((string) $catalogPerPage === 'all') · prikaz svih rezultata @endif
-        </span>
+        </p>
         @if($catalogActiveFilterCount > 0)
-            <a class="button button-small button-ghost" href="{{ route('catalog.index') }}">Resetuj filtere</a>
+            <a class="a1-btn a1-btn--quiet a1-btn--sm" href="{{ route('catalog.index') }}">Resetuj filtere</a>
         @endif
     </div>
 
     @if($catalogActiveFilterCount > 0)
-        <div class="catalog-filter-chips" aria-label="Aktivni filteri">
+        <ul class="a1-chips" aria-label="Aktivni filteri">
             @foreach($catalogFilterChips as $chip)
-                <a class="catalog-filter-chip" href="{{ route('catalog.index', request()->except(array_merge(['page'], $chip['remove']))) }}">
-                    <span>{{ $chip['label'] }}</span><x-icon name="x" size="13" />
-                </a>
+                <li><a class="a1-chip" href="{{ route('catalog.index', request()->except(array_merge(['page'], $chip['remove']))) }}" aria-label="Ukloni filter: {{ $chip['label'] }}">
+                    <span>{{ $chip['label'] }}</span><x-icon name="x" size="16" :shell="true" />
+                </a></li>
             @endforeach
-        </div>
+        </ul>
     @endif
 
-    <div class="catalog-filter-backdrop" data-catalog-filter-backdrop hidden></div>
-    <aside class="catalog-filter-drawer" id="catalog-filter-drawer" data-catalog-filter-drawer aria-hidden="true" aria-label="Napredni filteri kataloga">
-        <div class="catalog-filter-drawer-head">
-            <div><span class="eyebrow">Katalog</span><h2>Napredni filteri</h2></div>
-            <button class="catalog-filter-close" type="button" data-catalog-filter-close aria-label="Zatvori filtere"><x-icon name="x" size="18" /></button>
+    <div class="a1-scrim a1-cat-scrim" data-catalog-filter-backdrop hidden></div>
+    <aside class="a1-cat-drawer" id="catalog-filter-drawer" data-catalog-filter-drawer aria-hidden="true" aria-label="Napredni filteri kataloga">
+        <div class="a1-cat-drawer__head">
+            <div><span class="a1-eyebrow">Katalog</span><h2 class="a1-h2">Napredni filteri</h2></div>
+            <button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" data-catalog-filter-close aria-label="Zatvori filtere"><x-icon name="x" size="18" :shell="true" /></button>
         </div>
-        <div class="catalog-filter-drawer-body">
-            <div class="catalog-filter-drawer-grid">
+        <div class="a1-cat-drawer__body">
+            <div class="a1-cat-drawer__grid">
                 @if($canManageCatalog && $isSuperAdministrator)
-                    <label>
-                        <span>Vlasništvo</span>
-                        <select name="ownership">
+                    <label class="a1-field">
+                        <span class="a1-label">Vlasništvo</span>
+                        <select class="a1-select" name="ownership">
                             <option value="">Svi artikli</option>
                             <option value="mine" @selected(request('ownership') === 'mine')>Moji artikli</option>
                             <option value="unassigned" @selected(request('ownership') === 'unassigned')>Bez vlasnika</option>
@@ -191,9 +189,9 @@
                 @endif
 
                 @if($canManageCatalog)
-                    <label>
-                        <span>Kvalitet podataka</span>
-                        <select name="quality">
+                    <label class="a1-field">
+                        <span class="a1-label">Kvalitet podataka</span>
+                        <select class="a1-select" name="quality">
                             <option value="">Svi artikli</option>
                             <option value="missing_image" @selected(request('quality') === 'missing_image')>Bez fotografije</option>
                             <option value="missing_price" @selected(request('quality') === 'missing_price')>Bez pozitivne cene</option>
@@ -204,41 +202,41 @@
                     </label>
                 @endif
 
-                <label>
-                    <span>Tip</span>
-                    <select name="product_type_id" data-filter-product-type>
+                <label class="a1-field">
+                    <span class="a1-label">Tip</span>
+                    <select class="a1-select" name="product_type_id" data-filter-product-type>
                         <option value="">Svi tipovi</option>
                         @foreach($types as $type)<option value="{{ $type->id }}" @selected((int) request('product_type_id') === $type->id)>{{ $type->name }}</option>@endforeach
                     </select>
                 </label>
 
-                <label>
-                    <span>Brend</span>
-                    <select name="brand_id" data-filter-brand>
+                <label class="a1-field">
+                    <span class="a1-label">Brend</span>
+                    <select class="a1-select" name="brand_id" data-filter-brand>
                         <option value="">Svi brendovi</option>
                         @foreach($brands as $brand)<option value="{{ $brand->id }}" @selected((int) request('brand_id') === $brand->id)>{{ $brand->name }}</option>@endforeach
                     </select>
                 </label>
 
-                <label>
-                    <span>Linija</span>
-                    <select name="product_line_id" data-filter-line>
+                <label class="a1-field">
+                    <span class="a1-label">Linija</span>
+                    <select class="a1-select" name="product_line_id" data-filter-line>
                         <option value="">Sve linije</option>
                         @foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" @selected((int) request('product_line_id') === $line->id)>{{ $line->name }}</option>@endforeach
                     </select>
                 </label>
 
-                <label>
-                    <span>Kategorija</span>
-                    <select name="category_id">
+                <label class="a1-field">
+                    <span class="a1-label">Kategorija</span>
+                    <select class="a1-select" name="category_id">
                         <option value="">Sve kategorije</option>
                         @foreach($categories as $category)<option value="{{ $category->id }}" @selected((int) request('category_id') === $category->id)>{{ $category->name }}</option>@endforeach
                     </select>
                 </label>
 
-                <label>
-                    <span>Lager</span>
-                    <select name="stock">
+                <label class="a1-field">
+                    <span class="a1-label">Lager</span>
+                    <select class="a1-select" name="stock">
                         <option value="">Sva stanja</option>
                         <option value="available" @selected(request('stock') === 'available')>Na stanju</option>
                         <option value="low" @selected(request('stock') === 'low')>Nizak lager</option>
@@ -248,9 +246,9 @@
 
                 @include('partials.correlated-specification-filters', ['filterFields' => $filterFields])
 
-                <label>
-                    <span>Sortiranje</span>
-                    <select name="sort">
+                <label class="a1-field">
+                    <span class="a1-label">Sortiranje</span>
+                    <select class="a1-select" name="sort">
                         <option value="newest">Najnovije</option>
                         <option value="updated" @selected(request('sort') === 'updated')>Poslednja izmena</option>
                         <option value="name" @selected(request('sort') === 'name')>Naziv</option>
@@ -262,23 +260,23 @@
                 </label>
             </div>
         </div>
-        <div class="catalog-filter-drawer-foot">
-            <a class="button button-ghost" href="{{ route('catalog.index') }}">Resetuj</a>
-            <button class="button button-primary" type="submit">Primeni filtere</button>
+        <div class="a1-cat-drawer__foot">
+            <a class="a1-btn" href="{{ route('catalog.index') }}">Resetuj</a>
+            <button class="a1-btn a1-btn--primary" type="submit">Primeni filtere</button>
         </div>
     </aside>
 </form>
 
 @if($canManageCatalog)
 <form method="get" action="{{ route('admin.products.bulk') }}" id="catalog-bulk-operation-form" data-unified-catalog-bulk>
-    <div class="bulk-selection-bar unified-bulk-bar" hidden data-unified-bulk-bar>
-        <button class="button button-primary button-small" type="submit">Bulk izmena izabranih</button>
+    <div class="a1-cat-bulk" hidden data-unified-bulk-bar>
+        <button class="a1-btn a1-btn--primary a1-btn--sm" type="submit">Bulk izmena izabranih</button>
         <span data-unified-bulk-count>0 izabrano</span>
     </div>
 </form>
 @endif
 
-<div class="product-grid unified-product-grid">
+<div class="a1-cat-grid" data-catalog-grid>
 @forelse($products as $product)
     @php
         $primaryImageUrl = $product->primaryImage?->url;
@@ -287,85 +285,85 @@
         $canManageThisImages = (bool) $product->getAttribute('can_manage_images');
         $displayStatus = $product->deleted_at ? 'archived' : $product->status;
         $statusLabel = ['active'=>'Aktivan','draft'=>'Nacrt','inactive'=>'Neaktivan','archived'=>'Arhiviran'][$displayStatus] ?? $displayStatus;
+        $statusPill = ['active' => 'a1-pill--ok', 'draft' => 'a1-pill--warning', 'inactive' => '', 'archived' => ''][$displayStatus] ?? '';
     @endphp
-    <article class="product-card unified-product-card {{ $canManageThis ? 'is-manageable' : '' }}" data-build16-catalog-card="1">
+    <article class="a1-card a1-card--flush a1-cat-card" data-catalog-card data-build16-catalog-card="1">
         @if($canManageCatalog && $canManageThis)
-            <label class="catalog-card-selector" title="Izaberi za bulk izmenu">
-                <input type="checkbox" name="product_ids[]" form="catalog-bulk-operation-form" value="{{ $product->id }}" data-unified-product-select>
-                <span>Izaberi</span>
+            <label class="a1-check a1-cat-select" title="Izaberi za bulk izmenu">
+                <input class="a1-check__input" type="checkbox" name="product_ids[]" form="catalog-bulk-operation-form" value="{{ $product->id }}" data-unified-product-select>
+                <span class="a1-check__box" aria-hidden="true"></span>
+                <span data-catalog-card-selector-text>Izaberi</span>
             </label>
         @endif
-        <div class="catalog-card-image-wrap">
-            <a class="product-image" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">
+        <div class="a1-cat-card__media">
+            <a class="a1-cat-card__image" href="{{ route('catalog.show', ['slug' => $product->slug]) }}" data-catalog-card-image>
                 @if($primaryImageUrl)<img src="{{ $primaryImageUrl }}" alt="{{ $product->name }}" loading="lazy">@else<span>Bez slike</span>@endif
             </a>
             @if($primaryImageDownload)
-                <a class="catalog-card-download" href="{{ $primaryImageDownload }}" title="Preuzmi sliku u punoj rezoluciji" aria-label="Preuzmi sliku artikla {{ $product->name }}"><x-icon name="download" size="18" /></a>
+                <a class="a1-btn a1-btn--sm a1-btn--icon a1-cat-card__download" href="{{ $primaryImageDownload }}" title="Preuzmi sliku u punoj rezoluciji" aria-label="Preuzmi sliku artikla {{ $product->name }}"><x-icon name="download" size="18" :shell="true" /></a>
             @endif
         </div>
-        <div class="product-card-body">
-            <div class="tags">
-                <span class="status-tag status-{{ $displayStatus }}">{{ $statusLabel }}</span>
-                @if($product->type)<span>{{ $product->type->name }}</span>@endif
-                @if($product->brand)<span class="neutral">{{ $product->brand->name }}</span>@endif
-                @if($product->line)<span>{{ $product->line->name }}</span>@endif
-            </div>
-            <h2><a href="{{ route('catalog.show', ['slug' => $product->slug]) }}">{{ $product->name }}</a></h2>
-            <div class="sku">SKU: {{ $product->sku }}</div>
+        <div class="a1-cat-card__body">
+            <ul class="a1-cat-tags">
+                <li><span class="a1-pill {{ $statusPill }}">{{ $statusLabel }}</span></li>
+                @if($product->type)<li><span class="a1-pill a1-pill--info">{{ $product->type->name }}</span></li>@endif
+                @if($product->brand)<li><span class="a1-pill">{{ $product->brand->name }}</span></li>@endif
+                @if($product->line)<li><span class="a1-pill">{{ $product->line->name }}</span></li>@endif
+            </ul>
+            <h2 class="a1-cat-card__title"><a href="{{ route('catalog.show', ['slug' => $product->slug]) }}">{{ $product->name }}</a></h2>
+            <p class="a1-cat-card__sku" data-catalog-card-sku>SKU: {{ $product->sku }}</p>
             @if($canManageCatalog)
-                <div class="catalog-owner-note">
+                <p class="a1-muted">
                     {{ $canManageThis ? 'Možeš da uređuješ ovaj artikal' : 'Samo pregled' }}
                     @if($isSuperAdministrator && $product->creator) · Dodao: {{ $product->creator->displayName() }} @endif
-                </div>
+                </p>
             @endif
-            <div class="product-meta">
+            <p class="a1-cat-card__meta">
                 <span>Lager: <strong>{{ $product->stock_quantity }}</strong></span>
                 <span>Provizija: <strong>{{ number_format((float)$product->commission_eur, 2, ',', '.') }} €</strong></span>
-            </div>
-            <div class="product-footer">
+            </p>
+            <div class="a1-cat-card__foot">
                 @if($canViewPrices)
-                    <strong class="price" data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float)$product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong>
+                    <strong class="a1-cat-price" data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float)$product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong>
                 @else
-                    <span class="muted">Cena nije dostupna</span>
+                    <span class="a1-muted">Cena nije dostupna</span>
                 @endif
-                @if(!$canManageThis)<a class="button button-small button-ghost" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>@endif
+                @if(!$canManageThis)<a class="a1-btn a1-btn--sm" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>@endif
             </div>
             @if(!$canManageCatalog)
-                <div class="catalog-card-cart">
-                    @include('partials.cart-add-control', ['product' => $product, 'compact' => true])
-                </div>
+                @include('partials.cart-add-control', ['product' => $product, 'compact' => true])
             @endif
             @if($canManageThis)
-                <div class="catalog-management-actions">
-                    <a class="button button-small button-ghost catalog-action-details" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>
-                    <div class="catalog-card-action-row catalog-card-primary-actions">
-                        <a class="button button-small button-primary" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
+                <div class="a1-cat-actions" data-catalog-management-actions>
+                    <a class="a1-btn a1-btn--sm" href="{{ route('catalog.show', ['slug' => $product->slug]) }}">Detalji</a>
+                    <div class="a1-cat-actions__row">
+                        <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.products.edit', $product) }}">Izmeni</a>
                     @if($product->deleted_at === null)
                         {{-- V0_8_PRODUCT_STATUS_LIGHTWEIGHT_CONTROL_BATCH2 --}}
-                        <form method="post" action="{{ route('admin.products.status', $product) }}" class="inline-form" data-product-status-toggle>
+                        <form method="post" action="{{ route('admin.products.status', $product) }}" data-product-status-toggle>
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="status" value="{{ $displayStatus === 'active' ? 'inactive' : 'active' }}">
-                            <button class="button button-small {{ $displayStatus === 'active' ? 'button-ghost' : 'button-primary' }}" type="submit">
+                            <button class="a1-btn a1-btn--sm {{ $displayStatus === 'active' ? '' : 'a1-btn--primary' }}" type="submit">
                                 {{ $displayStatus === 'active' ? 'Deaktiviraj' : 'Aktiviraj' }}
                             </button>
                         </form>
                     @endif
                     </div>
-                    <div class="catalog-card-action-row catalog-card-secondary-actions">
-                        @if($canManageThisImages)<a class="button button-small button-ghost" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
-                        <a class="button button-small button-ghost" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
+                    <div class="a1-cat-actions__row">
+                        @if($canManageThisImages)<a class="a1-btn a1-btn--sm" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
+                        <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
                     </div>
                 </div>
             @endif
         </div>
     </article>
 @empty
-    <div class="empty-state">Nema artikala koji odgovaraju filterima.</div>
+    <div class="a1-empty"><p>Nema artikala koji odgovaraju filterima.</p></div>
 @endforelse
 </div>
 
-<div class="pagination-wrap">{{ $products->links() }}</div>
+<div class="a1-pager-wrap">{{ $products->links('partials.ol-pager') }}</div>
 </div>
 @endsection
 
@@ -378,14 +376,14 @@
 @push('scripts')
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
-    const grid = document.querySelector('.unified-product-grid');
+    const grid = document.querySelector('[data-catalog-grid]');
     if (!(grid instanceof HTMLElement)) return;
 
     grid.dataset.uxCatalogResults = '1';
     grid.setAttribute('role', 'list');
 
-    const cards = Array.from(grid.querySelectorAll('.unified-product-card'));
-    const emptyState = grid.querySelector('.empty-state');
+    const cards = Array.from(grid.querySelectorAll('[data-catalog-card]'));
+    const emptyState = grid.querySelector('.a1-empty');
 
     if (emptyState instanceof HTMLElement) {
         emptyState.setAttribute('role', 'status');
@@ -394,12 +392,12 @@
 
     const titleForCard = (card) =>
         card.querySelector('h2')?.textContent?.replace(/\s+/g, ' ').trim()
-        || card.querySelector('.sku')?.textContent?.replace(/\s+/g, ' ').trim()
+        || card.querySelector('[data-catalog-card-sku]')?.textContent?.replace(/\s+/g, ' ').trim()
         || 'artikal';
 
     const refreshSelection = (card, checkbox) => {
         const selected = checkbox.checked;
-        card.classList.toggle('ux-catalog-card-selected', selected);
+        card.classList.toggle('is-selected', selected);
         card.dataset.selectionState = selected ? 'selected' : 'idle';
 
         const title = titleForCard(card);
@@ -408,7 +406,7 @@
             `${selected ? 'Poništi izbor' : 'Izaberi'}: ${title}`,
         );
 
-        const selectorText = checkbox.closest('.catalog-card-selector')?.querySelector('span');
+        const selectorText = checkbox.closest('label')?.querySelector('[data-catalog-card-selector-text]');
         if (selectorText) {
             selectorText.textContent = selected ? 'Izabrano' : 'Izaberi';
         }
@@ -420,7 +418,7 @@
         card.dataset.uxCatalogCard = '1';
         card.setAttribute('role', 'listitem');
 
-        const image = card.querySelector('.product-image img');
+        const image = card.querySelector('[data-catalog-card-image] img');
         if (image instanceof HTMLImageElement) {
             image.decoding = 'async';
         }

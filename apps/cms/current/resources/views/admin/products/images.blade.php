@@ -59,6 +59,7 @@
         </form>
     </section>
 
+    <div hidden data-product-aux-forms>
     @foreach($product->images as $image)
         <form id="primary-{{ $image->id }}" method="post" action="{{ route('admin.products.images.primary', [$product, $image]) }}" data-image-ajax-form data-image-action="primary">@csrf @method('PATCH')</form>
         <form id="rotate-left-{{ $image->id }}" method="post" action="{{ route('admin.products.images.rotate', [$product, $image]) }}" data-image-ajax-form data-image-action="rotate" data-image-id="{{ $image->id }}">@csrf @method('PATCH')<input type="hidden" name="degrees" value="270"></form>
@@ -67,6 +68,7 @@
             <form id="delete-{{ $image->id }}" data-confirm-submit="Ukloniti sliku?" method="post" action="{{ route('admin.products.images.destroy', [$product, $image]) }}">@csrf @method('DELETE')</form>
         @endif
     @endforeach
+    </div>
 </div>
 @endsection
 

@@ -81,6 +81,7 @@
         </section>
         @endif
     </div>
+{{-- Enter u polju pokreće prvi submit u formi: to je uvek pregled, nikad izvršenje. --}}
     <div class="a1-actionbar">
         <p class="a1-actionbar__status">Svaki uvezeni artikal dobija audit zapis. Redovi sa greškom se ne uvoze.</p>
         <div class="a1-actionbar__buttons">

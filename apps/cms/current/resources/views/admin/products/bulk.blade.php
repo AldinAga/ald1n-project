@@ -70,6 +70,7 @@
 </section>
 @endif
 </div>
+{{-- Enter u polju pokreće prvi submit u formi: to je uvek pregled, nikad izvršenje. --}}
 <div class="a1-actionbar">
     <p class="a1-actionbar__status">Prvo pregledaj tačan obim promena. Izvršenje se evidentira u audit logu za svaki artikal.</p>
     <div class="a1-actionbar__buttons">

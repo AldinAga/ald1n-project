@@ -173,13 +173,13 @@
                             <label class="a1-field"><span class="a1-label">Naziv artikla</span><input class="a1-input" name="name" maxlength="190" value="{{ old('name',$product->name) }}" data-product-name></label>
                             <div class="a1-pc-inline">
                                 <button class="a1-btn a1-btn--sm" type="button" data-name-preview>Predloži naziv</button>
-                                <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_name" value="1" @checked(old('regenerate_name'))><span class="a1-check__box" aria-hidden="true"></span><span>Generiši pri čuvanju</span></label>
+                                <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_name" value="1" @checked(old('regenerate_name'))><i class="a1-check__box" aria-hidden="true"></i><span>Generiši pri čuvanju</span></label>
                             </div>
                             <small class="a1-help" data-name-template-help>Izaberi tip artikla da vidiš šablon naziva.</small>
                         </div>
                         @if($product->exists)
                             <label class="a1-field"><span class="a1-label">SKU *</span><input class="a1-input" name="sku" required maxlength="100" value="{{ old('sku',$product->sku) }}"></label>
-                            <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_sku" value="1" @checked(old('regenerate_sku'))><span class="a1-check__box" aria-hidden="true"></span><span>Automatski generiši novi SKU</span></label>
+                            <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_sku" value="1" @checked(old('regenerate_sku'))><i class="a1-check__box" aria-hidden="true"></i><span>Automatski generiši novi SKU</span></label>
                         @endif
                     </div>
                 </section>
@@ -454,9 +454,9 @@
                                         <small>Koristi arhiviranje da porudžbine, lager i izveštaji ostanu ispravni.</small>
                                     </div>
                                 @else
-                                    <label class="a1-field"><span class="a1-label">Za potvrdu upiši SKU: {{ $product->sku }}</span><input class="a1-input" form="purge-product" name="confirmation" maxlength="100" autocomplete="off" placeholder="{{ $product->sku }}" value="{{ old('confirmation') }}"></label>
-                                    @error('confirmation')<p class="a1-error">{{ $message }}</p>@enderror
-                                    <label class="a1-check product-delete-images"><input class="a1-check__input" form="purge-product" type="checkbox" name="delete_images" value="1" checked><span class="a1-check__box" aria-hidden="true"></span><span>Obriši i sve lokalne slike artikla sa servera</span></label>
+                                    <label class="a1-field"><span class="a1-label">Za potvrdu upiši SKU: {{ $product->sku }}</span><input class="a1-input" form="purge-product" name="confirmation" maxlength="100" autocomplete="off" placeholder="{{ $product->sku }}" value="{{ old('confirmation') }}" @error('confirmation') aria-invalid="true" aria-describedby="pe-err-confirmation" @enderror></label>
+                                    @error('confirmation')<p class="a1-error" id="pe-err-confirmation">{{ $message }}</p>@enderror
+                                    <label class="a1-check product-delete-images"><input class="a1-check__input" form="purge-product" type="checkbox" name="delete_images" value="1" checked><i class="a1-check__box" aria-hidden="true"></i><span>Obriši i sve lokalne slike artikla sa servera</span></label>
                                     <small class="a1-help">Legacy read-only slike ne mogu fizički da se brišu sa izvornog servera, ali njihovi CMS zapisi biće uklonjeni.</small>
                                     <button form="purge-product" class="a1-btn a1-btn--danger" type="submit" data-confirm="Trajno obrisati artikal {{ $product->sku }}? Ovu radnju nije moguće poništiti."><x-icon name="trash" size="18" /> Trajno obriši artikal</button>
                                 @endif
@@ -476,28 +476,28 @@
 
                                     <label class="a1-field">
                                         <span class="a1-label">Razlog Total Product Purge operacije</span>
-                                        <textarea class="a1-textarea" form="total-purge-product" name="total_reason" rows="4" maxlength="1000" required placeholder="Zašto identitet ovog artikla mora biti uklonjen iz live sistema?">{{ old('total_reason') }}</textarea>
+                                        <textarea class="a1-textarea" form="total-purge-product" name="total_reason" rows="4" maxlength="1000" required placeholder="Zašto identitet ovog artikla mora biti uklonjen iz live sistema?" @error('total_reason') aria-invalid="true" aria-describedby="pe-err-total-reason" @enderror>{{ old('total_reason') }}</textarea>
                                     </label>
-                                    @error('total_reason')<p class="a1-error">{{ $message }}</p>@enderror
+                                    @error('total_reason')<p class="a1-error" id="pe-err-total-reason">{{ $message }}</p>@enderror
 
                                     <label class="a1-field">
                                         <span class="a1-label">1. potvrda — upiši tačan SKU: {{ $product->sku }}</span>
-                                        <input class="a1-input" form="total-purge-product" name="total_confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $product->sku }}" value="{{ old('total_confirmation') }}">
+                                        <input class="a1-input" form="total-purge-product" name="total_confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $product->sku }}" value="{{ old('total_confirmation') }}" @error('total_confirmation') aria-invalid="true" aria-describedby="pe-err-total-confirmation" @enderror>
                                     </label>
-                                    @error('total_confirmation')<p class="a1-error">{{ $message }}</p>@enderror
+                                    @error('total_confirmation')<p class="a1-error" id="pe-err-total-confirmation">{{ $message }}</p>@enderror
 
                                     <label class="a1-field">
                                         <span class="a1-label">2. nepovratna potvrda — upiši tačno: TRAJNO OBRIŠI SVE TRAGOVE</span>
-                                        <input class="a1-input" form="total-purge-product" name="total_irreversible_confirmation" maxlength="100" autocomplete="off" required placeholder="TRAJNO OBRIŠI SVE TRAGOVE" value="{{ old('total_irreversible_confirmation') }}">
+                                        <input class="a1-input" form="total-purge-product" name="total_irreversible_confirmation" maxlength="100" autocomplete="off" required placeholder="TRAJNO OBRIŠI SVE TRAGOVE" value="{{ old('total_irreversible_confirmation') }}" @error('total_irreversible_confirmation') aria-invalid="true" aria-describedby="pe-err-total-irreversible" @enderror>
                                     </label>
-                                    @error('total_irreversible_confirmation')<p class="a1-error">{{ $message }}</p>@enderror
+                                    @error('total_irreversible_confirmation')<p class="a1-error" id="pe-err-total-irreversible">{{ $message }}</p>@enderror
 
                                     <label class="a1-check">
-                                        <input class="a1-check__input" form="total-purge-product" type="checkbox" name="total_retention_acknowledged" value="1" required @checked(old('total_retention_acknowledged'))>
-                                        <span class="a1-check__box" aria-hidden="true"></span>
+                                        <input class="a1-check__input" form="total-purge-product" type="checkbox" name="total_retention_acknowledged" value="1" required @checked(old('total_retention_acknowledged')) @error('total_retention_acknowledged') aria-invalid="true" aria-describedby="pe-err-total-retention" @enderror>
+                                        <i class="a1-check__box" aria-hidden="true"></i>
                                         <span>Razumem da se live CMS čisti do ZERO TRACE nivoa, ali disaster-recovery backupi i off-host kopije ostaju zasebna retention granica.</span>
                                     </label>
-                                    @error('total_retention_acknowledged')<p class="a1-error">{{ $message }}</p>@enderror
+                                    @error('total_retention_acknowledged')<p class="a1-error" id="pe-err-total-retention">{{ $message }}</p>@enderror
 
                                     <button
                                         form="total-purge-product"

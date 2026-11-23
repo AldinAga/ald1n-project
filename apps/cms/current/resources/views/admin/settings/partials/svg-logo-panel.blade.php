@@ -7,20 +7,20 @@
         (($assetStatus['logo_dark']['state'] ?? '') !== 'missing') ? ($logoDarkUrl ?? null) : null,
     ])));
 @endphp
-<p class="muted" data-svg-logo-hint>Logo: PNG, JPG, WEBP ili SVG. Favicon: PNG, ICO ili SVG. SVG može imati najviše 200 KB; SVG se automatski čisti od skripti i spoljnih veza i čuva se samo očišćena verzija.</p>
+<p class="a1-muted" data-svg-logo-hint>Logo: PNG, JPG, WEBP ili SVG. Favicon: PNG, ICO ili SVG. SVG može imati najviše 200 KB; SVG se automatski čisti od skripti i spoljnih veza i čuva se samo očišćena verzija.</p>
 @foreach($svgLogoNotes as $svgLogoNote)
-    <div class="alert success" role="status" data-svg-logo-notice>{{ $svgLogoNote }}</div>
+    <div class="a1-alert a1-alert--ok" role="status" data-svg-logo-notice><x-icon name="check-circle" :size="20" :shell="true" /><div class="a1-alert__body"><p>{{ $svgLogoNote }}</p></div></div>
 @endforeach
 @if($svgLogoPreview !== [])
-    <div data-svg-logo-preview style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:12px 0">
+    <div class="a1-set-svgprev" data-svg-logo-preview>
         @foreach(['light' => 'Sačuvani logo na svetloj pozadini', 'dark' => 'Sačuvani logo na tamnoj pozadini'] as $svgSwatch => $svgSwatchLabel)
-            <figure style="margin:0">
-                <div class="asset-preview {{ $svgSwatch }}" style="height:96px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center">
-                    @foreach($svgLogoPreview as $svgLogoUrl)<img src="{{ $svgLogoUrl }}" alt="{{ $svgSwatchLabel }}" style="height:40px;width:auto;max-width:45%">@endforeach
+            <figure>
+                <div class="a1-set-preview a1-set-preview--{{ $svgSwatch }}">
+                    @foreach($svgLogoPreview as $svgLogoUrl)<img src="{{ $svgLogoUrl }}" alt="{{ $svgSwatchLabel }}">@endforeach
                 </div>
-                <figcaption class="muted">{{ $svgSwatchLabel }}</figcaption>
+                <figcaption class="a1-muted">{{ $svgSwatchLabel }}</figcaption>
             </figure>
         @endforeach
     </div>
 @endif
-<p class="muted">PDF dokumenti ne prikazuju SVG. Ako je logo sajta SVG, PDF koristi poseban PNG/JPG logo iz podešavanja „PDF i fakturisanje“, a bez njega ugrađeni znak.</p>
+<p class="a1-muted">PDF dokumenti ne prikazuju SVG. Ako je logo sajta SVG, PDF koristi poseban PNG/JPG logo iz podešavanja „PDF i fakturisanje“, a bez njega ugrađeni znak.</p>

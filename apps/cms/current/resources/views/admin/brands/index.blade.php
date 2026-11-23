@@ -77,13 +77,13 @@
         <div class="a1-pc-grid">
             <label class="a1-field">
                 <span class="a1-label">Naziv brenda</span>
-                <input class="a1-input" name="name" maxlength="120" required value="{{ old('name', $formBrand['name'] ?? '') }}" placeholder="npr. Samsung">
-                @error('name')<small class="a1-error">{{ $message }}</small>@enderror
+                <input class="a1-input" name="name" maxlength="120" required value="{{ old('name', $formBrand['name'] ?? '') }}" placeholder="npr. Samsung" @error('name') aria-invalid="true" aria-describedby="br-err-name" @enderror>
+                @error('name')<small class="a1-error" id="br-err-name">{{ $message }}</small>@enderror
             </label>
             <label class="a1-field">
                 <span class="a1-label">Zvanični website</span>
-                <input class="a1-input" type="url" name="website_url" maxlength="255" value="{{ old('website_url', $formBrand['website_url'] ?? '') }}" placeholder="https://www.example.com">
-                @error('website_url')<small class="a1-error">{{ $message }}</small>@enderror
+                <input class="a1-input" type="url" name="website_url" maxlength="255" value="{{ old('website_url', $formBrand['website_url'] ?? '') }}" placeholder="https://www.example.com" @error('website_url') aria-invalid="true" aria-describedby="br-err-website" @enderror>
+                @error('website_url')<small class="a1-error" id="br-err-website">{{ $message }}</small>@enderror
             </label>
             <label class="a1-field">
                 <span class="a1-label">Status</span>
@@ -100,16 +100,16 @@
 
         <label class="a1-field">
             <span class="a1-label">Kratak opis na srpskom</span>
-            <textarea class="a1-textarea" name="description" rows="4" maxlength="65000" placeholder="Kratak opis proizvođača i relevantnog proizvodnog programa.">{{ old('description', $formBrand['description'] ?? '') }}</textarea>
-            @error('description')<small class="a1-error">{{ $message }}</small>@enderror
+            <textarea class="a1-textarea" name="description" rows="4" maxlength="65000" placeholder="Kratak opis proizvođača i relevantnog proizvodnog programa." @error('description') aria-invalid="true" aria-describedby="br-err-description" @enderror>{{ old('description', $formBrand['description'] ?? '') }}</textarea>
+            @error('description')<small class="a1-error" id="br-err-description">{{ $message }}</small>@enderror
         </label>
 
         <div class="a1-card__title">
             <h3 class="a1-h3">Povezani tipovi i linije</h3>
             <p class="a1-text">Izaberi tipove kojima brend realno pripada. Za svaki izabrani tip možeš uneti do deset kuriranih linija. Postojeće dodatne istorijske linije se ne brišu.</p>
         </div>
-        @error('product_type_ids')<p class="a1-error">{{ $message }}</p>@enderror
-        @error('line_names_by_type')<p class="a1-error">{{ $message }}</p>@enderror
+        @error('product_type_ids')<p class="a1-error" id="br-err-types" role="alert">{{ $message }}</p>@enderror
+        @error('line_names_by_type')<p class="a1-error" id="br-err-lines" role="alert">{{ $message }}</p>@enderror
 
         <div class="a1-pc-cards">
             @foreach($product_types as $type)

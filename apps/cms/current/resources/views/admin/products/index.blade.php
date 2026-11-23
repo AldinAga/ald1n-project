@@ -19,6 +19,8 @@
         </div>
     </header>
 
+    <details class="a1-acc a1-pc-filters-acc" data-pc-filter-collapse open>
+    <summary>Filteri</summary>
     <form class="a1-filters a1-pc-filterform" method="get" role="search" aria-label="Filteri artikala" data-correlated-spec-filter-form>
         <div class="a1-filters__fields">
             <div class="a1-field"><label class="a1-label" for="pi-q">Pretraga</label><input class="a1-input" id="pi-q" type="search" name="q" value="{{ request('q') }}" placeholder="Naziv ili SKU"></div>
@@ -33,6 +35,7 @@
             <a class="a1-btn" href="{{ route('admin.products.index') }}">Reset</a>
         </div>
     </form>
+    </details>
 
     <form method="get" action="{{ route('admin.products.bulk') }}" data-bulk-selection-form>
         <div class="a1-pc-bulkbar">
@@ -81,6 +84,10 @@
 @endsection
 @push('scripts')
 @include('partials.correlated-specification-filter-script')
+<script nonce="{{ request()->attributes->get('_csp_nonce') }}">
+// Na telefonu su filteri sklopljeni dok nema aktivnog filtera; na većim ekranima su otvoreni.
+(() => { const box = document.querySelector('[data-pc-filter-collapse]'); if (!box) return; const active = Array.from(new URLSearchParams(location.search).entries()).some(([key, value]) => key !== 'page' && String(value).trim() !== ''); if (window.matchMedia('(max-width: 720px)').matches && !active) box.open = false; })();
+</script>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => { const all=document.querySelector('[data-select-all]'); const boxes=Array.from(document.querySelectorAll('[data-product-select]')); const count=document.querySelector('[data-bulk-count]'); const refresh=()=>{const n=boxes.filter(b=>b.checked).length;if(count)count.textContent=`${n} izabrano`;if(all){all.checked=n>0&&n===boxes.length;all.indeterminate=n>0&&n<boxes.length;}}; all?.addEventListener('change',()=>{boxes.forEach(b=>b.checked=all.checked);refresh();}); boxes.forEach(b=>b.addEventListener('change',refresh)); refresh(); })();
 </script>
