@@ -77,9 +77,9 @@
                     <div class="a1-item__main">
                         <strong>{{ $debit->commission?->order?->order_number }} · {{ $debit->commission?->user?->displayName() }} · {{ $eur($debit->amount_eur) }} EUR</strong>
                         <span class="a1-help">{{ $debit->reason }}</span>
-                        <div class="a1-cluster">
-                            <form method="post" action="{{ route('admin.commissions.debits.confirm',$debit) }}">@csrf<button class="a1-btn a1-btn--primary a1-btn--sm" type="submit" data-confirm="Potvrditi zaduženje od {{ $eur($debit->amount_eur) }} EUR?">Potvrdi zaduženje</button></form>
-                            <form method="post" action="{{ route('admin.commissions.debits.reject',$debit) }}" class="a1-cluster">@csrf<label class="a1-sr" for="cm-reject-{{ $debit->id }}">Razlog odbijanja</label><input class="a1-input" id="cm-reject-{{ $debit->id }}" name="note" maxlength="500" placeholder="Razlog odbijanja" required><button class="a1-btn a1-btn--quiet a1-btn--sm" type="submit" data-confirm="Odbiti predlog zaduženja?">Odbij</button></form>
+                        <div class="a1-rowact">
+                            <form method="post" action="{{ route('admin.commissions.debits.confirm',$debit) }}" class="a1-rowact__form">@csrf<x-icon-action-pill tone="ok" label="Potvrdi zaduženje" data-confirm="Potvrditi zaduženje od {{ $eur($debit->amount_eur) }} EUR?" /></form>
+                            <form method="post" action="{{ route('admin.commissions.debits.reject',$debit) }}" class="a1-rowact__form">@csrf<label class="a1-sr" for="cm-reject-{{ $debit->id }}">Razlog odbijanja</label><input class="a1-input a1-rowact__reason" id="cm-reject-{{ $debit->id }}" name="note" maxlength="500" placeholder="Razlog" title="Razlog odbijanja (obavezan)" required><x-icon-action-pill tone="danger" label="Odbij predlog zaduženja" data-confirm="Odbiti predlog zaduženja?" /></form>
                         </div>
                     </div>
                 </li>

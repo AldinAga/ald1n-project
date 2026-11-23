@@ -79,6 +79,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icon-actions.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icon-actions.css')) ?: config('app.version') }}">
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';

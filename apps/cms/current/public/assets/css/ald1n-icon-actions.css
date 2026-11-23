@@ -1,0 +1,16 @@
+/* Ikonična dugmad Potvrdi/Odbij (✓ / ✕) u jednom redu. Author: Ald1n <https://ald1n.com>
+   Samo nove klase (.a1-iconpill, .a1-rowact); ne dira ald1n-admin.css. Boje iz ald1n-tokens.css. */
+.a1-rowact{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.5rem;white-space:nowrap}
+.a1-rowact__form{display:flex;flex-wrap:nowrap;align-items:center;gap:.5rem;margin:0;white-space:nowrap}
+.a1-rowact__reason{flex:1 1 9rem;min-width:8rem;width:auto;max-width:14rem;min-height:40px;white-space:normal}
+.a1-iconpill{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;min-width:40px;min-height:40px;width:40px;height:40px;padding:0;border-radius:999px;border:2px solid currentColor;background:transparent;cursor:pointer;font:inherit;line-height:1;white-space:nowrap;transition:background-color .15s ease,transform .15s ease}
+.a1-iconpill .a1-icon{display:block;flex:none;pointer-events:none}
+.a1-iconpill--ok{color:var(--a1-status-ok-text);background:var(--a1-status-ok-bg);border-color:var(--a1-status-ok-dot)}
+.a1-iconpill--danger{color:var(--a1-status-danger-text);background:var(--a1-status-danger-bg);border-color:var(--a1-status-danger-dot)}
+.a1-iconpill:hover{filter:brightness(.96)}
+.a1-iconpill:active{transform:scale(.96)}
+.a1-iconpill:focus-visible{outline:3px solid var(--a1-status-ok-dot);outline-offset:2px}
+.a1-iconpill--danger:focus-visible{outline-color:var(--a1-status-danger-dot)}
+.a1-iconpill:disabled{opacity:.55;cursor:not-allowed}
+@media (prefers-reduced-motion:reduce){.a1-iconpill{transition:none}.a1-iconpill:active{transform:none}}
+@media (max-width:640px){.a1-rowact{justify-content:flex-start}}
