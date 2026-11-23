@@ -97,7 +97,7 @@ final class OrdersModuleThreeFieldServiceTest extends TestCase
 
             self::assertSame(1, substr_count($html, '<h1 '));
             self::assertStringContainsString('<h1 class="a1-title">'.$workOrder->work_order_number.'</h1>', $html);
-            self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
+            self::assertStringNotContainsString('Nazad na vrh', $html);
             self::assertMatchesRegularExpression('/a1-pill a1-pill--warning">Planiran</', $html);
             // A planned order: "crew left" is the one primary action, the other transition is secondary.
             self::assertSame(1, substr_count($html, 'a1-btn a1-btn--primary'));
@@ -310,7 +310,7 @@ final class OrdersModuleThreeFieldServiceTest extends TestCase
 
             self::assertSame(1, substr_count($html, '<h1 '));
             self::assertSame(1, substr_count($html, 'a1-btn a1-btn--primary'));
-            self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
+            self::assertStringNotContainsString('Nazad na vrh', $html);
             self::assertSame(0, preg_match('/class="(?:[^"]*\s)?(?:'.self::OLD_CLASSES.')(?:\s[^"]*)?"/', $html), 'Old classes must be gone.');
             self::assertStringContainsString('class="a1-pill a1-pill--ok">Aktivna</span>', $html);
             self::assertStringContainsString('class="a1-pill a1-pill--off">Neaktivna</span>', $html);

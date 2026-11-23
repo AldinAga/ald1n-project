@@ -104,7 +104,7 @@ final class OrdersModuleThreeAfterSalesTest extends TestCase
         self::assertStringContainsString('class="a1-table a1-table--cards"', $ops);
         self::assertStringContainsString('href="'.route('after-sales.show', $this->case).'" aria-label="Otvori slučaj PS-M3-000001"', $ops);
         $this->assertCleanMarkup($ops);
-        self::assertStringContainsString('aria-label="Nazad na vrh"', $ops);
+        self::assertStringNotContainsString('Nazad na vrh', $ops);
 
         $empty = $this->ops((string) $this->actingAs($this->person('no-cases', 'user', 1))->get('/after-sales')->assertOk()->getContent());
         self::assertStringContainsString('class="a1-empty"', $empty);
@@ -217,7 +217,7 @@ final class OrdersModuleThreeAfterSalesTest extends TestCase
         self::assertMatchesRegularExpression('/<span class="a1-pill a1-pill--danger">Probijen rok<\/span>/', $ops);
         self::assertStringContainsString('href="'.route('admin.after-sales.show', $this->case).'" aria-label="Obradi slučaj PS-M3-000001"', $ops);
         $this->assertCleanMarkup($ops);
-        self::assertStringContainsString('aria-label="Nazad na vrh"', $ops);
+        self::assertStringNotContainsString('Nazad na vrh', $ops);
     }
 
     public function test_admin_list_filters_keep_their_query_parameters(): void
@@ -285,7 +285,7 @@ final class OrdersModuleThreeAfterSalesTest extends TestCase
         }
         self::assertStringContainsString('PSA-M3-000002', $ops);
         $this->assertCleanMarkup($ops);
-        self::assertStringContainsString('aria-label="Nazad na vrh"', $ops);
+        self::assertStringNotContainsString('Nazad na vrh', $ops);
     }
 
     public function test_assigned_admin_gets_the_same_execution_controls_and_customer_is_refused(): void

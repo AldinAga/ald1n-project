@@ -39,7 +39,7 @@ final class OrdersModuleThreeCustomerOrdersTest extends TestCase
         self::assertStringContainsString('data-order-user-detail-ready="1"', $html);
         self::assertSame(1, substr_count($html, '<h1 '));
         self::assertStringContainsString('>'.$order->order_number.'</h1>', $html);
-        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
+        self::assertStringNotContainsString('Nazad na vrh', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $html), 'Old classes must be gone.');
         self::assertSame(0, preg_match('/style="[^"]*(?:#[0-9a-f]{3,8}|rgb|hsl)/i', $html));
 
