@@ -129,15 +129,17 @@ final class AccountDeletionController extends Controller
     public function cancel(Request $request, UserDeletionService $deletions): View
     {
         $token = $this->token($request);
-        $done = $token !== null && $deletions->cancel($token);
+        $outcome = $token === null ? 'invalid' : $deletions->cancel($token);
 
         return view('public-shop.account-deletion.result', [
             'hideShopNav' => true,
-            'ok' => $done,
-            'title' => $done ? 'Brisanje naloga je poništeno' : 'Link nije važeći',
-            'message' => $done
-                ? 'Nalog je ponovo aktivan i možete se prijaviti.'
-                : 'Rok za poništavanje je istekao ili je zahtev već poništen.',
+            'ok' => $outcome !== 'invalid',
+            'title' => $outcome === 'invalid' ? 'Link nije važeći' : 'Brisanje naloga je poništeno',
+            'message' => match ($outcome) {
+                'restored' => 'Nalog je ponovo aktivan i možete se prijaviti.',
+                'still_blocked' => 'Brisanje je poništeno, ali je nalog i dalje blokiran jer ga je blokirao administrator. Za otključavanje se obratite podršci.',
+                default => 'Rok za poništavanje je istekao ili je zahtev već poništen.',
+            },
         ]);
     }
 

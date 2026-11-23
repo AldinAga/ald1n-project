@@ -385,8 +385,51 @@ final class AccountDeletionTest extends TestCase
 
         // Poslije administratorske blokade link iz e-pošte ne može da skine blokadu.
         $this->adminSetStatus($target, 'blocked', $actor);
-        self::assertFalse($service->cancel($cancelToken));
+        self::assertSame('invalid', $service->cancel($cancelToken));
         $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+    }
+
+    public function test_cancel_link_does_not_lift_a_block_the_admin_took_over(): void
+    {
+        Notification::fake();
+        $target = $this->user('del-admin-block', 'user');
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+        $cancel = $this->capturedToken($target, 'scheduled');
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['blocked_by_request' => false]);
+
+        $this->post('/brisanje-naloga/ponisti', ['token' => $cancel])->assertOk()->assertSee('administrator', false);
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'cancelled']);
+    }
+
+    public function test_any_exit_from_blocked_closes_the_request(): void
+    {
+        Notification::fake();
+        $actor = $this->user('del-actor3', 'superadmin');
+        $target = $this->user('del-pending-exit', 'user');
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+
+        $this->adminSetStatus($target, 'pending', $actor);
+
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'cancelled']);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subDay()]);
+        $this->processDeletions();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-pending-exit', 'status' => 'pending']);
+    }
+
+    public function test_reserved_prefix_applies_to_new_usernames_but_not_to_editing_an_existing_deleted_user(): void
+    {
+        $actor = $this->user('del-actor4', 'superadmin');
+        $existing = $this->user('deleted_999', 'user', 'blocked');
+        $roleId = (int) $existing->role_id;
+        $payload = ['role_id' => $roleId, 'user_group_id' => 1, 'email' => $existing->email, 'status' => 'active'];
+
+        $this->actingAs($actor)->put('/admin/users/'.$existing->id, $payload + ['username' => 'deleted_999'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['id' => $existing->id, 'status' => 'active']);
+
+        $this->actingAs($actor)->put('/admin/users/'.$existing->id, $payload + ['username' => 'deleted_1000'])->assertSessionHasErrors('username');
+        $this->actingAs($actor)->post('/admin/users', $payload + ['username' => 'deleted_5', 'email' => 'novi@example.test', 'password' => 'Secret123!Secret'])->assertSessionHasErrors('username');
     }
 
     public function test_completion_never_anonymises_an_account_that_is_no_longer_blocked(): void

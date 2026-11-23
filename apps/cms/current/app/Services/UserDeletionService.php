@@ -45,6 +45,12 @@ final class UserDeletionService
         return Schema::hasTable('account_deletion_requests');
     }
 
+    /** Kolona blocked_by_request može nastati kasnije od tabele; bez nje se ponaša kao da je 1. */
+    private static function hasFlagColumn(): bool
+    {
+        return Schema::hasColumn('account_deletion_requests', 'blocked_by_request');
+    }
+
     /**
      * Aktivan (nezavršen i neponišten) zahtev korisnika ili null.
      */
@@ -193,12 +199,12 @@ final class UserDeletionService
         if ($row === null || $row->grace_until === null) {
             return;
         }
-        if ($nextStatus === 'active' && $previousStatus !== 'active') {
+        if ($previousStatus === 'blocked' && $nextStatus !== 'blocked') {
             DB::table('account_deletion_requests')->where('id', $row->id)->update([
                 'status' => 'cancelled', 'cancel_token_hash' => null, 'updated_at' => now(),
             ]);
             $this->audit('account.deletion_cancelled', (int) $locked->getKey(), ['reason' => 'admin_unblocked']);
-        } elseif ($nextStatus !== 'active') {
+        } elseif ($nextStatus === 'blocked' && self::hasFlagColumn()) {
             DB::table('account_deletion_requests')->where('id', $row->id)->update(['blocked_by_request' => false, 'updated_at' => now()]);
         }
     }
@@ -273,9 +279,11 @@ final class UserDeletionService
                 'confirm_token_hash' => null,
                 'confirm_expires_at' => null,
                 'cancel_token_hash' => hash('sha256', $plainCancel),
-                'blocked_by_request' => true,
                 'updated_at' => now(),
             ];
+            if (self::hasFlagColumn()) {
+                $values['blocked_by_request'] = true;
+            }
             if ($row !== null) {
                 DB::table('account_deletion_requests')->where('id', $row->id)->update($values);
             } else {
@@ -323,35 +331,38 @@ final class UserDeletionService
     }
 
     /** Poništavanje linkom iz e-pošte (jedini put koji radi i bez ijedne važeće prijave). */
-    public function cancel(string $plain): bool
+    /** @return 'restored'|'still_blocked'|'invalid' */
+    public function cancel(string $plain): string
     {
         $row = $this->cancellableByToken($plain);
         if ($row === null) {
-            return false;
+            return 'invalid';
         }
 
-        return DB::transaction(function () use ($row): bool {
+        return DB::transaction(function () use ($row): string {
             $current = DB::table('account_deletion_requests')->where('id', $row->id)->lockForUpdate()->first();
             if ($current === null || !in_array($current->status, ['pending', 'waiting_obligations'], true)
                 || $current->grace_until === null) {
-                return false;
+                return 'invalid';
             }
             $user = User::query()->lockForUpdate()->find((int) $current->user_id);
             if ($user === null || $user->retired_at !== null) {
-                return false;
+                return 'invalid';
             }
             DB::table('account_deletion_requests')->where('id', $current->id)->update([
                 'status' => 'cancelled',
                 'cancel_token_hash' => null,
                 'updated_at' => now(),
             ]);
+            $restored = false;
             // Aktivira se samo nalog koji je blokirao sam zahtjev; administratorska blokada ostaje.
-            if ($user->status === 'blocked' && (bool) $current->blocked_by_request) {
+            if ($user->status === 'blocked' && (bool) ($current->blocked_by_request ?? true)) {
                 $user->forceFill(['status' => 'active'])->save();
+                $restored = true;
             }
             $this->audit('account.deletion_cancelled', (int) $user->getKey());
 
-            return true;
+            return $restored ? 'restored' : 'still_blocked';
         }, 3);
     }
 
@@ -387,7 +398,7 @@ final class UserDeletionService
                 'updated_at' => now(),
             ]);
             $locked = User::query()->lockForUpdate()->findOrFail((int) $user->getKey());
-            if ($locked->status === 'blocked' && $locked->retired_at === null && (bool) $current->blocked_by_request) {
+            if ($locked->status === 'blocked' && $locked->retired_at === null && (bool) ($current->blocked_by_request ?? true)) {
                 $locked->forceFill(['status' => 'active'])->save();
             }
             $this->audit('account.deletion_cancelled', (int) $locked->getKey());
@@ -592,7 +603,7 @@ final class UserDeletionService
         DB::table('user_login_sessions')->where('user_id', $id)
             ->update(['ip_address' => null, 'user_agent' => null, 'device_label' => null]);
         if (Schema::hasTable('security_events')) {
-            DB::table('security_events')->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null]);
+            DB::table('security_events')->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
         }
 
         // Audit zapisi o samom korisniku nose IP, user agent i stare vrednosti profila.
@@ -602,8 +613,12 @@ final class UserDeletionService
         // Zapisi o samom nalogu (profil, kreiranje, izmene): stare i nove vrijednosti, naslov i metapodaci mogu nositi ime,
         // e-poštu i telefon. Evidencija povlačenja i prenosa zaduženja nema lične podatke i ostaje kao dokaz.
         AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)->update([
-            'ip_address' => null, 'user_agent' => null, 'before_json' => null, 'after_json' => null,
+            'before_json' => null, 'after_json' => null,
         ]);
+        // IP i uređaj brišemo gdje je akter sam obrisani nalog (ili sistem); administratorska izmjena naloga zadržava forenzički IP administratora.
+        AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)
+            ->where(static fn ($q) => $q->where('user_id', $id)->orWhereNull('user_id'))
+            ->update(['ip_address' => null, 'user_agent' => null]);
         AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)
             ->where('action', 'not like', 'account.deletion_%')
             ->whereNotIn('action', ['user.retired', 'user.retirement.assignment_transferred'])

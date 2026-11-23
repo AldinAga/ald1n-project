@@ -8,6 +8,7 @@ Radni materijal za obrazac Data safety u Play Console. Nije pravni savet; mesta 
 - Javni URL za Play Console polje "Delete account URL": `https://cms.ald1n.com/brisanje-naloga` (bez prijave, potvrda e-poštom).
 - Rok mirovanja 14 dana: nalog je blokiran, poništavanje linkom iz e-pošte. Posle roka dnevna komanda `app:account-deletions-process` anonimizuje nalog.
 - Briše se: ime, e-pošta, telefon, adresa, veza sa Google nalogom, push tokeni, oznake i nazivi uređaja, passkey i restore podaci, IP adrese i user agent iz evidencije prijava, dnevnika izmena i bezbednosnih događaja.
+- Bezbednosni događaji (security_events): IP i user agent se brišu, a polje context_json ostaje onakvo kakvo jeste. [pravna provera: da li kontekst može sadržati lične podatke]
 - Ostaje (poslovna istorija bez veze sa imenom): porudžbine (uključujući podatke o isporuci u porudžbini), provizije, garancije, razgovori, CRM beleške, dokumenta. [pravna provera: rokovi čuvanja po vrsti zapisa]
 - Otvorene provizije i zaduženja čekaju: zahtev ostaje u statusu `waiting_obligations`, korisnik dobija e-poštu.
 - Nalog administratora ili SuperAdministratora: samo uz drugog aktivnog SuperAdministratora koji preuzima porudžbine i aktivan rad.

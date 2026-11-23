@@ -31,18 +31,19 @@ final class AdminUserRequest extends FormRequest
             $emailRule->ignore($targetId);
         }
 
+        // deleted_N je rezervisano za anonimizovane naloge; važi pri kreiranju i pri promjeni korisničkog imena,
+        // pa se postojeći nalog sa takvim imenom i dalje može uređivati i odblokirati.
+        $usernameChanged = $creating || mb_strtolower(trim((string) $this->input('username'))) !== mb_strtolower((string) $target->username);
+        $usernameRules = ['required', 'string', 'min:3', 'max:50'];
+        if ($usernameChanged) {
+            $usernameRules[] = 'not_regex:/^deleted_/i';
+        }
+        $usernameRules[] = $usernameRule;
+
         return [
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
             'user_group_id' => ['nullable', 'integer', Rule::exists('user_groups', 'id')],
-            'username' => [
-                'required',
-                'string',
-                'min:3',
-                'max:50',
-                // deleted_N je rezervisano za anonimizovane naloge (brisanje naloga).
-                'not_regex:/^deleted_/i',
-                $usernameRule,
-            ],
+            'username' => $usernameRules,
             'email' => [
                 'required',
                 'email:rfc',
