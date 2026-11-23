@@ -45,7 +45,7 @@ final class AccountDeletionTest extends TestCase
     public function test_api_request_with_password_blocks_account_revokes_access_and_audits_without_pii(): void
     {
         Notification::fake();
-        $user = $this->user('del-api', 'customer');
+        $user = $this->user('del-api', 'user');
         $user->createToken('phone', ['*']);
         $this->loginSession($user);
         Sanctum::actingAs($user, ['*']);
@@ -72,7 +72,7 @@ final class AccountDeletionTest extends TestCase
     public function test_api_request_with_wrong_password_or_bad_google_token_changes_nothing(): void
     {
         Notification::fake();
-        $user = $this->user('del-wrong', 'customer');
+        $user = $this->user('del-wrong', 'user');
         Sanctum::actingAs($user, ['*']);
 
         $this->postJson('/api/v1/account/deletion', ['password' => 'nije-ta'])->assertStatus(422)->assertJsonValidationErrors('password');
@@ -180,7 +180,7 @@ final class AccountDeletionTest extends TestCase
     public function test_logged_in_account_page_button_sends_confirmation_to_own_email(): void
     {
         Notification::fake();
-        $user = $this->user('del-button', 'customer');
+        $user = $this->user('del-button', 'user');
 
         $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($user);
