@@ -19,7 +19,7 @@ function b794_readonly_render(string $cms): void
         Illuminate\Support\Facades\View::share('errors',new Illuminate\Support\ViewErrorBag());
         $cases=[
             ['name'=>'dashboard','path'=>'/','markers'=>['data-dashboard-command-row','ald1n-ui-refinement.css']],
-            ['name'=>'users','path'=>'/admin/users','markers'=>['data-user-editor-sections','access-control-user-avatar']],
+            ['name'=>'users','path'=>'/admin/users','markers'=>['data-user-editor-sections','data-user-avatar']],
         ];
         $product=App\Models\Product::query()->publiclyVisible()->first();
         if(!$product) throw new RuntimeException('READONLY_RENDER_VISIBLE_PRODUCT_NOT_FOUND');
