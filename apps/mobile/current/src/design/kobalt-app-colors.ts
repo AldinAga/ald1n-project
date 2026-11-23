@@ -4,6 +4,7 @@ import { kobaltDark, kobaltLight } from './ald1n-tokens.kobalt.generated';
 
 // Takes the literal palettes (not the widened KobaltPalette) so literal colour types reach AppColors.
 export function createAppColors(k: typeof kobaltDark | typeof kobaltLight) {
+  const dark = k === kobaltDark;
   return {
     background: k.surface.page,
 
@@ -18,8 +19,9 @@ export function createAppColors(k: typeof kobaltDark | typeof kobaltLight) {
     line: k.border.normal,
     outline: k.border.strong,
 
-    primary: k.button.primary.bg,
-    onPrimary: k.button.primary.on,
+    // Dark: the primary fill #3557c7 is only 2.6:1 as text/icons on dark surfaces, so primary and accent use the link tone and the label turns dark.
+    primary: dark ? k.accent.link : k.button.primary.bg,
+    onPrimary: dark ? k.surface.page : k.button.primary.on,
     primaryDark: k.accent.link,
     primarySoft: k.accent.soft,
     primaryContainer: k.accent.soft,
@@ -27,7 +29,7 @@ export function createAppColors(k: typeof kobaltDark | typeof kobaltLight) {
 
     secondaryContainer: k.button.ghost.bg,
 
-    accent: k.button.primary.bg,
+    accent: dark ? k.accent.link : k.button.primary.bg,
     accentSoft: k.accent.soft,
 
     // Status .text variants: the .dot colours of ok, warning and info fail AA as text on a white surface.
@@ -37,9 +39,10 @@ export function createAppColors(k: typeof kobaltDark | typeof kobaltLight) {
     warning: k.status.warning.text,
     warningSoft: k.status.warning.bg,
 
-    danger: k.status.danger.dot,
-    // Dark dot is light pink, so its label must be dark; light dot takes the white label.
-    onDanger: k === kobaltDark ? k.surface.page : k.button.primary.on,
+    // .text variant: the red .dot is 4.3:1 on the light danger tint; the text tone passes everywhere.
+    danger: k.status.danger.text,
+    // Dark danger is light pink, so its label must be dark; light danger takes the white label.
+    onDanger: dark ? k.surface.page : k.button.primary.on,
     dangerSoft: k.status.danger.bg,
 
     info: k.status.info.text,

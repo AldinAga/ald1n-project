@@ -79,7 +79,13 @@ for (const mode of ['light', 'dark']) {
       'success/successSoft': [c.success, over(c.successSoft, surface)],
       'warning/warningSoft': [c.warning, over(c.warningSoft, surface)],
       'info/infoSoft': [c.info, over(c.infoSoft, surface)],
+      'primary/surface': [c.primary, surface],
+      'primary/background': [c.primary, c.background],
+      'accent/surface': [c.accent, surface],
       'danger/surface': [c.danger, surface],
+      'danger/background': [c.danger, c.background],
+      'danger/dangerSoft': [c.danger, over(c.dangerSoft, surface)],
+      'heroMuted/hero': [c.heroMuted, c.hero],
       'onDanger/danger': [c.onDanger, c.danger],
     };
     for (const [name, [fg, bg]] of Object.entries(pairs)) {

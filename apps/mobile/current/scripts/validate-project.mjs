@@ -1292,7 +1292,7 @@ const rnThemeSource = fs.readFileSync(
 );
 
 assert(
-  rnThemeSource.includes('onDanger:'),
+  /onDanger: dark \? k\.surface\.page : k\.button\.primary\.on/.test(rnThemeSource),
   'RN theme adapter koristi canonical onDanger semantic token.'
 );
 
