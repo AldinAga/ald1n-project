@@ -59,7 +59,7 @@ html body.auth-body>.floating-theme:focus-visible{outline:var(--a1-focus-width) 
 .a1-auth__brand-text strong{font-size:18px;letter-spacing:.02em;color:var(--a1-text-primary)}
 .a1-auth__brand-text small{font-size:var(--a1-typography-font-size-sm);color:var(--a1-text-secondary)}
 .a1-auth__copy{position:relative;z-index:1;display:grid;gap:var(--a1-space-16);align-content:start}
-.a1-auth__headline{margin:0;font:var(--a1-typography-font-weight-display) clamp(32px,4.2vw,52px)/var(--a1-typography-line-height-display) var(--a1-typography-font-family-display);letter-spacing:var(--a1-typography-letter-spacing-display);color:var(--a1-text-primary);text-wrap:balance;overflow-wrap:anywhere}
+.a1-auth__headline{margin:0;font:var(--a1-typography-font-weight-display) clamp(32px,4.2vw,52px)/var(--a1-typography-line-height-display) var(--a1-typography-font-family-display);letter-spacing:var(--a1-typography-letter-spacing-display);color:var(--a1-text-primary);text-wrap:balance;overflow-wrap:break-word}
 @supports ((-webkit-background-clip:text) or (background-clip:text)){
   .a1-auth__headline,.a1-error__code{background-image:linear-gradient(120deg,var(--a1-heading-from),var(--a1-heading-to));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 }

@@ -99,6 +99,18 @@ $product = Product::query()->create([
     'created_by' => $admin->id,
 ]);
 
+// Brands page (/admin/catalog-settings/brands): an active and an inactive brand, the active one linked to a product type, so the
+// "Aktivan" / "Neaktivan" status badges and the type badges are rendered by the word gate. The type link is best effort (schema may require more columns).
+$brandNow = now();
+try {
+    $brandActive = DB::table('brands')->insertGetId(['name' => 'Admin vizuelni brend', 'slug' => 'admin-vizuelni-brend', 'status' => 'active', 'sort_order' => 1, 'created_at' => $brandNow, 'updated_at' => $brandNow]);
+    DB::table('brands')->insert(['name' => 'Neaktivan vizuelni brend', 'slug' => 'neaktivan-vizuelni-brend', 'status' => 'inactive', 'sort_order' => 2, 'created_at' => $brandNow, 'updated_at' => $brandNow]);
+    $brandType = DB::table('product_types')->insertGetId(['name' => 'Grafičke kartice', 'slug' => 'graficke-kartice-vizuelni', 'status' => 'active', 'sort_order' => 1, 'created_at' => $brandNow, 'updated_at' => $brandNow]);
+    DB::table('brand_product_type')->insert(['brand_id' => $brandActive, 'product_type_id' => $brandType]);
+} catch (\Throwable $e) {
+    fwrite(STDERR, "brand seed (partly) skipped: " . $e->getMessage() . "\n");
+}
+
 $order = Order::query()->create([
     'source_system' => 'laravel',
     'order_number' => 'APC-20260115-00000001',

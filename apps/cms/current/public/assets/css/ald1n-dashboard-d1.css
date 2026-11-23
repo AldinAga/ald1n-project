@@ -167,7 +167,7 @@
 }
 .dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item div { min-width: 0; }
 .dashboard-d1-shell .dashboard-d1-priorities .dashboard-priority-item :is(strong,small) {
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .dashboard-d1-shell .dashboard-d1-priorities .dashboard-clear-state {
   grid-column: 1 / -1;
@@ -185,7 +185,7 @@
   padding: clamp(14px, 1.5vw, 20px);
   min-width: 0;
   min-height: 142px;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .dashboard-d1-shell .dashboard-kpi-grid--d1 .dashboard-kpi-card > div {
   min-width: 0;
@@ -417,7 +417,7 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
     justify-content: center;
     text-align: center;
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap:break-word;
     min-height: 44px;
     padding: 8px 7px;
     font-size: .78rem;
@@ -449,7 +449,7 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
   line-height: 1.5;
   font-weight: 650;
   color: var(--ald-text);
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 /* D3: chart is CSS-only, accessible data remain in adjacent semantic list. */
@@ -463,7 +463,7 @@ html[data-theme="light"] .dashboard-d1-shell .dashboard-kpi-grid--d1 .tone-amber
 .dashboard-d3-legend {list-style:none;display:grid;gap:8px;padding:0;margin:0;min-width:0;}
 .dashboard-d3-legend li {display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;align-items:center;gap:9px;min-width:0;font-size:.83rem;color:var(--ald-text);}
 .dashboard-d3-legend i {width:12px;height:12px;border-radius:50%;background:var(--d3-color);}
-.dashboard-d3-legend li span {overflow-wrap:anywhere;}
+.dashboard-d3-legend li span {overflow-wrap:break-word;}
 .dashboard-d3-legend li strong {font-variant-numeric:tabular-nums;}
 .dashboard-d3-legend li small {color:var(--ald-muted);}
 .dashboard-d3-panel [hidden] {display:none !important;}
