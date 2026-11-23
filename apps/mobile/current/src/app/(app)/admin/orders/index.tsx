@@ -45,7 +45,7 @@ function statusLabel(value: string, completed = false): string {
   if (completed || value === 'completed') return 'Kompletirana';
   return ({
     new: 'Nova',
-    processing: 'U obradi',
+    processing: 'Nova', // stari redovi; backend ih prikazuje kao Nova
     confirmed: 'Potvrdjena',
     shipped: 'Poslata',
     cancelled: 'Otkazana',
