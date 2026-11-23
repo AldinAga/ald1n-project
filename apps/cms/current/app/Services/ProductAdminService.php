@@ -75,11 +75,20 @@ final class ProductAdminService
     }
 
     /** @param array<string,mixed> $data */
-    public function update(Product $product, array $data, User $user): Product
+    public function update(Product $product, array $data, User $user, bool $autosave = false, ?int $expectedVersion = null): Product
     {
-        return DB::transaction(function () use ($product, $data, $user): Product {
+        return DB::transaction(function () use ($product, $data, $user, $autosave, $expectedVersion): Product {
             /** @var Product $locked */
             $locked = Product::query()->lockForUpdate()->findOrFail($product->id);
+            if ($autosave) {
+                // Provera nad zaključanim redom: save_draft bi aktivan artikal vratio u nacrt.
+                if ((string) $locked->status !== 'draft') {
+                    throw ValidationException::withMessages(['autosave' => 'Automatsko čuvanje je preskočeno: artikal više nije nacrt.']);
+                }
+                if ($expectedVersion !== null && (int) $locked->updated_at?->getTimestamp() !== $expectedVersion) {
+                    throw new \Symfony\Component\HttpKernel\Exception\HttpException(409, 'Artikal je izmenjen u drugom tabu ili na drugom uređaju. Osveži stranicu.');
+                }
+            }
             $before = $this->snapshot($locked);
             $stockBefore = (int) $locked->stock_quantity;
             [$data, $specs, $specDetails, $specStructured, $files] = $this->prepareTemplateData($data);

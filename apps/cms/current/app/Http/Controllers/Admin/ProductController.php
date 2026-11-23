@@ -131,7 +131,13 @@ final class ProductController extends Controller
     {
         $this->authorizeProduct($product, $request);
         $wasActive = (string) $product->status === 'active';
-        $updated = $service->update($product, $request->validated(), $request->user());
+        $updated = $service->update(
+            $product,
+            $request->validated(),
+            $request->user(),
+            $request->boolean('autosave'),
+            $request->filled('autosave_version') ? (int) $request->input('autosave_version') : null,
+        );
         $announcementCount = !$wasActive && (string) $updated->status === 'active'
             ? $announcements->queueForNewlyPublished($updated, $request->user())
             : 0;
@@ -139,6 +145,7 @@ final class ProductController extends Controller
             return response()->json([
                 'message' => 'Izmene su sačuvane.',
                 'redirect_url' => route('admin.products.edit', $updated),
+                'version' => (int) $updated->updated_at?->getTimestamp(),
                 'product_id' => (int) $updated->id,
                 'announcement_count' => $announcementCount,
             ]);
