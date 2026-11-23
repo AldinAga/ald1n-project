@@ -255,10 +255,10 @@ export const api = {
       });
       return response.data;
     },
-    cancel: async (id: number, note?: string) => {
+    cancel: async (id: number, reason: string) => {
       const response = await apiRequest<{ data: Order }>(`orders/${id}/cancel`, {
         method: 'POST',
-        body: { note: note || null }
+        body: { reason }
       });
       return response.data;
     },
