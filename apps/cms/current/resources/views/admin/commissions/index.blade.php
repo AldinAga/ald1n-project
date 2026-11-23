@@ -116,7 +116,7 @@
             <thead><tr><th scope="col" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" data-select-all="commission_ids[]" aria-label="Izaberi sve za isplatu"><span class="a1-check__box" aria-hidden="true"></span></label></th><th scope="col">Porudžbina</th><th scope="col">Korisnik</th><th scope="col">Odgovorno lice</th><th scope="col">Iznos</th><th scope="col">Status</th><th scope="col">Isplata</th><th scope="col">Datum</th><th scope="col"><span class="a1-sr">Akcije</span></th></tr></thead>
             <tbody>
             @foreach($commissions as $row)
-            @php $check = $eligibility->evaluate($row); @endphp
+            @php $check = $checks[$row->id] = $eligibility->evaluate($row); @endphp
             <tr>
                 <td class="a1-table__select">@if($row->status==='approved' && $isSuper)<label class="a1-check"><input class="a1-check__input" type="checkbox" name="commission_ids[]" value="{{ $row->id }}" form="bulkPayForm" aria-label="Izaberi za isplatu proviziju #{{ $row->id }}"><span class="a1-check__box" aria-hidden="true"></span></label>@endif</td>
                 <td class="a1-table__primary" data-label="Porudžbina"><a class="a1-link a1-link--inline" href="{{ route('admin.orders.show', $row->order) }}"><strong>{{ $row->order?->order_number }}</strong></a><span class="a1-table__sub">#{{ $row->id }}</span></td>
@@ -134,7 +134,7 @@
     </div>
 
     @foreach($commissions as $row)
-    @php $check = $eligibility->evaluate($row); @endphp
+    @php $check = $checks[$row->id]; @endphp
     <dialog class="a1-dialog" id="process-{{ $row->id }}" aria-labelledby="process-title-{{ $row->id }}">
         <div class="a1-dialog__head"><h2 class="a1-h2" id="process-title-{{ $row->id }}">Obrada provizije · {{ $row->order?->order_number }}</h2><button class="a1-btn a1-btn--quiet a1-btn--icon a1-btn--sm" type="button" data-dialog-close aria-label="Zatvori prozor"><x-icon name="x" :size="18" :shell="true" /></button></div>
         <div class="a1-dialog__body">
