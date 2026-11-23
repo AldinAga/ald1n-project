@@ -51,7 +51,7 @@ final class ProductAdminService
             $categories = array_map('intval', $data['category_ids'] ?? []);
             unset($data['category_ids'], $data['specs'], $data['spec_details'], $data['spec_lists'], $data['spec_capacities'], $data['spec_structured'], $data['images'], $data['regenerate_sku'], $data['regenerate_name']);
 
-            $product = Product::query()->create($data);
+            $product = Product::query()->create($this->withoutMissingIdentifierColumns($data));
             if ((int) $product->stock_quantity > 0) {
                 StockMovement::query()->create([
                     'event_key' => 'product:'.$product->id.':initial',
@@ -103,7 +103,7 @@ final class ProductAdminService
             $categories = array_map('intval', $data['category_ids'] ?? []);
             unset($data['category_ids'], $data['specs'], $data['spec_details'], $data['spec_lists'], $data['spec_capacities'], $data['spec_structured'], $data['images'], $data['regenerate_sku'], $data['regenerate_name']);
 
-            $locked->update($data);
+            $locked->update($this->withoutMissingIdentifierColumns($data));
             $stockAfter = (int) $locked->stock_quantity;
             if ($stockAfter !== $stockBefore) {
                 StockMovement::query()->create([
@@ -256,6 +256,12 @@ final class ProductAdminService
         if ($type !== null) $this->storageSpecifications->applyComputedTotals($type->fields, $specs, $structured);
         if (empty($data['status']) && $type !== null) $data['status'] = $defaults['status'];
         return [$data, $specs, $details, $structured, (array) ($data['images'] ?? [])];
+    }
+
+    /** Pre migracije kolone supplier_code i ean ne postoje; ne smeju da obore snimanje artikla. @param array<string,mixed> $data @return array<string,mixed> */
+    private function withoutMissingIdentifierColumns(array $data): array
+    {
+        return Product::hasIdentifierColumns() ? $data : array_diff_key($data, ['supplier_code' => true, 'ean' => true]);
     }
 
     /** @param array<string,mixed> $data @return array<string,mixed> */
@@ -447,7 +453,7 @@ final class ProductAdminService
         return $fresh->only([
             'id','sku','name','slug','product_type_id','brand_id','product_line_id','model_name','price_amount','price_currency','purchase_price_rsd',
             'manual_commission_eur','description','notes','stock_quantity','low_stock_threshold','status','deleted_at',
-            'completeness_percent','name_is_manual','source_product_id',
+            'completeness_percent','name_is_manual','source_product_id','supplier_code','ean',
         ]) + ['category_ids' => $fresh->categories->pluck('id')->map(fn ($id) => (int) $id)->all()];
     }
 }

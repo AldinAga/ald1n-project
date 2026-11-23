@@ -57,6 +57,9 @@ final class CatalogQueryService
                 $nested->where('name', 'like', $contains)
                     ->orWhere('sku', 'like', $contains)
                     ->orWhere('model_name', 'like', $contains);
+                if (Product::hasIdentifierColumns()) {
+                    $nested->orWhere('supplier_code', 'like', $contains)->orWhere('ean', 'like', $contains);
+                }
             });
 
         $this->access->applyVisibleCatalog($query, $user);
@@ -96,6 +99,9 @@ final class CatalogQueryService
                     ->orWhere('model_name', 'like', $like)
                     ->orWhere('sku', 'like', $like)
                     ->orWhere('description', 'like', $like);
+                if (Product::hasIdentifierColumns()) {
+                    $nested->orWhere('supplier_code', 'like', $like)->orWhere('ean', 'like', $like);
+                }
             });
         }
 
