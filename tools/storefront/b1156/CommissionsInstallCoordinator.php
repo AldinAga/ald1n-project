@@ -95,7 +95,7 @@ final class CommissionsInstallCoordinator
     /**
      * The install order, [path under apps/cms/current, 'new'|'modified', group, source key M]. Groups: A the 13 new files, all inert (nothing old references them; the two migrations are files only until the migration step);
      * B the libraries (two models, eleven services, the doctor command: every new constructor dependency is a class of group A, a public method only gains optional parameters); C six controllers (their new methods and constructor
-     * dependencies exist since A and B), the three bin tools and the admin stylesheet; DashboardController is NOT here: the new one stops passing $eurRsdRate that the OLD dashboard view still reads, so it goes into group F as the LAST-BUT-ONE step, directly before dashboard/index.blade.php (the two land back to back, within one revalidation tick; every other view of F is already in place); D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
+     * dependencies exist since A and B), the three bin tools and the admin stylesheet; DashboardController is NOT here: it goes into group F as the LAST-BUT-ONE step, directly before dashboard/index.blade.php (since PR 209 the new controller still passes $eurRsdRate and $eurRsdSource, so either order serves; every other view of F is already in place); D AppServiceProvider (it binds CommissionCalculator with the new constructor of group B: GUARD group, classes); E routes/api.php and routes/web.php
      * (they name the controller methods of group C: GUARD group, classes again, route:clear); F the views: partials before pages and the layout before the pages; the three views that call a new route (the layout: notifications.recent,
      * admin/commissions/index and admin/settings/modules) sit here, AFTER the routes (GUARD group, assets: the admin stylesheet is served with the payload bytes first). A controller is always installed before the views it feeds.
      * Groups are non-decreasing in this list (plan() refuses anything else), every new file sits in a lower group than the first guard group, every path is under apps/cms/current, none under tests/, config/ or composer.*;
@@ -381,9 +381,9 @@ final class CommissionsInstallCoordinator
     public const B1146_ROUTE_NAMES=11;
     /** The PHP extensions the new code needs in the CLI (the web SAPI is checked by the owner, see the README): all required, plus one image library. */
     public const EXTENSIONS=['dom','libxml','fileinfo','mbstring'];
-    private const IN_FLIGHT=['BACKED_UP','INSTALL_INTENT','FILES_INSTALLED','DB_BACKUP_INTENT','DB_BACKUP_VERIFIED','ACCEPTANCE_INTENT','ROLLBACK_INTENT','ROLLBACK_INCOMPLETE'];
-    /** From MIGRATE_INTENT on the database may be ahead of the code: a run in one of these phases only resumes FORWARD (the migration is idempotent), it never enters the generic restore. */
-    private const MIGRATING=['MIGRATE_INTENT','MIGRATED'];
+    private const IN_FLIGHT=['BACKED_UP','INSTALL_INTENT','FILES_INSTALLED','DB_BACKUP_INTENT','DB_BACKUP_VERIFIED','ROLLBACK_INTENT','ROLLBACK_INCOMPLETE'];
+    /** From MIGRATE_INTENT on (ACCEPTANCE_INTENT included: the acceptance only starts after the migration) the database may be ahead of the code: a run in one of these phases only resumes FORWARD (the migration is idempotent), it never enters the generic restore. */
+    private const MIGRATING=['MIGRATE_INTENT','MIGRATED','ACCEPTANCE_INTENT'];
     private array $state=[];
     private string $base;
     private string $pointer;
@@ -1176,12 +1176,12 @@ final class CommissionsInstallCoordinator
     /**
      * The scheduled-backup window this run needs: install (the hold before each guard group D, E and F, the installed hold, and one revalidation pause per group), a full smokes() call, and if
      * the acceptance fails the rollback (the full hold after F, E and D are undone, the hold before the new files, the restored hold, a pause per group) with its smokes; 300 s for artisan,
-     * probes and helpers. Never below 30 min. Nine full holds in all (4 install, 5 rollback). The backup-window refusal of the preflight (02:30 daily, 03:10 Sunday) uses this value.
+     * probes and helpers. Never below 30 min. Nine full holds in all (4 install, 5 rollback), plus one liveness retry hold per group (worst case), three backup durations (the file copy, the database backup, one retake of it) and the 900 s migration limit. With a 300 s last backup this is about 10200 s (2 h 50 min); with the 2400 s default about 3 h 50 min. The backup-window refusal of the preflight (02:30 daily, 03:10 Sunday) uses this value.
      */
     private function requiredWindowSeconds(int $holdSeconds):int
     {
         $g=count(array_unique(array_column($this->plan,'group')));$holds=count(self::GUARDS)+1+count(self::GUARDS)+2;
-        return max(1800,$holds*$holdSeconds+2*$this->smokeCapSeconds()+(4*$g-2)*$this->groupPause()+(2*$g-1)*self::LIVENESS_SECONDS+self::WEB_PROOF_REQUESTS*self::WEB_PROOF_SECONDS*count(self::GUARDS)+300+2*($this->backupBase>0?$this->backupBase:$this->defaultBackupSeconds)+$this->migrateTimeout+2*$this->censusSeconds);
+        return max(1800,$holds*$holdSeconds+2*$this->smokeCapSeconds()+(4*$g-2)*$this->groupPause()+(2*$g-1)*self::LIVENESS_SECONDS+self::WEB_PROOF_REQUESTS*self::WEB_PROOF_SECONDS*count(self::GUARDS)+300+3*($this->backupBase>0?$this->backupBase:$this->defaultBackupSeconds)+$this->migrateTimeout+2*$this->censusSeconds+$g*$holdSeconds);
     }
 
     /**
@@ -1206,6 +1206,15 @@ final class CommissionsInstallCoordinator
      * the install, which rolls back through the normal path; a 429 is inconclusive and the install continues; a changed shop switch is not judged here.
      */
     private function liveness(string $after):void
+    {
+        // A FAIL right after the short group pause may be a web worker that still runs cached bytecode of the previous tree for up to realpath_cache_ttl (production 120 s): wait the full measured hold since the last change and judge once more; only the second FAIL stops the install.
+        try{$this->livenessOnce($after);}catch(RuntimeException $e){
+            if(!str_starts_with($e->getMessage(),'GROUP_SMOKE_FAILED_AFTER_'))throw $e;
+            $this->emit('GROUP_LIVENESS_RETRY_AFTER_THE_FULL_HOLD',['after'=>$after,'seconds'=>$this->fullHold()]);$this->hold('liveness-retry-'.$after,$this->fullHold());$this->livenessOnce($after);
+        }
+    }
+
+    private function livenessOnce(string $after):void
     {
         $marker=bin2hex(random_bytes(8));$shop=$this->shop();$rows=[];$failed=[];$limited=[];
         $one=function(string $label,string $path,string $method,int $want,bool $noindex,array $query=[])use(&$rows,&$failed,&$limited,$marker):?array{
@@ -1646,7 +1655,7 @@ final class CommissionsInstallCoordinator
             $shop=self::shopOf($app);$v['shop']=$shop+['writtenByThisTool'=>false];$v['app']=['backupsRunning'=>$app['backups']['running']];
             $g['shopStateRecorded']=!$shop['known']?'SHOP_SWITCH_VALUE_UNKNOWN':(!$installed&&!$shop['open']?'SHOP_IS_OFF_B1156_INSTALLS_ONLY_WITH_THE_SHOP_ON_NOTHING_CHANGED':null);
             $g['noRunningBackup']=$app['backups']['table']===true&&$app['backups']['running']===0?null:'BACKUP_RUN_IN_PROGRESS_OR_TABLE_MISSING';
-            if($this->scheduleGate){$s=$try('outsideScheduledBackupWindow',fn()=>$this->scheduleState($app));$v['schedule']=$s;if($s!==null&&$s['conflict']!==null)$g['outsideScheduledBackupWindow']='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']);}
+            if($this->scheduleGate){$s=$try('outsideScheduledBackupWindow',fn()=>$this->scheduleState($app));$v['schedule']=$s;if($s!==null&&$s['conflict']!==null)$g['outsideScheduledBackupWindow']='SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_'.strtoupper((string)$s['conflict']['type']);}
         }else foreach(['shopStateRecorded','noRunningBackup','outsideScheduledBackupWindow'] as $gate)$g[$gate]='NOT_EVALUATED_APP_STATE';
         if($app!==null&&!$installed){$v['backupRetention']=$try('backupRetentionHealthy',fn()=>$this->backupRetention($app));$v['backupHeadroom']=$try('backupHeadroom',fn()=>$this->backupHeadroom($app));}
         $env=$try('environmentCli',fn()=>$this->envCheck('preflight-'.$stage));$v['environment']=$env===null?null:array_diff_key($env,['mailFingerprintHMAC'=>true]);
@@ -2012,7 +2021,7 @@ final class CommissionsInstallCoordinator
     }
 
     /**
-     * Read-only acceptance step after group G: the CLI helper compiles each changed or new Blade view (VIEW_CHECKS: the 4 new and the 7 modified views) in memory (Blade::compileString, nothing is written to the
+     * Read-only acceptance step after group G: the CLI helper compiles each changed or new Blade view (VIEW_CHECKS: 33 views) in memory (Blade::compileString, nothing is written to the
      * compiled-view directory) and parses the compiled PHP (token_get_all with TOKEN_PARSE). A view that does not compile or lint fails the acceptance and the normal automatic rollback follows.
      * This proves the syntax of the views, not how the authenticated dashboard or the report with data render: nobody logs in. No database write, no mail, no value printed.
      */
@@ -2192,7 +2201,7 @@ final class CommissionsInstallCoordinator
         $b=[];$v=[];
         try{$app=$this->helper($this->appStateScript,['state']);$v['shop']=self::shopOf($app)+['writtenByThisTool'=>false];
             if($strict&&$this->scheduleGate){$this->scheduleNeedSeconds=max($this->scheduleNeedSeconds,$this->requiredWindowSeconds($this->fullHold()));$s=$this->scheduleState($app);$v['schedule']=$s;
-                if($s['conflict']!==null){if($this->ignoreSchedule)$v['scheduleOverride']='SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE';else $b[]='SCHEDULED_BACKUP_WITHIN_30_MINUTES_'.strtoupper((string)$s['conflict']['type']).'_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule';}}
+                if($s['conflict']!==null){if($this->ignoreSchedule)$v['scheduleOverride']='SCHEDULED_BACKUP_CONFLICT_IGNORED_BY_THE_OWNER_OVERRIDE';else $b[]='SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_'.strtoupper((string)$s['conflict']['type']).'_WAIT_OR_RUN_WITH_--rollback_--ignore-schedule';}}
         }catch(Throwable $e){$v['appState']=self::code($e);if($strict)$b[]='APP_STATE_UNREADABLE_'.self::code($e);}
         try{$v['census']=$this->census();}catch(Throwable $e){$b[]=self::code($e);}
         $this->emit('ROLLBACK_GATES',['strict'=>$strict,'values'=>$v,'blockers'=>$b]);return $b;

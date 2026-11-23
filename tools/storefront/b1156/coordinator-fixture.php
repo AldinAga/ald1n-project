@@ -481,10 +481,10 @@ $gate('APP_URL_NOT_EXACTLY_THE_PINNED_ORIGIN_NOTHING_CHANGED','APP_URL_PLAIN_HTT
 // 6d. INSIDE THE BACKUP WINDOW: 20 minutes before the 02:30 backup an INSTALL is a HOLD with nothing changed (the install window this run needs would run into the backup). The same clock outside the window is the
 // clock of every other case of this fixture. The Sunday window (03:10) is the same rule with the other schedule row.
 [$rc,$o]=$run([],'install',['fixedNow'=>$conflictNow]);$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_[A-Z]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&!str_contains($o,'OVERLAY_STEP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
 $sundayNow=(new DateTimeImmutable('2026-11-15 02:55:00',new DateTimeZone('Europe/Belgrade')))->getTimestamp();
 [$rc,$o]=$run([],'install',['fixedNow'=>$sundayNow]);$p=lastLine($o,'PREFLIGHT');
-check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_30_MINUTES_[A-Z_]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_SUNDAY_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
+check($rc===2&&lastLine($o,'B1156_PHASE')==='HOLD_PREFLIGHT_BLOCKED'&&preg_grep('/^SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_[A-Z_]+$/D',$p['blockers'])!==[]&&!str_contains($o,'PER_FILE_BACKUP=')&&$tree()==='PRE','INSTALL_INSIDE_THE_SUNDAY_BACKUP_WINDOW_HOLDS_NOTHING_CHANGED:'.json_encode($p['blockers']));$reset();
 $results['chainGate']=['report1121Missing'=>'HOLD','decoy1121'=>'HOLD','twoReports'=>'HOLD','digestPin'=>'HOLD','stateId'=>'HOLD','stateNotInstalledPass'=>'HOLD','appUrlTrailingSlash'=>'HOLD','appUrlHttp'=>'HOLD','insideTheBackupWindow0230AndSunday0310'=>'HOLD','nothingChanged'=>true];
 // 7. Refusal: an unknown pre-state of the first and of the last replaced file stops the run before any change.
 foreach([reset($modifiedSteps),end($modifiedSteps)] as $victim){
@@ -684,7 +684,7 @@ foreach([['AFTER_MIGRATE_COMMAND',['fail'],'THE_COMMAND_RAN_THEN_A_FAILURE'],['A
 $results['failureAfterTheMigration']='SCHEMA_AHEAD_ROLLBACK_MIGRATION_FILES_KEPT_RERUN_REFUSED_TWO_POINTS';
 
 // 17. SIGKILL after MIGRATE_INTENT (before the command) and after the command: the same command resumes FORWARD only (never the generic restore) and ends in PASS; the evidence still equals the hardcoded set.
-foreach([['AFTER_MIGRATE_INTENT','BEFORE_THE_COMMAND'],['AFTER_MIGRATE_COMMAND','AFTER_THE_COMMAND']] as [$point,$label]){
+foreach([['AFTER_MIGRATE_INTENT','BEFORE_THE_COMMAND'],['AFTER_MIGRATE_COMMAND','AFTER_THE_COMMAND'],['AFTER_MIGRATED','AFTER_MIGRATED_SAVED'],['AFTER_INVALIDATE','IN_THE_ACCEPTANCE_INTENT']] as [$point,$label]){
     [$rc,$o]=$run([$point=>['kill']],'install',[],$extraCfg);check($rc!==0&&$rc!==2&&$tree()==='INSTALLED','KILLED_'.$label.'_THE_FILES_STAY_INSTALLED');
     if($point==='AFTER_MIGRATE_INTENT')check($schemaOld(),'KILLED_BEFORE_THE_COMMAND_THE_SCHEMA_IS_STILL_OLD');else check($schemaNew(),'KILLED_AFTER_THE_COMMAND_THE_SCHEMA_IS_NEW');
     [$rc,$o]=$run([],'install',[],$extraCfg);
@@ -696,7 +696,7 @@ foreach([['AFTER_MIGRATE_INTENT','BEFORE_THE_COMMAND'],['AFTER_MIGRATE_COMMAND',
 $results['killAroundTheMigration']='FORWARD_RESUME_PASS_BOTH_POINTS';
 
 // 18. SIGKILL in the middle of the files and right after the backup: the generic restore, the schema untouched.
-foreach([['AFTER_STEP_20','IN_THE_MIDDLE_OF_THE_FILES'],['AFTER_DB_BACKUP','RIGHT_AFTER_THE_BACKUP']] as [$point,$label]){
+foreach([['AFTER_STEP_20','IN_THE_MIDDLE_OF_THE_FILES'],['AFTER_DB_BACKUP','RIGHT_AFTER_THE_BACKUP'],['BEFORE_DB_BACKUP','IN_DB_BACKUP_INTENT_BEFORE_THE_BACKUP_COMMAND']] as [$point,$label]){
     [$rc,$o]=$run([$point=>['kill']],'install',[],$extraCfg);check($rc!==0&&$rc!==2,'KILLED_'.$label);
     [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1156_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL='),'RESUME_AFTER_A_KILL_'.$label.'_IS_THE_GENERIC_RESTORE_NOTHING_MIGRATED');$reset();
 }
