@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ExchangeRateHistory;
+use App\Models\Order;
+use App\Models\OrderCommission;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +59,8 @@ final class ExchangeRateService
         ];
     }
 
-    public function saveManual(float $rate, int $userId): void
+    /** @return bool false ako oslobađanje zadržanih provizija nije uspelo (kurs je ipak sačuvan) */
+    public function saveManual(float $rate, int $userId): bool
     {
         $this->assertRate($rate);
         $before = $this->configuration();
@@ -84,19 +88,37 @@ final class ExchangeRateService
             'updated_by' => $userId,
         ]);
         $this->audit->log('exchange_rate.manual_updated', 'Komercijalni prodajni EUR/RSD kurs', null, $before, $this->configuration());
-        $this->releaseCommissionsWaitingForRate();
+        return $this->releaseCommissionsWaitingForRate();
     }
 
-    /** Provizije zadržane jer kursa nije bilo (CommissionEligibilityService::awaitsExchangeRate) postaju dospele čim kurs postoji. */
-    private function releaseCommissionsWaitingForRate(): void
+    /**
+     * Provizije zadržane jer kursa nije bilo (CommissionEligibilityService::awaitsExchangeRate) postaju dospele čim kurs postoji.
+     * Kurs se upisuje na te porudžbine (orders.eur_rsd_rate), inače bi izveštaji u RSD za njih računali 0.
+     * Ako oslobađanje padne, greška ide u log, audit i vidljivi "last_error"; ponovni pokušaj radi exchange-rate:update.
+     */
+    public function releaseCommissionsWaitingForRate(): bool
     {
+        $rate = $this->settings->eurRsdRate();
+        if ($rate === null) {
+            return true;
+        }
         try {
+            Order::query()
+                ->where(static fn (Builder $q): Builder => $q->whereNull('eur_rsd_rate')->orWhere('eur_rsd_rate', '<=', 0))
+                ->whereIn('id', OrderCommission::query()->where('status', 'pending')->select('order_id'))
+                ->whereHas('items', static fn (Builder $i): Builder => $i->where('commission_source_snapshot', 'manual')->where('original_currency', 'RSD'))
+                ->update(['eur_rsd_rate' => number_format($rate, 6, '.', '')]);
             app(CommissionAutoApprovalService::class)->backfill();
+
+            return true;
         } catch (Throwable $exception) {
             Log::warning('Release of commissions waiting for the EUR/RSD rate failed.', ['exception' => $exception]);
+            $this->settings->putMany(['eur_rsd_last_error' => 'Kurs je sačuvan, ali provizije koje su čekale kurs nisu oslobođene. Pokušaj se ponavlja pri sledećem pokretanju kursa; po potrebi ponovo sačuvaj kurs.'], null);
+            $this->audit->log('exchange_rate.commission_release_failed', 'Oslobađanje provizija zadržanih zbog kursa', null, null, ['error' => mb_substr($exception->getMessage(), 0, 300)]);
+
+            return false;
         }
     }
-
     public function setAutomatic(bool $enabled, int $staleHours, int $userId): void
     {
         $before = $this->configuration();

@@ -16,7 +16,9 @@ use App\Services\SettingsService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -99,12 +101,40 @@ final class CommissionWaitsForExchangeRateTest extends TestCase
         self::assertTrue($scope('not_due'));
         $this->actingAs($owner)->get(route('admin.commissions.index'))->assertOk()->assertSee('čeka se kurs EUR/RSD', false);
 
-        app(ExchangeRateService::class)->saveManual(117.0, $owner->id);
+        self::assertTrue(app(ExchangeRateService::class)->saveManual(117.0, $owner->id));
 
+        self::assertSame('117.000000', $order->fresh()->eur_rsd_rate, 'kurs se upisuje na oslobođenu porudžbinu, da RSD izveštaji ne računaju 0');
         $commission = $commission->fresh();
         self::assertSame('approved', $commission->status, 'čim kurs postoji, plaćena provizija postaje za isplatu');
         self::assertSame('20.00', $commission->total_eur);
         self::assertTrue($scope('approved'));
+    }
+
+    public function test_failed_release_is_visible_and_retried_later(): void
+    {
+        $sub = $this->user('sub-xf', 'user');
+        $admin = $this->user('adm-xf', 'admin');
+        $owner = $this->user('owner-xf', 'superadmin');
+        $order = $this->placeManualRsdOrder($sub, $admin);
+        $this->pay($order, $admin);
+        $key = 'eloquent.updating: '.OrderCommission::class;
+        Event::listen($key, static function (): never {
+            throw new RuntimeException('simulirani greška');
+        });
+        try {
+            $released = app(ExchangeRateService::class)->saveManual(117.0, $owner->id);
+        } finally {
+            Event::forget($key);
+        }
+
+        self::assertFalse($released);
+        self::assertSame('pending', OrderCommission::query()->where('order_id', $order->id)->firstOrFail()->status);
+        self::assertStringContainsString('nisu oslobođene', (string) app(ExchangeRateService::class)->configuration()['last_error']);
+        self::assertTrue(DB::table('audit_logs')->where('action', 'exchange_rate.commission_release_failed')->exists());
+
+        $this->artisan('exchange-rate:update')->assertSuccessful();
+
+        self::assertSame('approved', OrderCommission::query()->where('order_id', $order->id)->firstOrFail()->status, 'ponovni pokušaj oslobađa proviziju');
     }
 
     public function test_control_same_order_with_rate_is_approved_on_payment(): void
