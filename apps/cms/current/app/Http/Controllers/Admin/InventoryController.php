@@ -131,7 +131,7 @@ final class InventoryController extends Controller
             fwrite($stream, "\xEF\xBB\xBF");
             fputcsv($stream, ['SKU', 'Naziv', 'Stanje', 'Minimalni prag', 'Status', 'Upozorenje'], ';');
             foreach ($rows as $row) {
-                fputcsv($stream, [$row->sku, $row->name, $row->stock_quantity, $row->low_stock_threshold, $row->status, $row->stock_quantity <= $row->low_stock_threshold ? 'NIZAK LAGER' : ''], ';');
+                fputcsv($stream, [$this->csvSafe($row->sku), $this->csvSafe($row->name), $row->stock_quantity, $row->low_stock_threshold, $row->status, $row->stock_quantity <= $row->low_stock_threshold ? 'NIZAK LAGER' : ''], ';');
             }
             rewind($stream);
             $content = stream_get_contents($stream) ?: '';
@@ -147,6 +147,14 @@ final class InventoryController extends Controller
 
             return response('Izvoz lagera trenutno nije dostupan.', 503, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
+    }
+
+    /** Neutralizuje formula injection u Excelu/Sheets: ćelija koja počinje sa = + - @ (ili tab/CR) dobija vodeći apostrof. */
+    private function csvSafe(mixed $value): string
+    {
+        $text = (string) $value;
+
+        return $text !== '' && str_contains("=+-@\t\r", $text[0]) ? "'".$text : $text;
     }
 
     /** @return list<string> */

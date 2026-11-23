@@ -9,6 +9,10 @@ Artisan::command('app:version', function (): void {
     $this->info((string) config('app.version'));
 })->purpose('Prikaži verziju Ald1n CMS aplikacije');
 
+Schedule::command('app:product-import-cleanup')
+    ->dailyAt('03:40')
+    ->withoutOverlapping(30);
+
 Schedule::command('exchange-rate:update')
     ->dailyAt('06:15')
     ->withoutOverlapping(30);
