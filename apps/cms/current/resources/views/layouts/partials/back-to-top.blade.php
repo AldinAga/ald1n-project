@@ -32,7 +32,14 @@
     };
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule, { passive: true });
-    new MutationObserver(schedule).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    // A bar can change height or appear after load (wrapped text, a dock added by script) without any scroll.
+    const resizer = 'ResizeObserver' in window ? new ResizeObserver(schedule) : null;
+    const watchBars = () => {
+        if (resizer) document.querySelectorAll(bars).forEach((bar) => resizer.observe(bar));
+        schedule();
+    };
+    new MutationObserver(watchBars).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    watchBars();
     button.addEventListener('click', (event) => {
         event.preventDefault();
         window.scrollTo({ top: 0, behavior: reduced.matches ? 'auto' : 'smooth' });

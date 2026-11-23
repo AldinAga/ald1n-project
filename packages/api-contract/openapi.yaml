@@ -5363,6 +5363,7 @@ components:
         last_login_at: { type: [string, 'null'], format: date-time }
         password_changed_at: { type: [string, 'null'], format: date-time }
         approved_at: { type: [string, 'null'], format: date-time }
+        can_manage: { type: boolean, description: 'False kada je red SuperAdmin nalog, a pozivalac nije SuperAdmin (nalog se ne može mijenjati). Odsutno na starijim serverima; klijent tada ništa ne zaključava.' }
         last_active_superadmin_protected: { type: boolean }
     AdminUserStatusOption:
       type: object

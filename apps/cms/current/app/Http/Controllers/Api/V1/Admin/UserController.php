@@ -58,7 +58,7 @@ final class UserController extends Controller
         return $this->jsonNoStore([
             'data' => $paginator->getCollection()
                 ->filter(static fn (mixed $user): bool => $user instanceof User)
-                ->map(fn (User $user): array => $this->present($user, $activeSuperAdmins))
+                ->map(fn (User $user): array => $this->present($user, $activeSuperAdmins, $actor))
                 ->values()
                 ->all(),
             'pagination' => $this->pagination($paginator),
@@ -68,7 +68,7 @@ final class UserController extends Controller
                 'page' => isset($validated['page']) ? (int) $validated['page'] : 1,
                 'per_page' => $perPage,
             ],
-            'filter_options' => $this->optionsPayload(),
+            'filter_options' => $this->optionsPayload($actor),
             'capabilities' => $this->capabilities($actor),
         ]);
     }
@@ -78,7 +78,7 @@ final class UserController extends Controller
         $actor = $this->actor($request);
 
         return $this->jsonNoStore([
-            'data' => $this->optionsPayload(),
+            'data' => $this->optionsPayload($actor),
             'capabilities' => $this->capabilities($actor),
         ]);
     }
@@ -92,7 +92,7 @@ final class UserController extends Controller
         $user->load(['role', 'group']);
 
         return $this->jsonNoStore([
-            'data' => $this->present($user, $this->activeSuperAdminCount()),
+            'data' => $this->present($user, $this->activeSuperAdminCount(), $actor),
             'capabilities' => $this->capabilities($actor),
         ]);
     }
@@ -105,7 +105,7 @@ final class UserController extends Controller
 
         return $this->jsonNoStore([
             'message' => 'Korisnik je dodat.',
-            'data' => $this->present($created, $this->activeSuperAdminCount()),
+            'data' => $this->present($created, $this->activeSuperAdminCount(), $request->user()),
             'password_changed' => true,
             'reauthenticate' => false,
         ], 201);
@@ -120,7 +120,7 @@ final class UserController extends Controller
 
         return $this->jsonNoStore([
             'message' => 'Korisnik je izmenjen.',
-            'data' => $this->present($result['user'], $this->activeSuperAdminCount()),
+            'data' => $this->present($result['user'], $this->activeSuperAdminCount(), $request->user()),
             'password_changed' => $result['password_changed'],
             'reauthenticate' => $result['reauthenticate'],
         ]);
@@ -156,10 +156,11 @@ final class UserController extends Controller
     }
 
     /** @return array<string,mixed> */
-    private function optionsPayload(): array
+    private function optionsPayload(User $actor): array
     {
         return [
             'roles' => Role::query()->orderBy('id')->get(['id', 'name', 'slug'])
+                ->reject(static fn (Role $role): bool => $role->slug === 'superadmin' && !$actor->hasRole('superadmin'))
                 ->map(static fn (Role $role): array => [
                     'id' => (int) $role->id,
                     'name' => (string) $role->name,
@@ -193,7 +194,7 @@ final class UserController extends Controller
     }
 
     /** @return array<string,mixed> */
-    private function present(User $user, int $activeSuperAdmins): array
+    private function present(User $user, int $activeSuperAdmins, User $actor): array
     {
         $user->loadMissing(['role', 'group']);
         $roleSlug = (string) ($user->role?->slug ?? '');
@@ -226,6 +227,8 @@ final class UserController extends Controller
             'last_login_at' => $this->dateValue($user->last_login_at),
             'password_changed_at' => $this->dateValue($user->password_changed_at),
             'approved_at' => $this->dateValue($user->approved_at),
+            // Only a SuperAdmin may edit a SuperAdmin account (AdminUserService enforces it; clients hide the editor).
+            'can_manage' => $actor->hasRole('superadmin') || $roleSlug !== 'superadmin',
             'last_active_superadmin_protected' => $roleSlug === 'superadmin'
                 && (string) $user->status === 'active'
                 && $activeSuperAdmins <= 1,

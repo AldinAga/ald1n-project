@@ -393,7 +393,7 @@ async function main() {
     });
     await check('report-schedule-confirmation', async () => {
       await open(adminPage, '/admin/reports');
-      await adminPage.locator('.analytics-schedule').evaluate(node => { node.open = true; });
+      await adminPage.locator('[data-report-schedule]').evaluate(node => { node.open = true; });
       await confirmForm(adminPage, 'form[action$="/reports/schedules/'+fixture.schedule+'"]');
     });
     await check('warranty-void-confirmation', async () => {
@@ -480,11 +480,11 @@ async function main() {
       const financial = await admin.newPage();
       try {
         await open(financial, '/admin/receivables/'+fixture.receivable);
-        await financial.locator('.receivable-plan-editor').evaluate(node => { node.open = true; });
+        await financial.locator('[data-installment-plan]').evaluate(node => { node.open = true; });
         await financial.locator('[data-add-installment]').click();
-        assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 2);
-        await financial.locator('[data-installment-rows] .installment-row').last().locator('[data-remove-installment]').click();
-        assert.equal(await financial.locator('[data-installment-rows] .installment-row').count(), 1);
+        assert.equal(await financial.locator('[data-installment-rows] [data-installment-row]').count(), 2);
+        await financial.locator('[data-installment-rows] [data-installment-row]').last().locator('[data-remove-installment]').click();
+        assert.equal(await financial.locator('[data-installment-rows] [data-installment-row]').count(), 1);
         // Jedan obrazac "Evidentiraj uplatu" (kao na porudžbini): ključ idempotencije + zaštita od dvostrukog slanja.
         const form = financial.locator('form[data-payment-record-form]');
         assert.equal(await form.locator('[name="idempotency_key"]').count(), 1);

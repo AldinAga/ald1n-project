@@ -1693,7 +1693,8 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
    listed in the partial. */
 .a1-btt[data-js]{bottom:calc(max(var(--a1-space-16),env(safe-area-inset-bottom,0px)) + var(--a1-btt-lift,0px))}
 body.has-ux-action-dock .a1-btt:not([data-js]){bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-body:has(.a1-actionbar,[data-product-editor-action-bar],.dictionary-sort-finish) .a1-btt:not([data-js]){bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+body:has(.a1-actionbar,[data-product-editor-action-bar],.dictionary-sort-finish) .a1-btt:not([data-js]){bottom:calc(176px + env(safe-area-inset-bottom,0px))}
+@media (min-width:721px){body:has(.a1-actionbar,[data-product-editor-action-bar],.dictionary-sort-finish) .a1-btt:not([data-js]){bottom:calc(112px + env(safe-area-inset-bottom,0px))}}
 body[tabindex="-1"]:focus{outline:0}
 @media (forced-colors:active){.a1-btt{border-color:ButtonText;background:ButtonFace;color:ButtonText;box-shadow:none}}
 @media print{.a1-btt{display:none}}

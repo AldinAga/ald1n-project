@@ -35,7 +35,9 @@ final class UserController extends Controller
 
         return view('admin.users.index', [
             'users' => $query->paginate(30)->withQueryString(),
-            'roles' => Role::query()->orderBy('id')->get(),
+            'roles' => Role::query()->orderBy('id')->get()
+                ->reject(static fn (Role $role): bool => $role->slug === 'superadmin' && !$request->user()->hasRole('superadmin'))
+                ->values(),
             'groups' => UserGroup::query()->orderBy('sort_order')->orderBy('name')->get(),
         ]);
     }

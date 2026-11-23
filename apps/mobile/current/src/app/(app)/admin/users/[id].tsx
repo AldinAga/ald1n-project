@@ -155,6 +155,7 @@ export default function AdminUsersDetailScreen() {
   }
 
   const user = userQuery.data.data;
+  if (user.can_manage === false) return <UnavailableState title="Nalog SuperAdministratora može da menja samo SuperAdministrator" />;
 
   return (
     <Screen contentStyle={styles.content} keyboardShouldPersistTaps="handled">
