@@ -105,7 +105,8 @@ export async function captureProductImage(
   const shot = await ImagePicker.launchCameraAsync({
     mediaTypes: ['images'],
     allowsEditing: false,
-    quality: 0.9,
+    // Server limit is 10 MB per image; 0.8 keeps 50+ MP phone JPEGs under it.
+    quality: 0.8,
   });
   const asset = shot.assets?.[0];
   if (shot.canceled || !asset) return { files: [], rejected: [], canceled: true };

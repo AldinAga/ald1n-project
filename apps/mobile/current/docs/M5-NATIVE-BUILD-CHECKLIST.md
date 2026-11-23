@@ -19,7 +19,8 @@ Ovaj PR je samo izvor. Ništa se ne gradi, ne objavljuje i ne šalje na EAS, OTA
 2. Pročitati udaljeni versionCode (mora biti 29, tada je sledeći 30).
 3. Pokrenuti odobren GitHub/EAS tok (b1041) za profil `m17-sdk58-play-rc`; nijedan host build.
 4. Lokalni `expo prebuild` (samo generisanje, bez gradle-a) već daje `CAMERA`, `RECORD_AUDIO` sa `tools:node="remove"` i oba `uses-feature` kao `required=false`. Spojeni manifest AAB-a (posle gradle merge-a biblioteka) tek treba potvrditi: `CAMERA` postoji, `RECORD_AUDIO` ne postoji, `uses-feature android.hardware.camera` je `required=false` (bundletool `dump manifest`).
-5. 16 KB gejt na potpisanom AAB-u, uključujući native biblioteke koje donose expo-camera i ML Kit (Google code scanner dolazi preko Play Services, ali native deo expo-camera mora proći ELF proveru).
+5. 16 KB gejt na potpisanom AAB-u. expo-camera 58.0.14 sa podrazumevanim `barcodeScannerEnabled` ugrađuje `com.google.mlkit:barcode-scanning:17.3.0` (native biblioteke u AAB-u, ELF provera obavezna), `play-services-code-scanner:16.1.0`, CameraX i `play-services-mlkit-document-scanner:16.0.0-beta1` (dokument skener se ne koristi; gradle svojstvo `expo.camera.document-scanner-enabled=false` bi ga isključilo, nije podešeno u ovom PR-u).
+5a. `.github/workflows/b1041-*`, `b1042-*` i `.github/scripts/b1042-m17-aab-attest.mjs` vezani su za SHA 6adb3b44 (izvor AAB-a 29, runtime play2) i namerno nisu menjani. Za play3 build treba novi, odobreni skup gejtova sa novim SHA-om; do tada glavna grana ne može da proizvede OTA za živi binarni fajl 29.
 6. Provera na fizičkom uređaju: skener (EAN13, EAN8, UPC-E), kamera za fotografiju (dozvola, odbijanje, "ne pitaj ponovo"), uređaj bez Google Play Services skenera (ručni unos).
 7. Ažurirati Data safety (Fotografije) i izjavu o dozvolama u Play Console (obrazac podnosi vlasnik), vidi `docs/google-play-data-safety.md`.
 8. OTA tek posle potvrđene instalacije play3 binarnog fajla.

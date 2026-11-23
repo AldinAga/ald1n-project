@@ -70,6 +70,9 @@ export function EanScanButton({
     } catch (error) {
       subscription.current?.remove();
       subscription.current = null;
+      // The Google scanner rejects (instead of resolving) when the user closes it: not an error.
+      const code = (error as { code?: unknown } | null)?.code;
+      if (code === 'ERR_BARCODE_SCANNING_CANCELLED') return;
       feedback.notify({
         tone: 'danger',
         title: 'Skeniranje nije uspelo',

@@ -48,7 +48,7 @@ test('plugins keep the microphone out of the manifest',()=>{
  assert.equal(camera[1].recordAudioAndroid,false);
  assert.equal(picker[1].microphonePermission,false);
  assert.ok(typeof camera[1].cameraPermission==='string'&&camera[1].cameraPermission.length>20);
- assert.ok(!JSON.stringify(config.android).includes('RECORD_AUDIO'));
+ // Manifest content itself is only proven by `expo prebuild` (RECORD_AUDIO gets tools:node=remove); not testable from config.
  assert.ok(plugin('./plugins/with-optional-camera-feature'));
 });
 
@@ -123,6 +123,9 @@ test('EAN scanner uses the Google scanner, supports only EAN/UPC-E and validates
  assert.match(src,/CameraView\.isModernBarcodeScannerAvailable/);
  assert.match(src,/CameraView\.onModernBarcodeScanned/);
  assert.ok(!/<CameraView/.test(src),'no own camera view');
+ // expo-camera rejects launchScanner when the user closes the scanner; that must stay silent.
+ assert.match(src,/code === 'ERR_BARCODE_SCANNING_CANCELLED'\) return;/);
+ assert.match(src,/Platform\.OS === 'ios'\) void CameraView\.dismissScanner/);
  const server=readFileSync(path.join(repo,'apps/cms/current/app/Http/Requests/ProductRequest.php'),'utf8');
  assert.ok(server.includes("'regex:/^[0-9]{8,14}$/'"),'server rule changed, update the client');
  const pattern=/const EAN_PATTERN = \/(.+)\/;/.exec(src)[1];
@@ -142,6 +145,9 @@ test('product photo: one system-camera shot per tap through the same draft flow'
  assert.match(picker,/ImagePicker\.launchCameraAsync\(/);
  assert.match(picker,/mediaTypes: \['images'\]/);
  assert.ok(!/allowsMultipleSelection/.test(picker));
+ const serverLimit=readFileSync(path.join(repo,'apps/cms/current/app/Http/Controllers/Admin/ProductImageController.php'),'utf8');
+ assert.ok(serverLimit.includes("'max:10240'"),'server image limit changed, re-check camera quality');
+ assert.match(picker,/quality: 0\.8/);
  assert.match(picker,/requestCameraPermissionsAsync/);
  assert.match(picker,/validatePickedFiles\(\[new File\(asset\.uri\)\], current, limits, 1\)/);
  assert.match(picker,/return validatePickedFiles\(selected, current, limits, remaining\)/);

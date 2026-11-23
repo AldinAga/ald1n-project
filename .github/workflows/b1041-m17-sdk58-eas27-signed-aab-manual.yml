@@ -28,7 +28,7 @@ jobs:
       M17_SOURCE_SHA: '6adb3b440b8cfdc068b142a98c418d9d91487f64'
       M17_SOURCE_TREE: 'fc4578c93820df8b0c85f5215924ab2bc501ba01'
       M17_PROFILE: 'm17-sdk58-play-rc'
-      M17_RUNTIME: '1.0.0-m17-sdk58-play3'
+      M17_RUNTIME: '1.0.0-m17-sdk58-play2'
       M17_PROJECT_ID: 'd43b3866-6838-4217-a23e-3dc7f2cc76cc'
       M17_PACKAGE: 'com.ald1n.mobile'
 
