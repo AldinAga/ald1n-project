@@ -1676,7 +1676,8 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 .a1-btt{position:fixed;z-index:35;right:max(var(--a1-space-16),env(safe-area-inset-right,0px));bottom:max(var(--a1-space-16),env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:var(--a1-size-control);height:var(--a1-size-control);padding:0;border:var(--a1x-border-width-strong) solid var(--a1-back-to-top-border);border-radius:50%;background:var(--a1-back-to-top-bg);color:var(--a1-button-primary-on);box-shadow:var(--a1-shadow-button);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .a1-btt:hover{background:var(--a1-back-to-top-hover)}
 .a1-btt:focus-visible{outline:var(--a1-focus-width) solid var(--a1-back-to-top-ring);outline-offset:var(--a1-focus-offset)}
-.a1-btt svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+/* Chevron drawn with borders: no inline SVG, so error pages that must not echo markup stay free of it. */
+.a1-btt__ico{display:block;width:12px;height:12px;border-left:3px solid currentColor;border-top:3px solid currentColor;border-radius:2px;transform:translateY(3px) rotate(45deg)}
 .a1-btt[data-js]:not(.is-shown){visibility:hidden;opacity:0;pointer-events:none;transform:translateY(var(--a1-space-8))}
 @media (prefers-reduced-motion:no-preference){
   .a1-btt[data-js]{transition:opacity var(--a1-motion-duration-base) var(--a1-motion-easing-standard),transform var(--a1-motion-duration-base) var(--a1-motion-easing-standard),visibility 0s linear var(--a1-motion-duration-base),background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}

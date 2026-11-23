@@ -39,7 +39,7 @@ final class OrdersModuleThreeCustomerOrdersTest extends TestCase
         self::assertStringContainsString('data-order-user-detail-ready="1"', $html);
         self::assertSame(1, substr_count($html, '<h1 '));
         self::assertStringContainsString('>'.$order->order_number.'</h1>', $html);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $html), 'Old classes must be gone.');
         self::assertSame(0, preg_match('/style="[^"]*(?:#[0-9a-f]{3,8}|rgb|hsl)/i', $html));
 
@@ -164,7 +164,7 @@ final class OrdersModuleThreeCustomerOrdersTest extends TestCase
 
         self::assertSame(1, substr_count($html, '<h1 '));
         self::assertStringContainsString('data-order-create-ready="1"', $html);
-        self::assertStringNotContainsString('Nazad na vrh', $page);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $page);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $html));
         self::assertMatchesRegularExpression('/<form method="post" action="'.preg_quote(route('orders.store'), '/').'" class="a1-form" data-order-create-form data-ux-sticky-actions>\s*<input type="hidden" name="_token"/', $html);
         self::assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $html);

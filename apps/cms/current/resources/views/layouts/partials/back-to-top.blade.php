@@ -1,6 +1,6 @@
 {{-- Back to top: one partial for layouts.app, layouts.guest and errors.minimal (the public shop has its own .shop-back-to-top). Styles: .a1-btt in ald1n-admin.css. Needs id="a1-top" on <body>. Author: Ald1n <https://ald1n.com> --}}
 <a class="a1-btt" id="a1-btt" href="#a1-top" aria-label="Nazad na vrh" title="Nazad na vrh">
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+    <span class="a1-btt__ico" aria-hidden="true"></span>
 </a>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {

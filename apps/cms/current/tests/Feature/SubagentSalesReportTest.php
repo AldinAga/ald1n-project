@@ -286,8 +286,8 @@ final class SubagentSalesReportTest extends TestCase
             ->assertSee('74.000,00 RSD')
             ->assertSee('Deo prometa nema nabavnu cenu')
             ->assertSee('Ukupno za izabrani period')
-            // The admin has no "Nazad na vrh" button: owner decision of 2026-11-10 (docs/redesign/admin-shell.md).
-            ->assertDontSee('Nazad na vrh');
+            // The admin carries the "Nazad na vrh" button: owner decision of 2026-11-23 (replaces the 2026-11-10 one).
+            ->assertSee('aria-label="Nazad na vrh"', false);
 
         $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE + ['customer' => 'ne postoji nijedan takav']))
             ->assertOk()->assertSee('Nema prodaje za izabrane filtere')->assertDontSee('Ukupno za izabrani period');
