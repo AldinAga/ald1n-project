@@ -103,7 +103,7 @@
     <noscript><style>.a1-bell__btn{display:none}@media (max-width:1199px){.a1-menu-btn,.a1-header__theme{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
 </head>
-<body class="a1-body">
+<body class="a1-body" id="a1-top">
 <a class="a1-skip a1-shell" href="#main-content" data-a1-page>Preskoči na sadržaj</a>
 <header class="a1-header a1-shell" data-a1-header>
     <div class="a1-wrap a1-header__bar">
@@ -1327,5 +1327,6 @@ const loadProductSearch = async (term) => {
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/ux-runtime.js') }}?v={{ @filemtime(public_path('assets/js/ux-runtime.js')) ?: config('app.version') }}" defer></script>
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}" type="module" src="{{ asset('assets/js/ald1n-liquid-glass-r3.js') }}?v={{ @filemtime(public_path('assets/js/ald1n-liquid-glass-r3.js')) ?: config('app.version') }}"></script>
 @stack('scripts')
+@include('layouts.partials.back-to-top')
 </body>
 </html>

@@ -1,7 +1,8 @@
 @extends('public-shop.layout', ['authShell' => true])
 @section('title','Registracija naloga')
 @push('head')
-<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-register.css?v=202611151' }}">
+<link rel="stylesheet" href="{{ '/assets/css/ald1n-tokens.css?v=202611231' }}">
+<link rel="stylesheet" href="{{ '/assets/css/ald1n-public-register.css?v=202611231' }}">
 @if($turnstileEnabled)<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>@endif
 @endpush
 {{-- Registration in the login visual shell (same background image, split glass card, corner theme switch). Presentation only: field names, validation, Turnstile and the activation flow are unchanged. Strict CSP: no inline style, no inline script, no handlers. Author: Ald1n <https://ald1n.com> --}}

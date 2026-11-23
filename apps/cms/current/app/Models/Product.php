@@ -18,7 +18,16 @@ final class Product extends Model
         'price_currency', 'purchase_price_rsd', 'manual_commission_eur', 'description', 'notes', 'stock_quantity',
         'low_stock_threshold', 'status', 'created_by', 'updated_by', 'deleted_at', 'legacy_checksum',
         'legacy_synced_at', 'locally_modified_at', 'completeness_percent', 'name_is_manual', 'source_product_id',
+        'supplier_code', 'ean',
     ];
+
+    /** Kolone supplier_code i ean stižu kasnijom migracijom; do tada ih kod preskače (aditivno, bez 500). */
+    public static function hasIdentifierColumns(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('products', 'ean');
+    }
 
     protected function casts(): array
     {

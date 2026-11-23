@@ -47,7 +47,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-orders-page-ready="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Sve porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page), 'Old order list classes must be gone.');
         self::assertSame(1, substr_count($page, 'a1-btn--primary'), 'Exactly one primary action: the filter submit.');
         self::assertStringContainsString('6 porudžbina</span>', $page);
@@ -243,7 +243,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-order-archive-center="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Arhivirane porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('href="'.route('admin.orders.index').'">Aktivne porudžbine</a>', $page);
         self::assertStringContainsString('1 arhiviranih</span>', $page);
@@ -314,7 +314,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-build16-orders-list="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Moje porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('2 ukupno</span>', $page);
         self::assertStringContainsString('M3L-OWN-001', $page);
@@ -374,7 +374,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-user-cart-ready="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Korpa</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('2 kom.</span>', $page);
         self::assertStringContainsString('M3L-CART-1 name', $page);

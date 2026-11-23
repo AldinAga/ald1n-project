@@ -650,6 +650,9 @@ final class CatalogProductController extends Controller
                 $nested->where('name', 'like', $like)
                     ->orWhere('sku', 'like', $like)
                     ->orWhere('model_name', 'like', $like);
+                if (Product::hasIdentifierColumns()) {
+                    $nested->orWhere('supplier_code', 'like', $like)->orWhere('ean', 'like', $like);
+                }
             });
         }
 
@@ -742,6 +745,8 @@ final class CatalogProductController extends Controller
             'name' => (string) $product->name,
             'slug' => (string) $product->slug,
             'model_name' => $product->model_name ?: null,
+            'supplier_code' => $product->getAttribute('supplier_code') ?: null,
+            'ean' => $product->getAttribute('ean') ?: null,
             'status' => (string) $product->status,
             'is_archived' => $product->deleted_at !== null,
             'deleted_at' => $product->deleted_at?->toISOString(),

@@ -98,7 +98,7 @@ final class DashboardModuleTwoTest extends TestCase
         $dash = $this->dashboard($html);
 
         self::assertSame(1, substr_count($dash, '<h1 '));
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertStringNotContainsString('ald1n-dashboard-d1.css', $html);
         self::assertSame(0, preg_match('/class="(?:[^"]*\s)?(?:panel|dashboard-[a-z0-9-]+|build16-[a-z0-9-]+|portal-[a-z-]+)(?:\s[^"]*)?"/', $dash), 'Old dashboard classes must be gone from the markup.');
         self::assertSame(0, preg_match('/style="[^"]*(?:#[0-9a-f]{3,8}|rgb|hsl)/i', $dash), 'No colours in inline styles.');
