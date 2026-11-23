@@ -135,6 +135,27 @@ final class CommissionWaitsForExchangeRateTest extends TestCase
         $this->artisan('exchange-rate:update')->assertSuccessful();
 
         self::assertSame('approved', OrderCommission::query()->where('order_id', $order->id)->firstOrFail()->status, 'ponovni pokušaj oslobađa proviziju');
+        self::assertSame('', (string) app(ExchangeRateService::class)->configuration()['last_error'], 'uspješan ponovni pokušaj briše poruku o neuspjehu');
+    }
+
+    public function test_release_does_not_approve_other_pending_commissions_that_were_returned_on_purpose(): void
+    {
+        $admin = $this->user('adm-xo', 'admin');
+        $owner = $this->user('owner-xo', 'superadmin');
+        $sub = $this->user('sub-xo', 'user');
+        $held = $this->placeManualRsdOrder($sub, $admin);
+        $other = $this->placeManualRsdOrder($sub, $admin);
+        DB::table('order_items')->where('order_id', $other->id)->update(['commission_source_snapshot' => 'automatic']);
+        $this->pay($held, $admin);
+        $this->pay($other, $admin);
+        // Izmjena porudžbine ili SuperAdmin vraćaju proviziju na pending namjerno.
+        OrderCommission::query()->where('order_id', $other->id)->update(['status' => 'pending', 'approved_at' => null, 'auto_approved_at' => null]);
+
+        app(ExchangeRateService::class)->saveManual(117.0, $owner->id);
+        $this->artisan('exchange-rate:update')->assertSuccessful();
+
+        self::assertSame('approved', OrderCommission::query()->where('order_id', $held->id)->firstOrFail()->status);
+        self::assertSame('pending', OrderCommission::query()->where('order_id', $other->id)->firstOrFail()->status, 'druge pending provizije se ne diraju');
     }
 
     public function test_control_same_order_with_rate_is_approved_on_payment(): void

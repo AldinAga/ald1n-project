@@ -75,10 +75,14 @@ final class CommissionAutoApprovalService
     }
 
     /** Jednokratni prenos postojećih pending provizija čija porudžbina već ispunjava uslov. Idempotentno; bez obaveštenja. */
-    public function backfill(): int
+    public function backfill(?array $onlyOrderIds = null): int
     {
         $count = 0;
-        $ids = $this->eligibility->scopeState(OrderCommission::query(), 'due')->pluck('order_commissions.order_id');
+        $query = $this->eligibility->scopeState(OrderCommission::query(), 'due');
+        if ($onlyOrderIds !== null) { // pozivalac suzava na narudzbine koje je sam oslobodio; ostale pending provizije se ne diraju
+            $query->whereIn('order_commissions.order_id', $onlyOrderIds);
+        }
+        $ids = $query->pluck('order_commissions.order_id');
         foreach ($ids as $orderId) {
             $order = Order::query()->find($orderId);
             if ($order instanceof Order && $this->syncForOrder($order, 'backfill_20261116', false) === 'approved') {

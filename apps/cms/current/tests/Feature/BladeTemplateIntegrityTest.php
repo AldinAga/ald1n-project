@@ -203,6 +203,8 @@ final class BladeTemplateIntegrityTest extends TestCase
         foreach ($bad as $source) {
             $this->assertNotSame([], self::gluedDirectives($source), $source);
         }
+        // Jedini primjer koji stari regex propušta (iza @endif stoji .x): samo nova provjera ga hvata.
+        $this->assertNotSame([], self::gluedDirectives('@if($a) @endif@endif.x'));
         $this->assertCount(2, self::gluedDirectives('@forelse($a as $b)<b></b>@empty@if($c)<i></i>@endif@endforelse'));
 
         $good = [

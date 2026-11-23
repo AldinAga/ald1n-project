@@ -2,7 +2,8 @@
 
 - izvještaji prodaje subagenata za prošle periode sada se računaju sa storno i zaduženjima provizije (isti izvor kao stranica provizija), pa se brojke za već zatvorene periode mogu razlikovati od ranije izvezenih; CSV kolone se zovu "Provizija isplaćena (neto) RSD" i "Provizija neisplaćena (neto) RSD";
 - pri oslobađanju provizije zbog kursa kurs se upisuje na porudžbinu, a neuspjelo oslobađanje se vidi (last_error, audit) i ponavlja pri sljedećem pokretanju exchange-rate:update;
-- administrator ne vidi ni ne mijenja SuperAdmin naloge (web, API, mobilni).
+- administrator ne može mijenjati SuperAdmin naloge ni dodijeliti ulogu SuperAdmin (web, API i mobilni sakrivaju izmjenu; API vraća `can_manage`); i dalje ih vidi u listi;
+- kada se kurs retroaktivno upiše na porudžbine koje su čekale kurs, RSD izvještaji za prošle periode se mijenjaju za te porudžbine (ranije su ih računali kao 0).
 
 ## 2.2.0 - Mobile API Foundation
 
