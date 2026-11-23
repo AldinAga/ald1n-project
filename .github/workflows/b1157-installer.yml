@@ -372,7 +372,7 @@ jobs:
             '4076dca6f60f5229fc5b6866d9e69846eece0128a6372a398bdd08061ae9cc96  b1156-app-check.php' \
             '436abbe5b274186a185e29fe3c9fee39abd5cea497da6bbf3d321b78ec84009c  b1156-coordinator.php' | cmp - "$RUNNER_TEMP/b1156-members.txt"
           # The generated STEPS (Payload.php): counts, and the CMS diff BASE..SOURCE minus the CMS tests and docs is exactly that set plus the deleted files (the retained orphans), no duplicate, nothing outside apps/cms/current.
-          read -r steps nnew nmod norph < <(php -r 'require $argv[1];echo B1157Payload::FILES," ",B1157Payload::NEW_FILES," ",B1157Payload::MODIFIED_FILES," ",count(B1157Payload::ORPHANS);' tools/storefront/b1157/Payload.php)
+          read -r steps nnew nmod norph < <(php -r 'require $argv[1];echo B1157Payload::FILES," ",B1157Payload::NEW_FILES," ",B1157Payload::MODIFIED_FILES," ",count(B1157Payload::ORPHANS),"\n";' tools/storefront/b1157/Payload.php)
           echo "STEPS=$steps NEW=$nnew MODIFIED=$nmod ORPHANS=$norph"
           test "$steps" -gt 0
           echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
@@ -432,7 +432,7 @@ jobs:
             refuse "$1" "$5"
           }
           # package.php is run from the real directory but with the MUTANT tool directory as its second argument: the payload constants come from the mutant copy. The step to mutate is chosen from Payload.php.
-          pick() { php -r 'require $argv[1];$k=$argv[2];foreach(B1157Payload::STEPS as [$p,$kind,$g]){if($k==="new"&&$kind==="new"){echo $p," ",substr(B1157Payload::DIGESTS[$p][1],0,16);exit;}if($k==="mod"&&$kind==="modified"){echo $p," ",substr(B1157Payload::DIGESTS[$p][0],0,16);exit;}}' "$s/b1157/Payload.php" "$1"; }
+          pick() { php -r 'require $argv[1];$k=$argv[2];foreach(B1157Payload::STEPS as [$p,$kind,$g]){if($k==="new"&&$kind==="new"){echo $p," ",substr(B1157Payload::DIGESTS[$p][1],0,16),"\n";exit;}if($k==="mod"&&$kind==="modified"){echo $p," ",substr(B1157Payload::DIGESTS[$p][0],0,16),"\n";exit;}}' "$s/b1157/Payload.php" "$1"; }
           pickd() { php -r 'require $argv[1];$p=$argv[2];echo substr(B1157Payload::DIGESTS[$p][$argv[3]==="pre"?0:1],0,16);' "$s/b1157/Payload.php" "$1" "$2"; }
           read -r newp newd < <(pick new)
           read -r modp modd < <(pick mod)
