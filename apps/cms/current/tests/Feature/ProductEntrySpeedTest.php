@@ -128,7 +128,7 @@ final class ProductEntrySpeedTest extends TestCase
         $draft = $this->product('AUTO-1', 'Nacrt', $owner->id, ['status' => 'draft']);
 
         $this->actingAs($owner)->putJson('/admin/catalog/'.$draft->id, [
-            'sku' => 'AUTO-1', 'name' => 'Nacrt izmenjen', 'price_currency' => 'EUR', 'status' => 'draft', 'save_draft' => '1',
+            'sku' => 'AUTO-1', 'name' => 'Nacrt izmenjen', 'price_currency' => 'EUR', 'status' => 'draft', 'save_draft' => '1', 'autosave' => '1',
             'product_type_id' => $this->type->id, 'brand_id' => $this->brand->id,
         ])->assertOk();
         $draft->refresh();
@@ -140,6 +140,31 @@ final class ProductEntrySpeedTest extends TestCase
         self::assertStringContainsString('data-autosave-status', $html);
         self::assertStringContainsString("root.dataset.initialProductStatus === 'draft'", $html);
         self::assertStringContainsString("data.set('save_draft', '1')", $html);
+        self::assertStringContainsString("data.set('autosave', '1')", $html);
+    }
+
+    public function test_server_refuses_autosave_for_a_product_that_is_no_longer_a_draft(): void
+    {
+        $owner = $this->admin('auto-guard');
+        $active = $this->product('AUTO-2', 'Aktivan', $owner->id, ['status' => 'active']);
+        $payload = ['sku' => 'AUTO-2', 'name' => 'Aktivan', 'price_currency' => 'EUR', 'status' => 'draft', 'save_draft' => '1', 'autosave' => '1'];
+
+        $this->actingAs($owner)->putJson('/admin/catalog/'.$active->id, $payload)->assertStatus(422)->assertJsonValidationErrors('autosave');
+        self::assertSame('active', $active->refresh()->status);
+
+        // Isti zahtev bez autosave oznake i dalje radi kao ručno "Sačuvaj kao nacrt".
+        $manual = $this->product('AUTO-3', 'Ručno', $owner->id, ['status' => 'active']);
+        $this->putJson('/admin/catalog/'.$manual->id, array_replace($payload, ['sku' => 'AUTO-3', 'name' => 'Ručno', 'autosave' => null]))->assertOk();
+        self::assertSame('draft', $manual->refresh()->status);
+
+        $superadmin = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id'),
+            'username' => 'auto-guard-api', 'email' => 'auto-guard-api@test.local',
+            'password_hash' => Hash::make('Secret123!'), 'status' => 'active',
+        ]);
+        $this->actingAs($superadmin, 'sanctum')->putJson('/api/v1/admin/catalog/products/'.$active->id, $payload)
+            ->assertStatus(422)->assertJsonValidationErrors('autosave');
+        self::assertSame('active', $active->refresh()->status);
     }
 
     /** @param array<string,mixed> $override @return array<string,mixed> */
