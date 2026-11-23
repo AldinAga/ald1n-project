@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Brendovi')
 @section('content')
+@include('admin.products.partials.styles')
 {{-- MOBILE_V0_9_GLOBAL_BRAND_MANAGER_BATCH3 --}}
 {{-- MOBILE_V1_0_BRAND_LINE_EXPANSION_BATCH22_V3 --}}
 @php
@@ -8,124 +9,127 @@
     $showForm = $createMode || $formBrand !== null || $errors->any();
     $selectedTypeIds = collect(old('product_type_ids', $formBrand['product_type_ids'] ?? []))->map(fn($id)=> (int)$id)->all();
 @endphp
-<div class="page-heading">
-    <div>
-        <span class="eyebrow">Kataloški šifarnici</span>
-        <h1>Brendovi</h1>
-        <p>Jedan globalni brend može biti povezan sa više tipova proizvoda. Upravljaj zvaničnim podacima, tipovima i do deset kuriranih linija po tipu bez dupliranja brendova.</p>
+<div class="a1-ops">
+<header class="a1-pagehead">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Kataloški šifarnici</span>
+        <h1 class="a1-title">Brendovi</h1>
+        <p class="a1-lead">Jedan globalni brend može biti povezan sa više tipova proizvoda. Upravljaj zvaničnim podacima, tipovima i do deset kuriranih linija po tipu bez dupliranja brendova.</p>
     </div>
-    <div class="header-button-row">
-        <a class="button button-primary" href="{{ route('admin.brand-manager.index', ['create' => 1]) }}">+ Dodaj brend</a>
-        <a class="button button-ghost" href="{{ route('admin.dictionary.index','product-types') }}">Tipovi proizvoda</a>
+    <div class="a1-pagehead__actions">
+        <a class="a1-btn a1-btn--primary" href="{{ route('admin.brand-manager.index', ['create' => 1]) }}">+ Dodaj brend</a>
+        <a class="a1-btn" href="{{ route('admin.dictionary.index','product-types') }}">Tipovi proizvoda</a>
     </div>
-</div>
+</header>
 
 @if(session('status'))
-    <div class="alert alert-success">{{ session('status') }}</div>
+    <div class="a1-alert a1-alert--ok" role="status"><div class="a1-alert__body"><p>{{ session('status') }}</p></div></div>
 @endif
 
-<section class="panel form-section">
-    <div class="section-heading-row">
-        <div>
-            <h2>Pretraga i filter</h2>
-            <p class="muted">Filter tipa je dinamički iz baze. Opcija „Svi“ prikazuje sve globalne brendove.</p>
+<section class="a1-card" aria-labelledby="br-filter">
+    <div class="a1-card__head">
+        <div class="a1-card__title">
+            <h2 class="a1-h3" id="br-filter">Pretraga i filter</h2>
+            <p class="a1-text">Filter tipa je dinamički iz baze. Opcija „Svi“ prikazuje sve globalne brendove.</p>
         </div>
-        <span class="count-pill">{{ count($brands) }} brendova</span>
+        <span class="a1-pill">{{ count($brands) }} brendova</span>
     </div>
-    <form method="get" action="{{ route('admin.brand-manager.index') }}" class="admin-form-grid">
-        <label>
-            <span>Pretraga brenda</span>
-            <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Naziv, opis ili website">
-        </label>
-        <label>
-            <span>Tip / kategorija proizvoda</span>
-            <select name="product_type_id">
-                <option value="">Svi</option>
-                @foreach($product_types as $type)
-                    <option value="{{ $type['id'] }}" @selected((int)($filters['product_type_id'] ?? 0) === (int)$type['id'])>
-                        {{ $type['name'] }}@if($type['category_name']) — {{ $type['category_name'] }}@endif
-                    </option>
-                @endforeach
-            </select>
-        </label>
-        <div class="form-actions">
-            <button class="button button-primary" type="submit">Primeni filtere</button>
-            <a class="button button-ghost" href="{{ route('admin.brand-manager.index') }}">Očisti</a>
+    <form method="get" action="{{ route('admin.brand-manager.index') }}" class="a1-form" role="search">
+        <div class="a1-pc-grid">
+            <label class="a1-field">
+                <span class="a1-label">Pretraga brenda</span>
+                <input class="a1-input" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Naziv, opis ili website">
+            </label>
+            <label class="a1-field">
+                <span class="a1-label">Tip / kategorija proizvoda</span>
+                <select class="a1-select" name="product_type_id">
+                    <option value="">Svi</option>
+                    @foreach($product_types as $type)
+                        <option value="{{ $type['id'] }}" @selected((int)($filters['product_type_id'] ?? 0) === (int)$type['id'])>
+                            {{ $type['name'] }}@if($type['category_name']) — {{ $type['category_name'] }}@endif
+                        </option>
+                    @endforeach
+                </select>
+            </label>
+        </div>
+        <div class="a1-cluster">
+            <button class="a1-btn a1-btn--primary" type="submit">Primeni filtere</button>
+            <a class="a1-btn" href="{{ route('admin.brand-manager.index') }}">Očisti</a>
         </div>
     </form>
 </section>
 
 @if($showForm)
-<section class="panel form-section" id="brand-form">
-    <div class="section-heading-row">
-        <div>
-            <span class="eyebrow">{{ $formBrand ? 'Uređivanje' : 'Novi brend' }}</span>
-            <h2>{{ $formBrand ? $formBrand['name'] : 'Dodaj globalni brend' }}</h2>
-            <p class="muted">Slug se generiše automatski. Uklanjanje veze sa tipom je blokirano ako je koristi bilo koji aktivni ili istorijski artikal.</p>
+<section class="a1-card" id="brand-form" aria-labelledby="br-form-title">
+    <div class="a1-card__head">
+        <div class="a1-card__title">
+            <span class="a1-eyebrow">{{ $formBrand ? 'Uređivanje' : 'Novi brend' }}</span>
+            <h2 class="a1-h2" id="br-form-title">{{ $formBrand ? $formBrand['name'] : 'Dodaj globalni brend' }}</h2>
+            <p class="a1-text">Slug se generiše automatski. Uklanjanje veze sa tipom je blokirano ako je koristi bilo koji aktivni ili istorijski artikal.</p>
         </div>
-        @if($formBrand)<code>{{ $formBrand['slug'] }}</code>@endif
+        @if($formBrand)<code class="a1-pc-code">{{ $formBrand['slug'] }}</code>@endif
     </div>
 
-    <form method="post" action="{{ $formBrand ? route('admin.brand-manager.update',$formBrand['id']) : route('admin.brand-manager.store') }}" data-brand-manager-form>
+    <form method="post" action="{{ $formBrand ? route('admin.brand-manager.update',$formBrand['id']) : route('admin.brand-manager.store') }}" class="a1-form" data-brand-manager-form>
         @csrf
         @if($formBrand) @method('PUT') @endif
 
-        <div class="admin-form-grid">
-            <label>
-                <span>Naziv brenda</span>
-                <input name="name" maxlength="120" required value="{{ old('name', $formBrand['name'] ?? '') }}" placeholder="npr. Samsung">
-                @error('name')<small class="text-danger">{{ $message }}</small>@enderror
+        <div class="a1-pc-grid">
+            <label class="a1-field">
+                <span class="a1-label">Naziv brenda</span>
+                <input class="a1-input" name="name" maxlength="120" required value="{{ old('name', $formBrand['name'] ?? '') }}" placeholder="npr. Samsung">
+                @error('name')<small class="a1-error">{{ $message }}</small>@enderror
             </label>
-            <label>
-                <span>Zvanični website</span>
-                <input type="url" name="website_url" maxlength="255" value="{{ old('website_url', $formBrand['website_url'] ?? '') }}" placeholder="https://www.example.com">
-                @error('website_url')<small class="text-danger">{{ $message }}</small>@enderror
+            <label class="a1-field">
+                <span class="a1-label">Zvanični website</span>
+                <input class="a1-input" type="url" name="website_url" maxlength="255" value="{{ old('website_url', $formBrand['website_url'] ?? '') }}" placeholder="https://www.example.com">
+                @error('website_url')<small class="a1-error">{{ $message }}</small>@enderror
             </label>
-            <label>
-                <span>Status</span>
-                <select name="status" required>
+            <label class="a1-field">
+                <span class="a1-label">Status</span>
+                <select class="a1-select" name="status" required>
                     <option value="active" @selected(old('status', $formBrand['status'] ?? 'active') === 'active')>Aktivan</option>
                     <option value="inactive" @selected(old('status', $formBrand['status'] ?? 'active') === 'inactive')>Neaktivan</option>
                 </select>
             </label>
-            <label>
-                <span>Redosled</span>
-                <input type="number" min="0" max="1000000" name="sort_order" required value="{{ old('sort_order', $formBrand['sort_order'] ?? 100) }}">
+            <label class="a1-field">
+                <span class="a1-label">Redosled</span>
+                <input class="a1-input" type="number" min="0" max="1000000" name="sort_order" required value="{{ old('sort_order', $formBrand['sort_order'] ?? 100) }}">
             </label>
         </div>
 
-        <label>
-            <span>Kratak opis na srpskom</span>
-            <textarea name="description" rows="4" maxlength="65000" placeholder="Kratak opis proizvođača i relevantnog proizvodnog programa.">{{ old('description', $formBrand['description'] ?? '') }}</textarea>
-            @error('description')<small class="text-danger">{{ $message }}</small>@enderror
+        <label class="a1-field">
+            <span class="a1-label">Kratak opis na srpskom</span>
+            <textarea class="a1-textarea" name="description" rows="4" maxlength="65000" placeholder="Kratak opis proizvođača i relevantnog proizvodnog programa.">{{ old('description', $formBrand['description'] ?? '') }}</textarea>
+            @error('description')<small class="a1-error">{{ $message }}</small>@enderror
         </label>
 
-        <div class="section-heading-row">
-            <div>
-                <h3>Povezani tipovi i linije</h3>
-                <p class="muted">Izaberi tipove kojima brend realno pripada. Za svaki izabrani tip možeš uneti do deset kuriranih linija. Postojeće dodatne istorijske linije se ne brišu.</p>
-            </div>
+        <div class="a1-card__title">
+            <h3 class="a1-h3">Povezani tipovi i linije</h3>
+            <p class="a1-text">Izaberi tipove kojima brend realno pripada. Za svaki izabrani tip možeš uneti do deset kuriranih linija. Postojeće dodatne istorijske linije se ne brišu.</p>
         </div>
-        @error('product_type_ids')<p class="text-danger">{{ $message }}</p>@enderror
-        @error('line_names_by_type')<p class="text-danger">{{ $message }}</p>@enderror
+        @error('product_type_ids')<p class="a1-error">{{ $message }}</p>@enderror
+        @error('line_names_by_type')<p class="a1-error">{{ $message }}</p>@enderror
 
-        <div class="settings-grid">
+        <div class="a1-pc-cards">
             @foreach($product_types as $type)
                 @php
                     $typeId = (int)$type['id'];
                     $checked = in_array($typeId, $selectedTypeIds, true);
                     $existingLines = collect($formBrand['line_groups'][(string)$typeId] ?? [])->values();
                 @endphp
-                <article class="dictionary-card" data-brand-type-card>
-                    <label class="checkbox-row">
-                        <input type="checkbox" name="product_type_ids[]" value="{{ $typeId }}" @checked($checked) data-brand-type-toggle>
+                <article class="a1-fieldset a1-pc-brandtype" data-brand-type-card>
+                    <label class="a1-check">
+                        <input class="a1-check__input" type="checkbox" name="product_type_ids[]" value="{{ $typeId }}" @checked($checked) data-brand-type-toggle>
+                        <span class="a1-check__box" aria-hidden="true"></span>
                         <span><strong>{{ $type['name'] }}</strong>@if($type['category_name'])<small>{{ $type['category_name'] }}</small>@endif</span>
                     </label>
-                    <div data-brand-line-fields @if(!$checked) hidden @endif>
+                    <div class="a1-stack" data-brand-line-fields @if(!$checked) hidden @endif>
                         @for($slot=0; $slot<10; $slot++)
-                            <label>
-                                <span>Linija {{ $slot + 1 }}</span>
+                            <label class="a1-field">
+                                <span class="a1-label">Linija {{ $slot + 1 }}</span>
                                 <input
+                                    class="a1-input"
                                     name="line_names_by_type[{{ $typeId }}][]"
                                     maxlength="120"
                                     value="{{ old('line_names_by_type.'.$typeId.'.'.$slot, $existingLines->get($slot)['name'] ?? '') }}"
@@ -136,64 +140,59 @@
                             </label>
                         @endfor
                         @if($existingLines->count() > 10)
-                            <small class="muted">Još {{ $existingLines->count() - 10 }} postojeće linije ostaju sačuvane i nisu predmet automatskog uklanjanja.</small>
+                            <small class="a1-help">Još {{ $existingLines->count() - 10 }} postojeće linije ostaju sačuvane i nisu predmet automatskog uklanjanja.</small>
                         @endif
                     </div>
                 </article>
             @endforeach
         </div>
 
-        <div class="sticky-save-bar">
-            <div>
-                <strong>{{ $formBrand ? 'Sačuvaj izmene brenda' : 'Kreiraj brend' }}</strong>
-                <span class="muted">Jedan globalni zapis · više dozvoljenih tipova · bez Product Variants.</span>
-            </div>
-            <div class="form-actions">
-                <a class="button button-ghost" href="{{ route('admin.brand-manager.index') }}">Otkaži</a>
-                <button class="button button-primary" type="submit">Sačuvaj</button>
+        <div class="a1-actionbar">
+            <p class="a1-actionbar__status"><strong>{{ $formBrand ? 'Sačuvaj izmene brenda' : 'Kreiraj brend' }}.</strong> Jedan globalni zapis · više dozvoljenih tipova · bez Product Variants.</p>
+            <div class="a1-actionbar__buttons">
+                <a class="a1-btn a1-btn--quiet" href="{{ route('admin.brand-manager.index') }}">Otkaži</a>
+                <button class="a1-btn a1-btn--primary" type="submit">Sačuvaj</button>
             </div>
         </div>
     </form>
 </section>
 @endif
 
-<section class="panel form-section">
-    <div class="section-heading-row">
-        <div>
-            <h2>Globalni brendovi</h2>
-            <p class="muted">Naziv, povezani tipovi, linije, status i redosled na jednom mestu.</p>
-        </div>
+<section class="a1-stack" aria-labelledby="br-list">
+    <div>
+        <h2 class="a1-h2" id="br-list">Globalni brendovi</h2>
+        <p class="a1-muted">Naziv, povezani tipovi, linije, status i redosled na jednom mestu.</p>
     </div>
-    <div class="admin-table-wrap flat-table">
-        <table class="admin-table">
-            <thead><tr><th>Naziv</th><th>Povezani tipovi</th><th>Linije</th><th>Status</th><th>Redosled</th><th>Akcija</th></tr></thead>
+    <div class="a1-tablewrap" role="region" aria-label="Globalni brendovi" tabindex="0">
+        <table class="a1-table a1-table--stack">
+            <caption class="a1-sr">Globalni brendovi</caption>
+            <thead><tr><th scope="col">Naziv</th><th scope="col">Povezani tipovi</th><th scope="col">Linije</th><th scope="col">Status</th><th scope="col" class="a1-table__num">Redosled</th><th scope="col">Akcija</th></tr></thead>
             <tbody>
             @forelse($brands as $brand)
                 <tr>
-                    <td data-label="Naziv">
-                        <strong>{{ $brand['name'] }}</strong><br><code>{{ $brand['slug'] }}</code>
-                        @if($brand['website_url'])<br><a href="{{ $brand['website_url'] }}" target="_blank" rel="noopener noreferrer">Zvanični sajt</a>@endif
+                    <td class="a1-table__primary" data-label="Naziv">
+                        <strong>{{ $brand['name'] }}</strong><code class="a1-pc-code a1-pc-sub">{{ $brand['slug'] }}</code>
+                        @if($brand['website_url'])<a class="a1-link a1-link--inline" href="{{ $brand['website_url'] }}" target="_blank" rel="noopener noreferrer">Zvanični sajt</a>@endif
                     </td>
                     <td data-label="Povezani tipovi">
-                        @forelse($brand['product_types'] as $type)
-                            <span class="status-badge status-active">{{ $type['name'] }}</span>
-                        @empty — @endforelse
+                        <span class="a1-pc-pills">@forelse($brand['product_types'] as $type)<span class="a1-pill a1-pill--ok">{{ $type['name'] }}</span>@empty — @endforelse</span>
                     </td>
                     <td data-label="Linije">
                         <strong>{{ count($brand['lines']) }}</strong>
-                        @if(count($brand['lines']))<br><small>{{ collect($brand['lines'])->pluck('name')->take(6)->implode(', ') }}@if(count($brand['lines']) > 6)…@endif</small>@endif
+                        @if(count($brand['lines']))<small class="a1-pc-sub">{{ collect($brand['lines'])->pluck('name')->take(6)->implode(', ') }}@if(count($brand['lines']) > 6)…@endif</small>@endif
                     </td>
-                    <td data-label="Status"><span class="status-badge status-{{ $brand['status'] }}">{{ $brand['status'] === 'active' ? 'Aktivan' : 'Neaktivan' }}</span></td>
-                    <td data-label="Redosled">{{ $brand['sort_order'] }}</td>
-                    <td data-label="Akcija"><div class="row-actions"><a class="button button-small button-ghost" href="{{ route('admin.brand-manager.index', ['edit' => $brand['id'], 'q' => $filters['q'] ?? null, 'product_type_id' => $filters['product_type_id'] ?? null]) }}#brand-form">Uredi</a></div></td>
+                    <td data-label="Status"><span class="a1-pill {{ $brand['status'] === 'active' ? 'a1-pill--ok' : 'a1-pill--off' }}">{{ $brand['status'] === 'active' ? 'Aktivan' : 'Neaktivan' }}</span></td>
+                    <td class="a1-table__num" data-label="Redosled">{{ $brand['sort_order'] }}</td>
+                    <td class="a1-table__actions" data-label="Akcija"><a class="a1-btn a1-btn--sm" href="{{ route('admin.brand-manager.index', ['edit' => $brand['id'], 'q' => $filters['q'] ?? null, 'product_type_id' => $filters['product_type_id'] ?? null]) }}#brand-form" aria-label="Uredi brend {{ $brand['name'] }}">Uredi</a></td>
                 </tr>
             @empty
-                <tr><td colspan="6">Nema brendova za izabrane filtere.</td></tr>
+                <tr><td colspan="6"><div class="a1-empty"><span class="a1-empty__icon"><x-icon name="search" size="28" /></span><p>Nema brendova za izabrane filtere.</p></div></td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
 </section>
+</div>
 
 @push('scripts')
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
