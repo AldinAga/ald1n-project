@@ -710,7 +710,64 @@ async function ordersChecks(page, pg, width, theme) {
   if (dom.missing) { out.push({ ...base, rule: 'orders-structure', count: 1, selectors: [ORDERS_SCOPE + ' missing'] }); return out; }
   if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
   if (dom.h1 !== 1) out.push({ ...base, rule: 'orders-structure', count: 1, selectors: ['h1 x' + dom.h1] });
+  out.push(...await ordersFlowChecks(page, pg, width, base));
   if (width >= DESKTOP_FROM) out.push(...await ordersLayoutChecks(page, pg, width, base));
+  return out;
+}
+// One-step order flow (owner decisions 16.11.2026, items 1-4), recorded as findings (strict for "orders"):
+//  - no "Preuzmi" / "U obradu" / "U obradi" anywhere in the admin order pages (status names are Nova, Potvrđena, Poslata, Isporučena, Otkazana);
+//  - the admin list carries no inline status forms and every "Potvrdi" row action is a link to the detail's #order-confirm panel (F1);
+//  - the "new" detail (seed order) has exactly one primary action, "Potvrdi porudžbinu", a 64-character freshness token, the shared note field and a
+//    cancel panel whose reason is required and whose submit keeps its confirmation dialog;
+//  - the legacy "processing" detail shows "Nova" and is confirmable; confirmed/shipped/delivered/cancelled details have no confirm form;
+//  - the manual status select (superadmin) offers only transitions allowed from the current status.
+async function ordersFlowChecks(page, pg, width, base) {
+  const out = [];
+  const isDetail = /^orders-show/.test(pg.key);
+  const isList = /^orders-(index|status|attention)/.test(pg.key);
+  if (!isDetail && !isList) return out;
+  const bad = (rule, detail) => out.push({ ...base, rule, count: 1, selectors: [detail] });
+  const d = await page.evaluate((scope) => {
+    const root = document.querySelector(scope);
+    const txt = (root ? root.innerText : '');
+    const q = (sel) => (root ? [...root.querySelectorAll(sel)] : []);
+    const confirmForm = root ? root.querySelector('#order-confirm-form') : null;
+    const cancelSummary = root ? root.querySelector('summary#order-cancel') : null;
+    const cancelForm = cancelSummary ? cancelSummary.closest('details').querySelector('form') : null;
+    const status = root ? root.querySelector('#od-status') : null;
+    return {
+      removed: ['Preuzmi', 'U obradu', 'U obradi'].filter((w) => txt.includes(w)),
+      rowStatusForms: q('tbody form').length,
+      confirmLinks: q('a[aria-label^="Potvrdi porudžbinu"]').map((a) => a.getAttribute('href') || ''),
+      primary: q('.a1-btn--primary').filter((e) => e.getClientRects().length > 0).map((e) => (e.textContent || '').trim()),
+      confirmToken: confirmForm ? (confirmForm.querySelector('input[name=order_version_token]') || {}).value || '' : null,
+      confirmNote: root ? !!root.querySelector('textarea[name=note][form="order-confirm-form"]') : false,
+      cancelReason: cancelForm ? { required: !!cancelForm.querySelector('textarea[name=reason][required]'), confirm: ((cancelForm.querySelector('button[type=submit]') || document.createElement('i')).getAttribute('data-confirm')) || '' } : null,
+      pill: (root && root.querySelector('.a1-od-facts .a1-pill')) ? root.querySelector('.a1-od-facts .a1-pill').textContent.trim() : null,
+      manualOptions: status ? [...status.options].map((o) => o.value) : null,
+    };
+  }, ORDERS_SCOPE);
+  if (d.removed.length) bad('order-flow-removed-step-visible', d.removed.join(', '));
+  if (isList) {
+    if (d.rowStatusForms) bad('order-flow-list-inline-form', 'forms in tbody: ' + d.rowStatusForms);
+    const wrong = d.confirmLinks.filter((h) => !h.endsWith('#order-confirm'));
+    if (wrong.length) bad('order-flow-list-confirm-not-a-link-to-detail', wrong.slice(0, 2).join(' | '));
+    return out;
+  }
+  // The seed has "new" orders (orders-show, items15, long-name) and one legacy "processing" order (partly-paid); both read "Nova" and must be confirmable.
+  const isNova = d.pill === 'Nova';
+  if (pg.key === 'orders-show' || pg.key === 'orders-show-partly-paid') {
+    if (!isNova) bad('order-flow-new-status-label', 'pill ' + d.pill);
+  }
+  if (isNova) {
+    if (d.primary.length !== 1 || !/^Potvrdi porudžbinu$/.test(d.primary[0])) bad('order-flow-one-primary-confirm', JSON.stringify(d.primary));
+    if (!d.confirmToken || d.confirmToken.length !== 64) bad('order-flow-confirm-token', 'token length ' + (d.confirmToken ? d.confirmToken.length : 'none'));
+    if (!d.confirmNote) bad('order-flow-confirm-note', 'note field with form= missing');
+    if (!d.cancelReason || !d.cancelReason.required || !/^Otkazati porudžbinu/.test(d.cancelReason.confirm)) bad('order-flow-cancel-panel', JSON.stringify(d.cancelReason));
+    if (!d.manualOptions || d.manualOptions.join() !== ',confirmed,cancelled') bad('order-flow-manual-status-options', JSON.stringify(d.manualOptions));
+  } else if (d.confirmToken !== null) {
+    bad('order-flow-confirm-on-non-new-order', pg.key);
+  }
   return out;
 }
 // Desktop layout gates for the orders module (generic over .a1-tablewrap, no page names except the median row height).

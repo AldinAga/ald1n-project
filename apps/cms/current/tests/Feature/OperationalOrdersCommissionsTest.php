@@ -87,10 +87,12 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertRedirect();
         self::assertSame(1, OrderInternalNote::query()->where('order_id', $order->id)->count());
 
+        // Potvrda ujedno preuzima porudžbinu na ime potvrđivača (nema više odvojenog koraka "Preuzmi").
         $this->actingAs($firstAdmin)
-            ->post('/admin/orders/'.$order->id.'/accept')
+            ->post('/admin/orders/'.$order->id.'/confirm', ['order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])
             ->assertRedirect();
         $order->refresh();
+        self::assertSame('confirmed', $order->status);
         self::assertSame($firstAdmin->id, $order->accepted_by);
         self::assertNotNull($order->accepted_at);
 

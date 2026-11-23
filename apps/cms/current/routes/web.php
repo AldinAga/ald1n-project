@@ -381,17 +381,17 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/orders/{order}/archive', [AdminOrderController::class, 'archive'])->whereNumber('order')->name('orders.archive');
             Route::post('/orders/archived/{orderId}/restore', [AdminOrderController::class, 'restore'])->whereNumber('orderId')->name('orders.restore');
             Route::delete('/orders/archived/{orderId}/purge', [AdminOrderController::class, 'purge'])->whereNumber('orderId')->name('orders.purge');
-            Route::patch('/orders/{order}/status', [AdminOrderController::class, 'status'])->whereNumber('order')->name('orders.status');
+            Route::patch('/orders/{order}/status', [AdminOrderController::class, 'status'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.status');
+            Route::post('/orders/{order}/confirm', [AdminOrderController::class, 'confirm'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.confirm');
+            Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.cancel');
             Route::post('/orders/{order}/complete', [AdminOrderController::class, 'complete'])
                 ->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
             Route::post('/orders/{order}/reopen', [AdminOrderController::class, 'reopen'])
                 ->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
             Route::patch('/orders/{order}/sale-price', [AdminOrderController::class, 'correctDirectSalePrice'])
                 ->whereNumber('order')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('orders.sale-price-correction');
-            Route::patch('/orders/{order}/tracking', [AdminOrderController::class, 'tracking'])->whereNumber('order')->name('orders.tracking');
             Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])
                 ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.store');
-            Route::post('/orders/{order}/accept', [AdminOrderController::class, 'accept'])->whereNumber('order')->name('orders.accept');
             Route::patch('/orders/{order}/deadlines', [AdminOrderController::class, 'deadlines'])->whereNumber('order')->name('orders.deadlines');
         });
         Route::middleware('permission:receivables.manage')->group(function (): void {

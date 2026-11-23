@@ -254,9 +254,9 @@ final class OrderController extends Controller
 
     public function cancel(Request $request, Order $order, OrderWorkflowService $workflow): RedirectResponse
     {
-        $validated = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
-        $workflow->cancelOwn($order, $request->user(), $validated['note'] ?? null);
-        return redirect()->route('orders.show', $order)->with('status', 'Porudžbina je otkazana. Lager je vraćen tačno jednom.');
+        $validated = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:1000']]);
+        $workflow->cancelOwn($order, $request->user(), (string) $validated['reason']);
+        return redirect()->route('orders.show', $order)->with('status', 'Porudžbina je otkazana, a rezervisani lager je vraćen. Novu porudžbinu možeš poslati u bilo kom trenutku.');
     }
 
     private function safeLog(string $message, Throwable $exception, User $actor, Order $order): void

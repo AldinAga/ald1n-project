@@ -53,7 +53,7 @@ final class OwnCancellationFreshStateB1119Test extends TestCase
     {
         [$owner, $product, $order] = $this->reservedOrder();
         if ($loadedStatus === 'processing') {
-            app(OrderWorkflowService::class)->changeStatus($order, 'processing', $this->operator);
+            $this->legacyProcessing($order);
         }
         $stale = $order->fresh();
         self::assertSame($loadedStatus, $stale->status);
@@ -90,10 +90,10 @@ final class OwnCancellationFreshStateB1119Test extends TestCase
     {
         [$owner, $product, $order] = $this->reservedOrder();
         $workflow = app(OrderWorkflowService::class);
-        if ($status === 'processing') $workflow->changeStatus($order, $status, $this->operator);
+        if ($status === 'processing') $this->legacyProcessing($order);
 
-        $workflow->cancelOwn($order->fresh(), $owner);
-        $workflow->cancelOwn($order->fresh(), $owner);
+        $workflow->cancelOwn($order->fresh(), $owner, 'Predomislio sam se.');
+        $workflow->cancelOwn($order->fresh(), $owner, 'Predomislio sam se.');
 
         self::assertSame('cancelled', $order->fresh()->status);
         self::assertSame('returned', $order->fresh()->inventory_state);
@@ -104,6 +104,91 @@ final class OwnCancellationFreshStateB1119Test extends TestCase
         self::assertSame(2, (int) (clone $returns)->value('quantity_change'));
         self::assertSame(1, DB::table('order_status_history')->where('order_id', $order->id)->where('new_status', 'cancelled')->count());
         self::assertSame(1, DB::table('commission_status_history')->where('order_id', $order->id)->where('new_status', 'cancelled')->count());
+    }
+
+    public function test_own_cancellation_without_a_reason_is_refused_and_changes_nothing(): void
+    {
+        [$owner, , $order] = $this->reservedOrder();
+        $before = $this->snapshot();
+
+        foreach ([null, '', '   '] as $blank) {
+            try {
+                app(OrderWorkflowService::class)->cancelOwn($order->fresh(), $owner, $blank);
+                self::fail('Cancellation must require a reason.');
+            } catch (ValidationException $exception) {
+                self::assertSame(['reason' => ['Razlog otkazivanja je obavezan.']], $exception->errors());
+            }
+        }
+
+        self::assertSame('new', $order->fresh()->status);
+        self::assertSame($before, $this->snapshot());
+    }
+
+    public function test_cancel_endpoints_require_a_reason_on_web_and_api(): void
+    {
+        [$owner, $product, $order] = $this->reservedOrder();
+
+        $this->actingAs($owner)->post('/orders/'.$order->id.'/cancel', ['reason' => ''])->assertSessionHasErrors('reason');
+        $this->actingAs($owner)->post('/orders/'.$order->id.'/cancel', [])->assertSessionHasErrors('reason');
+        self::assertSame('new', $order->fresh()->status);
+
+        \Laravel\Sanctum\Sanctum::actingAs($owner, ['*']);
+        $this->postJson('/api/v1/orders/'.$order->id.'/cancel', [])->assertStatus(422)->assertJsonValidationErrors('reason');
+        self::assertSame('new', $order->fresh()->status);
+        self::assertSame(3, $product->fresh()->stock_quantity);
+
+        // Stara aplikacija šalje "note": prihvata se kao razlog.
+        $this->postJson('/api/v1/orders/'.$order->id.'/cancel', ['note' => 'Pogrešan artikal.'])->assertOk()->assertJsonPath('data.status', 'cancelled')->assertJsonPath('data.status_label', 'Otkazana');
+        self::assertSame(5, $product->fresh()->stock_quantity);
+    }
+
+    public function test_mobile_customer_cancel_contract_reason_required_then_idempotent_retry(): void
+    {
+        [$owner, $product, $order] = $this->reservedOrder();
+        \Laravel\Sanctum\Sanctum::actingAs($owner, ['*']);
+        $url = '/api/v1/orders/'.$order->id.'/cancel';
+
+        // Bez reason i note: tačno 422 sa greškom "reason", porudžbina i lager ostaju netaknuti.
+        $this->postJson($url, [])->assertStatus(422)->assertJsonValidationErrors('reason')
+            ->assertJsonPath('errors.reason.0', 'Razlog otkazivanja je obavezan.');
+        self::assertSame('new', $order->fresh()->status);
+        self::assertSame(3, $product->fresh()->stock_quantity);
+
+        $this->postJson($url, ['reason' => 'Predomislio sam se.'])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        self::assertSame(5, $product->fresh()->stock_quantity);
+
+        // Ponovno otkazivanje (bez razloga ili sa njim) je idempotentno: bez 422, lager se ne vraća dvaput.
+        $this->postJson($url, [])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        $this->postJson($url, ['reason' => 'Opet.'])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        self::assertSame(5, $product->fresh()->stock_quantity);
+        self::assertSame(1, DB::table('order_status_history')->where('order_id', $order->id)->where('new_status', 'cancelled')->count());
+    }
+
+    public function test_buyer_cannot_cancel_a_confirmed_order_even_with_a_reason(): void
+    {
+        [$owner, $product, $order] = $this->reservedOrder();
+        $this->advance($order, 'confirmed', $this->operator);
+
+        $this->actingAs($owner)->post('/orders/'.$order->id.'/cancel', ['reason' => 'Ipak ne želim.'])->assertSessionHasErrors('status');
+        self::assertSame('confirmed', $order->fresh()->status);
+        self::assertSame(3, $product->fresh()->stock_quantity);
+        $this->actingAs($owner)->get('/orders/'.$order->id)->assertOk()->assertDontSee('Otkaži porudžbinu');
+    }
+
+    public function test_operator_cancel_needs_a_reason_and_may_still_cancel_a_shipped_undelivered_order(): void
+    {
+        [, $product, $order] = $this->reservedOrder();
+        $this->advance($order, 'shipped', $this->operator);
+        $url = '/admin/orders/'.$order->id.'/cancel';
+
+        $this->actingAs($this->operator)->post($url, ['reason' => ''])->assertSessionHasErrors('reason');
+        self::assertSame('shipped', $order->fresh()->status);
+        self::assertSame(3, $product->fresh()->stock_quantity);
+
+        $this->actingAs($this->operator)->post($url, ['reason' => 'Kurir je vratio paket.'])->assertSessionHas('status');
+        self::assertSame('cancelled', $order->fresh()->status);
+        self::assertSame(5, $product->fresh()->stock_quantity);
+        self::assertSame('Kurir je vratio paket.', DB::table('order_status_history')->where('order_id', $order->id)->where('new_status', 'cancelled')->value('note'));
     }
 
     public function test_foreign_owner_cannot_cancel_or_change_records(): void
@@ -165,6 +250,12 @@ final class OwnCancellationFreshStateB1119Test extends TestCase
         self::assertSame('returned', $updated->inventory_state);
         self::assertSame(5, $product->fresh()->stock_quantity);
         self::assertSame(1, StockMovement::query()->where('order_id', $order->id)->where('movement_type', 'cancelled_order')->count());
+    }
+
+    /** Stari red iz vremena kada je postojao korak "U obradi": nova porudžbina više ne može da uđe u taj status. */
+    private function legacyProcessing(Order $order): void
+    {
+        $order->forceFill(['status' => 'processing'])->save();
     }
 
     private function advance(Order $order, string $status, User $actor): void

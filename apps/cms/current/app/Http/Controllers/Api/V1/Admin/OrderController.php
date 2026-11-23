@@ -166,6 +166,7 @@ final class OrderController extends Controller
             'source_system' => (string) $order->getAttribute('source_system'),
             'sales_channel' => $this->nullableString($order->getAttribute('sales_channel')),
             'status' => (string) $order->getAttribute('status'),
+            'status_label' => \App\Support\OrderStatus::label((string) $order->getAttribute('status'), $order->getAttribute('completed_at') !== null),
             'is_completed' => $order->getAttribute('completed_at') !== null,
             'payment_status' => $this->nullableString($order->getAttribute('payment_status')),
             'payment_state' => $this->nullableString($order->getAttribute('payment_state')),

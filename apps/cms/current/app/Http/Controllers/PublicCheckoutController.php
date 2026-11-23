@@ -61,7 +61,7 @@ final class PublicCheckoutController extends Controller
         return null;
     }
 
-    public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View|RedirectResponse
+    public function form(Request $request, PublicCartService $cart, PublicCheckoutReadinessService $policy): View|RedirectResponse|\Illuminate\Http\Response
     {
         // Preserve the storefront-wide OFF/404 contract for every visitor,
         // then enforce buyer-only authorization while it is available.
@@ -69,7 +69,8 @@ final class PublicCheckoutController extends Controller
         if (($redirect=$this->requireRetailBuyer($request)) !== null) return $redirect;
         $quote=$cart->quote($request);
         if (!$quote['items'] || $quote['stale']) {
-            abort(409,'Korpa mora sadržati dostupne artikle pre poručivanja.');
+            // Prazna ili zastarela korpa: razumljiva strana sa vezom nazad umesto goleg 409.
+            return response()->view('public-shop.checkout-empty',['quote'=>$quote],409);
         }
         $key=(string)$request->session()->get('ald1n.public_checkout.key','');
         $lastCompletedKey=(string)$request->session()->get('ald1n.public_checkout.last_key','');
@@ -135,8 +136,7 @@ final class PublicCheckoutController extends Controller
                     ."Ukupna vrednost artikala: ".number_format((float)$order->subtotal_rsd,2,',','.')." RSD.\n"
                     ."Status: nova, plaćanje još nije potvrđeno.\n"
                     ."Privatni link za pregled porudžbine, dokumenta i pošiljke:\n".$link."\n"
-                    ."Prijavite se na svoj potvrđeni nalog Kupca za pregled.\n"
-                    ."Nemojte deliti ovu vezu. Ističe za 60 dana.\n";
+                    ."Link otvara samo ovu porudžbinu i ne traži prijavu. Nemojte ga deliti. Ističe za 60 dana.\n";
                 if ($order->payment_method==='bank_transfer') {
                     $body.="Podaci za uplatu: ".$order->bank_account_number_display_snapshot."\n"
                         ."Primalac: ".$order->payment_recipient_name_snapshot."\n"
@@ -176,6 +176,6 @@ final class PublicCheckoutController extends Controller
         // would turn it back into an absolute URL using the untrusted Host.
         return (new RedirectResponse(route('public-shop.order.show',['token'=>$token],false)))
             ->setSession($request->session())
-            ->with('status','Porudžbina je primljena. Privatna veza zahteva prijavu na Vaš nalog Kupca.');
+            ->with('status','Porudžbina je primljena. Sačuvaj ovu stranu ili privatni link iz mejla; link ne traži prijavu i važi 60 dana.');
     }
 }

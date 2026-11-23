@@ -140,9 +140,10 @@ final class OrderDeliveryWorkflowTest extends TestCase
         self::assertSame(1, OrderDelivery::query()->count());
         self::assertSame(1, OrderPayment::query()->count());
 
+        // Mrtva ruta za ručni broj pošiljke je uklonjena; broj se unosi samo kroz evidenciju slanja.
         $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/tracking', [
             'tracking_number' => 'KURIR-556',
-        ])->assertRedirect()->assertSessionHasErrors('tracking_number');
+        ])->assertNotFound();
     }
 
     private function user(string $username, string $role): User

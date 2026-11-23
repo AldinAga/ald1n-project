@@ -16,6 +16,7 @@ use App\Services\OrderIndexService;
 use App\Services\OrderOperationalService;
 use App\Services\OrderTimelineService;
 use App\Services\OrderWorkflowService;
+use App\Support\OrderStatus;
 use App\Support\ViewValue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -207,16 +208,52 @@ final class OrderController extends Controller
             ->route('admin.orders.archived')
             ->with('status', 'Porudžbina je trajno uklonjena iz operativnih i arhivskih prikaza. Poslovna istorija potrebna za integritet ostaje sačuvana.');
     }
+    /** Ručna promena statusa: samo superadmin; dozvoljeni prelazi iz trenutnog statusa određuje servis. */
     public function status(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
     {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
         $access->authorizeManage($order, $request->user());
         $data = $request->validate([
-            'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'shipped', 'cancelled'])],
+            'status' => ['required', Rule::in(['confirmed', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
-        $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
-        return back()->with('status', 'Status porudžbine je ažuriran.');
+        $updated = $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
+
+        return back()->with('status', $this->statusChangedMessage($updated));
+    }
+
+    public function confirm(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
+    {
+        $access->authorizeManage($order, $request->user());
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+            'order_version_token' => ['required', 'string', 'size:64'],
+        ]);
+        $updated = $workflow->confirm($order, $request->user(), $data['note'] ?? null, (string) $data['order_version_token']);
+
+        return back()->with('status', $this->statusChangedMessage($updated));
+    }
+
+    public function cancel(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
+    {
+        $access->authorizeManage($order, $request->user());
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:1000']]);
+        $updated = $workflow->cancel($order, $request->user(), (string) $data['reason']);
+
+        return back()->with('status', $this->statusChangedMessage($updated));
+    }
+
+    /** Poruka o uspehu imenuje sledeći korak (P3-2). */
+    private function statusChangedMessage(Order $order): string
+    {
+        $number = (string) $order->order_number;
+
+        return match ((string) $order->status) {
+            'confirmed' => 'Porudžbina '.$number.' je potvrđena. Sledeće: slanje kuriru ili predaja kupcu i potvrda isporuke.',
+            'cancelled' => 'Porudžbina '.$number.' je otkazana, a rezervisani lager je vraćen. Nema daljih koraka; možeš je arhivirati.',
+            default => 'Status porudžbine '.$number.' je promenjen: '.OrderStatus::label((string) $order->status).'.',
+        };
     }
 
     public function complete(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
@@ -243,7 +280,7 @@ final class OrderController extends Controller
 
         return back()->with(
             'status',
-            'Porudžbina '.$completed->order_number.' je kompletirana. Evidencija isporuke i konačno plaćanje su zaključani.',
+            'Porudžbina '.$completed->order_number.' je isporučena. Evidencija isporuke i konačno plaćanje su zaključani; dokumenti su u kartici Dokumenti.',
         );
     }
 
@@ -269,20 +306,6 @@ final class OrderController extends Controller
         $legacy = !array_key_exists('new_unit_price_amount', $data);
         $updated = $corrections->correct($order, $actor, (float) ($data['new_unit_price_amount'] ?? $data['new_unit_price_rsd']), $legacy ? 'RSD' : (string) $data['new_unit_price_currency'], (string) $data['reason']);
         return back()->with('status', 'Prodajna cena je korigovana. Novi ukupni iznos: '.number_format((float) $updated->subtotal_rsd, 2, ',', '.').' RSD.');
-    }
-
-    public function tracking(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
-    {
-        $access->authorizeManage($order, $request->user());
-        $data = $request->validate(['tracking_number' => ['nullable', 'string', 'max:120']]);
-        $workflow->updateTracking($order, filled($data['tracking_number'] ?? null) ? trim((string) $data['tracking_number']) : null, $request->user());
-        return back()->with('status', 'Tracking broj je ažuriran.');
-    }
-
-    public function accept(Request $request, Order $order, OrderOperationalService $operations): RedirectResponse
-    {
-        $operations->accept($order, $request->user());
-        return back()->with('status', 'Porudžbina je preuzeta za obradu.');
     }
 
     public function note(Request $request, Order $order, OrderOperationalService $operations): RedirectResponse

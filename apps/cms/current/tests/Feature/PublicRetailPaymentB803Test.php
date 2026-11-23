@@ -120,9 +120,8 @@ final class PublicRetailPaymentB803Test extends TestCase
         $this->get('/admin/orders/'.$order->id)->assertOk()->assertSee('Plaćanje pri ličnom preuzimanju/dostavi');
 
         $workflow=app(OrderWorkflowService::class);
-        $processing=$workflow->changeStatus($order,'processing',$this->owner);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$this->owner,null,
-            app(\App\Services\OrderVersionService::class)->token($processing));
+        $confirmed=$workflow->changeStatus($order,'confirmed',$this->owner,null,
+            app(\App\Services\OrderVersionService::class)->token($order));
         $receipt=['delivery_method'=>$delivery,'delivered_at'=>now()->subMinute()->toDateTimeString(),'recipient_name'=>'Synthetic B803 Buyer'];
         try {
             $workflow->complete($confirmed,$this->owner,$receipt);

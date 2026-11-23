@@ -118,7 +118,7 @@ final class CustomerPortalService
                     'id' => $order->id,
                     'number' => $order->order_number,
                     'status' => $order->status,
-                    'status_label' => ($order->completed_at !== null || $order->status === 'completed') ? 'Završena' : $this->orderStatus($order->status),
+                    'status_label' => \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null),
                     'payment_label' => $this->paymentStatus((string) ($order->payment_state ?: $order->payment_status)),
                     'total_rsd' => (float) $order->subtotal_rsd,
                     'paid_rsd' => (float) $order->paid_total_rsd,
@@ -333,7 +333,7 @@ final class CustomerPortalService
 
     private function orderStatus(?string $status): string
     {
-        return ['new' => 'Nova', 'processing' => 'U obradi', 'confirmed' => 'Potvrđena', 'shipped' => 'Poslata', 'completed' => 'Završena', 'cancelled' => 'Otkazana'][$status ?? ''] ?? (string) $status;
+        return \App\Support\OrderStatus::label($status);
     }
 
     private function paymentStatus(string $status): string

@@ -32,7 +32,7 @@ final class OrderTimelineService
         foreach ($this->loadedMany($order, 'statusHistory') as $row) {
             $this->push($events, [
                 'type' => 'status',
-                'title' => 'Status: '.(string) $row->new_status,
+                'title' => 'Status: '.\App\Support\OrderStatus::label((string) $row->new_status),
                 'description' => $row->note ?: 'Status porudžbine je promenjen.',
                 'actor' => $row->relationLoaded('actor') ? $row->actor?->displayName() : null,
                 'created_at' => $row->created_at,

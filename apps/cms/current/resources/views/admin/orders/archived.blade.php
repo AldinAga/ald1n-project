@@ -82,7 +82,7 @@
                                 </span>
                             </td>
                             <td role="cell" data-label="Status">
-                                <span class="a1-pill">{{ $order->completed_at ? 'Završena' : ((string) $order->status === 'cancelled' ? 'Otkazana' : $order->status) }}</span>
+                                <span class="a1-pill">{{ \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null) }}</span>
                             </td>
                             <td role="cell" data-label="Arhivirana">{{ $order->archived_at?->format('d.m.Y. H:i') ?? '—' }}</td>
                             <td role="cell" data-label="Razlog">{{ $order->archive_reason ?: '—' }}</td>

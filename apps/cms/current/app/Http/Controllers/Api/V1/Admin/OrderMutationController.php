@@ -28,32 +28,38 @@ final class OrderMutationController extends Controller
         $actor = $this->actor($request);
         $access->authorizeManage($order, $actor);
         $data = $request->validate([
-            'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'cancelled'])],
+            'status' => ['required', Rule::in(['confirmed', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
+        // Potvrda ujedno preuzima porudžbinu; otkazivanje traži razlog (polje reason ili note); "processing" odbija servis sa porukom (422).
+        $text = trim((string) ($data['reason'] ?? $data['note'] ?? ''));
         $updated = $workflow->changeStatus(
             $order,
             (string) $data['status'],
             $actor,
-            isset($data['note']) ? trim((string) $data['note']) : null,
+            $text !== '' ? $text : null,
             isset($data['order_version_token']) ? (string) $data['order_version_token'] : null,
         );
 
         return $this->ok($updated, 'status', ['status' => (string) $updated->status]);
     }
 
+    /** Korak "Preuzmi" više ne postoji; stara aplikacija dobija jasan 422 umesto greške. */
     public function accept(
         Request $request,
         Order $order,
         OrderAccessService $access,
-        OrderOperationalService $operations,
     ): JsonResponse {
         $actor = $this->actor($request);
         $access->authorizeManage($order, $actor);
-        $updated = $operations->accept($order, $actor);
 
-        return $this->ok($updated, 'accept', ['accepted_at' => $updated->accepted_at?->toISOString()]);
+        return response()->json([
+            'message' => 'Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu: potvrda je ujedno preuzima na tvoje ime.',
+            'code' => 'order_accept_removed',
+            'errors' => ['accept' => ['Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu.']],
+        ], 422, ['Cache-Control' => 'private, no-store, max-age=0']);
     }
 
     public function internalNote(
