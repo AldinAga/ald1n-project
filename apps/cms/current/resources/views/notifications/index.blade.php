@@ -62,7 +62,7 @@
                                 </span>
                             </div>
                             <div class="a1-item__end">
-                                <button type="submit" class="a1-btn a1-btn--sm" data-inbox-action>
+                                <button type="submit" class="a1-btn a1-btn--sm" data-inbox-action aria-label="{{ $hasTarget ? 'Otvori povezani sadržaj' : 'Označi kao pročitano' }}: {{ $data['title'] ?? 'Obaveštenje' }}">
                                     {{ $hasTarget ? 'Otvori povezani sadržaj' : 'Označi kao pročitano' }}
                                     <x-icon name="arrow-right" :size="16" :shell="true" />
                                 </button>

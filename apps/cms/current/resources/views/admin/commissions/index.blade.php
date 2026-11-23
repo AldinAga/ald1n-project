@@ -107,13 +107,16 @@
     <p class="a1-help">Isplatu provizija radi samo SuperAdministrator. Ovde vidiš provizije svojih porudžbina i možeš da ih storniraš dok nisu isplaćene.</p>
     @endif
 
+    @if($isSuper && $commissions->isNotEmpty())
+    <label class="a1-check"><input class="a1-check__input" type="checkbox" data-select-all="commission_ids[]"><span class="a1-check__box" aria-hidden="true"></span><span>Izaberi sve provizije za isplatu na ovoj strani</span></label>
+    @endif
     @if($commissions->isEmpty())
     <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="wallet" :size="28" :shell="true" /></span><p>Nema provizija za izabrane filtere.</p></div>
     @else
     <div class="a1-tablewrap" role="region" aria-label="Provizije" tabindex="0">
         <table class="a1-table a1-table--cards">
             <caption class="a1-sr">Provizije</caption>
-            <thead><tr><th scope="col" class="a1-table__select"><label class="a1-check"><input class="a1-check__input" type="checkbox" data-select-all="commission_ids[]" aria-label="Izaberi sve za isplatu"><span class="a1-check__box" aria-hidden="true"></span></label></th><th scope="col">Porudžbina</th><th scope="col">Korisnik</th><th scope="col">Odgovorno lice</th><th scope="col">Iznos</th><th scope="col">Status</th><th scope="col">Isplata</th><th scope="col">Datum</th><th scope="col"><span class="a1-sr">Akcije</span></th></tr></thead>
+            <thead><tr><th scope="col" class="a1-table__select"><span class="a1-sr">Izbor za isplatu</span></th><th scope="col">Porudžbina</th><th scope="col">Korisnik</th><th scope="col">Odgovorno lice</th><th scope="col">Iznos</th><th scope="col">Status</th><th scope="col">Isplata</th><th scope="col">Datum</th><th scope="col"><span class="a1-sr">Akcije</span></th></tr></thead>
             <tbody>
             @foreach($commissions as $row)
             @php $check = $checks[$row->id] = $eligibility->evaluate($row); @endphp
@@ -220,7 +223,10 @@
     const openDialog = (id, from) => {
         const dialog = document.getElementById(id);
         if (!dialog || typeof dialog.showModal !== 'function') return;
+        const opener = from ? from._opener : document.activeElement;
+        if (from) { from._opener = null; }
         from?.close();
+        dialog._opener = opener;
         dialog.showModal();
     };
     document.querySelectorAll('[data-process-open]').forEach((button) => {
@@ -235,9 +241,15 @@
     document.querySelectorAll('[data-reverse-close], [data-dialog-close]').forEach((button) => {
         button.addEventListener('click', () => button.closest('dialog')?.close());
     });
-    // Klik na pozadinu zatvara prozor; Escape zatvara nativni dialog.
+    // Klik na pozadinu zatvara prozor (uz potvrdu ako je nešto upisano); Escape zatvara nativni dialog. Fokus se vraća na dugme koje ga je otvorilo.
     document.querySelectorAll('dialog.a1-dialog').forEach((dialog) => {
-        dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+        dialog.addEventListener('input', () => { dialog.dataset.dirty = '1'; });
+        dialog.addEventListener('click', (event) => {
+            if (event.target !== dialog) return;
+            if (dialog.dataset.dirty && !window.confirm('Odbaciti uneto u formu?')) return;
+            dialog.close();
+        });
+        dialog.addEventListener('close', () => { delete dialog.dataset.dirty; dialog._opener?.focus?.(); });
     });
 </script>
 @endpush

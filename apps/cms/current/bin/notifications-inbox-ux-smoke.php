@@ -7,7 +7,9 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $blade = @file_get_contents($argv[1] ?? "$root/resources/views/notifications/index.blade.php");
 $css = @file_get_contents($argv[2] ?? "$root/public/assets/css/ald1n-ui-v2.css");
-if ($blade === false || $css === false) {
+$admin = @file_get_contents($argv[3] ?? "$root/public/assets/css/ald1n-admin.css");
+$tokens = @file_get_contents($argv[4] ?? "$root/public/assets/css/ald1n-tokens.css");
+if ($blade === false || $css === false || $admin === false || $tokens === false) {
     fwrite(STDERR, "FAIL: notifications Blade or canonical CSS missing.\n");
     exit(2);
 }
@@ -63,6 +65,20 @@ $rules = [
         && str_contains($blade, 'class="a1-item a1-item--static')
         && !str_contains($blade, 'ald-inbox-ux')
         && !str_contains($blade, '<style'),
+    'Touch-size CTA (44px target) on the shared a1 button' =>
+        str_contains($tokens, '--a1-size-touch-target: 44px;')
+        && str_contains($admin, '.a1-btn--sm{min-height:var(--a1-size-touch-target)')
+        && str_contains($blade, 'a1-btn a1-btn--sm'),
+    'Focus-visible keyboard treatment on a1-ops' =>
+        str_contains($admin, '.a1-ops :focus-visible{outline:'),
+    'Mobile single-column layout from a1 item grid and cards' =>
+        str_contains($admin, '.a1-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto')
+        && str_contains($blade, 'a1-item__main') && str_contains($blade, 'a1-item__end'),
+    'Reduced-motion preferences respected (transitions only under no-preference)' =>
+        str_contains($admin, '@media (prefers-reduced-motion:no-preference){')
+        && str_contains($admin, '.a1-item,.a1-tile,'),
+    'Every CTA carries an accessible name with the notification title' =>
+        str_contains($blade, 'data-inbox-action aria-label='),
     'Batch564/565/566 CSS is intact' =>
         str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
         && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')

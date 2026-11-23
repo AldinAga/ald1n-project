@@ -167,6 +167,30 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertSee('data-dialog-close', false);
     }
 
+    public function test_commission_process_dialog_can_be_opened_and_closed_and_returns_focus(): void
+    {
+        $admin = $this->user('dialog-admin', 'admin');
+        $customer = $this->user('dialog-owner', 'user');
+        $product = $this->product($admin, 'DIALOG-ITEM', 10);
+        $this->createOrder($customer, $admin, $product, 'commission-dialog-flow');
+
+        $html = $this->actingAs($admin)->get('/admin/commissions')->assertOk()->getContent();
+
+        // Svako dugme "Obradi" ima dijalog sa istim id-jem i dugmetom za zatvaranje.
+        self::assertSame(1, preg_match_all('/data-process-open="(process-\d+)"/', $html, $opens));
+        foreach ($opens[1] as $id) {
+            self::assertStringContainsString('<dialog class="a1-dialog" id="'.$id.'"', $html);
+        }
+        self::assertStringContainsString('data-dialog-close', $html);
+        // Skripta otvara (showModal), zatvara (close), vraća fokus i ne briše upisano bez potvrde.
+        self::assertStringContainsString('dialog.showModal()', $html);
+        self::assertStringContainsString("button.closest('dialog')?.close()", $html);
+        self::assertStringContainsString('dialog._opener?.focus?.()', $html);
+        self::assertStringContainsString("dialog.dataset.dirty && !window.confirm(", $html);
+        // Izaberi sve je vidljiva kontrola van zaglavlja tabele (zaglavlje je skriveno na uskim ekranima).
+        self::assertStringNotContainsString('<thead><tr><th scope="col" class="a1-table__select"><label', $html);
+    }
+
     // ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
     public function test_admin_order_contact_card_is_first_and_uses_shipping_recipient_snapshot(): void
     {

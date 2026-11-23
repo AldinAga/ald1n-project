@@ -73,7 +73,7 @@
             <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="search" :size="28" :shell="true" /></span><p>Nema predmeta koji odgovaraju filterima.</p></div>
             @else
             <div class="a1-tablewrap" role="region" aria-label="Otvorena potraživanja" tabindex="0">
-                <table class="a1-table a1-table--cards a1-ol-table">
+                <table class="a1-table a1-table--cards">
                     <caption class="a1-sr">Otvorena potraživanja</caption>
                     <thead><tr><th scope="col">Predmet</th><th scope="col">Kupac / porudžbina</th><th scope="col">Dospeće</th><th scope="col">Dugovanje</th><th scope="col">Status</th><th scope="col">Sledeći korak</th><th scope="col"><span class="a1-sr">Radnje</span></th></tr></thead>
                     <tbody>
@@ -82,9 +82,9 @@
                             $order = $case->order;
                             $remaining = max(0, (float) ($order?->subtotal_rsd ?? 0) - (float) ($order?->paid_total_rsd ?? 0));
                             $days = $order?->payment_due_at && $order->payment_due_at->copy()->startOfDay()->lt(today()) ? $order->payment_due_at->copy()->startOfDay()->diffInDays(today()) : 0;
-                            $late = $days > 0 && $case->status !== 'closed';
+                            
                         @endphp
-                        <tr @if($late) class="a1-ol-row--over" @endif>
+                        <tr>
                             <td class="a1-table__primary" data-label="Predmet"><strong>{{ $case->case_number }}</strong><span class="a1-ol-sub">{{ $case->assignee?->displayName() ?? 'Nije dodeljeno' }}</span></td>
                             <td data-label="Kupac / porudžbina"><strong>{{ $order?->shipping_full_name ?: $order?->user?->displayName() ?: 'Kupac' }}</strong><span class="a1-ol-sub">{{ $order?->order_number }}</span></td>
                             <td data-label="Dospeće">{{ $order?->payment_due_at?->format('d.m.Y') ?? 'Nije definisano' }}@if($days>0)<span class="a1-ol-flag">Kasni {{ $days }} dana</span>@endif</td>
