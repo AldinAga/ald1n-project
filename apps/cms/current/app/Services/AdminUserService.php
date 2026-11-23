@@ -21,6 +21,8 @@ final class AdminUserService
     {
         $this->authorize($actor);
 
+        $this->guardSuperAdminRole($actor, (int) $data['role_id']);
+
         return DB::transaction(function () use ($data, $actor): User {
             $password = (string) ($data['password'] ?? '');
             unset($data['password']);
@@ -67,6 +69,9 @@ final class AdminUserService
             abort_if($locked->retired_at !== null, 422, 'Trajno uklonjen nalog ne može ponovo da se aktivira niti uređuje.');
             $before = $locked->toArray();
             $newRole = Role::query()->findOrFail((int) $data['role_id']);
+            // Only a SuperAdmin may touch a SuperAdmin account or hand out the SuperAdmin role.
+            abort_if($locked->hasRole('superadmin') && !$actor->hasRole('superadmin'), 403);
+            $this->guardSuperAdminRole($actor, (int) $newRole->getKey());
             $nextStatus = (string) $data['status'];
             if ($newRole->slug === 'customer') $data['user_group_id'] = null;
 
@@ -131,6 +136,15 @@ final class AdminUserService
                     && (int) $fresh->getKey() === (int) $actor->getAuthIdentifier(),
             ];
         }, 5);
+    }
+
+    private function guardSuperAdminRole(User $actor, int $roleId): void
+    {
+        abort_if(
+            !$actor->hasRole('superadmin') && Role::query()->whereKey($roleId)->value('slug') === 'superadmin',
+            403,
+            'Ulogu SuperAdministratora može da dodeli samo SuperAdministrator.',
+        );
     }
 
     private function authorize(User $actor): void
