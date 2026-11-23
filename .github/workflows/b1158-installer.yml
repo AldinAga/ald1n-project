@@ -455,12 +455,13 @@ jobs:
           read -r modp modd < <(pick mod)
           flip PAYLOAD_DIGEST_OF_A_NEW_FILE "$newd" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'
           flip PRE_STATE_DIGEST_OF_A_MODIFIED_FILE "$modd" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'
-          flip PRE_STATE_DIGEST_PROVIDER "$(pickd app/Providers/AppServiceProvider.php pre)" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'
-          flip PAYLOAD_DIGEST_ROUTES "$(pickd routes/web.php post)" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'
+          has() { grep -q "\['$1','modified'" "$s/b1158/Payload.php"; }
+          if has app/Providers/AppServiceProvider.php; then flip PRE_STATE_DIGEST_PROVIDER "$(pickd app/Providers/AppServiceProvider.php pre)" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'; fi
+          if has routes/web.php; then flip PAYLOAD_DIGEST_ROUTES "$(pickd routes/web.php post)" 'PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE'; fi
           # The group layout is checked as well: routes/web.php moved into the controller group, the provider without its guard group and a view before the routes must each be refused.
           viewp="$(php -r 'require $argv[1];foreach(B1158Payload::STEPS as [$p,$k,$g])if($g==="F"){echo $p;exit;}' "$s/b1158/Payload.php")"
-          regroup ROUTES_IN_THE_CONTROLLER_GROUP routes/web.php E C '\(PACKAGE\|OVERLAY\)_'
-          regroup PROVIDER_WITHOUT_ITS_GUARD_GROUP app/Providers/AppServiceProvider.php D C '\(PACKAGE\|OVERLAY\)_'
+          if has routes/web.php; then regroup ROUTES_IN_THE_CONTROLLER_GROUP routes/web.php E C '\(PACKAGE\|OVERLAY\)_'; fi
+          if has app/Providers/AppServiceProvider.php; then regroup PROVIDER_WITHOUT_ITS_GUARD_GROUP app/Providers/AppServiceProvider.php D C '\(PACKAGE\|OVERLAY\)_'; fi
           test -n "$viewp" && regroup A_VIEW_BEFORE_THE_ROUTES "$viewp" F E '\(PACKAGE\|OVERLAY\)_'
           printf '{"mutation":"REFUSED_BY_THE_BUILD","payloadDigestNewFile":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","preStateDigestModifiedFile":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","preStateDigestProvider":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","payloadDigestRoutes":"PACKAGE_DIGEST_DIFFERS_FROM_THE_REVIEWED_ONE","routesInTheControllerGroup":"PACKAGE_OR_OVERLAY_REFUSAL","providerWithoutItsGuardGroup":"PACKAGE_OR_OVERLAY_REFUSAL","viewBeforeTheRoutes":"PACKAGE_OR_OVERLAY_REFUSAL"}\n' | tee "$RUNNER_TEMP/mutation.json"
       - name: Real coordinator on Laravel + MariaDB 10.11.19 after real B1146 to B1157 installs, shop ON - chain gate on Report1123, backup window, guard groups, group order A to F, the migration behind a fresh backup, the evidence, rollbacks, kills, schema-ahead policy

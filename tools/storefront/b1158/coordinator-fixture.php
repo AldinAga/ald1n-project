@@ -334,8 +334,8 @@ $groups=array_values(array_unique(array_column($plan,'group')));sort($groups);ch
 check(B1158InstallCoordinator::GUARDS===B1158Payload::GUARDS&&isset(B1158InstallCoordinator::GUARDS['D'],B1158InstallCoordinator::GUARDS['E']),'GUARDS_ARE_THE_GENERATED_ONES_WITH_D_AND_E');
 $byPath=[];foreach($plan as $s)$byPath[$s['path']]=$s;
 $groupSteps=static fn(string $g):array=>array_values(array_filter($plan,static fn($s)=>$s['group']===$g));
-$stepProvider=$byPath['app/Providers/AppServiceProvider.php'];$stepRoutesWeb=$byPath['routes/web.php'];$stepRoutesApi=$byPath['routes/api.php'];$nMig=count(B1158InstallCoordinator::NEW_MIGRATIONS);$zero=$nMig===0;$stepMig1=$zero?['path'=>'database/migrations/0000_00_00_000000_none.php','n'=>0,'group'=>'A']:$byPath[B1158InstallCoordinator::migrationFiles()[0]];$stepMig2=$stepMig1;
-check($stepProvider['n']<$stepRoutesApi['n']&&$stepRoutesApi['n']<$stepRoutesWeb['n']&&$stepMig1['group']==='A','THE_PROVIDER_THE_ROUTES_AND_THE_MIGRATION_ARE_IN_THEIR_GROUPS');
+$stepProvider=$byPath['app/Providers/AppServiceProvider.php']??null;$stepRoutesWeb=$byPath['routes/web.php']??null;$stepRoutesApi=$byPath['routes/api.php']??null;$nMig=count(B1158InstallCoordinator::NEW_MIGRATIONS);$zero=$nMig===0;$stepMig1=$zero?['path'=>'database/migrations/0000_00_00_000000_none.php','n'=>0,'group'=>'A']:$byPath[B1158InstallCoordinator::migrationFiles()[0]];$stepMig2=$stepMig1;
+check(($stepProvider===null||$stepRoutesApi===null||$stepRoutesWeb===null||($stepProvider['n']<$stepRoutesApi['n']&&$stepRoutesApi['n']<$stepRoutesWeb['n']))&&$stepMig1['group']==='A','THE_PROVIDER_THE_ROUTES_AND_THE_MIGRATION_ARE_IN_THEIR_GROUPS');
 $newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));check(count($newSteps)===B1158Payload::NEW_FILES&&count($modifiedSteps)===B1158Payload::MODIFIED_FILES,'NEW_AND_MODIFIED_COUNTS');
 $stateOf=static function(array $s)use($active):string{$t=$active.'/'.$s['path'];if(!is_file($t))return 'absent';$h=hash_file('sha256',$t);return $h===$s['payloadSHA256']?'payload':($h===$s['preSHA256']?'pre':'foreign');};
 $cssUrls=array_keys(B1158InstallCoordinator::ADMIN_CSS_PATHS);
@@ -603,7 +603,7 @@ $orphanOk=static function()use($active):bool{foreach(array_merge(CommissionsInst
 check($orphanOk(),'THE_TWO_ORPHAN_VIEWS_ARE_ON_THE_HOST_WITH_THEIR_B1155_BYTES_BEFORE');
 
 // 9c. Guard groups without their proof are refused, each rolled back to the exact old tree (D: the provider needs the class proof, E: the routes need it, F: the views need the asset proof).
-foreach(array_values(array_filter([['D',$stepProvider['n'],'clearClassProof:D','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['E',$stepRoutesApi['n'],'clearClassProof:E','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['F',(array_values(array_filter($plan,static fn($s)=>$s['group']==='F'))[0]['n']??0),'clearAssetProof','GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF']],static fn($x)=>isset(B1158InstallCoordinator::GUARDS[$x[0]]))) as [$g,$n,$act,$code]){
+foreach(array_values(array_filter([['D',($stepProvider['n']??0),'clearClassProof:D','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['E',($stepRoutesApi['n']??0),'clearClassProof:E','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['F',(array_values(array_filter($plan,static fn($s)=>$s['group']==='F'))[0]['n']??0),'clearAssetProof','GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF']],static fn($x)=>isset(B1158InstallCoordinator::GUARDS[$x[0]]))) as [$g,$n,$act,$code]){
     [$rc,$o]=$run(['BEFORE_STEP_'.$n=>[$act]]);
     check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode($code)&&lastRaw($o,'B1158_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'GUARD_GROUP_'.$g.'_REFUSED_WITHOUT_ITS_PROOF_AND_ROLLED_BACK');$reset();
 }
@@ -736,6 +736,7 @@ check($rc===0&&lastRaw($o,'B1158_FINAL')===B1158InstallCoordinator::FINAL_PASS&&
 $results['persistent429']='ACCEPTANCE_REPEATED_ONLY';
 
 // 20. Cases ported from the B1155 fixture for code B1158 rewrote or added.
+if($stepProvider!==null){
 // 20a. A provider whose register() throws is refused by the boot proof BEFORE the provider (group D) is written: the files of A to C are rolled back, the schema is untouched.
 $badProvider="<?php\nnamespace App\\Providers;\nuse Illuminate\\Support\\ServiceProvider;\nfinal class AppServiceProvider extends ServiceProvider{public function register(): void{throw new RuntimeException('B1158_FIXTURE_REGISTER_THROWS');}}\n";
 [$rc,$o]=$run([],'install',['bootProofBytes'=>$badProvider],$extraCfg);
@@ -743,6 +744,7 @@ check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('APP_CHE
 // 20b. The site dies right after the provider (every request answers 500): the fast check rolls the install back at once.
 [$rc,$o]=$run(['AFTER_STEP_'.$stepProvider['n']=>['upFails'],'SAVED_ROLLBACK_INTENT'=>['clearDrops']],'install',[],$extraCfg);
 check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('FAST_CHECK_FAILED_AFTER_BOOTSTRAP')&&lastRaw($o,'B1158_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'THE_FAST_CHECK_AFTER_THE_PROVIDER_ROLLS_BACK');$reset();
+}
 // 20c. A deliberately broken Blade view (not part of the payload) fails the acceptance AFTER the migration: files back, migration files kept, schema ahead.
 [$rc,$o]=$run(['AFTER_PREFLIGHT'=>['mkBroken'],'SAVED_ROLLBACK_INTENT'=>['rmBroken']],'install',['viewChecks'=>array_merge(B1158InstallCoordinator::VIEW_CHECKS,['resources/views/zz-b1158-broken.blade.php'])],$extraCfg);
 check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode('BLADE_VIEW_COMPILE_OR_LINT_FAILED')&&lastRaw($o,'B1158_FINAL')===($zero?'HOLD_ROLLED_BACK_OLD_STATE_VERIFIED':'HOLD_ROLLED_BACK_SCHEMA_AHEAD')&&$schemaNew()&&!is_file($active.'/resources/views/zz-b1158-broken.blade.php'),'A_BROKEN_VIEW_AFTER_THE_MIGRATION_IS_A_SCHEMA_AHEAD_ROLLBACK');$reset();
