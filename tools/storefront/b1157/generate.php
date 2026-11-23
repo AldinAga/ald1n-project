@@ -51,13 +51,18 @@ $steps=[];
 $isMig=static fn(string $p):bool=>str_starts_with($p,'database/migrations/');
 $newOrdered=array_merge(array_values(array_filter($new,static fn($p)=>!$isMig($p))),array_values(array_filter($new,$isMig)));
 foreach($newOrdered as $p)$steps[]=[$p,'new','A'];
-$byGroup=[];$lateC=[];
+$byGroup=[];$lateC=[];$mixed=[];$tight=[];
 foreach(array_keys($mod) as $p){$grp=$pins[$p]??$groupOf($p);
     if($grp==='B'&&str_starts_with($p,'app/')&&str_ends_with($p,'.php')){$re='/\\bpublic\\s+(?:static\\s+)?function\\s+(\\w+)\\s*\\(/';preg_match_all($re,$blob($base,$p),$o1);preg_match_all($re,$blob($src,$p),$o2);
         // A service that loses a public method goes to the END of group C: the old controllers that still call it are replaced first (package.php proves that nothing new calls it). One that also gains methods stays in B and is reported (REVIEW) here and in the provenance.
-        if(array_diff($o1[1],$o2[1])!==[]){if(array_diff($o2[1],$o1[1])!==[]){fwrite(STDERR,'REVIEW '.$p.' removes and adds public methods: it stays in group B, package.php records the removed-method callers that run before it'.PHP_EOL);}else{$lateC[]=$p;continue;}}}
+        if(array_diff($o1[1],$o2[1])!==[]){if(array_diff($o2[1],$o1[1])!==[]){$mixed[$p]=[array_values(array_diff($o1[1],$o2[1])),array_values(array_diff($o2[1],$o1[1]))];continue;}else{$lateC[]=$p;continue;}}}
     $byGroup[$grp][]=$p;}
 sort($lateC,SORT_STRING);
+// Files of group B whose NEW bytes call an added method of a mixed service follow that service into group C (they cannot run before it exists, and the service must wait for the old callers of the methods it removes).
+$followers=[];
+foreach($mixed as $sv=>[$rem,$add]){foreach($byGroup['B']??[] as $k=>$q){if($q===$sv||!str_ends_with($q,'.php'))continue;$nb=$blob($src,$q);
+    foreach($add as $m)if(str_contains($nb,'->'.$m.'(')||str_contains($nb,'::'.$m.'(')){$followers[$sv][]=$q;unset($byGroup['B'][$k]);break;}}
+    $byGroup['B']=array_values($byGroup['B']??[]);sort($followers[$sv],SORT_STRING);}
 // Order inside a group: callee before caller (`use App\...;` edges of PHP files, @include/@extends edges of views), otherwise alphabetical (views: layouts, partials, pages).
 $deps=static function(string $p)use($blob,$src):array{$t=$blob($src,$p);$d=[];
     if(str_ends_with($p,'.blade.php')){if(preg_match_all("~@(?:include|extends|includeIf|includeWhen|includeFirst)\\(\\s*(?:[a-z0-9_.-]+\\s*,\\s*)?'([a-z0-9._-]+)'~",$t,$m))foreach($m[1] as $v)$d[]='resources/views/'.str_replace('.','/',$v).'.blade.php';}
@@ -65,8 +70,24 @@ $deps=static function(string $p)use($blob,$src):array{$t=$blob($src,$p);$d=[];
     return $d;};
 foreach(['B','C','D','E','F'] as $g){$list=$byGroup[$g]??[];if($g==='F')usort($list,static fn($a,$b)=>[$viewRank($a),$a]<=>[$viewRank($b),$b]);else sort($list,SORT_STRING);
     $set=array_flip($list);$done=[];$order=[];$visit=static function(string $p)use(&$visit,&$done,&$order,$set,$deps):void{if(isset($done[$p]))return;$done[$p]=false;foreach($deps($p) as $q)if(isset($set[$q])&&!array_key_exists($q,$done))$visit($q);$done[$p]=true;$order[]=$p;};
-    foreach($list as $p)$visit($p);foreach($order as $p)$steps[]=[$p,'modified',$g];
-    if($g==='C')foreach($lateC as $p)$steps[]=[$p,'modified','C'];}
+    foreach($list as $p)$visit($p);if($g!=='C')foreach($order as $p)$steps[]=[$p,'modified',$g];
+    if($g==='C'){$cl=$order;foreach($lateC as $p)$cl[]=$p;
+        // A service that removes AND adds public methods sits inside group C: after every step that still calls a removed method, before every step that calls an added one (names are matched as ->m( and ::m( in the bytes at BASE and at the target).
+        foreach($mixed as $sv=>[$rem,$add]){$cr=[];$cn=[];
+            foreach(array_keys($mod) as $q){if($q===$sv||!str_ends_with($q,'.php')||str_ends_with($q,'.blade.php'))continue;$ob=$blob($base,$q);$nb=$blob($src,$q);
+                foreach($rem as $m)if(str_contains($ob,'->'.$m.'(')||str_contains($ob,'::'.$m.'('))$cr[$q]=true;
+                foreach($add as $m)if(str_contains($nb,'->'.$m.'(')||str_contains($nb,'::'.$m.'('))$cn[$q]=true;}
+            $bad=[];
+            foreach(array_merge(array_keys($cr),array_keys($cn)) as $q)if(!in_array($q,$cl,true)&&!in_array($q,$followers[$sv]??[],true)){$grp=$pins[$q]??$groupOf($q);if(isset($cr[$q])&&$grp>'C')$bad[]=$q;if(isset($cn[$q])&&$grp<'C')$bad[]=$q;}
+            if($bad!==[]||isset($cr[$sv]))throw new RuntimeException('GENERATE_SERVICE_REMOVES_AND_ADDS_PUBLIC_METHODS_NO_SAFE_POSITION_'.$sv.'_'.implode(',',$bad).' (pin it or review)');
+            // A file that both still calls a removed method (old bytes) and calls an added one (new bytes) cannot be ordered around the service: it is installed IMMEDIATELY after it (the window is one file write, reported in the provenance).
+            $both=array_keys(array_intersect_key($cr,$cn));
+            // order inside C: old callers of the removed methods, the rest, the service with its followers, the new callers of the added methods, then the removal-only services.
+            $late=array_values(array_intersect($cl,$lateC));$core=array_values(array_diff($cl,$lateC));
+            $first=array_values(array_filter($core,static fn($q)=>isset($cr[$q])&&!isset($cn[$q])));$last=array_values(array_filter($core,static fn($q)=>isset($cn[$q])&&!isset($cr[$q])));$mid=array_values(array_filter($core,static fn($q)=>!isset($cr[$q])&&!isset($cn[$q])));
+            $cl=array_merge($first,$mid,[$sv],$followers[$sv]??[],array_values(array_intersect($core,$both)),$last,$late);$tight[$sv]=$both;
+            fwrite(STDERR,'NOTE '.$sv.' is installed inside group C after its old callers of '.implode(',',$rem).' and before the new callers of '.implode(',',$add).($followers[$sv]??[]?'; followers moved from B: '.implode(',',$followers[$sv]):'').PHP_EOL);}
+        foreach($cl as $p)$steps[]=[$p,'modified','C'];}}
 if($steps===[])throw new RuntimeException('GENERATE_EMPTY_OVERLAY');
 // A new view that calls a new route only works after the routes: new files sit in A and are inert until a modified view includes them, so nothing else is needed.
 $digests=[];foreach($steps as [$p,$k]){$digests[$p]=[$k==='new'?null:$mod[$p],hash('sha256',$blob($src,$p))];if($k==='modified'&&$digests[$p][0]===$digests[$p][1])throw new RuntimeException('GENERATE_UNCHANGED_'.$p);}
@@ -133,6 +154,7 @@ $out.="    public const RAN_AFTER=".(73+count($migNames)).";\n    public const P
 $out.="    public const ROUTES=".B1156_ROUTES.";\n    public const ROUTES_AFTER=".$routesAfter.";\n    public const ROUTES_AFTER_IS_ESTIMATE=".($routesAfterArg===null?'true':'false').";\n    public const NEW_WEB_ROUTES=".$v($newWeb).";\n    public const NEW_API_ROUTES=".$apiAdded.";\n";
 $out.="    public const NEW_BIN=".$v($newBin).";\n    public const VIEW_CHECKS=".$v($viewChecks).";\n    public const SOURCE_MARKERS=".$v($markers).";\n    public const PROOF_CLASSES=".$v($proof).";\n    public const PROVIDER_BINDINGS=".$v($bindings).";\n";
 $out.="    public const ADMIN_CSS_PATHS=".$v($cssChanged?['/assets/css/ald1n-admin.css'=>'public/assets/css/ald1n-admin.css']:[]).";\n";
+$out.="    public const TIGHT_ORDER=".$v($tight).";\n";
 $out.="    public const FILES=".count($steps).";\n    public const NEW_FILES=".$newFiles.";\n    public const MODIFIED_FILES=".(count($steps)-$newFiles).";\n    public const TREE_FILES_AFTER=".$treeAfter.";\n    public const TREE_FILES_BEFORE=".B1156_BASE_TREE_FILES.";\n";
 $out.="    public const B1156_REPORT_SHA256=".$v($reportSha??str_repeat('0',64)).";\n    public const B1156_STATE_ID=".$v($stateId??str_repeat('0',32)).";\n    public const B1156_PINS_FILLED=".($reportSha===null?'false':'true').";\n}\n";
 $dir=__DIR__;

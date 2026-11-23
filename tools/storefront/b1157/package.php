@@ -288,7 +288,7 @@ $hazards=[];$removalOnly=[];$later=static fn(string $c,string $e):bool=>isset($g
 // 1. A public method of a modified PHP class may disappear only after every step that still calls it (the new code only adds methods and optional parameters; constructor dependencies are classes of group A).
 foreach($new as $p=>$text)if($old[$p]!==null&&str_starts_with($p,'app/')&&str_ends_with($p,'.php')){
     preg_match_all('/\bpublic\s+(?:static\s+)?function\s+(\w+)\s*\(/',(string)$old[$p],$o);preg_match_all('/\bpublic\s+(?:static\s+)?function\s+(\w+)\s*\(/',$text,$nm);
-    $gone=array_diff($o[1],$nm[1]);if($gone!==[]&&array_diff($nm[1],$o[1])===[])$removalOnly[$p]=true;
+    $gone=array_diff($o[1],$nm[1]);if($gone!==[])$removalOnly[$p]=true;
     foreach($gone as $m){foreach($new as $q=>$qt){if($q!==$p&&!str_ends_with($q,'.blade.php')&&str_contains($qt,'->'.$m.'(')&&!str_contains((string)$old[$q],'->'.$m.'('))throw new RuntimeException('PACKAGE_A_REMOVED_PUBLIC_METHOD_IS_CALLED_BY_NEW_CODE_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$p.'_'.$m.'_'.$q)));
         if($q!==$p&&is_string($old[$q]??null)&&str_contains($old[$q],'->'.$m.'(')&&!$later($p,$q))$hazards[]=$p.' removes '.$m.'() but '.$q.' still calls it until its own step (a call in that window ends in an error, not in data loss)';}}
 }

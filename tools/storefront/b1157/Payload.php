@@ -30,7 +30,6 @@ final class B1157Payload
         ['app/Services/ExchangeRateService.php','modified','B','M'],
         ['app/Services/ManagementReportService.php','modified','B','M'],
         ['app/Services/OrderAmendmentService.php','modified','B','M'],
-        ['app/Services/OrderDetailPresenter.php','modified','B','M'],
         ['app/Services/OrderEmailOutboxService.php','modified','B','M'],
         ['app/Services/OrderFinancialStateService.php','modified','B','M'],
         ['app/Services/OrderIndexService.php','modified','B','M'],
@@ -38,11 +37,9 @@ final class B1157Payload
         ['app/Services/OrderReportService.php','modified','B','M'],
         ['app/Services/OrderShipmentService.php','modified','B','M'],
         ['app/Services/OrderTimelineService.php','modified','B','M'],
-        ['app/Services/OrderWorkflowService.php','modified','B','M'],
         ['app/Services/ProductAdminService.php','modified','B','M'],
         ['app/Services/SubagentSalesReportService.php','modified','B','M'],
         ['app/Services/WarrantyService.php','modified','B','M'],
-        ['app/Http/Controllers/Admin/OrderController.php','modified','C','M'],
         ['app/Http/Controllers/Admin/OrderShipmentController.php','modified','C','M'],
         ['app/Http/Controllers/Admin/PaymentController.php','modified','C','M'],
         ['app/Http/Controllers/Admin/PortalConversationController.php','modified','C','M'],
@@ -59,6 +56,9 @@ final class B1157Payload
         ['app/Http/Controllers/PublicCheckoutController.php','modified','C','M'],
         ['bin/admin-orders-index-ux-smoke.php','modified','C','M'],
         ['bin/static-check.php','modified','C','M'],
+        ['app/Services/OrderWorkflowService.php','modified','C','M'],
+        ['app/Services/OrderDetailPresenter.php','modified','C','M'],
+        ['app/Http/Controllers/Admin/OrderController.php','modified','C','M'],
         ['app/Services/OrderOperationalService.php','modified','C','M'],
         ['app/Providers/AppServiceProvider.php','modified','D','M'],
         ['routes/api.php','modified','E','M'],
@@ -101,7 +101,6 @@ final class B1157Payload
         'app/Services/ExchangeRateService.php'=>['01bf56fa5e15666184aaf701faffc619278ea8eabdb88702affc638946f7456b','34bf37967fb07d573428f15d0268ffeb3e07329f73f46c75ef0a5b35788fac09'],
         'app/Services/ManagementReportService.php'=>['00110114c72b0b95254a5d6697d4f501d75d7f5b7a6e02324f90f15f5831176f','c55457e1e43fa3f14f229521bc7be0b2a2626fb4f1d7c59d85d27b95b4333db8'],
         'app/Services/OrderAmendmentService.php'=>['4aac0a6d39fa3756f9e9ea3363770b74723aa21d45a69d1374aef4cb2bcf19e2','daea68290ff6e2d238809f0c0322ad1aaefed4bae8064a43d930cdae8188eb9f'],
-        'app/Services/OrderDetailPresenter.php'=>['5d31e59ef0685a8c8aadc03c2d573dc1d5cdcd96dba1aa1c5fdf057af0418415','fa7f300bd26f628ec3095a3b053bd78ece46185a6e0248bac59db9fed4b65770'],
         'app/Services/OrderEmailOutboxService.php'=>['51639f01511cd267e18e0c68c26e63221c5ca6fdf1347b2dd875555c1141499d','780446277476db05c06db21788dda3c3fddaf0cfcab2cb76ececbe6cb760ef52'],
         'app/Services/OrderFinancialStateService.php'=>['237b90aecb8880e3631fae94d17ddea95628a3904ed50cf7017cb058c05aef33','a98b49dc7b45bed59e4aa9041928dc4e4df0ba101df692953560c17f35f47e26'],
         'app/Services/OrderIndexService.php'=>['b04e4b765e3efec0ff088e3287d4f79944b3d65ef273acf67a79c78a3d830248','170b63a308de381b5ded4edcd5e78eadf9044223af8281d7f589b769ebf7fee6'],
@@ -109,11 +108,9 @@ final class B1157Payload
         'app/Services/OrderReportService.php'=>['7dd6a412d15c4939182044b3144af3bb0c3d215cc3bd0cfc9b5bcf234810a0eb','e7ff1a98e0b061bac29ae1dad0e3a75a44052317c42bfb9a107b279201a3be04'],
         'app/Services/OrderShipmentService.php'=>['56c42663bcb6ed93eca0cab89989b40cf5f55e90bb75de49cb123b9659eca137','35e35f90ee8bfa2447fb17d7c62ee30c5a75f1a1cf3b053e37cc4f24bd6c8be3'],
         'app/Services/OrderTimelineService.php'=>['3beec437038336ed19134ec4fbbef7f31d2fe58e952127f003bd4e1bb76d4b29','a3330ed6b1dbe863da88320c849430ac85eebe03d742b5b4f1ae8ee64c4681be'],
-        'app/Services/OrderWorkflowService.php'=>['1029f358df7b42111945336b7f8318d364a34cf1b2212eb7c6f89d76c179c3a2','eb5ba6a5002c9bf355c9316130dd4d90caa05cdbf05506622967164f8ebdc5c3'],
         'app/Services/ProductAdminService.php'=>['a58ed227781504e03dcd355f12818677b43e811fa12744a451494f16985b38dc','722274608844b1e399df29397ea80663254ecb914e7a3db55073c8b03431337a'],
         'app/Services/SubagentSalesReportService.php'=>['5aad2afd823dae765cbda8387b946d127bcb36874a9f3b2e655380457cbd4497','fcfae5e10ddcd814be2608a6e797905911cdc74f4c84ea6c1d821f647db83175'],
         'app/Services/WarrantyService.php'=>['2db3866fb8fd436bf9d4fa2fdc2315d4278563e751940ada90f7c2e495104ae2','8d31966ba0c7a832a37dde5c270def0438118ef70adade3c6d8aedca5660ef22'],
-        'app/Http/Controllers/Admin/OrderController.php'=>['674d05a91834ddaa5490cefc1a677304e134b3c3977fb16a27061bbbfb17a04e','897f19ed1e3a1794a09cd6ae80ecf0a1e266c08fecf91dd114a5a7f00038a509'],
         'app/Http/Controllers/Admin/OrderShipmentController.php'=>['64454fe018af58abdac1611cf61df476c9d3998617563f7973781f0c2b1070b4','9f0a6151c5375313f6349f1851abfffeaca1984e2356ed645d780d844660ba97'],
         'app/Http/Controllers/Admin/PaymentController.php'=>['1fdc23b2e2b505e76e0694874e7c6e28325660b1feec624a60708622f27f9540','c3e74a32aa995078c8e0b6be7174166c6f5b3887eb80ea166415dc56d691c1db'],
         'app/Http/Controllers/Admin/PortalConversationController.php'=>['9975094860624c7ad087cf44d71f608b06580fbd3124e6840851c3beaa2012ce','c89652362f6a0bf959df209544a93364ec04b25895aaac8f0be499984f145d51'],
@@ -130,6 +127,9 @@ final class B1157Payload
         'app/Http/Controllers/PublicCheckoutController.php'=>['8344e2c4f31506baa872d267baa89035a4720dff6b0331ad09cae31fee0875fc','a94541b563b11832e2edba136c2e13c243231fa961bb6b23cce1468a226ef275'],
         'bin/admin-orders-index-ux-smoke.php'=>['fcc3bfe5aae3ddbdd3fa788a4f564363f4525ad6f69da4793c0aa47b7dede1ab','7682b2bd802c5003292921b551ae4b1b0016f2ca940cf6f37efada438693d217'],
         'bin/static-check.php'=>['065090e336c465d48dac90845c13c8aa549944bfb7cf3df9abce17ea5b51e610','24a8a4ec2667e55a1dcf022ef165d297997b677d0b06d6e736036124b44bb59c'],
+        'app/Services/OrderWorkflowService.php'=>['1029f358df7b42111945336b7f8318d364a34cf1b2212eb7c6f89d76c179c3a2','eb5ba6a5002c9bf355c9316130dd4d90caa05cdbf05506622967164f8ebdc5c3'],
+        'app/Services/OrderDetailPresenter.php'=>['5d31e59ef0685a8c8aadc03c2d573dc1d5cdcd96dba1aa1c5fdf057af0418415','fa7f300bd26f628ec3095a3b053bd78ece46185a6e0248bac59db9fed4b65770'],
+        'app/Http/Controllers/Admin/OrderController.php'=>['674d05a91834ddaa5490cefc1a677304e134b3c3977fb16a27061bbbfb17a04e','897f19ed1e3a1794a09cd6ae80ecf0a1e266c08fecf91dd114a5a7f00038a509'],
         'app/Services/OrderOperationalService.php'=>['cfdbba61a184a0326d47d2506dd1637a6dea7f73479806dda4822758316f0af2','d4fa79c34fcae0d1b13bf8a840e06f2d22dac54fbaac61b39a65e2ced6b85143'],
         'app/Providers/AppServiceProvider.php'=>['94e0f369399feae85851017b2fdd4482774d68ffd2e8fb48028cf654d16020f0','8a9dae61b8aee1599ccb9bdc1c2060e97460232c1b5a7394c06046ae136e11ad'],
         'routes/api.php'=>['e31b24975a2e3d648c1196a32d23e91334c825bf415733855a1b50a254366a47','e3716312b06fecbdc315de50f9ec1dc66381c8b790fddd1d49eeb2110ff2fb98'],
@@ -438,88 +438,88 @@ final class B1157Payload
   ),
   'm24' => 
   array (
-    0 => 'app/Services/OrderEmailOutboxService.php',
-    1 => 'if ((string) $order->payment_method === \'bank_transfer\') {',
-  ),
-  'm25' => 
-  array (
     0 => 'app/Services/OrderIndexService.php',
     1 => '} elseif (in_array($status, [\'new\', \'processing\'], true)) {',
   ),
-  'm27' => 
+  'm25' => 
   array (
-    0 => 'app/Services/OrderReportService.php',
-    1 => '} elseif (in_array($status, [\'new\', \'processing\'], true)) {',
+    0 => 'app/Services/OrderPaymentService.php',
+    1 => 'if ($type === \'refund\') {',
   ),
-  'm28' => 
+  'm27' => 
   array (
     0 => 'app/Services/OrderShipmentService.php',
     1 => 'if ($existing instanceof OrderShipment && !$existing->isReturned()) {',
   ),
+  'm28' => 
+  array (
+    0 => 'app/Services/OrderTimelineService.php',
+    1 => '\'title\' => \'Status: \'.\\App\\Support\\OrderStatus::label((string) $row->new_status),',
+  ),
   'm30' => 
-  array (
-    0 => 'app/Services/OrderWorkflowService.php',
-    1 => 'use App\\Models\\OrderShipment;',
-  ),
-  'm31' => 
-  array (
-    0 => 'app/Services/ProductAdminService.php',
-    1 => 'return DB::transaction(function () use ($product, $data, $user, $autosave, $expectedVersion): Product {',
-  ),
-  'm32' => 
   array (
     0 => 'app/Services/SubagentSalesReportService.php',
     1 => 'use App\\Support\\CommissionSql;',
   ),
-  'm34' => 
+  'm31' => 
   array (
-    0 => 'app/Http/Controllers/Admin/OrderController.php',
-    1 => 'use App\\Support\\OrderStatus;',
+    0 => 'app/Services/WarrantyService.php',
+    1 => 'if ((string) ($locked->sales_channel ?? \'order\') === \'direct_sale\'',
   ),
-  'm35' => 
+  'm32' => 
   array (
     0 => 'app/Http/Controllers/Admin/OrderShipmentController.php',
     1 => '/** "Pošiljka vraćena": razlog je obavezan; porudžbina je ponovo "Potvrđena", lager ostaje rezervisan. */',
   ),
-  'm37' => 
+  'm34' => 
   array (
     0 => 'app/Http/Controllers/Admin/ProductController.php',
     1 => 'public function duplicateCheck(Request $request): JsonResponse',
   ),
-  'm38' => 
+  'm35' => 
   array (
     0 => 'app/Http/Controllers/Admin/ReceivablesController.php',
     1 => '\\App\\Http\\Requests\\RecordOrderPaymentRequest $request,',
   ),
-  'm40' => 
+  'm37' => 
   array (
     0 => 'app/Http/Controllers/Api/V1/Admin/OrderMutationController.php',
     1 => '\'status\' => [\'required\', Rule::in([\'confirmed\', \'cancelled\'])],',
   ),
-  'm41' => 
+  'm38' => 
   array (
     0 => 'app/Http/Controllers/Api/V1/Admin/OrderShipmentController.php',
     1 => 'public function returned(',
   ),
-  'm43' => 
+  'm40' => 
   array (
     0 => 'app/Http/Controllers/Api/V1/OrderController.php',
     1 => '\'reason\' => [\'nullable\', \'string\', \'max:1000\'],',
   ),
-  'm44' => 
+  'm41' => 
   array (
     0 => 'app/Http/Controllers/DashboardController.php',
     1 => '\'status_label\' => \\App\\Support\\OrderStatus::label((string) $displayStatus),',
   ),
-  'm46' => 
+  'm43' => 
   array (
     0 => 'app/Http/Controllers/PublicCheckoutController.php',
     1 => 'return response()->view(\'public-shop.checkout-empty\',[\'quote\'=>$quote],409);',
   ),
-  'm47' => 
+  'm44' => 
   array (
     0 => 'bin/admin-orders-index-ux-smoke.php',
     1 => '\'#order-confirm\',',
+  ),
+  'm46' => 
+  array (
+    0 => 'app/Services/OrderDetailPresenter.php',
+    1 => 'use App\\Support\\OrderStatus;',
+  ),
+  'm47' => 
+  array (
+    0 => 'app/Http/Controllers/Admin/OrderController.php',
+    1 => 'use App\\Support\\OrderStatus;',
   ),
   'm49' => 
   array (
@@ -577,12 +577,18 @@ final class B1157Payload
 );
     public const ADMIN_CSS_PATHS=array (
 );
+    public const TIGHT_ORDER=array (
+  'app/Services/OrderWorkflowService.php' => 
+  array (
+    0 => 'app/Http/Controllers/Admin/OrderController.php',
+  ),
+);
     public const FILES=69;
     public const NEW_FILES=7;
     public const MODIFIED_FILES=62;
     public const TREE_FILES_AFTER=8603;
     public const TREE_FILES_BEFORE=8596;
-    public const B1156_REPORT_SHA256='0000000000000000000000000000000000000000000000000000000000000000';
-    public const B1156_STATE_ID='00000000000000000000000000000000';
-    public const B1156_PINS_FILLED=false;
+    public const B1156_REPORT_SHA256='d6c2dec4589cc0c7b5f660f64daa5bb04b15c7c76654f8a1af9ef6b262ea60ba';
+    public const B1156_STATE_ID='0ef72540740437ef4b1939357556e919';
+    public const B1156_PINS_FILLED=true;
 }
