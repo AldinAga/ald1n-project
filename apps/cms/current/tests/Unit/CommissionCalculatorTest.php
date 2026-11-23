@@ -49,8 +49,19 @@ final class CommissionCalculatorTest extends TestCase
         $calculator = new CommissionCalculator();
 
         self::assertSame(0.0, $calculator->unitEur(100.0, 'USD', null, null));
-        self::assertFalse($calculator->usesManual(1000.0, 'RSD', 20.0, null));
         self::assertFalse($calculator->usesManual(1000.0, 'EUR', 0.0, null));
-        self::assertSame(0.0, $calculator->unitEur(1000.0, 'RSD', 20.0, null));
+        self::assertFalse($calculator->usesManual(100.0, 'USD', 20.0, null));
+        self::assertSame(0.0, $calculator->unitEur(1000.0, 'RSD', null, null), 'automatski obračun u RSD bez kursa ostaje 0');
+    }
+
+    public function test_manual_eur_commission_for_rsd_product_is_kept_when_rate_is_missing(): void
+    {
+        $calculator = new CommissionCalculator();
+
+        // Ranije: usesManual=false pa unitEur=0,00. Ručni iznos je u EUR i ne smije nestati; porudžbinu zadržava
+        // CommissionEligibilityService dok se kurs ne postavi.
+        self::assertTrue($calculator->usesManual(1000.0, 'RSD', 20.0, null));
+        self::assertSame(20.0, $calculator->unitEur(1000.0, 'RSD', 20.0, null));
+        self::assertSame(20.0, $calculator->unitEur(1000.0, 'RSD', 20.0, 117.0));
     }
 }
