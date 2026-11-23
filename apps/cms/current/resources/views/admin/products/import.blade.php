@@ -7,7 +7,7 @@
 @if(!empty($result))
 <section class="panel form-section" role="status" data-import-result>
     <h2>Uvoz je završen</h2>
-    <p>Uvezeno artikala: <strong>{{ $result['created'] }}</strong>. Preskočeno duplikata: <strong>{{ $result['skipped'] }}</strong>. Redova sa greškom: <strong>{{ count($result['errors']) }}</strong>.</p>
+    <p>Uvezeno artikala: <strong>{{ $result['created'] }}</strong>. Preskočeno duplikata: <strong>{{ $result['skipped'] }}</strong>. Redova sa greškom: <strong>{{ count($result['errors']) }}</strong>.@if(!empty($result['resumed'])) Već uvezeno u prekinutom pokušaju: <strong>{{ $result['resumed'] }}</strong>.@endif</p>
     @if(!empty($result['errors']))
         <ul>@foreach(array_slice($result['errors'], 0, 50) as $error)<li>Red {{ $error['line'] }}: {{ $error['message'] }}</li>@endforeach</ul>
     @endif
@@ -54,9 +54,9 @@
         <section class="panel form-section preview-panel" data-import-preview>
             <h2>3. Pregled uvoza</h2>
             <p><strong>{{ $analysis['valid'] }}</strong> redova je spremno, <strong>{{ $analysis['errors'] }}</strong> ima greške (biće preskočeno), <strong>{{ $analysis['duplicates'] }}</strong> upozorenja na duplikate.</p>
-            <div class="table-wrap"><table class="data-table"><thead><tr><th>Red</th><th>Artikal</th><th>Napomene</th></tr></thead><tbody>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Red</th><th>Artikal</th><th>Cena</th><th>Napomene</th></tr></thead><tbody>
                 @foreach(array_slice($analysis['rows'], 0, 200) as $row)
-                    <tr><td>{{ $row['line'] }}</td><td>{{ $row['label'] }}</td><td>@foreach($row['errors'] as $message)<div class="text-danger">{{ $message }}</div>@endforeach @foreach($row['warnings'] as $message)<div class="muted">{{ $message }}</div>@endforeach @if(empty($row['errors']) && empty($row['warnings']))U redu @endif</td></tr>
+                    <tr><td>{{ $row['line'] }}</td><td>{{ $row['label'] }}</td><td data-import-price>{{ $row['data']['price_amount'] }} {{ $row['data']['price_currency'] }}</td><td>@foreach($row['errors'] as $message)<div class="text-danger">{{ $message }}</div>@endforeach @foreach($row['warnings'] as $message)<div class="muted">{{ $message }}</div>@endforeach @if(empty($row['errors']) && empty($row['warnings']))U redu @endif</td></tr>
                 @endforeach
             </tbody></table></div>
             @if(count($analysis['rows']) > 200)<p class="muted">Prikazano je prvih 200 redova; izvršenje obrađuje sve.</p>@endif

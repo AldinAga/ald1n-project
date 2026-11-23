@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\ProductImportService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -22,7 +23,11 @@ final class ProductImportController extends Controller
     public function upload(Request $request, ProductImportService $service): View
     {
         $request->validate(['file' => ['required', 'file', 'max:1024', 'extensions:csv,txt']]);
-        $token = $service->stash((string) file_get_contents($request->file('file')->getRealPath()), $request->user());
+        $token = $service->stash(
+            (string) file_get_contents($request->file('file')->getRealPath()),
+            $request->user(),
+            (string) $request->file('file')->getClientOriginalName(),
+        );
 
         return $this->mappingView($service, $token, $request, null);
     }
@@ -38,15 +43,26 @@ final class ProductImportController extends Controller
             'skip_duplicates' => ['nullable', 'boolean'],
         ]);
         $mapping = array_intersect_key($data['mapping'], ProductImportService::FIELDS);
-        $file = $service->read($data['token'], $request->user());
-        $analysis = $service->analyze($file['rows'], $mapping, $data['default_currency'], $request->user());
-
         if ($data['mode'] === 'execute') {
-            $result = $service->execute($analysis, $request->boolean('skip_duplicates'), $request->user());
-            $service->forget($data['token'], $request->user());
+            // Dvostruko slanje (dupli klik, drugi tab): samo jedan zahtev po tokenu sme da izvršava uvoz.
+            $lock = Cache::lock('product-import:'.$data['token'], 900);
+            if (!$lock->get()) {
+                return redirect()->route('admin.products.import')->withErrors(['file' => 'Uvoz ovog fajla je već u toku.']);
+            }
+            try {
+                $file = $service->read($data['token'], $request->user());
+                $analysis = $service->analyze($file['rows'], $mapping, $data['default_currency'], $request->user());
+                $result = $service->execute($analysis, $request->boolean('skip_duplicates'), $request->user(), $data['token']);
+                $service->forget($data['token'], $request->user());
+            } finally {
+                $lock->release();
+            }
 
             return redirect()->route('admin.products.import')->with('import_result', $result);
         }
+
+        $file = $service->read($data['token'], $request->user());
+        $analysis = $service->analyze($file['rows'], $mapping, $data['default_currency'], $request->user());
 
         return $this->mappingView($service, $data['token'], $request, $analysis, $mapping, $data['default_currency']);
     }

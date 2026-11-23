@@ -55,15 +55,16 @@ final class ProductImportService
         'notes' => ['napomena', 'napomene', 'notes'],
     ];
 
-    public function __construct(private readonly ProductAdminService $products) {}
+    public function __construct(private readonly ProductAdminService $products, private readonly AuditLogger $audit) {}
 
     /** Parsira sadržaj fajla i čuva ga pod nasumičnim tokenom vezanim za korisnika. */
-    public function stash(string $raw, User $user): string
+    public function stash(string $raw, User $user, string $filename = ''): string
     {
         $this->parse($raw);
-        $this->purgeOld($user);
+        $this->purgeOld();
         $token = Str::random(40);
         Storage::disk('local')->put($this->path($token, $user), $raw);
+        $this->saveMeta($token, $user, ['file' => $filename, 'done' => []]);
 
         return $token;
     }
@@ -81,7 +82,7 @@ final class ProductImportService
     public function forget(string $token, User $user): void
     {
         if (preg_match('/^[A-Za-z0-9]{40}$/', $token)) {
-            Storage::disk('local')->delete($this->path($token, $user));
+            Storage::disk('local')->delete([$this->path($token, $user), $this->path($token, $user).'.meta']);
         }
     }
 
@@ -170,7 +171,7 @@ final class ProductImportService
                 'description' => ['nullable', 'string', 'max:65000'],
                 'notes' => ['nullable', 'string', 'max:65000'],
             ], [], ['name' => 'Naziv', 'model_name' => 'Model', 'supplier_code' => 'Šifra dobavljača', 'ean' => 'EAN', 'price_amount' => 'Cena', 'price_currency' => 'Valuta', 'purchase_price_rsd' => 'Nabavna cena', 'description' => 'Opis', 'notes' => 'Napomena']);
-            foreach ($validator->errors()->all() as $message) $errors[] = $message;
+            foreach ($validator->errors()->all() as $message) $errors[] = (string) $message;
 
             $duplicate = false;
             if ($data['brand_id'] !== null && $data['model_name'] !== null) {
@@ -190,6 +191,8 @@ final class ProductImportService
                 $seen[$key] ??= $index + 2;
             }
 
+            $errors = array_map(static fn (string $m): string => Str::limit($m, 200), $errors);
+            $warnings = array_map(static fn (string $m): string => Str::limit($m, 200), $warnings);
             $result[] = ['line' => $index + 2, 'label' => $data['name'] !== '' ? $data['name'] : (string) ($data['model_name'] ?? '—'), 'data' => $data, 'errors' => $errors, 'warnings' => $warnings, 'duplicate' => $duplicate];
         }
 
@@ -205,14 +208,23 @@ final class ProductImportService
      * @param array{rows:list<array<string,mixed>>} $analysis
      * @return array{created:int,skipped:int,errors:list<array{line:int,message:string}>}
      */
-    public function execute(array $analysis, bool $skipDuplicates, User $user): array
+    public function execute(array $analysis, bool $skipDuplicates, User $user, string $token = ''): array
     {
+        @set_time_limit(300);
+        $meta = $token !== '' ? $this->meta($token, $user) : ['file' => '', 'done' => []];
+        $done = array_flip($meta['done']);
         $created = 0;
+        $resumed = 0;
         $skipped = 0;
         $errors = [];
         foreach ($analysis['rows'] as $row) {
+            if (isset($done[$row['line']])) {
+                // Red je uvezen u prekinutom pokušaju: ponovni pokušaj ga ne sme duplirati.
+                $resumed++;
+                continue;
+            }
             if ($row['errors'] !== []) {
-                $errors[] = ['line' => $row['line'], 'message' => implode(' ', $row['errors'])];
+                $errors[] = ['line' => $row['line'], 'message' => Str::limit(implode(' ', $row['errors']), 300)];
                 continue;
             }
             if ($skipDuplicates && $row['duplicate']) {
@@ -222,8 +234,12 @@ final class ProductImportService
             try {
                 $this->products->create($row['data'], $user);
                 $created++;
+                if ($token !== '') {
+                    $meta['done'][] = $row['line'];
+                    $this->saveMeta($token, $user, $meta);
+                }
             } catch (ValidationException $exception) {
-                $errors[] = ['line' => $row['line'], 'message' => implode(' ', $exception->validator->errors()->all())];
+                $errors[] = ['line' => $row['line'], 'message' => Str::limit(implode(' ', $exception->validator->errors()->all()), 300)];
             } catch (\Throwable $exception) {
                 // Jedan neočekivan red ne sme da prekine uvoz usred fajla i ostavi nejasno stanje.
                 report($exception);
@@ -231,7 +247,31 @@ final class ProductImportService
             }
         }
 
-        return ['created' => $created, 'skipped' => $skipped, 'errors' => $errors];
+        $this->audit->log(
+            'product.import',
+            'CSV uvoz artikala'.($meta['file'] !== '' ? ': '.Str::limit($meta['file'], 120) : '').' (uvezeno '.$created.', preskočeno '.$skipped.', grešaka '.count($errors).')',
+            null,
+            null,
+            null,
+            ['file' => Str::limit($meta['file'], 120), 'rows' => count($analysis['rows']), 'created' => $created, 'resumed' => $resumed, 'skipped' => $skipped, 'errors' => count($errors)],
+            $user,
+        );
+
+        return ['created' => $created, 'skipped' => $skipped, 'resumed' => $resumed, 'errors' => $errors];
+    }
+
+    /** @return array{file:string,done:list<int>} */
+    private function meta(string $token, User $user): array
+    {
+        $raw = Storage::disk('local')->exists($this->path($token, $user).'.meta') ? json_decode((string) Storage::disk('local')->get($this->path($token, $user).'.meta'), true) : null;
+
+        return ['file' => (string) ($raw['file'] ?? ''), 'done' => array_values(array_map('intval', (array) ($raw['done'] ?? [])))];
+    }
+
+    /** @param array{file:string,done:list<int>} $meta */
+    private function saveMeta(string $token, User $user, array $meta): void
+    {
+        Storage::disk('local')->put($this->path($token, $user).'.meta', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     }
 
     /** @return array{headers:list<string>,rows:list<list<string>>} */
@@ -286,7 +326,8 @@ final class ProductImportService
     {
         if ($value === null) return null;
         $value = str_replace(' ', '', $value);
-        $value = preg_match('/^\d{1,3}(\.\d{3})+,\d+$/', $value) ? str_replace('.', '', $value) : $value;
+        // Tačka je separator hiljada kad iza nje slede tačno tri cifre (1.234 ili 1.234,50); inače je decimalna (12.5).
+        $value = preg_match('/^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/', $value) ? str_replace('.', '', $value) : $value;
 
         return str_replace(',', '.', $value);
     }
@@ -304,11 +345,18 @@ final class ProductImportService
         return 'product-imports/'.$user->id.'/'.$token.'.csv';
     }
 
-    private function purgeOld(User $user): void
+    /** Briše napuštene uvozne fajlove (svih korisnika) starije od zadatog broja sati; vraća broj obrisanih. */
+    public function purgeOld(int $hours = 24): int
     {
         $disk = Storage::disk('local');
-        foreach ($disk->files('product-imports/'.$user->id) as $file) {
-            if ($disk->lastModified($file) < now()->subHour()->getTimestamp()) $disk->delete($file);
+        $deleted = 0;
+        foreach ($disk->allFiles('product-imports') as $file) {
+            if ($disk->lastModified($file) < now()->subHours($hours)->getTimestamp()) {
+                $disk->delete($file);
+                $deleted++;
+            }
         }
+
+        return $deleted;
     }
 }

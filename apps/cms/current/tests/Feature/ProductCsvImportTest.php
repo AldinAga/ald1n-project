@@ -181,6 +181,90 @@ final class ProductCsvImportTest extends TestCase
         self::assertSame(0, Product::query()->count());
     }
 
+    public function test_dot_is_a_thousands_separator_only_before_exactly_three_digits_and_price_is_shown(): void
+    {
+        $admin = $this->admin('imp-price');
+        $content = "Naziv;Cena\nA;1.234\nB;12.5\nC;1.234,50\nD;0.500\nE;1234,5\n";
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv($content)])->viewData('token');
+        $preview = $this->post('/admin/catalog/import', $this->mappingPost($token, 'preview', ['mapping' => ['name' => '0', 'price_amount' => '1']]))->assertOk();
+
+        $prices = array_map(static fn (array $row): string => (string) $row['data']['price_amount'], $preview->viewData('analysis')['rows']);
+        self::assertSame(['1234', '12.5', '1234.50', '0.500', '1234.5'], $prices);
+        $preview->assertSee('data-import-price', false)->assertSee('1234 EUR');
+    }
+
+    public function test_second_submit_while_import_is_running_is_rejected(): void
+    {
+        $admin = $this->admin('imp-lock');
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv\nDvaput\n")])->viewData('token');
+        $lock = \Illuminate\Support\Facades\Cache::lock('product-import:'.$token, 60);
+        self::assertTrue($lock->get());
+
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]))
+            ->assertRedirect('/admin/catalog/import')->assertSessionHasErrors('file');
+        self::assertSame(0, Product::query()->count());
+
+        $lock->release();
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]))->assertRedirect('/admin/catalog/import');
+        self::assertSame(1, Product::query()->count());
+        // Treći pokušaj posle završetka: fajl je obrisan, nema novog artikla.
+        $this->post('/admin/catalog/import', $this->mappingPost($token, 'execute', ['mapping' => ['name' => '0']]))->assertSessionHasErrors('file');
+        self::assertSame(1, Product::query()->count());
+    }
+
+    public function test_retry_after_interruption_skips_rows_already_imported_and_writes_one_audit_record(): void
+    {
+        $admin = $this->admin('imp-resume');
+        $svc = app(ProductImportService::class);
+        $token = $svc->stash("Naziv\nPrvi\nDrugi\n", $admin, 'prekid.csv');
+        $mapping = ['name' => '0'];
+        $rows = $svc->read($token, $admin)['rows'];
+
+        // Prvi pokušaj stiže samo do prvog reda (prekid), drugi dobija ceo fajl.
+        $first = $svc->analyze([$rows[0]], $mapping, 'EUR', $admin);
+        self::assertSame(1, $svc->execute($first, false, $admin, $token)['created']);
+
+        $second = $svc->execute($svc->analyze($rows, $mapping, 'EUR', $admin), false, $admin, $token);
+        self::assertSame(1, $second['created']);
+        self::assertSame(1, $second['resumed']);
+        self::assertSame(['Drugi', 'Prvi'], Product::query()->orderBy('name')->pluck('name')->all());
+
+        $audits = AuditLog::query()->where('action', 'product.import')->get();
+        self::assertCount(2, $audits);
+        self::assertStringContainsString('prekid.csv', (string) $audits->last()->subject);
+    }
+
+    public function test_abandoned_import_files_are_removed_by_command_and_by_next_upload(): void
+    {
+        $admin = $this->admin('imp-clean');
+        $disk = Storage::disk('local');
+        $disk->put('product-imports/999/old.csv', "Naziv\nx\n");
+        $disk->put('product-imports/999/fresh.csv', "Naziv\nx\n");
+        touch($disk->path('product-imports/999/old.csv'), time() - 25 * 3600);
+
+        $this->artisan('app:product-import-cleanup')->assertSuccessful();
+        self::assertFalse($disk->exists('product-imports/999/old.csv'));
+        self::assertTrue($disk->exists('product-imports/999/fresh.csv'));
+
+        touch($disk->path('product-imports/999/fresh.csv'), time() - 25 * 3600);
+        $this->actingAs($admin)->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv\nA\n")])->assertOk();
+        self::assertFalse($disk->exists('product-imports/999/fresh.csv'));
+    }
+
+    public function test_long_cell_values_do_not_produce_unbounded_error_messages(): void
+    {
+        $admin = $this->admin('imp-long');
+        $this->actingAs($admin);
+        $token = (string) $this->post('/admin/catalog/import/upload', ['file' => $this->csv("Naziv;Brend\nA;".str_repeat('X', 5000)."\n")])->viewData('token');
+        $analysis = $this->post('/admin/catalog/import', $this->mappingPost($token, 'preview', ['mapping' => ['name' => '0', 'brand' => '1']]))->viewData('analysis');
+        self::assertNotEmpty($analysis['rows'][0]['errors']);
+        foreach ($analysis['rows'][0]['errors'] as $message) {
+            self::assertLessThanOrEqual(200, mb_strlen($message));
+        }
+    }
+
     private function csv(string $content): UploadedFile
     {
         return UploadedFile::fake()->createWithContent('artikli.csv', $content);
