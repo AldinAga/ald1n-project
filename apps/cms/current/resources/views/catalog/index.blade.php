@@ -94,7 +94,7 @@
 </header>
 
 <form method="get" action="{{ route('catalog.index') }}" class="a1-filters a1-cat-filters" role="search" aria-label="Pretraga i filteri kataloga" data-correlated-spec-filter-form data-catalog-filter-form>
-    <div class="a1-cat-bar">
+    <div @class(['a1-cat-bar', 'a1-cat-bar--lean' => ! $canManageCatalog])>
         <div class="a1-field a1-cat-search">
             <label class="a1-label" for="catalog-workspace-search">Pretraga kataloga <kbd class="a1-cat-kbd" aria-hidden="true">/</kbd></label>
             <div class="a1-cat-box">
