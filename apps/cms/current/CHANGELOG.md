@@ -1,3 +1,9 @@
+## Audit 23.11.2026 - naknadne ispravke
+
+- izvještaji prodaje subagenata za prošle periode sada se računaju sa storno i zaduženjima provizije (isti izvor kao stranica provizija), pa se brojke za već zatvorene periode mogu razlikovati od ranije izvezenih; CSV kolone se zovu "Provizija isplaćena (neto) RSD" i "Provizija neisplaćena (neto) RSD";
+- pri oslobađanju provizije zbog kursa kurs se upisuje na porudžbinu, a neuspjelo oslobađanje se vidi (last_error, audit) i ponavlja pri sljedećem pokretanju exchange-rate:update;
+- administrator ne vidi ni ne mijenja SuperAdmin naloge (web, API, mobilni).
+
 ## 2.2.0 - Mobile API Foundation
 
 ### Production Readiness Hotfix 1
