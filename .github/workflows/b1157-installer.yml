@@ -130,8 +130,8 @@ jobs:
             '51dd96f6798bbebc74def1d1ddaed9f85a632ea93abcbe22b2ffd8866a05d016  tools/storefront/b1154/AdminShellInstallCoordinator.php' \
             'ada769856ff6d7c498bb952cb2f1df12e11f8079cccae7f7740e79a27c96613e  tools/storefront/b1155/AppCheck.php' \
             'bff6b32639318b7b1f174c675aa7aa336c8e9efdae10b6fdd4dfd167f95c8e34  tools/storefront/b1155/DashboardReportsInstallCoordinator.php' \
-            '6a3caafebf5d0c2917302300281fa5c7c6ee399f1a76566a0c60b469561d1324  tools/storefront/b1156/AppCheck.php' \
-            '57281a860273a9ca9c46c23aa7d8f24394796c351fc4d0cd3f78e55517f30d94  tools/storefront/b1156/CommissionsInstallCoordinator.php' \
+            '4076dca6f60f5229fc5b6866d9e69846eece0128a6372a398bdd08061ae9cc96  tools/storefront/b1156/AppCheck.php' \
+            '436abbe5b274186a185e29fe3c9fee39abd5cea497da6bbf3d321b78ec84009c  tools/storefront/b1156/CommissionsInstallCoordinator.php' \
             | sha256sum --check --strict
           # The B1134-B1149 tooling is the reviewed bf5ac045 copy (B1149 PASS, Report1115), byte for byte; it installs B1146 to B1149 for real below.
           git diff --quiet bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 HEAD -- tools/storefront/b1134 tools/storefront/b1144 tools/storefront/b1145 tools/storefront/b1146 tools/storefront/b1147 tools/storefront/b1148 tools/storefront/b1149
@@ -367,8 +367,8 @@ jobs:
           unzip -p "$RUNNER_TEMP/package-b1156/b1156-operator.zip" incoming/b1156-package.sha256 | grep -E '  b1156-(app-check|coordinator)\.php$' | sort -k2 > "$RUNNER_TEMP/b1156-members.txt"
           cat "$RUNNER_TEMP/b1156-members.txt"
           printf '%s\n' \
-            '6a3caafebf5d0c2917302300281fa5c7c6ee399f1a76566a0c60b469561d1324  b1156-app-check.php' \
-            '57281a860273a9ca9c46c23aa7d8f24394796c351fc4d0cd3f78e55517f30d94  b1156-coordinator.php' | cmp - "$RUNNER_TEMP/b1156-members.txt"
+            '4076dca6f60f5229fc5b6866d9e69846eece0128a6372a398bdd08061ae9cc96  b1156-app-check.php' \
+            '436abbe5b274186a185e29fe3c9fee39abd5cea497da6bbf3d321b78ec84009c  b1156-coordinator.php' | cmp - "$RUNNER_TEMP/b1156-members.txt"
           # The generated STEPS (Payload.php): counts, and the CMS diff BASE..SOURCE minus the CMS tests and docs is exactly that set plus the deleted files (the retained orphans), no duplicate, nothing outside apps/cms/current.
           read -r steps nnew nmod norph < <(php -r 'require $argv[1];echo B1157Payload::FILES," ",B1157Payload::NEW_FILES," ",B1157Payload::MODIFIED_FILES," ",count(B1157Payload::ORPHANS);' tools/storefront/b1157/Payload.php)
           echo "STEPS=$steps NEW=$nnew MODIFIED=$nmod ORPHANS=$norph"
