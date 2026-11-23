@@ -67,7 +67,10 @@ final class BackToTopContractTest extends TestCase
         $css = (string) preg_replace('~/\*.*?\*/~s', '', $css);
         preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
         foreach ($rules as [, $selector, $body]) {
-            if (preg_match('/position\s*:\s*(sticky|fixed)/', $body) !== 1 || preg_match('/(^|[;\s])bottom\s*:/', $body) !== 1) {
+            // bottom:, inset-block-end:, or an inset shorthand that is not the full-cover "inset:0" of a scrim.
+            $atBottom = preg_match('/(^|[;\s])(bottom|inset-block-end)\s*:/', $body) === 1
+                || preg_match('/(^|[;\s])inset\s*:\s*(?!0(px)?\s*(;|$))/', $body) === 1;
+            if (preg_match('/position\s*:\s*(sticky|fixed)/', $body) !== 1 || !$atBottom) {
                 continue;
             }
             preg_match_all('/\.([a-z][a-z0-9_-]*)/i', $selector, $classes);
@@ -80,14 +83,20 @@ final class BackToTopContractTest extends TestCase
     public function test_every_fixed_or_sticky_bottom_bar_is_known_to_the_button(): void
     {
         $css = '';
-        foreach (['ald1n-admin.css', 'app.css', 'ald1n-ui-v2.css', 'ald1n-liquid-glass.css', 'ald1n-ui-refinement.css'] as $file) {
-            $css .= (string) file_get_contents($this->root().'/public/assets/css/'.$file)."\n";
+        $files = array_merge(
+            glob($this->root().'/public/assets/css/*.css') ?: [],
+            glob($this->root().'/public/assets/css/*/*.css') ?: []
+        );
+        // Floor: the CMS ships well over a dozen stylesheets; an empty glob must not pass.
+        self::assertGreaterThanOrEqual(10, count($files));
+        foreach ($files as $file) {
+            $css .= (string) file_get_contents($file)."\n";
         }
         $partial = (string) file_get_contents($this->root().'/resources/views/layouts/partials/back-to-top.blade.php');
         preg_match("/const bars = '([^']+)'/", $partial, $match);
         $known = array_map(static fn (string $s): string => ltrim($s, '.'), explode(',', $match[1] ?? ''));
-        // Not bars: the button itself and the toast stack (above the button by design, short-lived).
-        $ignored = ['a1-btt', 'a1-toasts'];
+        // Not bars: the button itself, the public shop's own button, and the toast stack (above the button by design, short-lived).
+        $ignored = ['a1-btt', 'a1-toasts', 'shop-back-to-top'];
 
         $rules = array_values(array_filter(
             self::bottomBarRules($css),
@@ -107,6 +116,8 @@ final class BackToTopContractTest extends TestCase
         // Positive control: the parser must report a new bar that nothing lists.
         $control = self::bottomBarRules('.zz-new-bar{position:sticky;bottom:0}');
         self::assertSame([['zz-new-bar']], $control);
+        self::assertSame([['zz-inset-bar']], self::bottomBarRules('.zz-inset-bar{position:fixed;inset:auto 0 8px 0}'));
+        self::assertSame([], self::bottomBarRules('.zz-scrim{position:fixed;inset:0}'));
         self::assertSame([], array_intersect($control[0], $known));
     }
 
