@@ -644,10 +644,10 @@ final class B1157InstallCoordinator
      */
     private function chain():array
     {
-        if(preg_match('/^0+$/D',$this->b1156ReportSHA256)||preg_match('/^0+$/D',$this->b1156StateId))throw new RuntimeException('B1156_REPORT_PINS_NOT_FILLED_IN');
         $directory=$this->root.'/docs/operations';$found=[];foreach(scandir($directory)?:[] as $name)if(preg_match(self::B1156_REPORT_PATTERN,$name))$found[]=$name;
         if(count($found)!==1)throw new RuntimeException(count($found)===0?'B1156_REPORT1122_MISSING':'B1156_REPORT1122_AMBIGUOUS');$path=$directory.'/'.$found[0];
         if(is_link($path)||realpath($path)!==$path||!is_file($path))throw new RuntimeException('B1156_REPORT1122_SCOPE');$bytes=(string)file_get_contents($path);$facts=self::b1156Facts($bytes,$this->expectedRoutes);
+        if(preg_match('/^0+$/D',$this->b1156ReportSHA256)||preg_match('/^0+$/D',$this->b1156StateId))throw new RuntimeException('B1156_REPORT_PINS_NOT_FILLED_IN');
         if(!hash_equals($this->b1156ReportSHA256,hash('sha256',$bytes)))throw new RuntimeException('B1156_REPORT1122_DIGEST_DIFFERS_FROM_THE_PINNED_ONE');
         $pointer=$this->b1156Base.'/current.json';if(is_link($pointer)||!is_file($pointer)||filesize($pointer)>8192)throw new RuntimeException('B1156_POINTER_MISSING');$p=json_decode((string)file_get_contents($pointer),true,8,JSON_THROW_ON_ERROR);
         if(!is_array($p)||($p['kind']??null)!=='B1156'||!preg_match('/^[a-f0-9]{32}$/D',(string)($p['id']??''))||($p['private']??null)!==$this->b1156Base.'/'.$p['id'])throw new RuntimeException('B1156_POINTER_SCOPE');

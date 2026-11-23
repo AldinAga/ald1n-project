@@ -463,7 +463,7 @@ $decoy1122=$root.'/docs/operations/1122-B1156-INSTALLER-20261121-101000.md';
 rename($report1122,$report1122.'.moved');$gate('B1155_REPORT1121_MISSING','REPORT_1121_MISSING');
 file_put_contents($decoy1122,"B1154_FINAL=HOLD\nHOLD_CODE=PREFLIGHT_BLOCKED\nEXIT=2\n");$gate('B1155_REPORT_NOT_TERMINAL_PASS','DECOY_1121_IS_NOT_A_PASS');
 rename($report1122.'.moved',$report1122);$gate('B1155_REPORT1121_AMBIGUOUS','TWO_1121_REPORTS');unlink($decoy1122);
-$gate('B1155_REPORT1121_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1156ReportSHA256'=>B1157InstallCoordinator::B1156_REPORT_SHA256]);
+$gate('B1155_REPORT1121_DIGEST_DIFFERS_FROM_THE_PINNED_ONE','REPORT_DIGEST_DIFFERS_FROM_THE_PRODUCTION_PIN',['b1156ReportSHA256'=>str_repeat('d',64)]);
 $gate('B1155_STATE_ID_DIFFERS_FROM_THE_PINNED_ONE','STATE_ID_DIFFERS',['b1156StateId'=>str_repeat('a',32)]);
 $stateFile=$private1156.'/'.$pin['state'].'/state.json';$stateOriginal=(string)file_get_contents($stateFile);check(str_contains($stateOriginal,'"phase":"INSTALLED_PASS"'),'THE_B1156_STATE_IS_INSTALLED_PASS');file_put_contents($stateFile,str_replace('"phase":"INSTALLED_PASS"','"phase":"ROLLED_BACK"',$stateOriginal));
 $gate('B1155_STATE_NOT_INSTALLED_PASS','B1155_STATE_NOT_INSTALLED_PASS');file_put_contents($stateFile,$stateOriginal);
