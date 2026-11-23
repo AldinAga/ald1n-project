@@ -94,6 +94,41 @@ final class ProductIdentifiersTest extends TestCase
         self::assertSame([(int) $byCode->id], array_column($rows, 'id'));
     }
 
+    public function test_partner_cannot_search_by_supplier_code_but_admin_can(): void
+    {
+        $admin = $this->admin('id-partner-admin', 'superadmin');
+        $product = $this->product('ID-P', $admin->id, ['name' => 'Partnerski artikal', 'supplier_code' => 'TAJNA-4711', 'ean' => '5901234123457']);
+
+        $group = \App\Models\UserGroup::query()->create([
+            'name' => 'Partneri', 'slug' => 'partneri', 'status' => 'active',
+            'category_access_mode' => 'all', 'include_uncategorized' => true,
+        ]);
+        \Illuminate\Support\Facades\DB::table('user_group_permissions')->insert([
+            'group_id' => $group->id, 'permission_id' => \Illuminate\Support\Facades\DB::table('permissions')->where('slug', 'catalog.view')->value('id'), 'created_at' => now(),
+        ]);
+        $partner = User::query()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'), 'user_group_id' => $group->id,
+            'username' => 'partner-1', 'email' => 'partner-1@test.local', 'password_hash' => Hash::make('Secret123!'), 'status' => 'active',
+        ]);
+
+        $catalog = app(CatalogQueryService::class);
+        $ids = static fn ($rows): array => $rows->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+        // Kontrola: partner vidi artikal (ime i EAN), pa prazan rezultat za šifru nije posledica skrivenog kataloga.
+        self::assertSame([(int) $product->id], $ids($catalog->paginate($partner, ['q' => 'Partnerski'])->getCollection()));
+        self::assertSame([(int) $product->id], $ids($catalog->paginate($partner, ['q' => '5901234123457'])->getCollection()));
+        self::assertSame([], $ids($catalog->paginate($partner, ['q' => 'TAJNA-4711'])->getCollection()));
+        self::assertSame([], $ids($catalog->quickSearch($partner, 'TAJNA')));
+        self::assertSame([(int) $product->id], $ids($catalog->paginate($admin, ['q' => 'TAJNA-4711'])->getCollection()));
+        self::assertSame([(int) $product->id], $ids($catalog->quickSearch($admin, 'TAJNA')));
+    }
+
+    public function test_array_identifiers_are_rejected_without_server_error(): void
+    {
+        $this->actingAs($this->admin('id-array'))->post('/admin/catalog', $this->payload(['ean' => ['1'], 'supplier_code' => ['x']]))
+            ->assertSessionHasErrors(['ean', 'supplier_code']);
+        self::assertSame(0, Product::query()->count());
+    }
+
     public function test_api_create_and_update_roundtrip_identifiers(): void
     {
         $admin = $this->admin('id-api', 'superadmin');

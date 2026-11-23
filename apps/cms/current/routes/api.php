@@ -195,8 +195,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     });
                     // MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
                     Route::prefix('system-settings')->name('system-settings.')->group(function (): void {
-                        Route::get('/automation', [AdminSystemSettingsController::class, 'automation'])->name('automation.index');
-                        Route::put('/automation', [AdminSystemSettingsController::class, 'updateAutomation'])->middleware('throttle:admin-write')->name('automation.update');
+                        Route::get('/automation', [AdminSystemSettingsController::class, 'automation'])->middleware('permission:automation.manage')->name('automation.index');
+                        Route::put('/automation', [AdminSystemSettingsController::class, 'updateAutomation'])->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.update');
                         Route::post('/automation/run', [AdminSystemSettingsController::class, 'runAutomation'])->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.run');
                         Route::post('/automation/alerts/{alert}/resolve', [AdminSystemSettingsController::class, 'resolveAutomationAlert'])->whereNumber('alert')->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.alerts.resolve');
                         Route::get('/turnstile', [AdminSystemSettingsController::class, 'turnstile'])->name('turnstile.index');

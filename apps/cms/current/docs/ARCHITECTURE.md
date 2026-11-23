@@ -240,3 +240,7 @@ Migracija `000037` ne uvodi novo specifikaciono polje. Ona koristi postojeće za
 `CatalogReferenceCache` kešira read-only šifarnike kataloga i filter polja uz eksplicitno invalidiranje nakon administrativnih izmena. `User` kešira resolved role/permission skup samo tokom životnog ciklusa trenutnog modela/requesta.
 
 `DataQualityService` sprovodi read-only audit i odvojenu nedestruktivnu popravku. Rezultati se čuvaju u `data_quality_snapshots`, a web pristup zahteva `catalog.audit`.
+
+## Razgovori sa kupcima (portal)
+
+Svaki aktivan Administrator i SuperAdministrator vidi i vodi sve razgovore sa kupcima, bez obzira na to kome je razgovor dodijeljen. To je namjerno ponašanje (`Admin\PortalConversationController`), ne propust u autorizaciji: upit kupca ne smije ostati bez odgovora zbog odsutnog radnika. Sužavanje vidljivosti traži odluku vlasnika.

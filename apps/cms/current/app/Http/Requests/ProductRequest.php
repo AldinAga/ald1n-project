@@ -285,11 +285,12 @@ final class ProductRequest extends FormRequest
         ];
 
         // Ključ koji nije poslat (stariji klijenti) ostaje netaknut; poslat prazan unos briše vrednost.
-        if ($this->has('supplier_code')) {
+        // Nizovi i objekti se ne normalizuju (ne bacaju grešku pri pretvaranju u string): validacija ih vraća kao 422.
+        if ($this->has('supplier_code') && is_scalar($this->input('supplier_code'))) {
             $code = preg_replace('/\s+/u', ' ', trim((string) $this->input('supplier_code')));
             $normalized['supplier_code'] = $code === '' ? null : $code;
         }
-        if ($this->has('ean')) {
+        if ($this->has('ean') && is_scalar($this->input('ean'))) {
             $normalized['ean'] = preg_replace('/[\s-]+/', '', (string) $this->input('ean')) ?: null;
         }
 

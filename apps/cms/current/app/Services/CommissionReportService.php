@@ -51,7 +51,7 @@ final class CommissionReportService
     /** @param array<string,mixed> $filters */
     public function paginateManaged(User $actor, array $filters, int $perPage = 40): LengthAwarePaginator
     {
-        return $this->managedQuery($actor, $filters)->paginate($perPage)->withQueryString();
+        return $this->managedQuery($actor, $filters)->with('history.actor')->paginate($perPage)->withQueryString();
     }
 
     /** @param array<string,mixed> $filters */
