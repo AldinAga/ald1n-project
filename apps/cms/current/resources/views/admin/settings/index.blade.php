@@ -213,7 +213,7 @@
     const normalize = (value) => String(value || '')
         .toLocaleLowerCase('sr-Latn')
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '');
+        .replace(/[\u0300-\u036f]/g, '');
 
     const items = Array.from(list.querySelectorAll('[data-settings-item]'));
     const sections = Array.from(list.querySelectorAll('[data-settings-section]'));
