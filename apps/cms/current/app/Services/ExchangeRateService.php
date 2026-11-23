@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\ExchangeRateHistory;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -83,6 +84,17 @@ final class ExchangeRateService
             'updated_by' => $userId,
         ]);
         $this->audit->log('exchange_rate.manual_updated', 'Komercijalni prodajni EUR/RSD kurs', null, $before, $this->configuration());
+        $this->releaseCommissionsWaitingForRate();
+    }
+
+    /** Provizije zadržane jer kursa nije bilo (CommissionEligibilityService::awaitsExchangeRate) postaju dospele čim kurs postoji. */
+    private function releaseCommissionsWaitingForRate(): void
+    {
+        try {
+            app(CommissionAutoApprovalService::class)->backfill();
+        } catch (Throwable $exception) {
+            Log::warning('Release of commissions waiting for the EUR/RSD rate failed.', ['exception' => $exception]);
+        }
     }
 
     public function setAutomatic(bool $enabled, int $staleHours, int $userId): void
@@ -172,6 +184,7 @@ final class ExchangeRateService
                 'message' => mb_substr($message, 0, 500),
                 'updated_by' => $userId,
             ]);
+            $this->releaseCommissionsWaitingForRate();
 
             return $result;
         } catch (Throwable $exception) {
