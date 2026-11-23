@@ -50,7 +50,12 @@ final class AccountDeletionController extends Controller
                 ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($request->only('email'));
         }
 
-        $verified = $turnstile->verify($request->input('cf-turnstile-response'), $request->ip(), 'account_deletion_request');
+        try {
+            $verified = $turnstile->verify($request->input('cf-turnstile-response'), $request->ip(), 'account_deletion_request');
+        } catch (Throwable $exception) {
+            Log::warning('Account deletion Turnstile check failed.', ['exception' => $exception::class]);
+            $verified = ['success' => false, 'message' => 'Provera zaštite trenutno nije dostupna. Pokušajte ponovo.'];
+        }
         if (!$verified['success']) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
                 ->withErrors(['turnstile' => $verified['message']])->withInput($request->only('email'));
@@ -65,6 +70,9 @@ final class AccountDeletionController extends Controller
     public function requestOwn(Request $request, UserDeletionService $deletions): RedirectResponse
     {
         // Prijavljeni korisnik ne mora da se skriva od sebe: jasna poruka umesto lažnog "poslato".
+        if (!UserDeletionService::available()) {
+            return redirect()->route('account.show')->withErrors(['deletion' => 'Brisanje naloga je trenutno nedostupno.']);
+        }
         $problem = $deletions->successorProblem($request->user());
         if ($problem !== null) {
             return redirect()->route('account.show')->withErrors(['deletion' => $problem]);
@@ -88,15 +96,22 @@ final class AccountDeletionController extends Controller
     public function confirm(Request $request, UserDeletionService $deletions): View|RedirectResponse
     {
         $token = $this->token($request);
-        $done = $token !== null && $deletions->confirm($token);
+        $outcome = $token === null ? 'invalid' : $deletions->confirm($token);
+        $done = $outcome === 'ok';
 
         return view('public-shop.account-deletion.result', [
             'hideShopNav' => true,
             'ok' => $done,
-            'title' => $done ? 'Brisanje naloga je zakazano' : 'Link nije važeći',
-            'message' => $done
-                ? 'Nalog je blokiran, a konačno brisanje sledi posle '.UserDeletionService::GRACE_DAYS.' dana. U poruci koju smo vam poslali nalazi se link za poništavanje.'
-                : 'Link je istekao, već je iskorišćen ili nalog ne ispunjava uslove. Zahtev možete ponoviti.',
+            'title' => match ($outcome) {
+                'ok' => 'Brisanje naloga je zakazano',
+                'unavailable' => 'Brisanje trenutno nije moguće',
+                default => 'Link nije važeći',
+            },
+            'message' => match ($outcome) {
+                'ok' => 'Nalog je blokiran, a konačno brisanje sledi posle '.UserDeletionService::GRACE_DAYS.' dana. U poruci koju smo vam poslali nalazi se link za poništavanje.',
+                'unavailable' => 'Nismo mogli da pošaljemo poruku sa linkom za poništavanje, pa nalog nije promijenjen. Pokušajte ponovo kasnije.',
+                default => 'Link je istekao, već je iskorišćen ili nalog ne ispunjava uslove. Zahtev možete ponoviti.',
+            },
         ]);
     }
 

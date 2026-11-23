@@ -11,7 +11,6 @@ use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Http\Resources\Api\V1\NotificationPreferenceResource;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Http\Requests\Api\V1\AccountDeletionRequest;
-use App\Models\UserExternalIdentity;
 use App\Services\GoogleIdentityVerifier;
 use App\Services\UserDeletionService;
 use App\Services\AccountSessionService;
@@ -205,14 +204,7 @@ final class AccountController extends Controller
 
         if (!empty($data['id_token'])) {
             $identity = $google->verify((string) $data['id_token']);
-            $linked = UserExternalIdentity::query()
-                ->where('user_id', $user->getKey())
-                ->where('provider', 'google')
-                ->where('provider_subject', $identity['sub'])
-                ->exists();
-            if (!$linked) {
-                throw ValidationException::withMessages(['id_token' => ['Google nalog nije povezan sa ovim nalogom.']]);
-            }
+            $deletions->assertGoogleIdentity($user, $identity);
         } else {
             // Isti budžet pokušaja kao za promenu lozinke, da provera ne postane alat za pogađanje.
             $attempt = $throttle->begin($user);

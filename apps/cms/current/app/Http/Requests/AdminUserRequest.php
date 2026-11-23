@@ -39,6 +39,8 @@ final class AdminUserRequest extends FormRequest
                 'string',
                 'min:3',
                 'max:50',
+                // deleted_N je rezervisano za anonimizovane naloge (brisanje naloga).
+                'not_regex:/^deleted_/i',
                 $usernameRule,
             ],
             'email' => [

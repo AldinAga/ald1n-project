@@ -153,7 +153,9 @@ final class AccountDeletionTest extends TestCase
         $this->post('/brisanje-naloga/potvrda', ['token' => $confirm])->assertOk()->assertSee('nije važeći', false);
 
         // Nalog je blokiran, nema nijedne prijave: ponistavanje ide samo linkom iz e-poste.
-        $this->postJson('/api/v1/account/deletion', [])->assertStatus(401);
+        // Isti ispravan zahtjev, ali bez ijedne važeće prijave: 401, a nalog ostaje kakav jeste.
+        $this->postJson('/api/v1/account/deletion', ['password' => self::PASSWORD])->assertStatus(401);
+        self::assertSame(1, DB::table('account_deletion_requests')->where('user_id', $user->id)->count());
         $cancel = $this->capturedToken($user, 'scheduled');
         $this->get('/brisanje-naloga/ponisti/'.$cancel)->assertOk();
         $this->post('/brisanje-naloga/ponisti', ['token' => str_repeat('a', 80)])->assertOk()->assertSee('nije važeći', false);
@@ -363,7 +365,170 @@ final class AccountDeletionTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $successor->id, 'username' => 'del-successor', 'status' => 'active']);
     }
 
+    // ---- Administrator, povučen nalog, mejl, Google, kolizija ----------------------
+
+    public function test_admin_unblock_during_grace_cancels_request_and_nothing_is_anonymised(): void
+    {
+        Notification::fake();
+        $actor = $this->user('del-actor', 'superadmin');
+        $target = $this->user('del-unblocked', 'user');
+        $service = app(\App\Services\UserDeletionService::class);
+        $service->startForVerifiedUser($target);
+        $cancelToken = $this->capturedToken($target, 'scheduled');
+
+        $this->adminSetStatus($target, 'active', $actor);
+
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'cancelled']);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subDay()]);
+        $this->processDeletions();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-unblocked', 'status' => 'active']);
+
+        // Poslije administratorske blokade link iz e-pošte ne može da skine blokadu.
+        $this->adminSetStatus($target, 'blocked', $actor);
+        self::assertFalse($service->cancel($cancelToken));
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'status' => 'blocked']);
+    }
+
+    public function test_completion_never_anonymises_an_account_that_is_no_longer_blocked(): void
+    {
+        Notification::fake();
+        $target = $this->user('del-restored', 'user');
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+        // Status vraćen mimo AdminUserService (direktna izmjena): sigurnosna mreža u complete().
+        DB::table('users')->where('id', $target->id)->update(['status' => 'active']);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
+
+        $this->processDeletions();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-restored', 'status' => 'active']);
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'cancelled']);
+        self::assertSame(1, AuditLog::query()->where('action', 'account.deletion_cancelled')->count());
+    }
+
+    public function test_waiting_request_is_closed_by_admin_unblock(): void
+    {
+        $this->requireMysql();
+        Notification::fake();
+        $actor = $this->user('del-actor2', 'superadmin');
+        $target = $this->user('del-waiting-unblock', 'user');
+        $order = $this->order($target, 'DEL-U');
+        DB::table('order_commissions')->insert([
+            'order_id' => $order, 'user_id' => $target->id, 'total_eur' => '5.00', 'status' => 'pending',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
+        $this->processDeletions();
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'waiting_obligations']);
+
+        $this->adminSetStatus($target, 'active', $actor);
+
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'cancelled']);
+        $this->processDeletions();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'del-waiting-unblock']);
+    }
+
+    public function test_account_retired_the_ordinary_way_during_grace_is_still_anonymised(): void
+    {
+        Notification::fake();
+        $target = $this->user('del-retired', 'user');
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+        DB::table('users')->where('id', $target->id)->update(['retired_at' => now()]);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
+
+        $this->processDeletions();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'username' => 'deleted_'.$target->id, 'email' => 'deleted_'.$target->id.'@invalid.local']);
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'completed']);
+    }
+
+    public function test_reserved_username_taken_by_someone_else_does_not_block_completion(): void
+    {
+        $this->requireMysql();
+        Notification::fake();
+        $target = $this->user('del-collide', 'user');
+        $this->user('deleted_'.$target->id, 'user');
+        app(\App\Services\UserDeletionService::class)->startForVerifiedUser($target);
+        DB::table('account_deletion_requests')->where('user_id', $target->id)->update(['grace_until' => now()->subMinute()]);
+
+        $this->processDeletions();
+
+        $this->assertDatabaseHas('account_deletion_requests', ['user_id' => $target->id, 'status' => 'completed']);
+        self::assertStringStartsWith('deleted_'.$target->id.'_', (string) DB::table('users')->where('id', $target->id)->value('username'));
+    }
+
+    public function test_google_identity_must_be_linked_and_fresh(): void
+    {
+        $user = $this->user('del-google', 'user');
+        $other = $this->user('del-google-other', 'user');
+        DB::table('user_external_identities')->insert([
+            ['user_id' => $user->id, 'provider' => 'google', 'provider_subject' => 'sub-mine', 'provider_email' => 'a@gmail.test', 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $other->id, 'provider' => 'google', 'provider_subject' => 'sub-other', 'provider_email' => 'b@gmail.test', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $service = app(\App\Services\UserDeletionService::class);
+
+        $service->assertGoogleIdentity($user, ['sub' => 'sub-mine', 'iat' => time() - 30]);
+        $this->addToAssertionCount(1);
+
+        foreach ([
+            'tudji sub' => ['sub' => 'sub-other', 'iat' => time()],
+            'nepoznat sub' => ['sub' => 'sub-none', 'iat' => time()],
+            'star token' => ['sub' => 'sub-mine', 'iat' => time() - 301],
+            'bez iat' => ['sub' => 'sub-mine'],
+        ] as $label => $identity) {
+            try {
+                $service->assertGoogleIdentity($user, $identity);
+                self::fail('Treba odbiti: '.$label);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                self::assertArrayHasKey('id_token', $e->errors(), $label);
+            }
+        }
+    }
+
+    public function test_request_is_rolled_back_when_the_cancel_link_cannot_be_mailed(): void
+    {
+        $user = $this->user('del-nomail', 'user');
+        $user->createToken('phone', ['*']);
+        $this->app->instance(\Illuminate\Contracts\Notifications\Dispatcher::class, new class implements \Illuminate\Contracts\Notifications\Dispatcher {
+            public function send($notifiables, $notification): void { throw new \RuntimeException('smtp down'); }
+            public function sendNow($notifiables, $notification, ?array $channels = null): void { throw new \RuntimeException('smtp down'); }
+        });
+        Sanctum::actingAs($user, ['*']);
+
+        $this->postJson('/api/v1/account/deletion', ['password' => self::PASSWORD])->assertStatus(503);
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => 'active']);
+        self::assertSame(0, DB::table('account_deletion_requests')->count());
+        self::assertSame(1, $user->tokens()->count());
+        self::assertSame(0, AuditLog::query()->where('action', 'account.deletion_requested')->count());
+    }
+
+    public function test_confirm_page_says_unavailable_not_invalid_when_mail_fails(): void
+    {
+        Notification::fake();
+        $user = $this->user('del-confirm-mail', 'user');
+        $this->post('/brisanje-naloga', ['email' => 'del-confirm-mail@example.test']);
+        $confirm = $this->capturedToken($user, 'confirm');
+        $this->app->instance(\Illuminate\Contracts\Notifications\Dispatcher::class, new class implements \Illuminate\Contracts\Notifications\Dispatcher {
+            public function send($notifiables, $notification): void { throw new \RuntimeException('smtp down'); }
+            public function sendNow($notifiables, $notification, ?array $channels = null): void { throw new \RuntimeException('smtp down'); }
+        });
+
+        $this->post('/brisanje-naloga/potvrda', ['token' => $confirm])
+            ->assertOk()->assertSee('nije moguće', false)->assertDontSee('Link nije važeći', false);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => 'active']);
+    }
+
     // ---- pomocno -----------------------------------------------------------
+
+    private function adminSetStatus(User $target, string $status, User $actor): void
+    {
+        app(\App\Services\AdminUserService::class)->update($target, [
+            'role_id' => $target->role_id, 'user_group_id' => $target->user_group_id,
+            'username' => $target->username, 'email' => $target->email, 'status' => $status,
+        ], $actor);
+    }
+
 
     private function processDeletions(): void
     {

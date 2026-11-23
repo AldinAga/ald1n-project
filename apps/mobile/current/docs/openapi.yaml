@@ -1023,7 +1023,11 @@ paths:
           description: Stanje zahteva (none dok zahtev ne postoji)
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AccountDeletionState' }
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
     post:
       tags: [Account]

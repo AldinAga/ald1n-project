@@ -166,7 +166,7 @@ Brisanje čeka ako nalog ima otvorene provizije ili zaduženja, dok se one ne za
 
 Ostaje ono što moramo ili imamo pravo da zadržimo: porudžbine sa podacima o isporuci i dokumentima, provizije i isplate, garancije, evidencije reklamacija i servisa, razgovori i beleške o korisnicima. Te zapise više ne vezujemo za vaše ime, ali podaci o isporuci unutar porudžbine (na primer ime i adresa primaoca) ostaju onakvi kakvi su bili u trenutku porudžbine. Rokovi čuvanja: [trgovac upisuje rokove čuvanja po vrstama zapisa i zakonski osnov, na primer za knjigovodstvene isprave i evidenciju reklamacija].
 
-Dnevnik izmena i bezbednosne evidencije čuvamo [trgovac upisuje rok čuvanja], a podatke koji ih vezuju za vas brišemo kako je opisano iznad.
+Dnevnik izmena i bezbednosne evidencije čuvamo [trgovac upisuje rok čuvanja]. Pri brisanju naloga uklanjamo IP adrese i podatke o uređaju iz svih zapisa koji se odnose na vas, kao i stare i nove vrednosti profila, naslove i metapodatke zapisa o samom nalogu. Zapisi o radnjama koje je nalog izvršio nad poslovnim podacima (na primer promena statusa porudžbine) ostaju bez IP adrese i uređaja, jer su deo istorije poslovanja; vezani su za anonimizovani nalog, a sadržaj tih zapisa može nositi poslovne podatke.
 
 ## Vaša prava
 - pristup podacima i kopija podataka (član 26);

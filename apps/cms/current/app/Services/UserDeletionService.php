@@ -132,10 +132,10 @@ final class UserDeletionService
     }
 
     /** Korak 2 (web): potvrda linkom iz e-pošte pokreće rok mirovanja. */
-    public function confirm(string $plain): bool
+    public function confirm(string $plain): string
     {
         if (!self::available()) {
-            return false;
+            return 'unavailable';
         }
         $row = DB::table('account_deletion_requests')
             ->where('confirm_token_hash', hash('sha256', $plain))
@@ -144,20 +144,63 @@ final class UserDeletionService
             ->where('confirm_expires_at', '>', now())
             ->first();
         if ($row === null) {
-            return false;
+            return 'invalid';
         }
         $user = User::query()->find((int) $row->user_id);
         if ($user === null || $user->status !== 'active' || $user->retired_at !== null) {
-            return false;
+            return 'invalid';
         }
 
         try {
             $this->startGrace($user, 'web');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
-            return false;
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            // 503 = e-pošta sa linkom za poništavanje nije otišla; to nije "nevažeći link".
+            return $exception->getStatusCode() === 503 ? 'unavailable' : 'invalid';
         }
 
-        return true;
+        return 'ok';
+    }
+
+    /**
+     * Google identitet za brisanje: mora biti povezan sa ovim nalogom i izdat u poslednjih 5 minuta.
+     *
+     * @param array{sub:string,iat?:int} $identity rezultat GoogleIdentityVerifier::verify()
+     */
+    public function assertGoogleIdentity(User $user, array $identity): void
+    {
+        $issuedAt = (int) ($identity['iat'] ?? 0);
+        if ($issuedAt <= 0 || $issuedAt < time() - 300 || $issuedAt > time() + 60) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['id_token' => ['Google potvrda je istekla. Prijavite se Google nalogom ponovo.']]);
+        }
+        $linked = \App\Models\UserExternalIdentity::query()
+            ->where('user_id', $user->getKey())
+            ->where('provider', 'google')
+            ->where('provider_subject', (string) $identity['sub'])
+            ->exists();
+        if (!$linked) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['id_token' => ['Google nalog nije povezan sa ovim nalogom.']]);
+        }
+    }
+
+    /**
+     * Administrator menja status naloga dok zahtev za brisanje traje (poziva AdminUserService
+     * u istoj transakciji, nad zaključanim nalogom). Odblokiranje zatvara zahtev; ručna blokada
+     * preuzima blokadu, pa je poništavanje zahteva više ne skida.
+     */
+    public function adminChangedStatus(User $locked, string $previousStatus, string $nextStatus): void
+    {
+        $row = $this->activeRequest((int) $locked->getKey());
+        if ($row === null || $row->grace_until === null) {
+            return;
+        }
+        if ($nextStatus === 'active' && $previousStatus !== 'active') {
+            DB::table('account_deletion_requests')->where('id', $row->id)->update([
+                'status' => 'cancelled', 'cancel_token_hash' => null, 'updated_at' => now(),
+            ]);
+            $this->audit('account.deletion_cancelled', (int) $locked->getKey(), ['reason' => 'admin_unblocked']);
+        } elseif ($nextStatus !== 'active') {
+            DB::table('account_deletion_requests')->where('id', $row->id)->update(['blocked_by_request' => false, 'updated_at' => now()]);
+        }
     }
 
     /**
@@ -189,14 +232,17 @@ final class UserDeletionService
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int,User> aktivni SuperAdministratori osim datog naloga */
-    private function superadmins(int $exceptUserId): \Illuminate\Database\Eloquent\Collection
+    private function superadmins(int $exceptUserId, bool $lock = false): \Illuminate\Database\Eloquent\Collection
     {
+        // Isto zaključavanje kao AdminUserService::update: blokada ili degradiranje nasljednika
+        // ne može da prođe između provjere i prenosa.
         return User::query()
             ->where('status', 'active')
             ->whereNull('retired_at')
             ->where('id', '!=', $exceptUserId)
             ->whereIn('role_id', DB::table('roles')->where('slug', 'superadmin')->select('id'))
             ->orderBy('id')
+            ->when($lock, static fn ($query) => $query->lockForUpdate())
             ->get();
     }
 
@@ -206,6 +252,7 @@ final class UserDeletionService
         DB::transaction(function () use ($user, $source, $plainCancel): void {
             $locked = User::query()->lockForUpdate()->findOrFail((int) $user->getKey());
             abort_if($locked->status !== 'active' || $locked->retired_at !== null, 422, 'Nalog nije aktivan.');
+            $this->superadmins((int) $locked->getKey(), true);
             $problem = $this->successorProblem($locked);
             abort_if($problem !== null, 422, (string) $problem);
 
@@ -226,6 +273,7 @@ final class UserDeletionService
                 'confirm_token_hash' => null,
                 'confirm_expires_at' => null,
                 'cancel_token_hash' => hash('sha256', $plainCancel),
+                'blocked_by_request' => true,
                 'updated_at' => now(),
             ];
             if ($row !== null) {
@@ -297,7 +345,8 @@ final class UserDeletionService
                 'cancel_token_hash' => null,
                 'updated_at' => now(),
             ]);
-            if ($user->status === 'blocked') {
+            // Aktivira se samo nalog koji je blokirao sam zahtjev; administratorska blokada ostaje.
+            if ($user->status === 'blocked' && (bool) $current->blocked_by_request) {
                 $user->forceFill(['status' => 'active'])->save();
             }
             $this->audit('account.deletion_cancelled', (int) $user->getKey());
@@ -338,7 +387,7 @@ final class UserDeletionService
                 'updated_at' => now(),
             ]);
             $locked = User::query()->lockForUpdate()->findOrFail((int) $user->getKey());
-            if ($locked->status === 'blocked' && $locked->retired_at === null) {
+            if ($locked->status === 'blocked' && $locked->retired_at === null && (bool) $current->blocked_by_request) {
                 $locked->forceFill(['status' => 'active'])->save();
             }
             $this->audit('account.deletion_cancelled', (int) $locked->getKey());
@@ -350,11 +399,11 @@ final class UserDeletionService
     /**
      * Obrada isteklih zahteva (dnevno).
      *
-     * @return array{completed:int,waiting:int,failed:int,errors:list<string>}
+     * @return array{completed:int,waiting:int,cancelled:int,failed:int,errors:list<string>}
      */
     public function processDue(): array
     {
-        $result = ['completed' => 0, 'waiting' => 0, 'failed' => 0, 'errors' => []];
+        $result = ['completed' => 0, 'waiting' => 0, 'cancelled' => 0, 'failed' => 0, 'errors' => []];
         if (!self::available()) {
             return $result;
         }
@@ -390,7 +439,7 @@ final class UserDeletionService
         return $result;
     }
 
-    /** @return 'completed'|'waiting'|'skipped' */
+    /** @return 'completed'|'waiting'|'cancelled'|'skipped' */
     public function complete(int $requestId): string
     {
         $notifyWaiting = null;
@@ -402,7 +451,7 @@ final class UserDeletionService
             }
 
             $user = User::query()->lockForUpdate()->find((int) $row->user_id);
-            if ($user === null || $user->retired_at !== null) {
+            if ($user === null) {
                 DB::table('account_deletion_requests')->where('id', $row->id)->update([
                     'status' => 'completed', 'completed_at' => now(), 'cancel_token_hash' => null, 'updated_at' => now(),
                 ]);
@@ -410,9 +459,22 @@ final class UserDeletionService
                 return 'completed';
             }
 
+            // Nalog povučen običnim povlačenjem tokom roka: i dalje se anonimizuje (retire se ne ponavlja).
+            $alreadyRetired = $user->retired_at !== null;
+            if (!$alreadyRetired && $user->status !== 'blocked') {
+                // Administrator je nalog vratio u upotrebu: brisanje bez saglasnosti vlasnika naloga se ne izvršava.
+                DB::table('account_deletion_requests')->where('id', $row->id)->update([
+                    'status' => 'cancelled', 'cancel_token_hash' => null, 'updated_at' => now(),
+                ]);
+                $this->audit('account.deletion_cancelled', (int) $user->getKey(), ['reason' => 'account_not_blocked']);
+
+                return 'cancelled';
+            }
+
+            $this->superadmins((int) $user->getKey(), true);
             $successor = $this->successorFor($user);
             $needsSuccessor = $user->hasRole('admin', 'superadmin') || array_sum($this->work->counts((int) $user->getKey())) > 0;
-            if ($this->openObligations((int) $user->getKey()) > 0 || ($needsSuccessor && $successor === null)) {
+            if (!$alreadyRetired && ($this->openObligations((int) $user->getKey()) > 0 || ($needsSuccessor && $successor === null))) {
                 $update = ['status' => 'waiting_obligations', 'updated_at' => now()];
                 if ($row->owner_notified_at === null) {
                     $update['owner_notified_at'] = now();
@@ -423,7 +485,9 @@ final class UserDeletionService
                 return 'waiting';
             }
 
-            $this->retirement->retireForAccountDeletion($user, $needsSuccessor ? $successor : null);
+            if (!$alreadyRetired) {
+                $this->retirement->retireForAccountDeletion($user, $needsSuccessor ? $successor : null);
+            }
             $this->anonymize((int) $user->getKey());
             DB::table('account_deletion_requests')->where('id', $row->id)->update([
                 'status' => 'completed',
@@ -490,9 +554,17 @@ final class UserDeletionService
 
     private function anonymize(int $id): void
     {
+        // deleted_N je rezervisano u admin formi; ako je ipak zauzeto, sufiks sprečava da brisanje padne na unique ključu.
+        $username = 'deleted_'.$id;
+        $email = 'deleted_'.$id.'@invalid.local';
+        if (User::query()->where('id', '!=', $id)->where(static fn ($q) => $q->where('username', $username)->orWhere('email', $email))->exists()) {
+            $suffix = Str::lower(Str::random(8));
+            $username .= '_'.$suffix;
+            $email = 'deleted_'.$id.'_'.$suffix.'@invalid.local';
+        }
         $values = [
-            'username' => 'deleted_'.$id,
-            'email' => 'deleted_'.$id.'@invalid.local',
+            'username' => $username,
+            'email' => $email,
             'first_name' => 'Obrisan',
             'last_name' => null,
             'phone' => null,
@@ -527,9 +599,20 @@ final class UserDeletionService
         $morph = (new User())->getMorphClass();
         // Radnje koje je nalog izvršio ostaju kao istorija poslovanja; brišemo samo IP i uređaj.
         AuditLog::query()->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
+        // Zapisi o samom nalogu (profil, kreiranje, izmene): stare i nove vrijednosti, naslov i metapodaci mogu nositi ime,
+        // e-poštu i telefon. Evidencija povlačenja i prenosa zaduženja nema lične podatke i ostaje kao dokaz.
         AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)->update([
             'ip_address' => null, 'user_agent' => null, 'before_json' => null, 'after_json' => null,
         ]);
+        AuditLog::query()->where('auditable_type', $morph)->where('auditable_id', $id)
+            ->where('action', 'not like', 'account.deletion_%')
+            ->whereNotIn('action', ['user.retired', 'user.retirement.assignment_transferred'])
+            ->update(['metadata_json' => null, 'subject' => 'Korisnik (obrisan)']);
+        if (Schema::hasTable('legacy_audit_logs')) {
+            DB::table('legacy_audit_logs')->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
+            DB::table('legacy_audit_logs')->whereIn('entity_type', ['user', 'users'])->where('entity_id', $id)
+                ->update(['old_values' => null, 'new_values' => null, 'ip_address' => null, 'user_agent' => null]);
+        }
     }
 
     /** @param array<string,mixed> $metadata */

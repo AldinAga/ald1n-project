@@ -86,6 +86,7 @@ final class GoogleIdentityVerifier
 
         return [
             'sub' => $subject,
+            'iat' => $issuedAt,
             'email' => $email,
             'email_verified' => true,
             'hd' => $this->nullableString($claims['hd'] ?? null, 190),

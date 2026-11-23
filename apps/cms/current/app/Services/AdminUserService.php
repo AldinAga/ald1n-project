@@ -108,7 +108,12 @@ final class AdminUserService
                 $data['approved_at'] = now();
             }
 
+            $previousStatus = (string) $locked->status;
             $locked->update($data);
+            // Zahtjev za brisanje naloga u roku mirovanja: odblokiranje ga zatvara, blokada ga preuzima.
+            if ($previousStatus !== $nextStatus && UserDeletionService::available()) {
+                app(UserDeletionService::class)->adminChangedStatus($locked, $previousStatus, $nextStatus);
+            }
             if ($passwordChanged) {
                 $locked->tokens()->delete();
             }

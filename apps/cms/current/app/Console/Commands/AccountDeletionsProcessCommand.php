@@ -21,7 +21,7 @@ final class AccountDeletionsProcessCommand extends Command
     public function handle(UserDeletionService $deletions): int
     {
         $result = $deletions->processDue();
-        $this->info(sprintf('Obrisano: %d, čeka obaveze: %d, greške: %d', $result['completed'], $result['waiting'], $result['failed']));
+        $this->info(sprintf('Obrisano: %d, čeka obaveze: %d, poništeno: %d, greške: %d', $result['completed'], $result['waiting'], $result['cancelled'], $result['failed']));
 
         foreach ($result['errors'] as $error) {
             $this->error($error);

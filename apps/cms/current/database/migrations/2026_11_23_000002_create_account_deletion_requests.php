@@ -31,6 +31,8 @@ return new class extends Migration
             $table->dateTime('confirm_expires_at')->nullable();
             $table->char('cancel_token_hash', 64)->nullable();
             $table->dateTime('owner_notified_at')->nullable();
+            // 1 = nalog je bio aktivan i blokirao ga je sam zahtjev; 0 = administrator je preuzeo blokadu.
+            $table->boolean('blocked_by_request')->default(true);
             $table->timestamps();
 
             $table->index(['user_id', 'status'], 'account_deletion_user_status_index');
