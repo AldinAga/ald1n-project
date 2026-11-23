@@ -171,8 +171,10 @@ final class OrderFlowSimplificationAB1121Test extends TestCase
 
         Sanctum::actingAs($this->admin, ['*']);
         $this->patchJson('/api/v1/admin/orders/'.$order->id.'/status', ['status' => 'processing'])
-            ->assertStatus(422)->assertJsonValidationErrors('status')
-            ->assertJsonPath('errors.status.0', 'Korak „U obradi“ više ne postoji. Potvrdi porudžbinu ili je otkaži.');
+            ->assertStatus(422)->assertJsonValidationErrors('status');
+        foreach (['new', 'shipped'] as $removed) {
+            $this->patchJson('/api/v1/admin/orders/'.$order->id.'/status', ['status' => $removed])->assertStatus(422)->assertJsonValidationErrors('status');
+        }
         $this->postJson('/api/v1/admin/orders/'.$order->id.'/accept')
             ->assertStatus(422)->assertJsonPath('code', 'order_accept_removed')
             ->assertJsonPath('message', 'Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu: potvrda je ujedno preuzima na tvoje ime.');
@@ -226,6 +228,7 @@ final class OrderFlowSimplificationAB1121Test extends TestCase
 
         $this->actingAs($this->super)->patch($url, ['status' => 'shipped'])->assertSessionHasErrors('status');
         $this->actingAs($this->super)->patch($url, ['status' => 'cancelled'])->assertSessionHasErrors('note')->assertSessionDoesntHaveErrors('reason');
+        $this->actingAs($this->super)->patch($url, ['status' => 'cancelled'])->assertSessionHasErrors('reason');
         $this->actingAs($this->super)->patch($url, ['status' => 'confirmed', 'order_version_token' => app(OrderVersionService::class)->token($order->fresh())])
             ->assertSessionHas('status', fn (string $m): bool => str_contains($m, 'je potvrđena'));
         self::assertSame('confirmed', $order->fresh()->status);

@@ -142,6 +142,28 @@ final class OwnCancellationFreshStateB1119Test extends TestCase
         self::assertSame(5, $product->fresh()->stock_quantity);
     }
 
+    public function test_mobile_customer_cancel_contract_reason_required_then_idempotent_retry(): void
+    {
+        [$owner, $product, $order] = $this->reservedOrder();
+        \Laravel\Sanctum\Sanctum::actingAs($owner, ['*']);
+        $url = '/api/v1/orders/'.$order->id.'/cancel';
+
+        // Bez reason i note: tačno 422 sa greškom "reason", porudžbina i lager ostaju netaknuti.
+        $this->postJson($url, [])->assertStatus(422)->assertJsonValidationErrors('reason')
+            ->assertJsonPath('errors.reason.0', 'Razlog otkazivanja je obavezan.');
+        self::assertSame('new', $order->fresh()->status);
+        self::assertSame(3, $product->fresh()->stock_quantity);
+
+        $this->postJson($url, ['reason' => 'Predomislio sam se.'])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        self::assertSame(5, $product->fresh()->stock_quantity);
+
+        // Ponovno otkazivanje (bez razloga ili sa njim) je idempotentno: bez 422, lager se ne vraća dvaput.
+        $this->postJson($url, [])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        $this->postJson($url, ['reason' => 'Opet.'])->assertOk()->assertJsonPath('data.status', 'cancelled');
+        self::assertSame(5, $product->fresh()->stock_quantity);
+        self::assertSame(1, DB::table('order_status_history')->where('order_id', $order->id)->where('new_status', 'cancelled')->count());
+    }
+
     public function test_buyer_cannot_cancel_a_confirmed_order_even_with_a_reason(): void
     {
         [$owner, $product, $order] = $this->reservedOrder();

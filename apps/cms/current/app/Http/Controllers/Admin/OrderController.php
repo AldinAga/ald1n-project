@@ -214,7 +214,7 @@ final class OrderController extends Controller
         abort_unless($request->user()->hasRole('superadmin'), 403);
         $access->authorizeManage($order, $request->user());
         $data = $request->validate([
-            'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'shipped', 'cancelled'])],
+            'status' => ['required', Rule::in(['confirmed', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
