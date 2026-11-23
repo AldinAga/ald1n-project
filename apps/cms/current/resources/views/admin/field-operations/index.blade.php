@@ -1,6 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Terenske operacije')
 @section('content')
+@pushOnce('head', 'a1-admin-catalog-css')
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin-catalog.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin-catalog.css')) ?: config('app.version') }}">
+@endPushOnce
 @php
     // Work-order status as the modifier of an a1-pill (dot plus the existing Serbian label).
     $tone = static fn (string $status): string => match ($status) {
@@ -109,7 +112,7 @@
                 <a class="a1-btn a1-btn--sm" href="{{ route('admin.field-operations.index', array_merge(request()->except(['from','to']),['from'=>$nextFrom,'to'=>$nextTo])) }}">Sledeće <x-icon name="chevron-right" :size="20" :shell="true" /></a>
             </div>
         </div>
-        <ol class="a1-ow-cal" style="--a1x-ow-cols:{{ min(7, max(1, $days->count())) }}">
+        <ol class="a1-ow-cal a1-ow-cal--cols-{{ min(7, max(1, $days->count())) }}">
             @foreach($days as $day)
             @php($dayOrders=$workOrders->filter(fn($item)=>$item->planned_start_at?->isSameDay($day)))
             <li class="a1-ow-day" @if($day->isToday()) aria-current="date" @endif>
