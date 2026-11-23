@@ -139,7 +139,7 @@
         data-image-upload-mode="redirect"
     >
         @csrf
-        @if($product->exists)@method('PUT')@endif
+        @if($product->exists)@method('PUT')<input type="hidden" name="autosave_version" value="{{ $product->updated_at?->getTimestamp() }}" data-autosave-version>@endif
         <div class="admin-form-grid">
             <div class="form-main">
                 <section class="panel form-section form-section-priority product-fast-start" data-product-fast-start>
@@ -1371,9 +1371,22 @@
             const response = await fetch(form.action, {method:'POST', body:data, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});
             if (response.ok) {
                 savedRevision = current;
+                const payload = await response.json().catch(() => ({}));
+                const versionInput = form.querySelector('[data-autosave-version]');
+                if (versionInput && payload.version) versionInput.value = String(payload.version);
                 if (autosaveStatus) autosaveStatus.textContent = 'Nacrt je automatski sačuvan u ' + new Date().toLocaleTimeString('sr-RS', {hour:'2-digit', minute:'2-digit'}) + '.';
             } else if (autosaveStatus) {
-                autosaveStatus.textContent = response.status === 422 ? 'Automatsko čuvanje preskočeno: podaci su nepotpuni.' : 'Automatsko čuvanje nije uspelo.';
+                const payload = await response.json().catch(() => ({}));
+                if (response.status === 409) {
+                    autosaveStatus.textContent = 'Artikal je izmenjen u drugom tabu ili na drugom uređaju. Osveži stranicu pre nastavka.';
+                    savedRevision = -1;
+                    submitting = true;
+                } else if (response.status === 422 && payload.errors && payload.errors.autosave) {
+                    autosaveStatus.textContent = 'Automatsko čuvanje je isključeno: artikal više nije nacrt.';
+                    submitting = true;
+                } else {
+                    autosaveStatus.textContent = response.status === 422 ? 'Automatsko čuvanje preskočeno: podaci su nepotpuni.' : 'Automatsko čuvanje nije uspelo.';
+                }
             }
         } catch (_) {
             if (autosaveStatus) autosaveStatus.textContent = 'Automatsko čuvanje nije uspelo.';

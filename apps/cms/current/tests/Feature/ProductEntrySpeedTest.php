@@ -143,6 +143,39 @@ final class ProductEntrySpeedTest extends TestCase
         self::assertStringContainsString("data.set('autosave', '1')", $html);
     }
 
+    public function test_autosave_loses_the_race_against_a_concurrent_activation(): void
+    {
+        $owner = $this->admin('auto-race');
+        $stale = $this->product('AUTO-R', 'Trka', $owner->id, ['status' => 'draft']);
+        // Zahtev je prošao ProductRequest dok je artikal još bio nacrt (stale instanca), a aktivacija je stigla pre zaključavanja.
+        Product::query()->whereKey($stale->id)->update(['status' => 'active']);
+
+        try {
+            app(\App\Services\ProductAdminService::class)->update($stale, [
+                'sku' => 'AUTO-R', 'name' => 'Trka izmenjena', 'price_currency' => 'EUR', 'status' => 'draft',
+            ], $owner, true);
+            self::fail('Autosave nad aktiviranim artiklom mora biti odbijen.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            self::assertArrayHasKey('autosave', $exception->errors());
+        }
+        $fresh = Product::query()->findOrFail($stale->id);
+        self::assertSame('active', $fresh->status);
+        self::assertSame('Trka', $fresh->name);
+    }
+
+    public function test_autosave_returns_409_when_the_product_was_changed_elsewhere(): void
+    {
+        $owner = $this->admin('auto-409');
+        $draft = $this->product('AUTO-V', 'Verzija', $owner->id, ['status' => 'draft']);
+        $payload = ['sku' => 'AUTO-V', 'name' => 'Verzija 2', 'price_currency' => 'EUR', 'status' => 'draft', 'save_draft' => '1', 'autosave' => '1'];
+
+        $this->actingAs($owner)->putJson('/admin/catalog/'.$draft->id, $payload + ['autosave_version' => $draft->updated_at->getTimestamp() - 60])->assertStatus(409);
+        self::assertSame('Verzija', $draft->refresh()->name);
+
+        $this->putJson('/admin/catalog/'.$draft->id, $payload + ['autosave_version' => $draft->updated_at->getTimestamp()])
+            ->assertOk()->assertJsonStructure(['version']);
+    }
+
     public function test_server_refuses_autosave_for_a_product_that_is_no_longer_a_draft(): void
     {
         $owner = $this->admin('auto-guard');
