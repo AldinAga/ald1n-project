@@ -44,7 +44,7 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         self::assertStringContainsString('data-order-detail-ready="1"', $root);
         self::assertSame(1, substr_count($root, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0001</h1>', $root);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(1, substr_count($root, 'a1-btn--primary'), 'exactly one primary action');
         // Nova porudžbina: glavna akcija je prava forma "Potvrdi porudžbinu" (token svežine + jedan korak), nikad "Preuzmi".
         self::assertMatchesRegularExpression('~<form id="order-confirm-form" method="post" action="[^"]+/admin/orders/'.$order->id.'/confirm">.{0,800}a1-btn a1-btn--primary" type="submit">.{0,600}Potvrdi porudžbinu\s*</button>~s', $root);

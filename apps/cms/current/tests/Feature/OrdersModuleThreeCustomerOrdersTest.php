@@ -164,7 +164,7 @@ final class OrdersModuleThreeCustomerOrdersTest extends TestCase
 
         self::assertSame(1, substr_count($html, '<h1 '));
         self::assertStringContainsString('data-order-create-ready="1"', $html);
-        self::assertStringNotContainsString('Nazad na vrh', $page);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $page);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $html));
         self::assertMatchesRegularExpression('/<form method="post" action="'.preg_quote(route('orders.store'), '/').'" class="a1-form" data-order-create-form data-ux-sticky-actions>\s*<input type="hidden" name="_token"/', $html);
         self::assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $html);
