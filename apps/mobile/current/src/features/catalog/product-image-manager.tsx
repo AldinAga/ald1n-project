@@ -10,7 +10,9 @@ import { ConfirmAction } from '@/components/ui/confirm-action';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { apiAdminCatalog } from '@/features/admin/catalog-admin-api';
 import {
+  captureProductImage,
   formatProductImageSize,
+  getProductCameraPermission,
   pickProductImages,
 } from '@/features/catalog/product-image-picker';
 import { ApiError } from '@/lib/api/client';
@@ -72,11 +74,14 @@ export function DraftProductImageManager({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const feedback = useAppFeedback();
   const [picking, setPicking] = useState(false);
+  const [cameraRationale, setCameraRationale] = useState(false);
 
-  const pick = async () => {
+  const addFrom = async (source: 'files' | 'camera') => {
     setPicking(true);
     try {
-      const result = await pickProductImages(images, limits);
+      const result = source === 'camera'
+        ? await captureProductImage(images, limits)
+        : await pickProductImages(images, limits);
       if (result.files.length > 0) {
         const existing = new Set(images.map(imageKey));
         const appended: DraftProductImage[] = [];
@@ -98,11 +103,28 @@ export function DraftProductImageManager({
     } catch (error) {
       feedback.notify({
         tone: 'danger',
-        title: 'Fotografije nije moguće izabrati',
+        title: source === 'camera' ? 'Fotografiju nije moguće snimiti' : 'Fotografije nije moguće izabrati',
         message: apiMessage(error, 'Pokušaj ponovo.'),
       });
     } finally {
       setPicking(false);
+    }
+  };
+
+  const pick = () => addFrom('files');
+
+  // Explain before the first Android permission dialog; a blocked permission cannot be asked again.
+  const shoot = async () => {
+    try {
+      const permission = await getProductCameraPermission();
+      if (permission === 'ask') setCameraRationale(true);
+      else await addFrom('camera');
+    } catch (error) {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Kamera nije dostupna',
+        message: apiMessage(error, 'Pokušaj ponovo.'),
+      });
     }
   };
 
@@ -125,6 +147,21 @@ export function DraftProductImageManager({
       <Button variant="secondary" onPress={() => void pick()} loading={picking}>
         Dodaj fotografije ({images.length})
       </Button>
+      <Button variant="secondary" onPress={() => void shoot()} disabled={picking}>
+        Slikaj
+      </Button>
+
+      <ConfirmAction
+        visible={cameraRationale}
+        title="Kamera za fotografiju artikla"
+        message="Ald1n CMS koristi kameru samo da snimiš jednu fotografiju artikla. Fotografija se šalje na naš server tek kad je otpremiš. Mikrofon se ne koristi."
+        confirmLabel="Nastavi"
+        onCancel={() => setCameraRationale(false)}
+        onConfirm={() => {
+          setCameraRationale(false);
+          void addFrom('camera');
+        }}
+      />
 
       {images.length === 0 ? (
         <Card muted>

@@ -13,7 +13,7 @@ const PREVIEW_FILE = './GoogleService-Info.plist';
 const EXTERNAL_FILE_ENV = 'ALD1N_IOS_GOOGLE_SERVICES_FILE';
 // Exact runtime per iOS profile (app.config.js has no default runtime).
 const IOS_RUNTIME_BY_PROFILE = {
-  production: '1.0.0-m17-sdk58-play2',
+  production: '1.0.0-m17-sdk58-play3',
   development: '1.0.0-dev-client',
   preview: '1.0.0-m17-sdk58-uat2',
   'ios-simulator': '1.0.0-m17-sdk58-uat2',

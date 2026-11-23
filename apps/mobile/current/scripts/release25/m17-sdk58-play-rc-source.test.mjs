@@ -11,7 +11,7 @@ const read=f=>readFileSync(path.join(mobile,f),'utf8');
 const eas=JSON.parse(read('eas.json'));
 const pkg=JSON.parse(read('package.json'));
 const PROFILE='m17-sdk58-play-rc';
-const RUNTIME='1.0.0-m17-sdk58-play2';
+const RUNTIME='1.0.0-m17-sdk58-play3';
 const profile=eas.build[PROFILE];
 const removeKeys=[
  'EXPO_PUBLIC_APP_ENV','EAS_BUILD_PROFILE',

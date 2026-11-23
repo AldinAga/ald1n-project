@@ -57,7 +57,7 @@ jobs:
           const clients=(services.client||[]).map(c=>c.client_info?.android_client_info?.package_name);
           if(process.env.EXPO_PUBLIC_APP_ENV!=='production')process.exit(31);
           if(config.android?.package!=='com.ald1n.mobile')process.exit(32);
-          if(config.runtimeVersion!=='1.0.0-m17-sdk58-play2')process.exit(33);
+          if(config.runtimeVersion!=='1.0.0-m17-sdk58-play3')process.exit(33);
           if(!clients.includes('com.ald1n.mobile'))process.exit(34);
           const deps=require('./package.json').dependencies||{};
           if(deps['react-native-android-liquid-glass']||deps['expo-blur'])process.exit(35);

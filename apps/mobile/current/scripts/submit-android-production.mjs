@@ -10,7 +10,7 @@ const EXPECTED_PACKAGE = 'com.ald1n.mobile';
 const EXPECTED_APP_VERSION = '1.0.0';
 // Approved SDK58 release identity (EAS profile m17-sdk58-play-rc); app.config.js has no default runtime.
 const EXPECTED_PROFILE = 'm17-sdk58-play-rc';
-const EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play2';
+const EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play3';
 const EXPECTED_API = 'https://cms.ald1n.com/api/v1';
 const EAS_CLI_VERSION = '27.2.0';
 const NODE_BIN = '/opt/alt/alt-nodejs22/root/bin/node';

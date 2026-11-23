@@ -70,7 +70,7 @@ jobs:
           const app=require('./app.config.js')({config:{}});
           if (app.android?.package!=='com.ald1n.mobile'
               ||app.version!=='1.0.0'
-              ||app.runtimeVersion!=='1.0.0-m17-sdk58-play2') {
+              ||app.runtimeVersion!=='1.0.0-m17-sdk58-play3') {
             throw Error('HOLD_M17_DEBUG_GOOGLE_SERVICES_IDENTITY_OR_RELEASE_ENV');
           }
           console.log('M17_CI_DEBUG_GOOGLE_SERVICES_PACKAGE_IDENTITY=PASS_NO_RELEASE_PROFILE');

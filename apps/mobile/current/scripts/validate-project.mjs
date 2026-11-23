@@ -1049,8 +1049,12 @@ const build16NativeEasBatch133 = JSON.parse(fs.readFileSync(path.join(root, 'eas
 assert(
   build16NativeAppConfigBatch133.includes('MOBILE_BUILD16_NATIVE_PALETTE_BATCH133')
     && build16NativeAppConfigBatch133.includes("backgroundColor: '#F6F7F8'")
-    && (build16NativeAppConfigBatch133.match(/backgroundColor: '#101214'/g) ?? []).length === 2
-    && build16NativeAppConfigBatch133.includes("color: '#C45116'")
+    && build16NativeAppConfigBatch133.includes("const KOBALT_SPLASH_BG = '#0d1216'")
+    && build16NativeAppConfigBatch133.includes("const KOBALT_ACCENT = '#3557c7'")
+    && (build16NativeAppConfigBatch133.match(/backgroundColor: KOBALT_SPLASH_BG/g) ?? []).length === 2
+    && build16NativeAppConfigBatch133.includes('color: KOBALT_ACCENT')
+    && !build16NativeAppConfigBatch133.includes("'#101214'")
+    && !build16NativeAppConfigBatch133.includes("'#C45116'")
     && !build16NativeAppConfigBatch133.includes('#6D45E5')
     && !build16NativeAppConfigBatch133.includes('#F8F6FC')
     && !build16NativeAppConfigBatch133.includes('#02141E')
@@ -1135,7 +1139,7 @@ assert(
 );
 assert(
   build17AppConfigBatch137.includes('MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137')
-    && build17AppConfigBatch137.includes("'1.0.0-m17-sdk58-play2'")
+    && build17AppConfigBatch137.includes("'1.0.0-m17-sdk58-play3'")
     && !build17AppConfigBatch137.includes('1.0.0-build17')
     && build17AppConfigBatch137.includes("ALD1N_V15_RELEASE_GATE === 'approved'")
     && !build17AppConfigBatch137.includes("runtimeVersion: {\n      policy: 'appVersion'"),
