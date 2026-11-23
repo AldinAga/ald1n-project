@@ -1,67 +1,22 @@
 import { Platform } from 'react-native';
 
-import {
-  ald1nDesignTokens,
-  type Ald1nColorScheme,
-} from '@/design/ald1n-tokens.generated';
+import { ald1nDesignTokens } from '@/design/ald1n-tokens.generated';
+import { kobalt } from '@/design/ald1n-tokens.kobalt.generated';
+import { createAppColors } from '@/design/kobalt-app-colors';
 
-type DesignColorTokens =
-  (typeof ald1nDesignTokens)[Ald1nColorScheme];
-
-function createColors(tokens: DesignColorTokens) {
-  return {
-    background: tokens.background,
-
-    surface: tokens.surface,
-    surfaceMuted: tokens.surfaceMuted,
-    surfaceContainer: tokens.surfaceContainer,
-    surfaceContainerHigh: tokens.surfaceContainerHigh,
-
-    ink: tokens.text,
-    muted: tokens.muted,
-    line: tokens.border,
-    outline: tokens.outline,
-
-    primary: tokens.primary,
-    onPrimary: tokens.onPrimary,
-    primaryDark: tokens.primaryStrong,
-    primarySoft: tokens.primaryContainer,
-    primaryContainer: tokens.primaryContainer,
-    onPrimaryContainer: tokens.onPrimaryContainer,
-
-    secondaryContainer: tokens.secondaryContainer,
-
-    accent: tokens.accent,
-    accentSoft: tokens.accentSoft,
-
-    success: tokens.success,
-    successSoft: tokens.successSoft,
-
-    warning: tokens.warning,
-    warningSoft: tokens.warningSoft,
-
-    danger: tokens.danger,
-    onDanger: tokens.onDanger,
-    dangerSoft: tokens.dangerSoft,
-
-    info: tokens.info,
-    infoSoft: tokens.infoSoft,
-
-    white: tokens.white,
-    black: tokens.black,
-
-    hero: tokens.hero,
-    heroMuted: tokens.heroMuted,
-  } as const;
-}
-
+// Colours come from the Kobalt tokens through the adapter; spacing, radii and motion stay on the legacy tokens.
 export const colorThemes = {
-  light: createColors(ald1nDesignTokens.light),
-  dark: createColors(ald1nDesignTokens.dark),
+  light: createAppColors(kobalt.light),
+  dark: createAppColors(kobalt.dark),
+} as const;
+
+export const shadowThemes = {
+  light: kobalt.light.shadow,
+  dark: kobalt.dark.shadow,
 } as const;
 
 export type AppColorScheme = keyof typeof colorThemes;
-export type AppColors = ReturnType<typeof createColors>;
+export type AppColors = (typeof colorThemes)[AppColorScheme];
 
 /*
  * Transitional compatibility alias.
