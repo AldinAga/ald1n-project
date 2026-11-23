@@ -2646,10 +2646,10 @@ assert(
     && batch50PageHeaderV2.includes("router.push('/notifications')")
     && batch50PageHeaderV2.includes('useNotificationUnread')
     && batch50PageHeaderV2.includes('function PageHeaderNotificationButton')
-    && !batch50PageHeaderV2.includes("router.push('/account')")
+    && batch50PageHeaderV2.includes("router.push('/account')")
     && !batch50PageHeaderV2.includes('styles.avatar')
     && batch50GlyphV2.includes("admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings'"),
-  'v1.0 Batch50 V2 header desno koristi notification bell+badge umesto profila, a Nalog ostaje u bottom nav-u.',
+  'v1.0 Batch50 V2 header desno koristi notification bell+badge pored kojeg stoji dugme Nalog (M2: SubAgent nema Nalog tab).',
 );
 assert(
   bottomNavRolePolicy.includes("matches(pathname, '/admin/catalog')")
