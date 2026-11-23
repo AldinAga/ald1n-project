@@ -881,6 +881,8 @@ export type AdminProductCreateInput = {
   brand_id?: number;
   product_line_id?: number;
   model_name?: string;
+  supplier_code?: string | null;
+  ean?: string | null;
   name?: string;
   regenerate_sku?: boolean;
   regenerate_name?: boolean;

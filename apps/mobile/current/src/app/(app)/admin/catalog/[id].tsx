@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -143,6 +143,8 @@ export default function AdminCatalogEditScreen() {
   const [lineId, setLineId] = useState('');
   const [sku, setSku] = useState('');
   const [modelName, setModelName] = useState('');
+  const [supplierCode, setSupplierCode] = useState('');
+  const [ean, setEan] = useState('');
   const [name, setName] = useState('');
   const [priceAmount, setPriceAmount] = useState('');
   const [currency, setCurrency] = useState<'EUR' | 'RSD'> ('EUR');
@@ -159,6 +161,14 @@ export default function AdminCatalogEditScreen() {
   const [errors, setErrors] = useState<Record<string, string>> ({});
   const [submitError, setSubmitError] = useState<string | null> (null);
   const [activeWorkspace, setActiveWorkspace] = useState<ProductEditorWorkspace>('identity');
+  // Autosave nacrta: samo artikal koji je u statusu nacrt, 30 s posle poslednje izmene, preko save_draft.
+  const submitRef = useRef<((saveDraft?: boolean, autosave?: boolean) => void) | null> (null);
+  const autosaveBaselineRef = useRef<string | null> (null);
+  const autosaveInFlightRef = useRef(false);
+  const formFingerprint = JSON.stringify([
+    productTypeId, brandId, lineId, sku, modelName, supplierCode, ean, name, priceAmount, currency, purchasePriceRsd,
+    manualCommissionEur, description, notes, stockQuantity, lowStockThreshold, status, specs, specDetails, storageRows,
+  ]);
 
   const optionsQuery = useQuery({
     queryKey: ['admin-catalog-create-options'],
@@ -179,6 +189,8 @@ export default function AdminCatalogEditScreen() {
     setLineId(detail.product_line_id ? String(detail.product_line_id) : '');
     setSku(detail.sku);
     setModelName(detail.model_name ?? '');
+    setSupplierCode(detail.supplier_code ?? '');
+    setEan(detail.ean ?? '');
     setName(detail.name);
     setPriceAmount(String(detail.price_amount));
     setCurrency(detail.price_currency === 'RSD' ? 'RSD' : 'EUR');
@@ -199,6 +211,21 @@ export default function AdminCatalogEditScreen() {
 
   const product = detailQuery.data?.data;
   const options = optionsQuery.data;
+
+  useEffect(() => {
+    if (hydratedId === null) {
+      autosaveBaselineRef.current = null;
+      return undefined;
+    }
+    if (autosaveBaselineRef.current === null) {
+      autosaveBaselineRef.current = formFingerprint;
+      return undefined;
+    }
+    if (formFingerprint === autosaveBaselineRef.current) return undefined;
+    if (product?.status !== 'draft' || status !== 'draft' || product.is_archived) return undefined;
+    const timer = setTimeout(() => submitRef.current?.(true, true), 30000);
+    return () => clearTimeout(timer);
+  }, [formFingerprint, hydratedId, status, product?.status, product?.is_archived]);
   const selectedType = options?.types.find((type) => String(type.id) === productTypeId);
   const lineLabels = lineSelectorLabels(selectedType?.name);
   const specificationFields = selectedType?.fields ?? [];
@@ -256,6 +283,17 @@ export default function AdminCatalogEditScreen() {
         title: 'Izmene nisu sačuvane',
         message: 'Podaci ostaju u formi. Ispravi grešku i pokušaj ponovo.',
       });
+    },
+  });
+
+  // Tihi autosave: bez ponovnog učitavanja forme (hidratacija) i bez poruka o grešci.
+  const autosaveMutation = useMutation({
+    mutationFn: (input: AdminCatalogProductUpdateInput) => apiAdminCatalog.update(productId, input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['admin', 'catalog'] });
+    },
+    onSettled: () => {
+      autosaveInFlightRef.current = false;
     },
   });
 
@@ -343,7 +381,7 @@ export default function AdminCatalogEditScreen() {
   const storageTotal = (fieldId: number) => (storageRows[String(fieldId)] ?? [])
     .reduce((sum, row) => sum + (storageCapacityGb(row) ?? 0), 0);
 
-  const submit = (saveDraft = false) => {
+  const submit = (saveDraft = false, autosave = false) => {
     const nextErrors: Record<string, string> = {};
     const price = nonNegativeDecimal(priceAmount);
     const purchase = purchasePriceRsd.trim() ? nonNegativeDecimal(purchasePriceRsd) : undefined;
@@ -379,6 +417,7 @@ export default function AdminCatalogEditScreen() {
       });
     }
 
+    if (autosave && Object.keys(nextErrors).length > 0) return;
     setErrors(nextErrors);
     setSubmitError(null);
     if (Object.keys(nextErrors).length > 0 || (!saveDraft && (price === null || stock === null || threshold === null))) {
@@ -422,6 +461,8 @@ export default function AdminCatalogEditScreen() {
       sku: sku.trim(),
       regenerate_sku: false,
       model_name: modelName.trim() || undefined,
+      supplier_code: supplierCode.trim(),
+      ean: ean.trim(),
       name: name.trim() || undefined,
       regenerate_name: Boolean(selectedType?.auto_name_enabled && !name.trim()),
       price_amount: price ?? undefined,
@@ -440,8 +481,16 @@ export default function AdminCatalogEditScreen() {
       spec_capacities: Object.keys(cleanSpecCapacities).length ? cleanSpecCapacities : undefined,
       spec_structured: Object.keys(cleanSpecStructured).length ? cleanSpecStructured : undefined,
     };
+    if (autosave) {
+      if (autosaveInFlightRef.current || saveMutation.isPending) return;
+      autosaveInFlightRef.current = true;
+      autosaveBaselineRef.current = formFingerprint;
+      autosaveMutation.mutate(input);
+      return;
+    }
     saveMutation.mutate(input);
   };
+  submitRef.current = submit;
 
   return (
     <Screen
@@ -473,6 +522,9 @@ export default function AdminCatalogEditScreen() {
         <Text style={styles.eyebrow}>ADMIN · KATALOG · EDIT</Text>
         <Text style={styles.title}>{product.name}</Text>
         <Text style={styles.copy}>{product.sku} · ID #{product.id}</Text>
+        {product.status === 'draft' && !product.is_archived ? (
+          <Text style={styles.help}>Nacrt se automatski čuva 30 sekundi posle poslednje izmene.</Text>
+        ) : null}
       </View>
 
       {product.is_archived ? (
@@ -520,6 +572,8 @@ export default function AdminCatalogEditScreen() {
         />
         <TextField label="SKU" value={sku} onChangeText={setSku} error={errors.sku} disabled={product.is_archived} autoCapitalize="characters" />
         <TextField label="Model" value={modelName} onChangeText={setModelName} disabled={product.is_archived} />
+        <TextField label="Šifra dobavljača" value={supplierCode} onChangeText={setSupplierCode} error={errors.supplier_code} disabled={product.is_archived} />
+        <TextField label="EAN (bar-kod)" value={ean} onChangeText={setEan} error={errors.ean} keyboardType="number-pad" disabled={product.is_archived} />
         <TextField label="Naziv" value={name} onChangeText={setName} error={errors.name} disabled={product.is_archived} />
       </View>
 
