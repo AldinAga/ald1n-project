@@ -84,6 +84,8 @@ foreach(['B','C','D','E','F'] as $g){$list=$byGroup[$g]??[];if($g==='F')usort($l
             $both=array_keys(array_intersect_key($cr,$cn));
             // order inside C: old callers of the removed methods, the rest, the service with its followers, the new callers of the added methods, then the removal-only services.
             $late=array_values(array_intersect($cl,$lateC));$core=array_values(array_diff($cl,$lateC));
+            foreach($followers[$sv]??[] as $fw){$fc=preg_quote(basename($fw,'.php'),'/');foreach($core as $q){if($q!==$fw&&preg_match('/^use [A-Za-z0-9_\\\\]*\\\\'.$fc.';/m',$blob($src,$q)))$cn[$q]=true;}}
+            $both=array_keys(array_intersect_key($cr,$cn));
             $first=array_values(array_filter($core,static fn($q)=>isset($cr[$q])&&!isset($cn[$q])));$last=array_values(array_filter($core,static fn($q)=>isset($cn[$q])&&!isset($cr[$q])));$mid=array_values(array_filter($core,static fn($q)=>!isset($cr[$q])&&!isset($cn[$q])));
             $cl=array_merge($first,$mid,[$sv],$followers[$sv]??[],array_values(array_intersect($core,$both)),$last,$late);$tight[$sv]=$both;
             fwrite(STDERR,'NOTE '.$sv.' is installed inside group C after its old callers of '.implode(',',$rem).' and before the new callers of '.implode(',',$add).($followers[$sv]??[]?'; followers moved from B: '.implode(',',$followers[$sv]):'').PHP_EOL);}

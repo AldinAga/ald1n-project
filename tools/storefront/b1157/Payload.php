@@ -46,19 +46,19 @@ final class B1157Payload
         ['app/Http/Controllers/Admin/ProductController.php','modified','C','M'],
         ['app/Http/Controllers/Admin/ReceivablesController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/Admin/CatalogProductController.php','modified','C','M'],
-        ['app/Http/Controllers/Api/V1/Admin/OrderController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/Admin/OrderMutationController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/Admin/OrderShipmentController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/Admin/ReceivablesController.php','modified','C','M'],
         ['app/Http/Controllers/Api/V1/OrderController.php','modified','C','M'],
         ['app/Http/Controllers/DashboardController.php','modified','C','M'],
-        ['app/Http/Controllers/OrderController.php','modified','C','M'],
         ['app/Http/Controllers/PublicCheckoutController.php','modified','C','M'],
         ['bin/admin-orders-index-ux-smoke.php','modified','C','M'],
         ['bin/static-check.php','modified','C','M'],
         ['app/Services/OrderWorkflowService.php','modified','C','M'],
         ['app/Services/OrderDetailPresenter.php','modified','C','M'],
         ['app/Http/Controllers/Admin/OrderController.php','modified','C','M'],
+        ['app/Http/Controllers/Api/V1/Admin/OrderController.php','modified','C','M'],
+        ['app/Http/Controllers/OrderController.php','modified','C','M'],
         ['app/Services/OrderOperationalService.php','modified','C','M'],
         ['app/Providers/AppServiceProvider.php','modified','D','M'],
         ['routes/api.php','modified','E','M'],
@@ -117,19 +117,19 @@ final class B1157Payload
         'app/Http/Controllers/Admin/ProductController.php'=>['996d6e1898d011c5c0853126a2dfced4c41bf94b57fff0b809a3755c4eb734e3','d527e0356e66c59c6c47f3bb94f2f41a7f268c912e910a531a638cfa6e32cc5f'],
         'app/Http/Controllers/Admin/ReceivablesController.php'=>['713638c4e6c69ef303591df444c50444fafaad95b61ebc2c8a71569f551c61eb','fe7e370c5a5865e6b20f3bf5b3b59ddb78bbadd0e5c7030a884ae2c49a31ee69'],
         'app/Http/Controllers/Api/V1/Admin/CatalogProductController.php'=>['2d17ca69f5efc17375dc662c46bd89163256ff170cc174873f8116e7ec7144de','dd83810785853ba66200d943054956411b8d8cdfc38dd191f451e5c16d258f33'],
-        'app/Http/Controllers/Api/V1/Admin/OrderController.php'=>['d3ca9e33a7e4de09a13b9754c1425551e917c9fb7fe9737ab9587eeb4683afe0','3000bd5a9e9df95e1742c9ba7c56ba4979df505ee880d10cecf032b85400e71f'],
         'app/Http/Controllers/Api/V1/Admin/OrderMutationController.php'=>['c5ac4af2544b45080ca9340965d1f4cf112d0d24e485b87e5f9c11698058612e','0d18ce512b504351a9ee99b0e034872ed18ec313b9d9a7d6a6097358a6c429a3'],
         'app/Http/Controllers/Api/V1/Admin/OrderShipmentController.php'=>['5ffb8a09ccf11a0a8413f7e28a4c5e3d84f6a8ab391f4c8d6b9dda6c73588f62','48afad0af792ffd0e3aab4518b5445bd7411fc7180a816414acf2e161995ac15'],
         'app/Http/Controllers/Api/V1/Admin/ReceivablesController.php'=>['1807284dec0395759a26ab6a51b88d117e67c3a5eaedc14ac25443417899005f','cdc0fee8c62222e9bf0d67ec6e778e6b95080a4b9dd5f09ef659113d8a7af196'],
         'app/Http/Controllers/Api/V1/OrderController.php'=>['f14aa5b87933e2486d3df6d9f64e81ecfc818b82cf92e41fa84c92459704d071','1d8a2e308a29fdce0d0c149b3c95f4eb9067b6b2dd89ccd4fc922665b9169b53'],
         'app/Http/Controllers/DashboardController.php'=>['706cdb967a26551129846caf42205953e88a909bbe8428c0850db5403f9449b0','56d9548552785ecec16568119f83eaca6cee4492e61edee5bb7373a51249340c'],
-        'app/Http/Controllers/OrderController.php'=>['59b193c9e43618e4e316d07a8cb36d929a93f9cc4ef3bf2b55b6a6e581c8b6ec','58f46d279ea343c1df49ad53181f50a97f22bc0b2dd53be38f676844bc390b4e'],
         'app/Http/Controllers/PublicCheckoutController.php'=>['8344e2c4f31506baa872d267baa89035a4720dff6b0331ad09cae31fee0875fc','a94541b563b11832e2edba136c2e13c243231fa961bb6b23cce1468a226ef275'],
         'bin/admin-orders-index-ux-smoke.php'=>['fcc3bfe5aae3ddbdd3fa788a4f564363f4525ad6f69da4793c0aa47b7dede1ab','7682b2bd802c5003292921b551ae4b1b0016f2ca940cf6f37efada438693d217'],
         'bin/static-check.php'=>['065090e336c465d48dac90845c13c8aa549944bfb7cf3df9abce17ea5b51e610','24a8a4ec2667e55a1dcf022ef165d297997b677d0b06d6e736036124b44bb59c'],
         'app/Services/OrderWorkflowService.php'=>['1029f358df7b42111945336b7f8318d364a34cf1b2212eb7c6f89d76c179c3a2','eb5ba6a5002c9bf355c9316130dd4d90caa05cdbf05506622967164f8ebdc5c3'],
         'app/Services/OrderDetailPresenter.php'=>['5d31e59ef0685a8c8aadc03c2d573dc1d5cdcd96dba1aa1c5fdf057af0418415','fa7f300bd26f628ec3095a3b053bd78ece46185a6e0248bac59db9fed4b65770'],
         'app/Http/Controllers/Admin/OrderController.php'=>['674d05a91834ddaa5490cefc1a677304e134b3c3977fb16a27061bbbfb17a04e','897f19ed1e3a1794a09cd6ae80ecf0a1e266c08fecf91dd114a5a7f00038a509'],
+        'app/Http/Controllers/Api/V1/Admin/OrderController.php'=>['d3ca9e33a7e4de09a13b9754c1425551e917c9fb7fe9737ab9587eeb4683afe0','3000bd5a9e9df95e1742c9ba7c56ba4979df505ee880d10cecf032b85400e71f'],
+        'app/Http/Controllers/OrderController.php'=>['59b193c9e43618e4e316d07a8cb36d929a93f9cc4ef3bf2b55b6a6e581c8b6ec','58f46d279ea343c1df49ad53181f50a97f22bc0b2dd53be38f676844bc390b4e'],
         'app/Services/OrderOperationalService.php'=>['cfdbba61a184a0326d47d2506dd1637a6dea7f73479806dda4822758316f0af2','d4fa79c34fcae0d1b13bf8a840e06f2d22dac54fbaac61b39a65e2ced6b85143'],
         'app/Providers/AppServiceProvider.php'=>['94e0f369399feae85851017b2fdd4482774d68ffd2e8fb48028cf654d16020f0','8a9dae61b8aee1599ccb9bdc1c2060e97460232c1b5a7394c06046ae136e11ad'],
         'routes/api.php'=>['e31b24975a2e3d648c1196a32d23e91334c825bf415733855a1b50a254366a47','e3716312b06fecbdc315de50f9ec1dc66381c8b790fddd1d49eeb2110ff2fb98'],
@@ -503,23 +503,23 @@ final class B1157Payload
   ),
   'm43' => 
   array (
-    0 => 'app/Http/Controllers/PublicCheckoutController.php',
-    1 => 'return response()->view(\'public-shop.checkout-empty\',[\'quote\'=>$quote],409);',
-  ),
-  'm44' => 
-  array (
     0 => 'bin/admin-orders-index-ux-smoke.php',
     1 => '\'#order-confirm\',',
   ),
+  'm44' => 
+  array (
+    0 => 'app/Services/OrderWorkflowService.php',
+    1 => 'use App\\Models\\OrderShipment;',
+  ),
   'm46' => 
   array (
-    0 => 'app/Services/OrderDetailPresenter.php',
+    0 => 'app/Http/Controllers/Admin/OrderController.php',
     1 => 'use App\\Support\\OrderStatus;',
   ),
   'm47' => 
   array (
-    0 => 'app/Http/Controllers/Admin/OrderController.php',
-    1 => 'use App\\Support\\OrderStatus;',
+    0 => 'app/Http/Controllers/OrderController.php',
+    1 => '$validated = $request->validate([\'reason\' => [\'required\', \'string\', \'min:3\', \'max:1000\']]);',
   ),
   'm49' => 
   array (
