@@ -18,14 +18,7 @@
     $shipment = $detail['shipment'] ?? null;
     $couriers = $detail['couriers'] ?? [];
     $formDefaults = $detail['form_defaults'] ?? [];
-    // SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513
-    $logisticsOpenAction = old('shipment_method') !== null
-        ? 'shipment'
-        : (old('delivery_method') !== null ? 'delivery' : null);
     $isCashOnDelivery = ($order['payment_method'] ?? '') === 'cash_on_delivery';
-    $deliveryActionLabel = $isCashOnDelivery
-        ? 'Potvrdi da je pošiljka isporučena i da je naplaćen otkup'
-        : 'Potvrdi da je pošiljka isporučena';
     $suppliers = $detail['suppliers'] ?? [];
     $activeDocumentsByType = collect($documents)->where('status', 'issued')->unique('type')->keyBy('type');
     $documentHistoryTypes = collect($documents)->pluck('type')->filter()->unique();
@@ -97,16 +90,17 @@
             $workspaceNextLabel = 'Potvrdi porudžbinu';
             $workspaceNextTitle = 'Porudžbina čeka potvrdu';
             $workspaceNextText = 'Potvrda ujedno preuzima porudžbinu na tvoje ime. Posle nje sledi slanje ili predaja kupcu.';
-        } elseif (($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) {
+        } elseif ((($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) || (($actions['complete'] ?? false) && !empty($urls['complete']))) {
+            $workspaceShipmentActive = (bool) ($detail['shipment_active'] ?? false);
+            $workspaceCourierFirst = !$workspaceShipmentActive && (string) ($detail['delivery_default_method'] ?? 'courier') === 'courier';
             $workspaceNextTarget = '#order-workspace-logistics-actions';
-            $workspaceNextLabel = 'Evidentiraj slanje';
-            $workspaceNextTitle = 'Sledeći korak je slanje pošiljke';
-            $workspaceNextText = 'Evidentiraj da je roba poslata. Ova akcija ne potvrđuje stvarnu isporuku niti naplatu pouzećem.';
-        } elseif (($actions['complete'] ?? false) && !empty($urls['complete'])) {
-            $workspaceNextTarget = '#order-workspace-logistics-actions';
-            $workspaceNextLabel = 'Potvrdi isporuku';
-            $workspaceNextTitle = 'Slanje je evidentirano — potvrdi stvarnu isporuku';
-            $workspaceNextText = 'Kompletiranje zaključuje stvarnu isporuku i, kada je primenljivo, konačno evidentiranje plaćanja.';
+            $workspaceNextLabel = $workspaceCourierFirst ? 'Pošiljka je poslata' : 'Potvrdi isporuku';
+            $workspaceNextTitle = $workspaceShipmentActive
+                ? 'Pošiljka je poslata: potvrdi isporuku'
+                : ($workspaceCourierFirst ? 'Sledeći korak je slanje pošiljke' : 'Sledeći korak je isporuka');
+            $workspaceNextText = $workspaceShipmentActive
+                ? 'Kada roba stigne kod kupca, potvrdi isporuku. Naplata nije uslov: dug ostaje otvoren u Potraživanjima.'
+                : 'U kartici Isporuka izaberi način. Kurirom prvo potvrdi da je pošiljka poslata (kurir i broj pošiljke), a sopstveni prevoz i lično preuzimanje se zatvaraju jednom potvrdom isporuke.';
         } elseif ($workspaceCompleted) {
             $workspaceNextTarget = '#order-workspace-timeline';
             $workspaceNextLabel = 'Pregledaj istoriju';
@@ -158,13 +152,12 @@
                 @if($canCancelNow)
                     <a class="a1-btn" href="#order-cancel">Otkaži porudžbinu</a>
                 @endif
-                @if(!empty($urls['invoice_pdf']))
-                    @can('invoices.manage')
-                        <form method="post" action="{{ $urls['invoice_pdf'] }}" target="_blank" data-issue-invoice-pdf>
-                            @csrf
-                            <button class="a1-btn" type="submit">Izdaj / otvori račun (PDF)</button>
-                        </form>
-                    @endcan
+                {{-- Račun se pravi automatski pri potvrdi isporuke; ponovno preuzimanje i ručno izdavanje su u kartici Dokumenti. --}}
+                <a class="a1-btn" href="#order-workspace-documents"><x-icon name="receipt" :size="20" :shell="true" /> Dokumenti</a>
+                @if(($actions['open_after_sales'] ?? false) && !empty($urls['after_sales_create']))
+                    <a class="a1-btn" href="{{ $urls['after_sales_create'] }}" data-open-after-sales>
+                        <x-icon name="alert" :size="20" :shell="true" /> Otvori reklamaciju / servis
+                    </a>
                 @endif
                 @if(($permissions['after_sales_manage'] ?? false) && !empty($urls['after_sales']))
                     <a class="a1-btn" href="{{ $urls['after_sales'] }}">
@@ -319,48 +312,16 @@
         </section>
     </div>
 
-    @if(!($order['is_completed'] ?? false) && (($actions['shipment'] ?? false) || ($actions['complete'] ?? false) || is_array($shipment)))
-        <section class="a1-card a1-od-anchor" id="order-workspace-logistics-actions" data-logistics-actions aria-labelledby="od-logistics-title">
-            <div class="a1-od-titleblock">
-                <span class="a1-eyebrow">Logistika</span>
-                <h2 class="a1-h2" id="od-logistics-title">Slanje i isporuka</h2>
-                <p class="a1-text">Izaberi poslovni događaj koji stvarno potvrđuješ. Slanje i konačna isporuka ostaju odvojeni audit događaji.</p>
-            </div>
-            <div class="a1-od-actions">
-                @if($actions['shipment'] ?? false)
-                    <button class="a1-btn" type="button" data-logistics-action="shipment" aria-controls="order-workspace-shipment-entry" aria-expanded="{{ $logisticsOpenAction === 'shipment' ? 'true' : 'false' }}">
-                        <x-icon name="truck" :size="20" :shell="true" /> Potvrdi da je pošiljka poslata
-                    </button>
-                @elseif(is_array($shipment))
-                    <button class="a1-btn" type="button" disabled aria-disabled="true">
-                        <x-icon name="check-circle" :size="20" :shell="true" /> Pošiljka je poslata
-                    </button>
-                @endif
-
-                @if($actions['complete'] ?? false)
-                    <button class="a1-btn" type="button" data-logistics-action="delivery" aria-controls="delivery-completion" aria-expanded="{{ $logisticsOpenAction === 'delivery' ? 'true' : 'false' }}">
-                        <x-icon name="check-circle" :size="20" :shell="true" /> {{ $deliveryActionLabel }}
-                    </button>
-                @endif
-            </div>
-            @if($actions['complete'] ?? false)
-                <p class="a1-text">
-                    @if($isCashOnDelivery)
-                        Potvrda konačne isporuke automatski evidentira preostali iznos kao naplaćen pouzećem i kompletira porudžbinu.
-                    @else
-                        Potvrda konačne isporuke kompletira porudžbinu; za načine plaćanja koji nisu pouzeće saldo mora prethodno biti potpuno izmiren.
-                    @endif
-                </p>
-            @endif
-        </section>
-    @endif
-
     @if(is_array($shipment))
         <section class="a1-card a1-od-anchor" data-shipment-card id="order-workspace-shipment-record" aria-labelledby="od-shiprec-title">
             <div class="a1-od-titleblock">
                 <span class="a1-eyebrow">Logistika</span>
                 <h2 class="a1-h2" id="od-shiprec-title">Evidencija slanja pošiljke</h2>
-                <p class="a1-text">Pošiljka je evidentirana kao poslata. Ovo nije potvrda stvarne isporuke niti naplate pouzećem.</p>
+                @if($shipment['is_returned'] ?? false)
+                    <p class="a1-text" data-shipment-returned>Pošiljka je vraćena {{ $shipment['returned_at'] ?? '' }}. Razlog: {{ $shipment['return_reason'] ?? '—' }}. Zapis ostaje sačuvan; pošalji porudžbinu ponovo ili je otkaži.</p>
+                @else
+                    <p class="a1-text">Pošiljka je evidentirana kao poslata. Ovo nije potvrda stvarne isporuke.</p>
+                @endif
             </div>
             <dl class="a1-dl a1-od-dl">
                 <div class="a1-dl__row"><dt>Način isporuke</dt><dd>{{ $shipment['shipment_method_label'] ?? '—' }}</dd></div>
@@ -378,70 +339,6 @@
                     @if(($shipment['has_proof'] ?? false) && !empty($urls['shipment_proof']))<a class="a1-btn" target="_blank" rel="noopener" href="{{ $urls['shipment_proof'] }}">Otvori privatni dokaz slanja</a>@endif
                 </div>
             @endif
-        </section>
-    @elseif(($actions['shipment'] ?? false) && !empty($urls['shipment_store']))
-        <section class="a1-card a1-od-anchor a1-od-toggle" data-shipment-card data-logistics-panel="shipment" id="order-workspace-shipment-entry" aria-labelledby="od-shipentry-title" @if($logisticsOpenAction !== 'shipment') hidden @endif>
-            <div class="a1-od-titleblock">
-                <span class="a1-eyebrow">Logistika</span>
-                <h2 class="a1-h2" id="od-shipentry-title">Evidencija slanja pošiljke</h2>
-                <p class="a1-text">Evidentira samo da je pošiljka poslata. Ne označava porudžbinu kao dostavljenu/completed i ne evidentira naplatu pouzećem.</p>
-            </div>
-            <form method="post" action="{{ $urls['shipment_store'] }}" enctype="multipart/form-data" class="a1-form" data-shipment-form>
-                @csrf
-                <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
-                <p class="a1-help">Polja sa zvezdicom su obavezna.</p>
-                <div class="a1-row">
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-ship-method">Način isporuke<span class="a1-req" aria-hidden="true">*</span></label>
-                        <select class="a1-select" id="od-ship-method" name="shipment_method" data-shipment-method required{!! $ctl('shipment_method', 'od-ship-method') !!}>
-                            <option value="courier" selected>Kurirska služba</option>
-                            <option value="own_transport">Sopstveni prevoz</option>
-                            <option value="other">Drugo</option>
-                        </select>
-                        @error('shipment_method')<p class="a1-error" id="od-ship-method-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field a1-od-toggle" data-courier-field>
-                        <label class="a1-label" for="od-ship-courier">Kurirska služba<span class="a1-req" aria-hidden="true">*</span></label>
-                        <select class="a1-select" id="od-ship-courier" name="courier_service_id" data-courier-select required{!! $ctl('courier_service_id', 'od-ship-courier') !!}>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select>
-                        @error('courier_service_id')<p class="a1-error" id="od-ship-courier-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                        <a class="a1-link a1-od-toggle" data-courier-tracking-link href="#" target="_blank" rel="noopener">Zvanična stranica za praćenje</a>
-                    </div>
-                    <div class="a1-field a1-od-toggle" data-tracking-field>
-                        <label class="a1-label" for="od-ship-tracking">Broj za praćenje pošiljke<span class="a1-req" aria-hidden="true">*</span></label>
-                        <input class="a1-input" id="od-ship-tracking" name="tracking_number" maxlength="120" value="{{ $order['tracking_number'] ?? '' }}" data-tracking-input required{!! $ctl('tracking_number', 'od-ship-tracking') !!}>
-                        @error('tracking_number')<p class="a1-error" id="od-ship-tracking-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-ship-at">Datum i vreme slanja<span class="a1-req" aria-hidden="true">*</span></label>
-                        <input class="a1-input" id="od-ship-at" type="datetime-local" name="shipped_at" value="{{ $formDefaults['shipped_at'] ?? '' }}" required{!! $ctl('shipped_at', 'od-ship-at') !!}>
-                        @error('shipped_at')<p class="a1-error" id="od-ship-at-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-ship-name">Ime primaoca<span class="a1-req" aria-hidden="true">*</span></label>
-                        <input class="a1-input" id="od-ship-name" name="recipient_name" maxlength="190" value="{{ $formDefaults['recipient_name'] ?? ($order['shipping_full_name'] ?? '') }}" required{!! $ctl('recipient_name', 'od-ship-name') !!}>
-                        @error('recipient_name')<p class="a1-error" id="od-ship-name-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-ship-phone">Telefon primaoca</label>
-                        <input class="a1-input" id="od-ship-phone" name="recipient_phone" maxlength="60" value="{{ $formDefaults['recipient_phone'] ?? ($order['shipping_phone'] ?? '') }}"{!! $ctl('recipient_phone', 'od-ship-phone', true) !!}>
-                        <p class="a1-help" id="od-ship-phone-help">Automatski preuzeto iz porudžbine; menjaj samo ako je potrebno.</p>
-                        @error('recipient_phone')<p class="a1-error" id="od-ship-phone-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-ship-proof">Dokaz slanja (opciono, do 10 MB)</label>
-                        <input class="a1-input" id="od-ship-proof" type="file" name="shipment_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"{!! $ctl('shipment_proof', 'od-ship-proof') !!}>
-                        @error('shipment_proof')<p class="a1-error" id="od-ship-proof-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field a1-od-wide">
-                        <label class="a1-label" for="od-ship-note">Napomena o slanju</label>
-                        <textarea class="a1-textarea" id="od-ship-note" name="note" rows="3" maxlength="3000"{!! $ctl('note', 'od-ship-note') !!}></textarea>
-                        @error('note')<p class="a1-error" id="od-ship-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                </div>
-                <div class="a1-od-actions">
-                    <button class="a1-btn" type="submit" data-confirm="Potvrditi da je pošiljka poslata? Ova akcija ne potvrđuje isporuku niti naplatu."><x-icon name="truck" :size="20" :shell="true" /> Potvrdi da je pošiljka poslata</button>
-                </div>
-            </form>
         </section>
     @endif
 
@@ -470,87 +367,167 @@
                 @endif
             </div>
         </section>
-    @elseif(($actions['complete'] ?? false) && !empty($urls['complete']))
-        <section id="delivery-completion" class="a1-card a1-od-anchor a1-od-toggle" data-logistics-panel="delivery" aria-labelledby="od-del-title" @if($logisticsOpenAction !== 'delivery') hidden @endif>
+    @elseif((($actions['shipment'] ?? false) && !empty($urls['shipment_store'])) || (($actions['complete'] ?? false) && !empty($urls['complete'])) || ($actions['return_shipment'] ?? false))
+        @php
+            // Jedna kartica "Isporuka" (odluka 7): način isporuke određuje korake; zajednička polja se unose jednom i prenose u korak isporuke.
+            $shipmentActive = (bool) ($detail['shipment_active'] ?? false);
+            $defaultMethod = (string) ($detail['delivery_default_method'] ?? 'courier');
+            $showShipmentStep = ($actions['shipment'] ?? false) && !empty($urls['shipment_store']);
+            $showDeliveryStep = ($actions['complete'] ?? false) && !empty($urls['complete']);
+            $courierFirst = $showShipmentStep && !$shipmentActive && $defaultMethod === 'courier';
+            $openDebt = (float) ($order['remaining_rsd'] ?? 0);
+        @endphp
+        <section class="a1-card a1-od-anchor" id="order-workspace-logistics-actions" data-logistics-actions aria-labelledby="od-logistics-title">
             <div class="a1-od-titleblock">
-                <span class="a1-eyebrow">Završetak isporuke</span>
-                <h2 class="a1-h2" id="od-del-title">Potvrda stvarne isporuke</h2>
-                @if(($order['payment_method'] ?? '') === 'cash_on_delivery')
-                    <p class="a1-text">Preostali iznos od <strong>{{ $order['remaining_rsd_display'] ?? '0,00 RSD' }}</strong> biće evidentiran kao naplaćen pouzećem. Podaci isporuke ostaju trajno zabeleženi.</p>
-                @else
-                    <p class="a1-text">Saldo mora biti potpuno izmiren. Unesi podatke o stvarnoj isporuci i opciono priloži fotografiju, potpis ili PDF potvrdu.</p>
-                @endif
+                <span class="a1-eyebrow">Logistika</span>
+                <h2 class="a1-h2" id="od-logistics-title">Isporuka</h2>
+                <p class="a1-text">
+                    @if($shipmentActive)
+                        Pošiljka je poslata. Kada roba stigne kod kupca, potvrdi isporuku. Slanje i isporuka ostaju odvojeni događaji u istoriji.
+                    @else
+                        Kurirom: prvo potvrdi da je pošiljka poslata (kurir i broj pošiljke), zatim potvrdi isporuku. Sopstveni prevoz i lično preuzimanje: samo potvrdi isporuku.
+                    @endif
+                </p>
             </div>
-            @if(!empty($order['reopened_at']))
-                <div class="a1-alert a1-alert--warning" role="status">
-                    <x-icon name="alert" :size="20" :shell="true" />
-                    <div class="a1-alert__body"><p>Porudžbina je ponovo otvorena {{ $order['reopened_at'] }}. Prethodni dokaz isporuke ostaje sačuvan dok ne priložiš novi.</p></div>
+
+            @if($showShipmentStep && !$shipmentActive)
+                <div class="a1-field">
+                    <label class="a1-label" for="od-method-switch">Način isporuke<span class="a1-req" aria-hidden="true">*</span></label>
+                    <select class="a1-select" id="od-method-switch" data-delivery-method-switch>
+                        @foreach(($detail['delivery_methods'] ?? []) as $option)
+                            <option value="{{ $option['value'] }}" @selected($defaultMethod === $option['value'])>{{ $option['label'] }}</option>
+                        @endforeach
+                    </select>
                 </div>
             @endif
-            <form class="a1-form" method="post" action="{{ $urls['complete'] }}" enctype="multipart/form-data">
-                @csrf
-                <p class="a1-help">Polja sa zvezdicom su obavezna.</p>
-                <div class="a1-row">
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-del-method">Način isporuke<span class="a1-req" aria-hidden="true">*</span></label>
-                        <select class="a1-select" id="od-del-method" name="delivery_method" required{!! $ctl('delivery_method', 'od-del-method') !!}>
-                            @foreach([
-                                'own_transport' => 'Sopstveni prevoz',
-                                'courier' => 'Kurirska služba',
-                                'customer_pickup' => 'Lično preuzimanje',
-                                'other' => 'Drugo',
-                            ] as $value => $label)
-                                <option value="{{ $value }}" @selected(($delivery['delivery_method'] ?? 'own_transport') === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        @error('delivery_method')<p class="a1-error" id="od-del-method-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+
+            @if($showShipmentStep)
+                <form method="post" action="{{ $urls['shipment_store'] }}" enctype="multipart/form-data" class="a1-form a1-od-toggle" data-shipment-form data-logistics-panel="shipment" id="order-workspace-shipment-entry" aria-label="Pošiljka je poslata" @if(!$courierFirst) hidden @endif>
+                    @csrf
+                    <input type="hidden" name="order_version_token" value="{{ $order['order_version_token'] ?? '' }}">
+                    <input type="hidden" name="shipment_method" value="courier" data-shipment-method>
+                    <p class="a1-help">Polja sa zvezdicom su obavezna. Primalac, telefon i beleška se prenose u potvrdu isporuke.</p>
+                    <div class="a1-row">
+                        <div class="a1-field" data-courier-field>
+                            <label class="a1-label" for="od-ship-courier">Kurirska služba<span class="a1-req" aria-hidden="true">*</span></label>
+                            <select class="a1-select" id="od-ship-courier" name="courier_service_id" data-courier-select required{!! $ctl('courier_service_id', 'od-ship-courier') !!}>@foreach($couriers as $courier)<option value="{{ $courier['id'] }}" data-tracking-url="{{ $courier['tracking_url'] }}" @selected($courier['is_default'] ?? false)>{{ $courier['name'] }}</option>@endforeach</select>
+                            @error('courier_service_id')<p class="a1-error" id="od-ship-courier-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                            <a class="a1-link a1-od-toggle" data-courier-tracking-link href="#" target="_blank" rel="noopener">Zvanična stranica za praćenje</a>
+                        </div>
+                        <div class="a1-field" data-tracking-field>
+                            <label class="a1-label" for="od-ship-tracking">Broj pošiljke<span class="a1-req" aria-hidden="true">*</span></label>
+                            <input class="a1-input" id="od-ship-tracking" name="tracking_number" maxlength="120" value="{{ old('tracking_number', $order['tracking_number'] ?? '') }}" data-tracking-input required{!! $ctl('tracking_number', 'od-ship-tracking') !!}>
+                            @error('tracking_number')<p class="a1-error" id="od-ship-tracking-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-ship-at">Datum i vreme slanja<span class="a1-req" aria-hidden="true">*</span></label>
+                            <input class="a1-input" id="od-ship-at" type="datetime-local" name="shipped_at" value="{{ old('shipped_at', $formDefaults['shipped_at'] ?? '') }}" required{!! $ctl('shipped_at', 'od-ship-at') !!}>
+                            @error('shipped_at')<p class="a1-error" id="od-ship-at-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-ship-name">Ime primaoca<span class="a1-req" aria-hidden="true">*</span></label>
+                            <input class="a1-input" id="od-ship-name" name="recipient_name" maxlength="190" value="{{ old('recipient_name', $formDefaults['recipient_name'] ?? ($order['shipping_full_name'] ?? '')) }}" required{!! $ctl('recipient_name', 'od-ship-name') !!}>
+                            @error('recipient_name')<p class="a1-error" id="od-ship-name-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-ship-phone">Telefon primaoca</label>
+                            <input class="a1-input" id="od-ship-phone" name="recipient_phone" maxlength="60" value="{{ old('recipient_phone', $formDefaults['recipient_phone'] ?? ($order['shipping_phone'] ?? '')) }}"{!! $ctl('recipient_phone', 'od-ship-phone') !!}>
+                            @error('recipient_phone')<p class="a1-error" id="od-ship-phone-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-ship-proof">Dokaz slanja (opciono, do 10 MB)</label>
+                            <input class="a1-input" id="od-ship-proof" type="file" name="shipment_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"{!! $ctl('shipment_proof', 'od-ship-proof') !!}>
+                            @error('shipment_proof')<p class="a1-error" id="od-ship-proof-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field a1-od-wide">
+                            <label class="a1-label" for="od-ship-note">Napomena</label>
+                            <textarea class="a1-textarea" id="od-ship-note" name="note" rows="2" maxlength="3000"{!! $ctl('note', 'od-ship-note') !!}>{{ old('note') }}</textarea>
+                            @error('note')<p class="a1-error" id="od-ship-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
                     </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-del-at">Datum i vreme isporuke<span class="a1-req" aria-hidden="true">*</span></label>
-                        <input class="a1-input" id="od-del-at" type="datetime-local" name="delivered_at" value="{{ $delivery['delivered_at_input'] ?? ($formDefaults['delivered_at'] ?? '') }}" required{!! $ctl('delivered_at', 'od-del-at') !!}>
-                        @error('delivered_at')<p class="a1-error" id="od-del-at-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                    <div class="a1-od-actions">
+                        <button class="a1-btn" type="submit" data-confirm="Potvrditi da je pošiljka poslata? Ovo ne potvrđuje isporuku niti naplatu."><x-icon name="truck" :size="20" :shell="true" /> Pošiljka je poslata</button>
                     </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-del-name">Ime primaoca<span class="a1-req" aria-hidden="true">*</span></label>
-                        <input class="a1-input" id="od-del-name" name="recipient_name" maxlength="190" value="{{ $delivery['recipient_name'] ?? ($formDefaults['recipient_name'] ?? '') }}" required{!! $ctl('recipient_name', 'od-del-name') !!}>
-                        @error('recipient_name')<p class="a1-error" id="od-del-name-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                </form>
+            @endif
+
+            @if($showDeliveryStep)
+                @if(!empty($order['reopened_at']))
+                    <div class="a1-alert a1-alert--warning" role="status">
+                        <x-icon name="alert" :size="20" :shell="true" />
+                        <div class="a1-alert__body"><p>Porudžbina je ponovo otvorena {{ $order['reopened_at'] }}. Prethodni dokaz isporuke ostaje sačuvan dok ne priložiš novi.</p></div>
                     </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-del-phone">Telefon primaoca</label>
-                        <input class="a1-input" id="od-del-phone" name="recipient_phone" maxlength="60" value="{{ ($delivery['recipient_phone'] ?? '') !== '—' ? ($delivery['recipient_phone'] ?? '') : ($formDefaults['recipient_phone'] ?? '') }}"{!! $ctl('recipient_phone', 'od-del-phone') !!}>
-                        @error('recipient_phone')<p class="a1-error" id="od-del-phone-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                @endif
+                <form class="a1-form a1-od-toggle" id="delivery-completion" method="post" action="{{ $urls['complete'] }}" enctype="multipart/form-data" data-logistics-panel="delivery" aria-label="Potvrdi isporuku" @if($courierFirst) hidden @endif>
+                    @csrf
+                    <input type="hidden" name="delivery_method" value="{{ $courierFirst ? 'own_transport' : $defaultMethod }}" data-delivery-method-input>
+                    <p class="a1-help">Polja sa zvezdicom su obavezna. Naplata nije uslov isporuke: dug ostaje otvoren u Potraživanjima, a garancija teče od datuma isporuke.</p>
+                    <div class="a1-row">
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-del-at">Datum i vreme isporuke<span class="a1-req" aria-hidden="true">*</span></label>
+                            <input class="a1-input" id="od-del-at" type="datetime-local" name="delivered_at" value="{{ old('delivered_at', $delivery['delivered_at_input'] ?? ($formDefaults['delivered_at'] ?? '')) }}" required{!! $ctl('delivered_at', 'od-del-at') !!}>
+                            @error('delivered_at')<p class="a1-error" id="od-del-at-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-del-name">Ime primaoca<span class="a1-req" aria-hidden="true">*</span></label>
+                            <input class="a1-input" id="od-del-name" name="recipient_name" maxlength="190" value="{{ old('recipient_name', $delivery['recipient_name'] ?? ($formDefaults['recipient_name'] ?? '')) }}" required{!! $ctl('recipient_name', 'od-del-name') !!}>
+                            @error('recipient_name')<p class="a1-error" id="od-del-name-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-del-phone">Telefon primaoca</label>
+                            <input class="a1-input" id="od-del-phone" name="recipient_phone" maxlength="60" value="{{ old('recipient_phone', ($delivery['recipient_phone'] ?? '') !== '—' ? ($delivery['recipient_phone'] ?? ($formDefaults['recipient_phone'] ?? '')) : ($formDefaults['recipient_phone'] ?? '')) }}"{!! $ctl('recipient_phone', 'od-del-phone') !!}>
+                            @error('recipient_phone')<p class="a1-error" id="od-del-phone-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            <label class="a1-label" for="od-del-ref">Interna referenca / vozilo (opciono)</label>
+                            <input class="a1-input" id="od-del-ref" name="delivery_reference" maxlength="190" value="{{ old('delivery_reference', ($delivery['reference'] ?? '') !== '—' ? ($delivery['reference'] ?? ($formDefaults['delivery_reference'] ?? '')) : ($formDefaults['delivery_reference'] ?? '')) }}"{!! $ctl('delivery_reference', 'od-del-ref') !!}>
+                            @error('delivery_reference')<p class="a1-error" id="od-del-ref-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field">
+                            @php $hasDeliveryProof = is_array($delivery) && ($delivery['has_proof'] ?? false); @endphp
+                            <label class="a1-label" for="od-del-proof">Dokaz isporuke (opciono, do 10 MB)</label>
+                            <input class="a1-input" id="od-del-proof" type="file" name="delivery_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"{!! $ctl('delivery_proof', 'od-del-proof', $hasDeliveryProof) !!}>
+                            @if($hasDeliveryProof)
+                                <p class="a1-help" id="od-del-proof-help">Postojeći dokaz: {{ $delivery['proof_original_name'] ?? 'Dokaz isporuke' }}. Novi fajl će ga zameniti.</p>
+                            @endif
+                            @error('delivery_proof')<p class="a1-error" id="od-del-proof-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
+                        <div class="a1-field a1-od-wide">
+                            <label class="a1-label" for="od-del-note">Napomena o isporuci</label>
+                            <textarea class="a1-textarea" id="od-del-note" name="delivery_note" rows="2" maxlength="3000" placeholder="Stanje robe, posebne okolnosti, ko je preuzeo..."{!! $ctl('delivery_note', 'od-del-note') !!}>{{ old('delivery_note', ($delivery['note'] ?? '') !== '—' ? ($delivery['note'] ?? '') : '') }}</textarea>
+                            @error('delivery_note')<p class="a1-error" id="od-del-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                        </div>
                     </div>
-                    <div class="a1-field">
-                        <label class="a1-label" for="od-del-ref">Interna referenca / vozilo (opciono; nije tracking)</label>
-                        <input class="a1-input" id="od-del-ref" name="delivery_reference" maxlength="190" value="{{ ($delivery['reference'] ?? '') !== '—' ? ($delivery['reference'] ?? '') : '' }}"{!! $ctl('delivery_reference', 'od-del-ref') !!}>
-                        @error('delivery_reference')<p class="a1-error" id="od-del-ref-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                    @if($openDebt > 0)
+                        <p class="a1-help" data-delivery-payment-shortcut>Preostalo za naplatu: <strong>{{ $order['remaining_rsd_display'] ?? '' }}</strong>. Uplata nije uslov isporuke. <a class="a1-link" href="#order-workspace-payments">Evidentiraj uplatu</a></p>
+                    @endif
+                    <div class="a1-od-actions">
+                        <button class="a1-btn" type="submit" data-confirm="{{ $isCashOnDelivery ? 'Potvrditi isporuku i naplaćen otkup? Račun se izdaje automatski, a garancija teče od datuma isporuke.' : 'Potvrditi isporuku? Račun se izdaje automatski, a garancija teče od datuma isporuke.' }}">
+                            <x-icon name="check-circle" :size="20" :shell="true" /> Potvrdi isporuku
+                        </button>
                     </div>
-                    <div class="a1-field">
-                        @php $hasDeliveryProof = is_array($delivery) && ($delivery['has_proof'] ?? false); @endphp
-                        <label class="a1-label" for="od-del-proof">Dokaz isporuke (opciono, do 10 MB)</label>
-                        <input class="a1-input" id="od-del-proof" type="file" name="delivery_proof" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"{!! $ctl('delivery_proof', 'od-del-proof', $hasDeliveryProof) !!}>
-                        @if($hasDeliveryProof)
-                            <p class="a1-help" id="od-del-proof-help">Postojeći dokaz: {{ $delivery['proof_original_name'] ?? 'Dokaz isporuke' }}. Novi fajl će ga zameniti.</p>
-                        @endif
-                        @error('delivery_proof')<p class="a1-error" id="od-del-proof-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                </form>
+            @endif
+
+            @if($actions['return_shipment'] ?? false)
+                <details class="a1-acc" data-order-shipment-return @if($errors->has('reason') && old('form_context') === 'shipment_return') open @endif>
+                    <summary id="order-shipment-return"><span class="a1-od-acc-title"><strong>Pošiljka vraćena</strong><small>Kurir je vratio pošiljku: porudžbina je opet Potvrđena, roba ostaje rezervisana</small></span></summary>
+                    <div class="a1-acc__body">
+                        <form method="post" action="{{ $urls['shipment_return'] }}" class="a1-form" aria-label="Pošiljka vraćena">
+                            @csrf
+                            <input type="hidden" name="form_context" value="shipment_return">
+                            <div class="a1-field">
+                                <label class="a1-label" for="od-return-reason">Razlog povrata<span class="a1-req" aria-hidden="true">*</span></label>
+                                <textarea class="a1-textarea" id="od-return-reason" name="reason" rows="3" minlength="3" maxlength="1000" required{!! $ctl('reason', 'od-return-reason') !!}></textarea>
+                                @error('reason')<p class="a1-error" id="od-return-reason-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+                            </div>
+                            <div class="a1-od-actions">
+                                <button class="a1-btn" type="submit" data-confirm="Evidentirati povrat pošiljke? Porudžbina se vraća u Potvrđena; posle toga je možeš ponovo poslati ili otkazati.">Evidentiraj povrat</button>
+                            </div>
+                        </form>
                     </div>
-                    <div class="a1-field a1-od-wide">
-                        <label class="a1-label" for="od-del-note">Napomena o isporuci</label>
-                        <textarea class="a1-textarea" id="od-del-note" name="delivery_note" rows="3" maxlength="3000" placeholder="Stanje robe, posebne okolnosti, ko je preuzeo..."{!! $ctl('delivery_note', 'od-del-note') !!}>{{ ($delivery['note'] ?? '') !== '—' ? ($delivery['note'] ?? '') : '' }}</textarea>
-                        @error('delivery_note')<p class="a1-error" id="od-del-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                    <div class="a1-field a1-od-wide">
-                        <label class="a1-label" for="od-del-final">Završna interna napomena</label>
-                        <input class="a1-input" id="od-del-final" name="completion_note" maxlength="1000" placeholder="Npr. roba isporučena kupcu i naplaćena pouzećem"{!! $ctl('completion_note', 'od-del-final') !!}>
-                        @error('completion_note')<p class="a1-error" id="od-del-final-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                    </div>
-                </div>
-                <div class="a1-od-actions">
-                    <button class="a1-btn" type="submit" data-confirm="{{ $isCashOnDelivery ? 'Potvrditi da je pošiljka isporučena i da je otkup naplaćen? Ova akcija kompletira porudžbinu.' : 'Potvrditi da je pošiljka isporučena? Ova akcija kompletira porudžbinu.' }}">
-                        <x-icon name="check-circle" :size="20" :shell="true" /> {{ $deliveryActionLabel }}
-                    </button>
-                </div>
-            </form>
+                </details>
+            @endif
         </section>
     @endif
 
@@ -1018,21 +995,21 @@
 
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
-    const logisticsButtons = Array.from(document.querySelectorAll('[data-logistics-action]'));
-    const logisticsPanels = Array.from(document.querySelectorAll('[data-logistics-panel]'));
-    const setLogisticsPanel = (name) => {
-        logisticsPanels.forEach((panel) => {
-            panel.hidden = panel.dataset.logisticsPanel !== name;
-        });
-        logisticsButtons.forEach((button) => {
-            button.setAttribute('aria-expanded', button.dataset.logisticsAction === name ? 'true' : 'false');
-        });
-        const active = logisticsPanels.find((panel) => panel.dataset.logisticsPanel === name);
-        active?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    logisticsButtons.forEach((button) => {
-        button.addEventListener('click', () => setLogisticsPanel(button.dataset.logisticsAction || ''));
-    });
+    // Kartica "Isporuka": način isporuke bira korak. Kurir = "Pošiljka je poslata", ostalo = samo "Potvrdi isporuku".
+    const methodSwitch = document.querySelector('[data-delivery-method-switch]');
+    if (methodSwitch) {
+        const shipmentPanel = document.querySelector('[data-logistics-panel="shipment"]');
+        const deliveryPanel = document.querySelector('[data-logistics-panel="delivery"]');
+        const methodInput = document.querySelector('[data-delivery-method-input]');
+        const syncDeliveryMethod = () => {
+            const courier = methodSwitch.value === 'courier';
+            if (shipmentPanel) shipmentPanel.hidden = !courier;
+            if (deliveryPanel) deliveryPanel.hidden = courier;
+            if (methodInput && !courier) methodInput.value = methodSwitch.value;
+        };
+        methodSwitch.addEventListener('change', syncDeliveryMethod);
+        syncDeliveryMethod();
+    }
 
     document.querySelectorAll('[data-shipment-form]').forEach((form) => {
         const method = form.querySelector('[data-shipment-method]');

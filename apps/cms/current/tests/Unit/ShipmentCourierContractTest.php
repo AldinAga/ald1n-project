@@ -27,8 +27,10 @@ final class ShipmentCourierContractTest extends TestCase
         self::assertStringNotContainsString("name('orders.tracking')", $routes);
         self::assertStringContainsString('Broj za praćenje pošiljke je obavezan za kurirsku službu.', $service);
         self::assertStringContainsString('Evidencija slanja pošiljke', $view);
-        self::assertStringContainsString('Evidentiraj da je roba poslata.', $view);
-        self::assertStringContainsString('Ova akcija ne potvrđuje stvarnu isporuku niti naplatu pouzećem.', $view);
+        self::assertStringContainsString('Pošiljka je poslata', $view);
+        self::assertStringContainsString('Ovo ne potvrđuje isporuku niti naplatu.', $view);
+        self::assertStringContainsString('Potvrdi isporuku', $view);
+        self::assertStringContainsString('Pošiljka vraćena', $view);
         self::assertStringContainsString('final class CourierDirectoryService', $directory);
         self::assertStringContainsString("hasRole('superadmin')", $directory);
     }

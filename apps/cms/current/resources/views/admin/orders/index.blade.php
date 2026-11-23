@@ -222,8 +222,9 @@
                                 if ($order->source_system === 'laravel' && !$order->completed_at && in_array($order->status, ['new', 'processing'], true)) {
                                     $rowActions[] = 'confirm';
                                 }
-                                if (!$order->completed_at && in_array($order->status, ['confirmed', 'shipped'], true) && ($order->payment_method === 'cash_on_delivery' || $order->payment_status === 'paid')) {
-                                    $rowActions[] = 'complete'; // label "Evidentiraj isporuku" lives in partials/row-action
+                                // Naplata nije uslov isporuke (odluka 2): potvrda isporuke se nudi za svaku potvrđenu ili poslatu porudžbinu.
+                                if (!$order->completed_at && $order->source_system === 'laravel' && in_array($order->status, ['confirmed', 'shipped'], true)) {
+                                    $rowActions[] = 'complete'; // label "Potvrdi isporuku" lives in partials/row-action
                                 }
                             @endphp
                             <tr role="row" class="{{ $isOverdue ? 'a1-ol-row--over' : '' }}">

@@ -276,6 +276,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                         Route::post('/orders/{order}/complete', [AdminOrderMutationController::class, 'complete'])->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
                         Route::post('/orders/{order}/reopen', [AdminOrderMutationController::class, 'reopen'])->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
                         Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])->whereNumber('order')->name('orders.shipment.store');
+                        Route::post('/orders/{order}/shipment/return', [AdminOrderShipmentController::class, 'returned'])->whereNumber('order')->name('orders.shipment.return');
                         Route::middleware('permission:payments.manage')->group(function (): void {
                             Route::post('/orders/{order}/payments', [AdminOrderMutationController::class, 'paymentStore'])->whereNumber('order')->name('orders.payments.store');
                             Route::post('/orders/{order}/payments/{payment}/verify', [AdminOrderMutationController::class, 'paymentVerify'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.verify');

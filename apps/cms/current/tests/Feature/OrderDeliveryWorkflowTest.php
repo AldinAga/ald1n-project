@@ -114,7 +114,7 @@ final class OrderDeliveryWorkflowTest extends TestCase
         $order->update(['status' => 'shipped']);
 
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/complete', [
-            'delivery_method' => 'courier',
+            'delivery_method' => 'other',
             'delivered_at' => now()->subMinute()->format('Y-m-d\TH:i'),
             'recipient_name' => 'Kupac Za Korekciju',
             'delivery_reference' => 'KURIR-555',

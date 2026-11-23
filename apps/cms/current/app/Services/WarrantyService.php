@@ -35,10 +35,12 @@ final class WarrantyService
             /** @var Order $locked */
             $locked = Order::query()->with(['items.product.categories', 'user', 'delivery'])->lockForUpdate()->findOrFail($order->id);
             if ($locked->completed_at === null && $locked->delivery === null) return collect();
-            // A post-activation order without a verified positive payment cannot
-            // obtain a newly issued commercial warranty merely by status change.
-            // Historical certificates are retained exactly as issued.
-            if (Schema::hasTable('warranty_issuances')
+            // Garancija počinje datumom potvrde isporuke UVEK, bez obzira na uplatu (odluka vlasnika 16.11.2026, tačka 13).
+            // Sertifikat bez uplate nastaje direktno u product_warranties; kasnija prva uplata ga ne duplira
+            // (WarrantyIssuanceService preskače stavke koje već imaju garanciju) i ne pomera početak.
+            // Direktna prodaja ostaje po starom pravilu: odložena, već isporučena prodaja čeka prvu stvarnu uplatu (van opsega ovog pravila).
+            if ((string) ($locked->sales_channel ?? 'order') === 'direct_sale'
+                && Schema::hasTable('warranty_issuances')
                 && !\App\Models\OrderPayment::query()->where('order_id', $locked->id)
                     ->where('entry_type', 'payment')->where('status', 'verified')
                     ->where('amount_rsd', '>', 0)->whereNotNull('verified_at')->exists()) {

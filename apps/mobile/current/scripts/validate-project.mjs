@@ -3633,15 +3633,12 @@ assert(
   'Batch513 Mobile prikazuje odvojene stacked potvrde slanja i isporuke sa COD-aware tekstom.',
 );
 assert(
-  shipmentDeliveryWebBatch513.includes('SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513')
-    && shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="shipment"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="delivery"')
+  shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="shipment"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="delivery"')
-    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka poslata')
-    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka isporučena i da je naplaćen otkup'),
-  'Batch513 Laravel order detail koristi jedan Slanje i isporuka action hub i on-demand forme.',
+    && shipmentDeliveryWebBatch513.includes('aria-label="Pošiljka je poslata"')
+    && shipmentDeliveryWebBatch513.includes('aria-label="Potvrdi isporuku"'),
+  'Batch513 Laravel order detail koristi jednu karticu Isporuka sa on-demand formama (slanje samo za kurira, isporuka odvojena od naplate).',
 );
 
 // MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92_VALIDATOR

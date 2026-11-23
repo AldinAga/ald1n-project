@@ -23,11 +23,16 @@ final class OrderEmailOutboxService
 
     public function orderCreated(Order $order, User $actor): void
     {
+        $message = sprintf('%s je kreirao/la porudžbinu %s u vrednosti %s RSD.', $actor->displayName(), $order->order_number, number_format((float) $order->subtotal_rsd, 2, ',', '.'));
+        if ((string) $order->payment_method === 'bank_transfer') {
+            // Mejl "primljena" nosi podatke za uplatu (odluka 38); link do porudžbine dodaje outbox (action_url).
+            $message .= sprintf(' Podaci za uplatu: račun %s, primalac %s, poziv na broj %s.', (string) $order->bank_account_number_display_snapshot, (string) $order->payment_recipient_name_snapshot, (string) $order->payment_reference_snapshot);
+        }
         $this->queueOrderEvent(
             $order,
             'order_created',
             'Kreirana je porudžbina '.$order->order_number,
-            sprintf('%s je kreirao/la porudžbinu %s u vrednosti %s RSD.', $actor->displayName(), $order->order_number, number_format((float) $order->subtotal_rsd, 2, ',', '.')),
+            $message,
             'creation',
             ['actor_id' => $actor->id, 'fingerprint' => (string) $order->created_at?->timestamp],
         );
@@ -222,7 +227,8 @@ final class OrderEmailOutboxService
                             'message' => $message,
                             'action_url' => $actionUrl,
                             'attach_document' => $document !== null,
-                            'attach_active_invoice' => $category !== 'document' && $this->settings->get('order_email_updates_attach_invoice', '0') === '1',
+                            // Mejl "isporučena" nosi račun u prilogu (odluka 38); ostali mejlovi samo ako je podešavanje uključeno.
+                            'attach_active_invoice' => $category !== 'document' && ($eventType === 'order_completed' || $this->settings->get('order_email_updates_attach_invoice', '0') === '1'),
                             'status' => 'pending',
                             'scheduled_for' => $scheduled,
                             'metadata_json' => $metadata,

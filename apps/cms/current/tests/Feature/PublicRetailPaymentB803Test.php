@@ -123,20 +123,18 @@ final class PublicRetailPaymentB803Test extends TestCase
         $confirmed=$workflow->changeStatus($order,'confirmed',$this->owner,null,
             app(\App\Services\OrderVersionService::class)->token($order));
         $receipt=['delivery_method'=>$delivery,'delivered_at'=>now()->subMinute()->toDateTimeString(),'recipient_name'=>'Synthetic B803 Buyer'];
-        try {
-            $workflow->complete($confirmed,$this->owner,$receipt);
-            self::fail('The in-person preference must not fabricate a collected payment.');
-        } catch (ValidationException $e) {
-            self::assertArrayHasKey('completion',$e->errors());
-        }
+        // Isporuka je odvojena od naplate: potvrda isporuke prolazi, ali NE izmišlja naplaćeni iznos (samo pouzeće ga evidentira).
+        $completed=$workflow->complete($confirmed,$this->owner,$receipt);
+        self::assertNotNull($completed->completed_at);
+        self::assertSame('unpaid',$order->fresh()->payment_state);
         self::assertDatabaseCount('order_payments',0);
-        self::assertDatabaseCount('order_deliveries',0);
+        self::assertDatabaseCount('order_deliveries',1);
+        // Posle isporuke uplata se i dalje evidentira, pa dug nestaje iz Potraživanja.
         app(OrderPaymentService::class)->record($order->fresh(),[
             'entry_type'=>'payment','amount_rsd'=>12000,'payment_method'=>'cash',
             'paid_at'=>now()->toDateTimeString(),'reference'=>'B803-SYNTHETIC-COLLECTION',
         ],$this->owner);
-        $completed=$workflow->complete($order->fresh(),$this->owner,$receipt);
-        $workflow->complete($completed,$this->owner,$receipt);
+        $workflow->complete($order->fresh(),$this->owner,$receipt);
         self::assertSame('paid',$order->fresh()->payment_state);
         self::assertDatabaseCount('order_payments',1);
         self::assertDatabaseCount('order_deliveries',1);

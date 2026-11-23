@@ -4,5 +4,5 @@
     {{-- Potvrda traži token svežine porudžbine, pa lista samo vodi na panel potvrde na detalju (bez 409 iz liste). --}}
     <a class="{{ $btn }}" href="{{ route('admin.orders.show', $order) }}#order-confirm" aria-label="Potvrdi porudžbinu: {{ $order->order_number }}">Potvrdi</a>
 @else
-    <a class="{{ $btn }}" href="{{ route('admin.orders.show', $order) }}#delivery-completion" aria-label="Evidentiraj isporuku: {{ $order->order_number }}">Evidentiraj isporuku</a>
+    <a class="{{ $btn }}" href="{{ route('admin.orders.show', $order) }}#order-workspace-logistics-actions" aria-label="Potvrdi isporuku: {{ $order->order_number }}">Potvrdi isporuku</a>
 @endif

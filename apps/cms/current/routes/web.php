@@ -392,6 +392,14 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
                 ->whereNumber('order')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('orders.sale-price-correction');
             Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])
                 ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.store');
+            Route::post('/orders/{order}/shipment/return', [AdminOrderShipmentController::class, 'returned'])
+                ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.return');
+            Route::middleware('permission:after_sales.manage')->group(function (): void {
+                Route::get('/orders/{order}/after-sales/create', [\App\Http\Controllers\Admin\OrderAfterSalesController::class, 'create'])
+                    ->whereNumber('order')->name('orders.after-sales.create');
+                Route::post('/orders/{order}/after-sales', [\App\Http\Controllers\Admin\OrderAfterSalesController::class, 'store'])
+                    ->whereNumber('order')->middleware('throttle:uploads')->name('orders.after-sales.store');
+            });
             Route::patch('/orders/{order}/deadlines', [AdminOrderController::class, 'deadlines'])->whereNumber('order')->name('orders.deadlines');
         });
         Route::middleware('permission:receivables.manage')->group(function (): void {
@@ -520,7 +528,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         });
 
         Route::middleware('permission:payments.manage')->group(function (): void {
-            Route::post('/orders/{order}/payments', [AdminPaymentController::class, 'store'])->whereNumber('order')->name('orders.payments.store');
+            Route::post('/orders/{order}/payments', [AdminPaymentController::class, 'store'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.payments.store');
             Route::post('/orders/{order}/payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.verify');
             Route::post('/orders/{order}/payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.reject');
             Route::post('/orders/{order}/payments/{payment}/void', [AdminPaymentController::class, 'void'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.void');

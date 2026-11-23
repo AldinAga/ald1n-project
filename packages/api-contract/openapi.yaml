@@ -2742,7 +2742,7 @@ paths:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     post:
-      summary: Confirm actual delivery and complete the order
+      summary: Confirm actual delivery (no payment required; the invoice is issued automatically and the warranty starts on the delivery date)
       operationId: adminOrdersComplete
       security:
         - bearerAuth: []
@@ -2831,8 +2831,9 @@ paths:
               type: object
               required: [entry_type, amount_rsd, payment_method, paid_at]
               properties:
+                idempotency_key: { type: string, maxLength: 200, description: 'Optional (older app versions omit it). Repeating a request with the same key returns the same ledger row instead of creating a second one. When missing, the server derives the key from order, user, entry type, amount, method and paid_at, so an identical repeat is also one row.' }
                 entry_type: { type: string, enum: [payment, refund] }
-                amount_rsd: { type: number, format: double, minimum: 0.01 }
+                amount_rsd: { type: number, format: double, minimum: 0.01, maximum: 9999999999.99, description: 'A refund cannot exceed the net amount paid so far.' }
                 payment_method: { type: string, enum: [bank_transfer, cash, cash_on_delivery, card, other] }
                 paid_at: { type: string, format: date-time }
                 reference: { type: string, nullable: true, maxLength: 190 }
@@ -2927,6 +2928,28 @@ paths:
         '404': { description: Order or managed resource not found. }
         '422': { description: Shipment validation or domain invariant failed. }
         '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/shipment/return:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Mark a shipped, undelivered order's shipment as returned (the order goes back to Confirmed, stock stays reserved)
+      operationId: adminOrdersShipmentReturn
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 2000 }
+      responses:
+        '200': { description: Shipment kept and marked as returned; order status confirmed. }
+        '403': { description: orders.manage permission required. }
+        '404': { description: Order outside the managed scope. }
+        '422': { description: Missing reason or the order is not shipped and undelivered. }
   /api/v1/admin/orders/{order}/shipment-proof:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }

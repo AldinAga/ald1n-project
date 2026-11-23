@@ -94,6 +94,11 @@ async function openGroup(page, summary) {
   if (await page.locator(toggle).isVisible()) await summary.click(); else await summary.hover();
 }
 const prepare = {
+  // Kartica "Isporuka": lično preuzimanje skriva korak slanja (kurirska polja) i otvara samo "Potvrdi isporuku".
+  async deliveryPickup(page) {
+    await page.locator('#od-method-switch').selectOption('customer_pickup');
+    await page.waitForFunction(() => { const s = document.querySelector('[data-logistics-panel="shipment"]'); const d = document.querySelector('[data-logistics-panel="delivery"]'); return s && d && s.hidden && !d.hidden; }, null, { timeout: 5000 });
+  },
   async navDropdown(page) {
     await openMobileMenuIfNeeded(page);
     const summary = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
@@ -283,7 +288,11 @@ const PAGES = [
   { module: 'orders', key: 'orders-show-long-amount', path: (i) => `/admin/orders/${i.order_long_amount}`, widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-show-paid', path: (i) => `/admin/orders/${i.order_paid}`, widths: ORDERS_WIDTHS_3 },
   { module: 'orders', key: 'orders-show-partly-paid', path: (i) => `/admin/orders/${i.order_partly_paid}`, widths: ORDERS_WIDTHS_3 },
-  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  // Potvrđena porudžbina u kartici "Isporuka": kurir (podrazumevano: "Pošiljka je poslata") i lično preuzimanje (samo "Potvrdi isporuku"); isporučena (zeleno).
+  { module: 'orders', key: 'orders-show-confirmed-courier', path: (i) => `/admin/orders/${i.order_paid}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-confirmed-pickup', path: (i) => `/admin/orders/${i.order_paid}`, prepare: prepare.deliveryPickup, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-delivered', path: (i) => `/admin/orders/${i.order_completed}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
   { module: 'orders', key: 'orders-show-cancelled', path: (i) => `/admin/orders/${i.order_cancelled}`, widths: ORDERS_WIDTHS_3 },
   // One list cell per status the list can show (new is covered by orders-index-filtered). Archived orders have no detail page (404 by design).
   { module: 'orders', key: 'orders-status-processing', path: '/admin/orders?status=processing', widths: ORDERS_WIDTHS_2 },
@@ -735,8 +744,21 @@ async function ordersFlowChecks(page, pg, width, base) {
     const cancelSummary = root ? root.querySelector('summary#order-cancel') : null;
     const cancelForm = cancelSummary ? cancelSummary.closest('details').querySelector('form') : null;
     const status = root ? root.querySelector('#od-status') : null;
+    const vis = (sel) => root ? [...root.querySelectorAll(sel)].filter((e) => e.getClientRects().length > 0) : [];
+    const cardEl = root ? root.querySelector('#order-workspace-logistics-actions') : null;
     return {
-      removed: ['Preuzmi', 'U obradu', 'U obradi'].filter((w) => txt.includes(w)),
+      removed: ['Preuzmi', 'U obradu', 'U obradi', 'Evidentiraj isporuku', 'Evidentiraj slanje', 'Potvrdi da je pošiljka isporučena', 'Izdaj / otvori račun'].filter((w) => txt.includes(w)),
+      card: cardEl ? {
+        count: root.querySelectorAll('#order-workspace-logistics-actions').length,
+        title: (cardEl.querySelector('h2') || {}).textContent || '',
+        shipmentPanelVisible: vis('[data-logistics-panel="shipment"]').length > 0,
+        deliveryPanelVisible: vis('[data-logistics-panel="delivery"]').length > 0,
+        trackingVisible: vis('#od-ship-tracking, #od-ship-courier').length > 0,
+        // Buttons inside a closed <details> (e.g. "Pošiljka vraćena") are not a visible step.
+        visibleSubmits: vis('#order-workspace-logistics-actions button[type=submit]').filter((b) => { const dd = b.closest('details'); return !dd || dd.open; }).map((b) => (b.textContent || '').trim()),
+      } : null,
+      paymentForm: root ? !!root.querySelector('form[data-payment-record-form]') : false,
+      pillTone: (root && root.querySelector('.a1-od-facts .a1-pill')) ? root.querySelector('.a1-od-facts .a1-pill').className : '',
       rowStatusForms: q('tbody form').length,
       confirmLinks: q('a[aria-label^="Potvrdi porudžbinu"]').map((a) => a.getAttribute('href') || ''),
       primary: q('.a1-btn--primary').filter((e) => e.getClientRects().length > 0).map((e) => (e.textContent || '').trim()),
@@ -753,6 +775,21 @@ async function ordersFlowChecks(page, pg, width, base) {
     const wrong = d.confirmLinks.filter((h) => !h.endsWith('#order-confirm'));
     if (wrong.length) bad('order-flow-list-confirm-not-a-link-to-detail', wrong.slice(0, 2).join(' | '));
     return out;
+  }
+  // One "Isporuka" card (owner decision 7): courier = "Pošiljka je poslata" first, pickup / own transport = only "Potvrdi isporuku".
+  if (d.card) {
+    if (d.card.count !== 1 || !/^Isporuka$/.test(d.card.title.trim())) bad('order-flow-delivery-card', JSON.stringify(d.card));
+    if (d.card.visibleSubmits.length !== 1) bad('order-flow-delivery-one-visible-step', JSON.stringify(d.card.visibleSubmits));
+    if (pg.key === 'orders-show-confirmed-courier' && !(d.card.shipmentPanelVisible && !d.card.deliveryPanelVisible && /Pošiljka je poslata$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-courier-step', JSON.stringify(d.card));
+    if (pg.key === 'orders-show-confirmed-pickup' && !(!d.card.shipmentPanelVisible && d.card.deliveryPanelVisible && !d.card.trackingVisible && /Potvrdi isporuku$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-pickup-step', JSON.stringify(d.card));
+    if (pg.key === 'orders-show-shipped' && !(d.card.deliveryPanelVisible && !d.card.shipmentPanelVisible && /Potvrdi isporuku$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-shipped-step', JSON.stringify(d.card));
+  } else if (['orders-show-confirmed-courier', 'orders-show-confirmed-pickup', 'orders-show-shipped'].includes(pg.key)) {
+    bad('order-flow-delivery-card-missing', pg.key);
+  }
+  if (pg.key === 'orders-show-delivered') {
+    if (d.card) bad('order-flow-delivered-has-delivery-card', pg.key);
+    if (d.pill !== 'Isporučena' || !/a1-pill--ok/.test(d.pillTone)) bad('order-flow-delivered-chip', d.pill + ' / ' + d.pillTone);
+    if (!d.paymentForm) bad('order-flow-delivered-payments-open', 'no payment form on a delivered order');
   }
   // The seed has "new" orders (orders-show, items15, long-name) and one legacy "processing" order (partly-paid); both read "Nova" and must be confirmable.
   const isNova = d.pill === 'Nova';

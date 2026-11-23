@@ -262,12 +262,12 @@
                     <div class="a1-dl__row"><dt>Kupac</dt><dd>{{ $order['shipping_full_name'] ?? '—' }}</dd></div>
                     <div class="a1-dl__row"><dt>Adresa</dt><dd>{{ $order['shipping_address'] ?? '—' }}, {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}</dd></div>
                     <div class="a1-dl__row"><dt>Telefon</dt><dd>{{ $order['shipping_phone'] ?? '—' }}</dd></div>
-                    <div class="a1-dl__row"><dt>Tracking</dt><dd>{{ $order['tracking_number'] ?: '—' }}</dd></div>
+                    <div class="a1-dl__row"><dt>Tracking</dt><dd>{{ is_array($shipment) && ($shipment['is_returned'] ?? false) ? '—' : ($order['tracking_number'] ?: '—') }}</dd></div>
                     <div class="a1-dl__row"><dt>Očekivano slanje</dt><dd>{{ $order['expected_shipping_display'] ?? '—' }}</dd></div>
                 </dl>
             </section>
 
-            @if(is_array($shipment))
+            @if(is_array($shipment) && !($shipment['is_returned'] ?? false))
                 <section class="a1-card" aria-labelledby="oc-shipment-title">
                     <h2 class="a1-h3" id="oc-shipment-title">Evidencija slanja pošiljke</h2>
                     <dl class="a1-dl">

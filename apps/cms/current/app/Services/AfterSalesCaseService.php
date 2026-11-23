@@ -29,19 +29,24 @@ final class AfterSalesCaseService
     ) {}
 
     /** @param array<string,mixed> $data @param list<UploadedFile> $files */
-    public function create(Order $order, User $actor, array $data, array $files = []): AfterSalesCase
+    public function create(Order $order, User $actor, array $data, array $files = [], bool $onBehalf = false): AfterSalesCase
     {
-        if (!$this->access->canCreateForOrder($order, $actor)) {
+        $allowed = fn (Order $candidate): bool => $onBehalf
+            ? $this->access->canCreateOnBehalf($candidate, $actor)
+            : $this->access->canCreateForOrder($candidate, $actor);
+        if (!$allowed($order)) {
             throw ValidationException::withMessages([
-                'order' => 'Postprodajni slučaj može se otvoriti samo za isporučenu ili kompletiranu sopstvenu porudžbinu.',
+                'order' => $onBehalf
+                    ? 'Slučaj u ime kupca može da otvori odgovorno lice ili superadmin, samo na isporučenoj porudžbini.'
+                    : 'Postprodajni slučaj može se otvoriti samo za isporučenu ili kompletiranu sopstvenu porudžbinu.',
             ]);
         }
 
         $storedPaths = [];
         try {
-            $case = DB::transaction(function () use ($order, $actor, $data, $files, &$storedPaths): AfterSalesCase {
+            $case = DB::transaction(function () use ($order, $actor, $data, $files, $onBehalf, $allowed, &$storedPaths): AfterSalesCase {
                 $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-                if (!$this->access->canCreateForOrder($lockedOrder, $actor)) {
+                if (!$allowed($lockedOrder)) {
                     throw ValidationException::withMessages(['order' => 'Porudžbina više nije dostupna za postprodajni zahtev.']);
                 }
 
@@ -106,13 +111,13 @@ final class AfterSalesCaseService
                     'from_status' => null,
                     'to_status' => 'open',
                     'actor_id' => $actor->id,
-                    'note' => 'Postprodajni slučaj je otvoren.',
-                    'metadata_json' => ['case_type' => $case->case_type, 'priority' => $case->priority],
+                    'note' => $onBehalf ? 'Postprodajni slučaj je otvoren u ime kupca ('.$actor->displayName().').' : 'Postprodajni slučaj je otvoren.',
+                    'metadata_json' => ['case_type' => $case->case_type, 'priority' => $case->priority] + ($onBehalf ? ['opened_on_behalf_of' => (int) $lockedOrder->user_id] : []),
                     'created_at' => now(),
                 ]);
 
                 $this->storeAttachments($case, null, $actor, $files, $storedPaths);
-                $this->audit->log('after_sales.created', 'Otvoren postprodajni slučaj '.$case->case_number, $case, null, $case->toArray(), ['order_id' => $lockedOrder->id], $actor);
+                $this->audit->log('after_sales.created', 'Otvoren postprodajni slučaj '.$case->case_number, $case, null, $case->toArray(), ['order_id' => $lockedOrder->id] + ($onBehalf ? ['opened_on_behalf_of' => (int) $lockedOrder->user_id, 'opened_by' => (int) $actor->id] : []), $actor);
 
                 return $case;
             });

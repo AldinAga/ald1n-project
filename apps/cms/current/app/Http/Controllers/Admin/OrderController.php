@@ -218,7 +218,18 @@ final class OrderController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
-        $updated = $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
+        try {
+            $updated = $workflow->changeStatus($order, (string) $data['status'], $request->user(), $data['note'] ?? null, $data['order_version_token'] ?? null);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            // Polje ručne izmene se zove "note"; greška o razlogu mora da stoji uz njega.
+            $errors = $exception->errors();
+            if (isset($errors['reason']) && !isset($errors['note'])) {
+                $errors['note'] = $errors['reason'];
+                unset($errors['reason']);
+                throw \Illuminate\Validation\ValidationException::withMessages($errors);
+            }
+            throw $exception;
+        }
 
         return back()->with('status', $this->statusChangedMessage($updated));
     }
@@ -259,11 +270,14 @@ final class OrderController extends Controller
     public function complete(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse
     {
         $access->authorizeManage($order, $request->user());
+        // Jedna potvrda isporuke: polja koja su već uneta pri slanju (primalac, telefon, broj pošiljke, način) prenose se bez ponovnog unosa.
+        $shipment = \App\Models\OrderShipment::query()->where('order_id', $order->id)->first();
+        $shipment = $shipment instanceof \App\Models\OrderShipment && !$shipment->isReturned() ? $shipment : null;
         $request->merge([
-            'delivery_method' => $request->input('delivery_method', 'own_transport'),
+            'delivery_method' => $request->input('delivery_method', $shipment === null ? 'own_transport' : ($shipment->shipment_method === 'own_transport' ? 'own_transport' : ($shipment->shipment_method === 'courier' ? 'courier' : 'other'))),
             'delivered_at' => $request->input('delivered_at', now()->format('Y-m-d\TH:i')),
-            'recipient_name' => $request->input('recipient_name', trim((string) $order->shipping_full_name) ?: 'Kupac'),
-            'recipient_phone' => $request->input('recipient_phone', (string) $order->shipping_phone),
+            'recipient_name' => $request->input('recipient_name', trim((string) ($shipment?->recipient_name ?: $order->shipping_full_name)) ?: 'Kupac'),
+            'recipient_phone' => $request->input('recipient_phone', (string) ($shipment?->recipient_phone ?: $order->shipping_phone)),
             'completion_note' => $request->input('completion_note', $request->input('note')),
         ]);
         $data = $request->validate([
@@ -278,10 +292,17 @@ final class OrderController extends Controller
         ]);
         $completed = $workflow->complete($order, $request->user(), $data, $request->file('delivery_proof'));
 
-        return back()->with(
-            'status',
-            'Porudžbina '.$completed->order_number.' je isporučena. Evidencija isporuke i konačno plaćanje su zaključani; dokumenti su u kartici Dokumenti.',
-        );
+        $message = 'Porudžbina '.$completed->order_number.' je isporučena, garancija teče od datuma isporuke.';
+        $left = round(max(0.0, (float) $completed->subtotal_rsd - (float) $completed->paid_total_rsd), 2);
+        $message .= $left > 0.004
+            ? ' Dug od '.number_format($left, 2, ',', '.').' RSD ostaje otvoren u Potraživanjima; uplate se i dalje evidentiraju.'
+            : ' Naplata je u potpunosti evidentirana.';
+        $invoice = $completed->documents()->where('document_type', 'invoice')->where('status', 'issued')->exists();
+        $message .= $invoice
+            ? ' Račun je izdat automatski (kartica Dokumenti).'
+            : ' Račun nije izdat automatski: izdaj ga iz kartice Dokumenti.';
+
+        return back()->with('status', $message);
     }
 
     public function reopen(Request $request, Order $order, OrderWorkflowService $workflow, OrderAccessService $access): RedirectResponse

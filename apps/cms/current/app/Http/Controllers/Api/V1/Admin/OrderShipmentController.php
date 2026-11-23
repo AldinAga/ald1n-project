@@ -71,6 +71,28 @@ final class OrderShipmentController extends Controller
         ], 201);
     }
 
+    public function returned(
+        Request $request,
+        Order $order,
+        OrderAccessService $access,
+        OrderShipmentService $shipments,
+    ): JsonResponse {
+        $actor = $this->actor($request);
+        $access->authorizeManage($order, $actor);
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:2000']]);
+        $shipment = $shipments->markReturned($order, $actor, (string) $data['reason']);
+
+        return response()->json([
+            'message' => 'Pošiljka je evidentirana kao vraćena. Porudžbina je ponovo Potvrđena, a roba ostaje rezervisana.',
+            'data' => [
+                'order_id' => (int) $shipment->order_id,
+                'status' => (string) ($shipment->order?->status ?: 'confirmed'),
+                'returned_at' => $shipment->returned_at?->toISOString(),
+                'return_reason' => (string) $shipment->return_reason,
+            ],
+        ], 200, ['Cache-Control' => 'private, no-store, max-age=0']);
+    }
+
     public function proof(
         Request $request,
         Order $order,

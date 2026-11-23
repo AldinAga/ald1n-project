@@ -31,7 +31,7 @@ foreach ($filters as $name) {
 $actions = [
     "route('admin.orders.show', \$order)",
     '#order-confirm',
-    '#delivery-completion',
+    '#order-workspace-logistics-actions',
 ];
 $checkActions = true;
 foreach ($actions as $value) {

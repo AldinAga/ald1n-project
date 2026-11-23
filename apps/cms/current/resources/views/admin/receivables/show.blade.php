@@ -22,21 +22,14 @@
 <article class="stat-card danger"><span>Preostalo</span><strong>{{ number_format((float)$remaining,2,',','.') }} RSD</strong></article>
 <article class="stat-card warning"><span>Aging</span><strong>{{ $agingLabels[$agingBucket] ?? $agingBucket }}</strong><small>{{ $days>0 ? 'Kašnjenje '.$days.' dana' : 'Nije dospelo' }}</small></article>
 </div>
-@php($paymentMethodLabels=['bank_transfer'=>'Uplata na račun','cash'=>'Gotovina','card'=>'Kartica','cod'=>'Pouzećem','other'=>'Drugo'])
+@php($paymentMethodLabels=['bank_transfer'=>'Uplata na račun','cash'=>'Gotovina','card'=>'Kartica','cash_on_delivery'=>'Pouzećem','cod'=>'Pouzećem','other'=>'Drugo'])
 @php($verifiedPayments=$order->payments->filter(fn($payment)=>$payment->entry_type==='payment' && $payment->status==='verified')->sortByDesc(fn($payment)=>$payment->paid_at?->timestamp ?? $payment->id))
 <section class="panel form-section" id="evidentiraj-uplatu">
 <div class="section-heading-row"><div><h2>Evidentiraj uplatu</h2><p class="muted">Unesi stvarni datum i iznos uplate. Sistem automatski raspoređuje iznos na najstarije otvorene rate, isto kao u Android aplikaciji.</p></div></div>
 @if($canManagePayments && $remaining > 0)
-<form method="post" action="{{ route('admin.receivables.payments.store',$case) }}" class="form-grid two-columns" data-ux-allow-multiple-submit>
-@csrf
-<input type="hidden" name="idempotency_key" value="{{ old('idempotency_key',(string)\Illuminate\Support\Str::uuid()) }}">
-<label><span>Iznos uplate RSD</span><input type="number" step="0.01" min="0.01" max="{{ number_format((float)$remaining,2,'.','') }}" name="amount_rsd" value="{{ old('amount_rsd') }}" required inputmode="decimal"><small>Preostalo: {{ number_format((float)$remaining,2,',','.') }} RSD</small></label>
-<label><span>Datum i vreme stvarne uplate</span><input type="datetime-local" name="paid_at" value="{{ old('paid_at',now()->format('Y-m-d\TH:i')) }}" required></label>
-<label><span>Način plaćanja</span><select name="payment_method" required>@foreach($paymentMethodLabels as $value=>$label)<option value="{{ $value }}" @selected(old('payment_method','bank_transfer')===$value)>{{ $label }}</option>@endforeach</select></label>
-<label><span>Referenca</span><input name="reference" maxlength="120" value="{{ old('reference') }}" placeholder="Opciono"></label>
-<label class="full-width"><span>Napomena</span><textarea name="note" maxlength="1000" placeholder="Opciono">{{ old('note') }}</textarea></label>
-<div class="full-width"><button class="button button-primary" type="submit">Evidentiraj uplatu</button></div>
-</form>
+<div class="a1-ops">
+@include('admin.payments.partials.record-form', ['action' => route('admin.receivables.payments.store',$case), 'remaining' => (float) $remaining, 'allowRefund' => false, 'prefix' => 'rc-pay'])
+</div>
 @elseif($canManagePayments)
 <p class="muted">Potraživanje je u celosti izmireno.</p>
 @endif

@@ -53,7 +53,7 @@ final class OrderShipmentService
                 }
 
                 $existing = OrderShipment::query()->where('order_id', $locked->id)->lockForUpdate()->first();
-                if ($existing instanceof OrderShipment) {
+                if ($existing instanceof OrderShipment && !$existing->isReturned()) {
                     throw ValidationException::withMessages(['shipment' => 'Slanje ove porudžbine je već evidentirano.']);
                 }
 
@@ -131,12 +131,34 @@ final class OrderShipmentService
                 ];
                 if (is_array($storedProof)) $payload = array_replace($payload, $storedProof);
 
-                $created = OrderShipment::query()->create($payload);
+                // order_shipments ima jedan red po porudžbini: ponovno slanje posle povrata menja taj red; prethodna pošiljka ostaje u auditu povrata.
+                $reshipped = $existing instanceof OrderShipment;
+                $previous = null;
+                if ($reshipped) {
+                    $previous = [
+                        'tracking_number' => $existing->tracking_number_snapshot,
+                        'courier' => $existing->courier_name_snapshot,
+                        'shipped_at' => $existing->shipped_at?->toISOString(),
+                        'return_reason' => $existing->return_reason,
+                    ];
+                    $oldProofPath = (string) $existing->proof_path;
+                    $existing->update($payload + ['proof_disk' => null, 'proof_path' => null, 'proof_original_name' => null, 'proof_mime_type' => null, 'proof_size' => null]
+                        + (OrderShipment::hasReturnColumns() ? ['returned_at' => null, 'returned_by' => null, 'return_reason' => null] : []));
+                    $created = $existing;
+                    if ($oldProofPath !== '' && (!is_array($storedProof) || $oldProofPath !== (string) ($storedProof['proof_path'] ?? ''))) {
+                        // Stari dokaz se briše tek kad commit uspe; pri pucanju transakcije ostaje na disku.
+                        DB::afterCommit(fn () => $this->deletePrivateFile('local', $oldProofPath));
+                    }
+                } else {
+                    $created = OrderShipment::query()->create($payload);
+                }
                 $this->audit->log(
                     'order.shipment_recorded',
                     'Evidentirano slanje pošiljke '.$locked->order_number,
                     $created,
+                    before: $previous !== null ? ['previous_shipment' => $previous] : null,
                     after: [
+                        'reshipped_after_return' => $reshipped,
                         'order_id' => $locked->id,
                         'shipment_method' => $method,
                         'courier' => $courier?->name,
@@ -183,6 +205,76 @@ final class OrderShipmentService
                     'actor_id' => $actor->id,
                 ],
             );
+        }
+
+        return $shipment;
+    }
+
+    /**
+     * "Pošiljka vraćena" (odluka 16): poslata, neisporučena porudžbina se vraća u "Potvrđena", roba ostaje rezervisana,
+     * zapis o slanju ostaje i obeležava se kao vraćen. Razlog je obavezan. Posle toga se može ponovo poslati ili otkazati.
+     */
+    public function markReturned(Order $order, User $actor, string $reason): OrderShipment
+    {
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 3) {
+            throw ValidationException::withMessages(['reason' => 'Razlog povrata pošiljke je obavezan.']);
+        }
+        if (!OrderShipment::hasReturnColumns()) {
+            throw ValidationException::withMessages(['shipment' => 'Povrat pošiljke još nije dostupan: baza čeka ažuriranje (migracija).']);
+        }
+
+        $shipment = DB::transaction(function () use ($order, $actor, $reason): OrderShipment {
+            /** @var Order $locked */
+            $locked = Order::query()->with(['user', 'supplier'])->lockForUpdate()->findOrFail($order->id);
+            if ((string) $locked->source_system !== 'laravel' || (string) ($locked->sales_channel ?? 'order') === 'direct_sale') {
+                throw ValidationException::withMessages(['shipment' => 'Povrat pošiljke važi samo za porudžbine sa evidencijom slanja.']);
+            }
+            if ($locked->completed_at !== null || (string) $locked->status !== 'shipped') {
+                throw ValidationException::withMessages(['shipment' => 'Povrat se evidentira samo za poslatu, a neisporučenu porudžbinu.']);
+            }
+            $shipment = OrderShipment::query()->where('order_id', $locked->id)->lockForUpdate()->first();
+            if (!$shipment instanceof OrderShipment) {
+                throw ValidationException::withMessages(['shipment' => 'Porudžbina nema evidentirano slanje.']);
+            }
+            if ($shipment->isReturned()) {
+                throw ValidationException::withMessages(['shipment' => 'Ova pošiljka je već evidentirana kao vraćena.']);
+            }
+
+            $shipment->update(['returned_at' => now(), 'returned_by' => $actor->id, 'return_reason' => $reason]);
+            // Lager ostaje rezervisan (inventory_state se ne dira); komisija i garancija se ne menjaju jer isporuke nije bilo.
+            // Broj za praćenje vraćene pošiljke ne ostaje na porudžbini (vidi ga kupac); ostaje u snapshotu pošiljke i auditu.
+            $locked->update(['status' => 'confirmed', 'tracking_number' => null, 'tracking_updated_at' => null, 'tracking_updated_by' => null, 'updated_by' => $actor->id]);
+            DB::table('order_status_history')->insert([
+                'order_id' => $locked->id,
+                'changed_by' => $actor->id,
+                'old_status' => 'shipped',
+                'new_status' => 'confirmed',
+                // Istorija je vidljiva i kupcu; interni razlog ostaje na zapisu o slanju i u audit logu.
+                'note' => 'Pošiljka je vraćena.',
+                'created_at' => now(),
+            ]);
+            $this->audit->log(
+                'order.shipment_returned',
+                'Pošiljka vraćena '.$locked->order_number,
+                $shipment,
+                before: ['status' => 'shipped', 'tracking_number' => $shipment->tracking_number_snapshot, 'courier' => $shipment->courier_name_snapshot],
+                after: ['status' => 'confirmed', 'inventory_state' => (string) $locked->inventory_state],
+                metadata: ['reason' => $reason],
+                user: $actor,
+            );
+
+            return $shipment->fresh(['order.user', 'order.supplier']) ?? $shipment;
+        }, 5);
+
+        $returnedOrder = $shipment->order;
+        if ($returnedOrder instanceof Order) {
+            $message = 'Pošiljka za porudžbinu '.$returnedOrder->order_number.' je vraćena. Razlog: '.$reason.' Porudžbina je ponovo „Potvrđena“; pošalji je ponovo ili je otkaži.';
+            // Interni razlog povrata ide samo osoblju (dobavljaču); kupac ne dobija obaveštenje ni razlog.
+            $recipient = $returnedOrder->supplier;
+            if ($recipient instanceof User && (int) $recipient->id !== (int) $actor->id) {
+                $this->notifications->order($recipient, 'order.shipment_returned', 'Pošiljka je vraćena', $message, $returnedOrder, ['severity' => 'warning', 'icon' => 'alert-triangle']);
+            }
         }
 
         return $shipment;

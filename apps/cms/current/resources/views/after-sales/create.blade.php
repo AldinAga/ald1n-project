@@ -4,7 +4,7 @@
 <div class="a1-ops" data-after-sales-create="1">
     <nav aria-label="Putanja">
         <ol class="a1-crumbs">
-            <li><a href="{{ route('orders.show', $order) }}">Porudžbina {{ $order->order_number }}</a></li>
+            <li><a href="{{ $backUrl ?? route('orders.show', $order) }}">Porudžbina {{ $order->order_number }}</a></li>
             <li aria-current="page">Novi postprodajni zahtev</li>
         </ol>
     </nav>
@@ -17,7 +17,14 @@
         </div>
     </header>
 
-    <form class="a1-form" method="post" action="{{ route('after-sales.store', $order) }}" enctype="multipart/form-data">
+    @if($onBehalf ?? false)
+        <div class="a1-alert a1-alert--warning" role="status" data-after-sales-on-behalf>
+            <x-icon name="alert" :size="20" :shell="true" />
+            <div class="a1-alert__body"><p>Otvaraš slučaj u ime kupca {{ $order->shipping_full_name ?: 'Kupac' }}. U istoriji slučaja ostaje zabeleženo da si ga ti otvorio.</p></div>
+        </div>
+    @endif
+
+    <form class="a1-form" method="post" action="{{ $formAction ?? route('after-sales.store', $order) }}" enctype="multipart/form-data">
         @csrf
         <div class="a1-split">
             <div class="a1-stack">

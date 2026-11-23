@@ -6,7 +6,9 @@
     $urls = $detail['urls'] ?? [];
     $formDefaults = $detail['form_defaults'] ?? [];
     $isCompleted = (bool) ($order['is_completed'] ?? false);
-    $canManagePayments = (bool) ($permissions['manage_payments'] ?? false) && !$isCompleted;
+    // Isporuka je odvojena od naplate: posle isporuke se uplate i dalje evidentiraju; zaključana je samo (neodložena) direktna prodaja.
+    $financeLocked = (bool) ($order['is_direct_sale'] ?? false) && ($order['payment_method'] ?? '') !== 'deferred_payment';
+    $canManagePayments = (bool) ($permissions['manage_payments'] ?? false) && !$financeLocked;
     $payPill = static fn (string $tone): string => 'a1-pill'.($tone !== '' ? ' a1-pill--'.$tone : '');
     $payStateTone = match ((string) ($order['payment_state'] ?? 'unpaid')) {
         'paid', 'overpaid' => 'ok',
@@ -117,63 +119,31 @@
         </table>
     </div>
 
-    @if($isCompleted)
+    @if($financeLocked)
         <div class="a1-alert" role="status">
             <x-icon name="lock" :size="20" :shell="true" />
             <div class="a1-alert__body">
                 <p class="a1-alert__title">Finansije su zaključane</p>
-                <p>Porudžbina je kompletirana {{ $order['completed_at'] ?? '' }}. Nove uplate, refundacije i storniranja više nisu dostupni.</p>
+                <p>Direktna prodaja je evidentirana {{ $order['completed_at'] ?? '' }}. Nove uplate, refundacije i storniranja idu samo kroz odobrenu postprodajnu radnju.</p>
             </div>
         </div>
     @elseif($canManagePayments && !empty($urls['payment_store']))
-        <form class="a1-form" method="post" action="{{ $urls['payment_store'] }}" aria-label="Nova stavka uplate">
-            @csrf
-            <p class="a1-help">Polja sa zvezdicom su obavezna.</p>
-            <div class="a1-row">
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-type">Tip</label>
-                    <select class="a1-select" id="od-pay-type" name="entry_type"{!! $ctl('entry_type', 'od-pay-type') !!}>
-                        <option value="payment">Uplata</option>
-                        <option value="refund">Refundacija</option>
-                    </select>
-                    @error('entry_type')<p class="a1-error" id="od-pay-type-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                </div>
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-amount">Iznos RSD<span class="a1-req" aria-hidden="true">*</span></label>
-                    <input class="a1-input" id="od-pay-amount" type="number" inputmode="decimal" name="amount_rsd" min="0.01" step="0.01" required value="{{ ($order['remaining_rsd'] ?? 0) > 0 ? number_format((float) $order['remaining_rsd'], 2, '.', '') : '' }}"{!! $ctl('amount_rsd', 'od-pay-amount') !!}>
-                    @error('amount_rsd')<p class="a1-error" id="od-pay-amount-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                </div>
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-method">Metod</label>
-                    <select class="a1-select" id="od-pay-method" name="payment_method"{!! $ctl('payment_method', 'od-pay-method') !!}>
-                        <option value="bank_transfer">Uplata na račun</option>
-                        <option value="cash">Gotovina</option>
-                        <option value="cash_on_delivery">Pouzećem</option>
-                        <option value="card">Kartica</option>
-                        <option value="other">Drugo</option>
-                    </select>
-                    @error('payment_method')<p class="a1-error" id="od-pay-method-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                </div>
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-at">Datum uplate<span class="a1-req" aria-hidden="true">*</span></label>
-                    <input class="a1-input" id="od-pay-at" type="datetime-local" name="paid_at" value="{{ $formDefaults['paid_at'] ?? '' }}" required{!! $ctl('paid_at', 'od-pay-at') !!}>
-                    @error('paid_at')<p class="a1-error" id="od-pay-at-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                </div>
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-ref">Referenca</label>
-                    <input class="a1-input" id="od-pay-ref" name="reference" maxlength="190"{!! $ctl('reference', 'od-pay-ref') !!}>
-                    @error('reference')<p class="a1-error" id="od-pay-ref-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
-                </div>
-                <div class="a1-field">
-                    <label class="a1-label" for="od-pay-note">Napomena</label>
-                    <input class="a1-input" id="od-pay-note" name="note" maxlength="2000"{!! $ctl('note', 'od-pay-note') !!}>
-                    @error('note')<p class="a1-error" id="od-pay-note-err"><x-icon name="alert" :size="16" :shell="true" /><span>{{ $message }}</span></p>@enderror
+        @if($isCompleted && ($order['remaining_rsd'] ?? 0) > 0)
+            <div class="a1-alert a1-alert--warning" role="status" data-order-open-debt>
+                <x-icon name="wallet" :size="20" :shell="true" />
+                <div class="a1-alert__body">
+                    <p class="a1-alert__title">Isporučeno, a dug je otvoren</p>
+                    <p>Preostalo {{ $order['remaining_rsd_display'] ?? '' }}. Uplate se i dalje evidentiraju ovde ili u Potraživanjima.</p>
                 </div>
             </div>
-            <div class="a1-od-actions">
-                <button class="a1-btn" type="submit">Evidentiraj stavku</button>
-            </div>
-        </form>
+        @endif
+        @include('admin.payments.partials.record-form', [
+            'action' => $urls['payment_store'],
+            'remaining' => (float) ($order['remaining_rsd'] ?? 0),
+            'allowRefund' => true,
+            'paidAtDefault' => $formDefaults['paid_at'] ?? null,
+            'prefix' => 'od-pay',
+        ])
     @endif
 
     @if(($order['payment_method'] ?? '') === 'bank_transfer' && !empty($detail['ips_payload']))
