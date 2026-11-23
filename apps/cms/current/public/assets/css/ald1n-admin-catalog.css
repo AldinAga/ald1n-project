@@ -9,7 +9,8 @@
 .a1-cat{display:grid;gap:var(--a1-space-16);min-width:0}
 
 /* ---- Index: search and filter bar ------------------------------------------------------------------- */
-.a1-cat-filters{gap:var(--a1-space-16)}
+/* No backdrop-filter here: it would make the form the containing block of the fixed drawer (it then sat 460 px past the right edge: scrollWidth 1715 at 1280). */
+.a1-cat-filters{gap:var(--a1-space-16);-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--a1-glass-fill-strong)}
 .a1-cat-bar{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr)) auto auto;gap:var(--a1-space-12);align-items:end}
 .a1-cat-bar>.a1-btn{align-self:end}
 .a1-cat-box{position:relative;display:flex;align-items:center}
