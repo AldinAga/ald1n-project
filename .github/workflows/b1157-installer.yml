@@ -33,6 +33,7 @@ env:
   B1156_BASE: d2c07f62cee09b22248bcff2d4a8361523d7fee6
   B1156_COMMIT: 94de4be58da7b016870720b22d0ca0d79d3586de
   B1157_BASE: 94de4be58da7b016870720b22d0ca0d79d3586de
+  B1156_TOOLING: 789011b3a2a606fda90a0855052427b30b29779b
 jobs:
   installer:
     runs-on: ubuntu-24.04
@@ -67,7 +68,7 @@ jobs:
           B1157_MAIN="$(grep -o "SOURCE_COMMIT='[a-f0-9]\{40\}'" tools/storefront/b1157/Payload.php | cut -d"'" -f2)"
           test -n "$B1157_MAIN"
           auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-          chain="77a3efeabf59281fd820b4afffa14c4ebc209049 ef3f927b77ba573881c2b6dba341732c417e6725 eabe16af8c19fade882e25c70425eb43c3e17ed9 764bf5135ad6241d64f728e4b141cc2713dc6c48 560828458974a56a8f7173b986a40d46629e4d8b eca7755c6efe05143a6d3cd19f8c9e70b9ee3515 55d06b9cc010c976dfc56743763dbfeb09b87acf 7e7481582fa0be3e95503a81b316be63836e508c c41f78fcd0382c2f161a717a0061d5883d641730 6558e7a1584c58753af8b2bdfc7c0c7274d8f291 bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 14e628ba61b77e3c6854bed100c634d1999b5f33 2c74fd7b84ecfb242df9d2a94b8a22a707c858d6 $B1151_EMAIL $B1151_THROTTLE $B1152_URL $B1152_PDF $B1152_CODE_BASE $B1152_MAIN $B1153_CODE_BASE $B1153_COMMIT $B1154_CODE_BASE $B1154_COMMIT $B1155_COMMIT $B1156_COMMIT $B1157_MAIN"
+          chain="77a3efeabf59281fd820b4afffa14c4ebc209049 ef3f927b77ba573881c2b6dba341732c417e6725 eabe16af8c19fade882e25c70425eb43c3e17ed9 764bf5135ad6241d64f728e4b141cc2713dc6c48 560828458974a56a8f7173b986a40d46629e4d8b eca7755c6efe05143a6d3cd19f8c9e70b9ee3515 55d06b9cc010c976dfc56743763dbfeb09b87acf 7e7481582fa0be3e95503a81b316be63836e508c c41f78fcd0382c2f161a717a0061d5883d641730 6558e7a1584c58753af8b2bdfc7c0c7274d8f291 bf5ac045a8b045fbe0f7cd9fc8e7f154d6ff49f0 14e628ba61b77e3c6854bed100c634d1999b5f33 2c74fd7b84ecfb242df9d2a94b8a22a707c858d6 $B1151_EMAIL $B1151_THROTTLE $B1152_URL $B1152_PDF $B1152_CODE_BASE $B1152_MAIN $B1153_CODE_BASE $B1153_COMMIT $B1154_CODE_BASE $B1154_COMMIT $B1155_COMMIT $B1156_COMMIT $B1156_TOOLING $B1157_MAIN"
           git -c "http.https://github.com/.extraheader=$auth" fetch --no-tags origin 84facde9ff138d1e7dd0de7af5c811d800b0ccfe afa0c704a1c4ad096918f904b98a77e223398e22 $chain
           for c in $chain; do
             test "$(git rev-parse --verify "$c^{commit}")" = "$c"
@@ -138,7 +139,8 @@ jobs:
           # The B1150 tooling is the reviewed 2c74fd7b copy (B1150 PASS, Report1116); it installs B1150 for real below.
           git diff --quiet 2c74fd7b84ecfb242df9d2a94b8a22a707c858d6 HEAD -- tools/storefront/b1150
           # The B1151 to B1156 tooling is what origin/main carries (B1151 PASS Report1117 ... B1156 PASS Report1122); they install B1151 to B1154 for real below. The pins above are their git blob digests.
-          git diff --quiet "$B1157_BASE" HEAD -- tools/storefront/b1151 tools/storefront/b1152 tools/storefront/b1153 tools/storefront/b1154 tools/storefront/b1155 tools/storefront/b1156
+          git diff --quiet "$B1157_BASE" HEAD -- tools/storefront/b1151 tools/storefront/b1152 tools/storefront/b1153 tools/storefront/b1154 tools/storefront/b1155
+          git diff --quiet "$B1156_TOOLING" HEAD -- tools/storefront/b1156
           shipped='tools/storefront/b1157/operator-entry.php tools/storefront/b1157/B1157InstallCoordinator.php tools/storefront/b1157/Payload.php tools/storefront/b1157/AppCheck.php tools/storefront/b1157/operator-wrapper.sh'
           if grep -niE '/usr/local/cpanel|uapi|DomainInfo|opcache_reset|php_flag|HostProcessGuard|--seed|migrate:fresh|migrate:rollback|migrate:refresh|migrate:reset|db:wipe|config:cache|view:cache|route:cache|public_storefront_open|Mail::|mail\(|CURLOPT_POST|CURLOPT_CUSTOMREQUEST|->set\(' $shipped; then exit 2; fi
           if grep -n $'\r' $shipped tools/storefront/b1157/README-SR.md; then exit 2; fi
