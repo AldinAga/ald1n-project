@@ -141,6 +141,27 @@ test('every policy route is a real screen and every glyph exists', () => {
   }
 });
 
+test('every role can reach /account: Nalog tab (Admin, SuperAdmin, fallback) or header avatar + Home shortcut (SubAgent)', () => {
+  const header = readFileSync(new URL('../../src/components/layout/page-header.tsx', import.meta.url), 'utf8');
+  const home = readFileSync(new URL('../../src/app/(app)/(tabs)/home.tsx', import.meta.url), 'utf8');
+  assert.match(header, /accessibilityLabel="Nalog"/);
+  assert.match(header, /router\.push\('\/account'\)/);
+  assert.doesNotMatch(header, /hasFeature\('account'\)/, 'the account entry is not feature-gated');
+  assert.match(home, /role\?\.slug === 'user' \? \{ title: 'Moj nalog'[^}]*route: '\/account'/);
+  for (const role of ['superadmin', 'admin', 'user', null]) {
+    const viaTab = routes(role).includes('/account');
+    // Header avatar covers every role on screens with PageHeader; cart/checkout keep their previous state.
+    assert.ok(viaTab || role === 'user', 'role ' + role + ' needs a tab or the SubAgent shortcut');
+  }
+  assert.equal(routes('user').includes('/account'), false);
+});
+
+test('Potraživanja and Provizije tabs follow module switches like admin hub and Home', () => {
+  assert.match(navSource, /hasFeature\('commissions'\)/);
+  assert.match(navSource, /module\.key === 'receivables' && module\.enabled/);
+  assert.match(navSource, /can\('receivables\.manage'\)/);
+});
+
 test('screen renders policy with role-aware routes, accessibility, and no Home caption in bottom bar', () => {
   assert.match(navSource, /buildBottomNavItems\(/);
   assert.match(navSource, /activeBottomNavKey\(/);
