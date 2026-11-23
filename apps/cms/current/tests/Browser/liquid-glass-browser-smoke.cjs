@@ -511,19 +511,19 @@ async function retirementUserCardLayoutSmoke(page, mode, width) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await navigate(page, '/admin/users', 'RETIREMENT_USER_LIST_GET');
   const state = await page.evaluate(() => {
-    const card = document.querySelector('.access-control-user-card:has(> .access-control-user-danger-zone > a[href$="/retirement"])');
+    const card = document.querySelector('[data-access-user]:has(> [data-user-danger-zone] > a[href$="/retirement"])');
     if (!card) return null;
-    const head = card.querySelector('.access-control-user-head');
-    const danger = card.querySelector(':scope > .access-control-user-danger-zone');
+    const head = card.querySelector(':scope > [data-user-head]');
+    const danger = card.querySelector(':scope > [data-user-danger-zone]');
     function rect(el) {
       if (!el) return null;
       const r=el.getBoundingClientRect();
       return { x:r.x, y:r.y, left:r.left, right:r.right, top:r.top, bottom:r.bottom, width:r.width, height:r.height };
     }
-    const identity = head?.querySelector(':scope > .access-control-user-identity');
-    const badges = head?.querySelector(':scope > .access-control-user-badges');
+    const identity = head?.querySelector(':scope > [data-user-identity]');
+    const badges = head?.querySelector(':scope > [data-user-badges]');
     const action = danger?.querySelector(':scope > a[href$="/retirement"]');
-    const edit = card.querySelector(':scope > .access-control-user-edit');
+    const edit = card.querySelector(':scope > [data-user-edit]');
     return {
       head: rect(head), identity: rect(identity), badges: rect(badges), action: rect(action),
       danger: rect(danger), edit: rect(edit),

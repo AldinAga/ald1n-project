@@ -12,6 +12,8 @@
 .a1-cat-filters{gap:var(--a1-space-16)}
 .a1-cat-bar{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr)) auto auto;gap:var(--a1-space-12);align-items:end}
 .a1-cat-bar>.a1-btn{align-self:end}
+@media (min-width:1101px){.a1-cat-bar--lean{grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto auto}}
+.a1-pager-wrap{margin-top:var(--a1-space-16)}
 .a1-cat-box{position:relative;display:flex;align-items:center}
 .a1-cat-box>.a1-icon{position:absolute;left:var(--a1-space-12);color:var(--a1-text-tertiary);pointer-events:none}
 .a1-cat-box .a1-input{padding-left:calc(var(--a1-space-12) + 28px);padding-right:calc(var(--a1-size-touch-target) + var(--a1-space-4))}
