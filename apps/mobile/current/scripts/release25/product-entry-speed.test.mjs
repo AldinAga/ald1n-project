@@ -48,4 +48,6 @@ test('draft autosave uses save_draft, only for drafts, and never rehydrates the 
   assert.doesNotMatch(autosave, /setHydratedId|refetch|feedback\.notify/);
   assert.match(edit, /status: saveDraft \? 'draft' : status,\s+save_draft: saveDraft \|\| undefined,/);
   assert.match(edit, /if \(autosave && Object\.keys\(nextErrors\)\.length > 0\) return;/);
+  assert.match(edit, /\.\.\.\(autosave \? \{ autosave: true \} : \{\}\)/);
+  assert.match(types, /autosave\?: boolean;/);
 });

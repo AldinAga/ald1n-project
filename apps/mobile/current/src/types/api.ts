@@ -896,6 +896,7 @@ export type AdminProductCreateInput = {
   low_stock_threshold?: number;
   status: 'draft' | 'active' | 'inactive';
   save_draft?: boolean;
+  autosave?: boolean;
   category_ids?: number[];
   specs?: Record<string, string | number | boolean>;
   spec_details?: Record<string, string>;

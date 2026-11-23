@@ -475,6 +475,8 @@ export default function AdminCatalogEditScreen() {
       low_stock_threshold: threshold ?? undefined,
       status: saveDraft ? 'draft' : status,
       save_draft: saveDraft || undefined,
+      // Server odbija autosave ako artikal u međuvremenu više nije nacrt (npr. aktiviran na webu).
+      ...(autosave ? { autosave: true } : {}),
       specs: Object.keys(cleanSpecs).length ? cleanSpecs : undefined,
       spec_details: Object.keys(cleanDetails).length ? cleanDetails : undefined,
       spec_lists: Object.keys(cleanSpecLists).length ? cleanSpecLists : undefined,
