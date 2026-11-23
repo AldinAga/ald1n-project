@@ -51,7 +51,13 @@ $steps=[];
 $isMig=static fn(string $p):bool=>str_starts_with($p,'database/migrations/');
 $newOrdered=array_merge(array_values(array_filter($new,static fn($p)=>!$isMig($p))),array_values(array_filter($new,$isMig)));
 foreach($newOrdered as $p)$steps[]=[$p,'new','A'];
-$byGroup=[];foreach(array_keys($mod) as $p)$byGroup[$pins[$p]??$groupOf($p)][]=$p;
+$byGroup=[];$lateC=[];
+foreach(array_keys($mod) as $p){$grp=$pins[$p]??$groupOf($p);
+    if($grp==='B'&&str_starts_with($p,'app/')&&str_ends_with($p,'.php')){$re='/\\bpublic\\s+(?:static\\s+)?function\\s+(\\w+)\\s*\\(/';preg_match_all($re,$blob($base,$p),$o1);preg_match_all($re,$blob($src,$p),$o2);
+        // A service that loses a public method goes to the END of group C: the old controllers that still call it are replaced first (package.php proves that nothing new calls it). One that also gains methods stays in B and is reported (REVIEW) here and in the provenance.
+        if(array_diff($o1[1],$o2[1])!==[]){if(array_diff($o2[1],$o1[1])!==[]){fwrite(STDERR,'REVIEW '.$p.' removes and adds public methods: it stays in group B, package.php records the removed-method callers that run before it'.PHP_EOL);}else{$lateC[]=$p;continue;}}}
+    $byGroup[$grp][]=$p;}
+sort($lateC,SORT_STRING);
 // Order inside a group: callee before caller (`use App\...;` edges of PHP files, @include/@extends edges of views), otherwise alphabetical (views: layouts, partials, pages).
 $deps=static function(string $p)use($blob,$src):array{$t=$blob($src,$p);$d=[];
     if(str_ends_with($p,'.blade.php')){if(preg_match_all("~@(?:include|extends|includeIf|includeWhen|includeFirst)\\(\\s*(?:[a-z0-9_.-]+\\s*,\\s*)?'([a-z0-9._-]+)'~",$t,$m))foreach($m[1] as $v)$d[]='resources/views/'.str_replace('.','/',$v).'.blade.php';}
@@ -59,7 +65,8 @@ $deps=static function(string $p)use($blob,$src):array{$t=$blob($src,$p);$d=[];
     return $d;};
 foreach(['B','C','D','E','F'] as $g){$list=$byGroup[$g]??[];if($g==='F')usort($list,static fn($a,$b)=>[$viewRank($a),$a]<=>[$viewRank($b),$b]);else sort($list,SORT_STRING);
     $set=array_flip($list);$done=[];$order=[];$visit=static function(string $p)use(&$visit,&$done,&$order,$set,$deps):void{if(isset($done[$p]))return;$done[$p]=false;foreach($deps($p) as $q)if(isset($set[$q])&&!array_key_exists($q,$done))$visit($q);$done[$p]=true;$order[]=$p;};
-    foreach($list as $p)$visit($p);foreach($order as $p)$steps[]=[$p,'modified',$g];}
+    foreach($list as $p)$visit($p);foreach($order as $p)$steps[]=[$p,'modified',$g];
+    if($g==='C')foreach($lateC as $p)$steps[]=[$p,'modified','C'];}
 if($steps===[])throw new RuntimeException('GENERATE_EMPTY_OVERLAY');
 // A new view that calls a new route only works after the routes: new files sit in A and are inert until a modified view includes them, so nothing else is needed.
 $digests=[];foreach($steps as [$p,$k]){$digests[$p]=[$k==='new'?null:$mod[$p],hash('sha256',$blob($src,$p))];if($k==='modified'&&$digests[$p][0]===$digests[$p][1])throw new RuntimeException('GENERATE_UNCHANGED_'.$p);}

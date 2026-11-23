@@ -8,7 +8,7 @@ Paket prebacuje produkciju sa stanja B1156 (Izvještaj 1122, 8596 fajlova, 579 r
 
 ## Šta se mijenja
 
-- 69 fajlova u `apps/cms/current`: 7 novih, 62 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A7 B28 C17 D1 E2 F14.
+- 69 fajlova u `apps/cms/current`: 7 novih, 62 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A7 B27 C18 D1 E2 F14.
 - Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: nema (broj: 0).
 - Stablo posle instalacije ima 8603 fajlova (8596 + 7 novih).
 - Rute: 579 postaje 584 (razlika 5). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
