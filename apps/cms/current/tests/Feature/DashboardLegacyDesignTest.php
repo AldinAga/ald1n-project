@@ -59,7 +59,7 @@ final class DashboardLegacyDesignTest extends TestCase
         }
         $response->assertDontSee('data-theme-toggle', false);
         $response->assertDontSee('header-secondary-row', false);
-        $response->assertDontSee('Nazad na vrh');
+        $response->assertSee('aria-label="Nazad na vrh"', false);
         $response->assertSee('data-icon-family="phosphor"', false);
         $response->assertSee('phosphor-regular.svg', false);
         $response->assertSee('Porudžbine');

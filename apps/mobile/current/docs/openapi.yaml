@@ -6791,6 +6791,8 @@ components:
         brand_id: { type: integer }
         product_line_id: { type: integer }
         model_name: { type: string, maxLength: 190 }
+        supplier_code: { type: [string, "null"], maxLength: 100, description: "Supplier product code. Optional, searchable in the catalog." }
+        ean: { type: [string, "null"], pattern: '^[0-9]{8,14}$', description: "EAN/GTIN barcode, 8 to 14 digits (spaces and dashes are removed). Optional, searchable in the catalog." }
         name: { type: string, maxLength: 190 }
         regenerate_sku: { type: boolean }
         regenerate_name: { type: boolean }

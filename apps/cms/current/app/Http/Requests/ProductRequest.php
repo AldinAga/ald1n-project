@@ -44,6 +44,8 @@ final class ProductRequest extends FormRequest
             'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
             'product_line_id' => ['nullable', 'integer', 'exists:product_lines,id'],
             'model_name' => ['nullable', 'string', 'max:190'],
+            'supplier_code' => ['nullable', 'string', 'max:100'],
+            'ean' => ['nullable', 'string', 'regex:/^[0-9]{8,14}$/'],
             'sku' => [$productId ? 'required' : 'nullable', 'string', 'max:100', 'regex:#^[A-Z0-9._/-]+$#', Rule::unique('products', 'sku')->ignore($productId)],
             'regenerate_sku' => ['nullable', 'boolean'],
             'regenerate_name' => ['nullable', 'boolean'],
@@ -281,6 +283,16 @@ final class ProductRequest extends FormRequest
             'spec_details' => $details,
             'spec_structured' => $structured,
         ];
+
+        // Ključ koji nije poslat (stariji klijenti) ostaje netaknut; poslat prazan unos briše vrednost.
+        // Nizovi i objekti se ne normalizuju (ne bacaju grešku pri pretvaranju u string): validacija ih vraća kao 422.
+        if ($this->has('supplier_code') && is_scalar($this->input('supplier_code'))) {
+            $code = preg_replace('/\s+/u', ' ', trim((string) $this->input('supplier_code')));
+            $normalized['supplier_code'] = $code === '' ? null : $code;
+        }
+        if ($this->has('ean') && is_scalar($this->input('ean'))) {
+            $normalized['ean'] = preg_replace('/[\s-]+/', '', (string) $this->input('ean')) ?: null;
+        }
 
         if ($this->user()?->hasRole('superadmin') === true) {
             $manual = $this->input('manual_commission_eur');
