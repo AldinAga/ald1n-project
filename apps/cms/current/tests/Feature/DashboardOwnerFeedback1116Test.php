@@ -158,12 +158,12 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         $html = (string) $this->actingAs($admin)
             ->get('/admin/reports/subagents?period=custom&date_from=2026-01-01&date_to=2026-01-31')->assertOk()->getContent();
 
-        // Promet 18.000 RSD / 117 = 153,85 EUR; bruto 6.000 RSD / 117 = 51,28 EUR; provizija as stored in EUR (20 + 10 + 5);
-        // neto EUR = 51,28 - 35,00 = 16,28; prosek 153,85 / 3 = 51,28.
+        // Promet 18.000 RSD / 117 = 153,85 EUR; bruto 6.000 RSD / 117 = 51,28 EUR; provizija iz stranice provizija (20 + 10;
+        // 5 EUR je stornirana pa se ne duguje, isto kao na kartici zarade); neto EUR = 51,28 - 30,00 = 21,28; prosek 153,85 / 3 = 51,28.
         self::assertStringContainsString('data-sbs-eur="revenue">153,85 EUR<', $html);
         self::assertStringContainsString('data-sbs-eur="gross">51,28 EUR<', $html);
-        self::assertStringContainsString('data-sbs-eur="commission">35,00 EUR<', $html);
-        self::assertStringContainsString('data-sbs-eur="net">16,28 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="commission">30,00 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="net">21,28 EUR<', $html);
         self::assertStringContainsString('data-sbs-eur="avg">51,28 EUR<', $html);
     }
 

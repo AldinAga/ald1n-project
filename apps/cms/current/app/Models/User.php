@@ -82,9 +82,17 @@ final class User extends Authenticatable implements PasskeyUser
             && in_array($ability, ['orders.create', 'orders.view_own', 'orders.cancel_own'], true);
     }
 
+    /** Dozvole koje smije imati samo SuperAdministrator (kao SMTP): Administrator i grupe ih ne dobijaju ni preko role-wide prava. */
+    public const SUPERADMIN_ONLY_ABILITIES = ['backups.manage', 'automation.manage'];
+
+    public function isSuperadminOnlyRestricted(string $ability): bool
+    {
+        return in_array($ability, self::SUPERADMIN_ONLY_ABILITIES, true) && !$this->hasRole('superadmin');
+    }
+
     public function hasPermission(string $permission): bool
     {
-        if ($this->isPersonalOrderRestricted($permission)) return false;
+        if ($this->isPersonalOrderRestricted($permission) || $this->isSuperadminOnlyRestricted($permission)) return false;
         $permissions = $this->permissionSlugs();
 
         return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
@@ -114,7 +122,7 @@ final class User extends Authenticatable implements PasskeyUser
                 }
 
                 return array_values(array_filter(array_keys($this->resolvedPermissionSlugs),
-                    fn (string $ability): bool => !$this->isPersonalOrderRestricted($ability)));
+                    fn (string $ability): bool => !$this->isPersonalOrderRestricted($ability) && !$this->isSuperadminOnlyRestricted($ability)));
             }
 
             if ($this->user_group_id === null) {
@@ -135,7 +143,8 @@ final class User extends Authenticatable implements PasskeyUser
                 $this->permissionSlugsResolved = true;
             }
 
-            return array_keys($this->resolvedPermissionSlugs);
+            return array_values(array_filter(array_keys($this->resolvedPermissionSlugs),
+                fn (string $ability): bool => !$this->isSuperadminOnlyRestricted($ability)));
         } catch (Throwable) {
             return $this->hasRole('admin', 'superadmin') ? ['*'] : [];
         }
