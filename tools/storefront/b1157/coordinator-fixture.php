@@ -431,7 +431,7 @@ $pdo()->prepare("INSERT INTO users (role_id,username,email,first_name,password_h
 $jarMain=[];$lg=B1157FixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$jarMain);$dash=$lg['ok']?B1157FixtureWeb::jarGet(PORT,'/',$jarMain):null;$winMode='NOT_PROVEN';$winWhy='LOGIN_'.$lg['step'].'_STATUS_'.$lg['status'];
 if($lg['ok']&&is_array($dash)){
     $winWhy='DASHBOARD_STATUS_'.$dash['status'];
-    if($dash['status']===200&&str_contains($dash['body'],'a1-header__bar')&&str_contains($dash['body'],'a1-hero--split')){
+    if($dash['status']===200&&str_contains($dash['body'],'a1-header__bar')&&str_contains($dash['body'],'a1-hero__title')){
         $tok=B1157FixtureWeb::csrfToken($dash['body']);$lo=$tok===null?null:B1157FixtureWeb::jarGet(PORT,'/logout',$jarMain,http_build_query(['_token'=>$tok],'','&',PHP_QUERY_RFC3986));$after=B1157FixtureWeb::jarGet(PORT,'/',$jarMain);
         if($lo!==null&&$lo['status']===302&&$after['status']===302){$winMode='AUTHENTICATED_HTTP';$winWhy='LOGIN_DASHBOARD_OF_THE_B1154_SHELL_AND_LOGOUT_WORK_IN_THE_FIXTURE_APP';}else $winWhy='LOGOUT_STATUS_'.json_encode([$lo['status']??null,$after['status']]);
     }
