@@ -32,7 +32,7 @@ final class ExchangeRateController extends Controller
         ]);
 
         try {
-            $service->saveManual((float) $data['rate'], (int) $actor->getAuthIdentifier());
+            $released = $service->saveManual((float) $data['rate'], (int) $actor->getAuthIdentifier());
         } catch (RuntimeException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -41,7 +41,8 @@ final class ExchangeRateController extends Controller
         }
 
         return response()->json([
-            'message' => 'Ručni EUR/RSD kurs je sačuvan.',
+            'message' => $released ? 'Ručni EUR/RSD kurs je sačuvan.' : 'Kurs je sačuvan, ali provizije koje su čekale kurs nisu oslobođene; pokušaj se ponavlja automatski.',
+            'commissions_released' => $released,
             'data' => $this->payload($service),
         ]);
     }

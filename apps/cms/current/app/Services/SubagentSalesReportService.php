@@ -459,7 +459,7 @@ final class SubagentSalesReportService
             default => ['Subagent'],
         };
         $header = array_merge($labelHeader, ['Porudžbina', 'Komada', 'Promet RSD', 'Zarada RSD', 'Marža %',
-            'Provizija RSD', 'Provizija isplaćena RSD', 'Provizija neisplaćena RSD', 'Neto posle provizije RSD',
+            'Provizija RSD', 'Provizija isplaćena (neto) RSD', 'Provizija neisplaćena (neto) RSD', 'Neto posle provizije RSD',
             'Prosečna porudžbina RSD', 'Udeo u prometu %']);
 
         $line = function (array $labels, array $r): array {
