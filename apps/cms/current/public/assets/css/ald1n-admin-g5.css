@@ -1,0 +1,115 @@
+/* ==========================================================================
+   Kobalt G5 page styles: users, access groups, customer portal, portal messages, warranties, inventory,
+   stock movements, audit log. Loaded by those views only (see admin/partials/g5-styles). Tokens only: no colours,
+   no !important except the [hidden] guard. Prefix a1-g5- is shared by the modules; wrapper class .a1-g5 sits next
+   to .a1-ops. The generic parts (card, form, field, pill, table, tabs, alert, acc, dl, kpi) come from ald1n-admin.css.
+   Author: Ald1n <https://ald1n.com>
+   ========================================================================== */
+
+/* A display rule on .a1-field / .a1-check beats the UA [hidden] rule; the permission filter and the warranty scope
+   switch rely on hidden. */
+.a1-g5 [hidden]{display:none!important}
+
+/* ---------- Avatar, link cards, thread cards ---------- */
+.a1-g5-avatar{display:grid;place-items:center;flex:0 0 auto;width:48px;height:48px;border-radius:50%;background-color:var(--a1-button-primary-bg);background-image:var(--a1-gradient-button-gloss);color:var(--a1-button-primary-on);font-size:var(--a1-typography-font-size-md-plus);font-weight:var(--a1-typography-font-weight-bold);text-transform:uppercase}
+.a1-g5-list{display:grid;gap:var(--a1-space-8);margin:0;padding:0;list-style:none;min-width:0}
+.a1-g5-link{display:grid;gap:var(--a1-space-4);min-width:0;min-height:var(--a1-size-touch-target);padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-left-width:6px;border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid);color:var(--a1-text-primary);text-decoration:none;overflow-wrap:anywhere}
+.a1-g5-link:hover{border-color:var(--a1-accent-link)}
+.a1-g5-link--unread{border-left-color:var(--a1-accent-link)}
+.a1-g5-link__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-4) var(--a1-space-12)}
+.a1-g5-link__meta{font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+.a1-g5-link__text{margin:0;color:var(--a1-text-secondary)}
+.a1-g5-link--user{grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--a1-space-12) var(--a1-space-16)}
+.a1-g5-link__main{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-g5-link__end{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--a1-space-8)}
+@media (max-width:560px){
+  .a1-g5-link--user{grid-template-columns:auto minmax(0,1fr)}
+  .a1-g5-link--user .a1-g5-link__end{grid-column:1/-1;justify-content:flex-start}
+}
+.a1-g5-session{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16);padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-g5-session>div{display:grid;gap:var(--a1-space-4);min-width:0;overflow-wrap:anywhere}
+.a1-g5-linkform{display:grid;gap:var(--a1-space-12);padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-solid)}
+.a1-g5-split{display:grid;gap:var(--a1-space-16);align-items:start;min-width:0}
+@media (min-width:1100px){.a1-g5-split{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}}
+.a1-g5-narrow{width:100%;max-width:850px;margin-inline:auto}
+.a1-g5-wrapbtn{white-space:normal}
+.a1-g5-wide{min-width:0}
+@media (min-width:768px){.a1-g5-wide{grid-column:1/-1}}
+
+/* ---------- Users: card head, meta ---------- */
+.a1-g5-user__head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--a1-space-12) var(--a1-space-16)}
+.a1-g5-identity{display:grid;gap:var(--a1-space-4);min-width:0;overflow-wrap:anywhere}
+.a1-g5-identity strong{font-size:var(--a1-typography-font-size-md-plus);color:var(--a1-text-primary)}
+.a1-g5-user__badges{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--a1-space-8)}
+@media (max-width:600px){
+  .a1-g5-user__head{grid-template-columns:auto minmax(0,1fr)}
+  .a1-g5-user__badges{grid-column:1/-1;justify-content:flex-start}
+}
+.a1-g5-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:var(--a1-space-12) var(--a1-space-16)}
+.a1-g5-meta .a1-dl__row{grid-template-columns:minmax(0,1fr);padding:0;border-bottom:0}
+.a1-g5-sectionhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16)}
+.a1-g5-acc-title{display:grid;gap:var(--a1-space-4)}
+.a1-g5-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8) var(--a1-space-12)}
+.a1-g5-actions .a1-g5-note{flex:1 1 220px}
+.a1-g5-note{margin:0;font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+/* The danger zone sits directly in the card; its link keeps a compact width. */
+.a1-g5-user .a1-os-danger,.a1-g5-group .a1-os-danger{grid-template-columns:minmax(0,1fr)}
+.a1-g5-user .a1-os-danger>.a1-btn{justify-self:start;white-space:normal}
+.a1-g5-danger-text{display:grid;gap:var(--a1-space-4)}
+
+/* ---------- Access groups: permission editor ---------- */
+.a1-g5-editor{display:grid;gap:var(--a1-space-16);min-width:0}
+@media (min-width:1000px){.a1-g5-editor{grid-template-columns:minmax(0,1fr) minmax(240px,320px);align-items:start}}
+.a1-g5-perms,.a1-g5-domains{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-g5-domain{display:grid;gap:var(--a1-space-8);padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-field)}
+.a1-g5-domain__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-12)}
+.a1-g5-perm{display:grid;gap:var(--a1-space-4);padding-top:var(--a1-space-8);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-g5-perm .a1-check,.a1-g5-cat .a1-check{align-items:flex-start;padding-block:var(--a1-space-4)}
+.a1-g5-perm .a1-check__box,.a1-g5-cat .a1-check__box{margin-top:var(--a1-space-4)}
+.a1-g5-check-copy{display:grid;gap:2px;min-width:0;overflow-wrap:anywhere}
+.a1-g5-check-copy small{font-size:var(--a1-typography-font-size-sm-plus);color:var(--a1-text-secondary)}
+.a1-g5-key{margin-left:calc(24px + var(--a1-space-12))}
+.a1-g5-key>summary{display:flex;align-items:center;min-height:var(--a1-size-touch-target);color:var(--a1-accent-link);font-size:var(--a1-typography-font-size-sm-plus);cursor:pointer}
+.a1-g5-key code,.a1-g5-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:anywhere}
+.a1-g5-side{display:grid;gap:var(--a1-space-8);align-content:start;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-surface-field)}
+.a1-g5-side p{margin:0;color:var(--a1-text-secondary)}
+.a1-g5-cats{display:grid;gap:var(--a1-space-4)}
+.a1-g5-group__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-12) var(--a1-space-16)}
+.a1-g5-group__head>div:first-child{display:grid;gap:var(--a1-space-4);min-width:0}
+.a1-g5-group__head p{margin:0;color:var(--a1-text-secondary)}
+
+/* ---------- Conversations ---------- */
+.a1-g5-stream{display:grid;gap:var(--a1-space-12);margin:0;padding:0;list-style:none}
+.a1-g5-body{margin:0;overflow-wrap:anywhere;color:var(--a1-text-primary)}
+
+/* ---------- Warranties ---------- */
+.a1-g5-rule-edit{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-g5-maint{display:grid;gap:var(--a1-space-12);padding-top:var(--a1-space-12);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
+.a1-g5-maint:first-child{padding-top:0;border-top:0}
+.a1-g5-maint__forms{display:grid;gap:var(--a1-space-16)}
+@media (min-width:900px){.a1-g5-maint__forms{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.a1-g5-cards{display:grid;gap:var(--a1-space-16);grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))}
+
+/* ---------- Inventory, stock ---------- */
+.a1-g5-meta-grid{display:grid;gap:var(--a1-space-16);grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.a1-g5-qty{max-width:9rem;text-align:right;font-variant-numeric:tabular-nums}
+.a1-g5-adjust{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8)}
+.a1-g5-adjust .a1-g5-qty{max-width:6rem}
+.a1-g5-adjust input[name=note]{flex:1 1 12rem;width:auto}
+.a1-g5-submit{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--a1-space-8)}
+.a1-g5-num{text-align:right;font-variant-numeric:tabular-nums}
+.a1-g5-tablehead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16);padding:var(--a1-space-20) var(--a1-space-24) 0}
+.a1-g5-tabs-icon{display:inline-flex;align-items:center;gap:var(--a1-space-8)}
+
+/* ---------- Audit log ---------- */
+.a1-g5-audit{display:grid;gap:var(--a1-space-12);min-width:0}
+.a1-g5-audit__line{display:grid;gap:var(--a1-space-4);min-width:0;overflow-wrap:anywhere}
+.a1-g5-pre{margin:0;padding:var(--a1-space-12);overflow-x:auto;border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-sm-plus);white-space:pre-wrap;overflow-wrap:anywhere}
+
+@media (forced-colors:active){
+  .a1-g5-link,.a1-g5-session,.a1-g5-linkform,.a1-g5-domain,.a1-g5-side{border-color:CanvasText;background-color:Canvas;color:CanvasText}
+  .a1-g5-avatar{forced-color-adjust:none;background:Highlight;color:HighlightText}
+}
+@media (prefers-contrast:more){
+  .a1-g5-link,.a1-g5-session,.a1-g5-domain,.a1-g5-side{border-width:var(--a1x-border-width-strong)}
+}
