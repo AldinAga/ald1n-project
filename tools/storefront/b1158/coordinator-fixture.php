@@ -652,7 +652,7 @@ check($notifCounts()===$notifBefore,'NO_NOTIFICATION_ROW_WRITTEN_BY_THE_MIGRATIO
 
 // Retained orphans, tree and routes.
 check($orphanOk()&&($zero||is_file($active.'/'.$stepMig1['path'])),'THE_ORPHANS_ARE_RETAINED_AND_THE_MIGRATION_FILE_IS_THERE');
-$tr=lastLine($o,'ACTIVE_TREE_AFTER_INSTALL');check(is_array($tr)&&$tr['verifiedFiles']===B1158Payload::TREE_FILES_AFTER&&count(glob($active.'/database/migrations/*.php'))===73+$nMig,'THE_TREE_IS_THE_GENERATED_SIZE_WITH_THE_NEW_MIGRATION_FILES');
+$tr=lastLine($o,'ACTIVE_TREE_AFTER_INSTALL');check(is_array($tr)&&$tr['verifiedFiles']===B1158Payload::TREE_FILES_AFTER&&count(glob($active.'/database/migrations/*.php'))===B1158InstallCoordinator::RAN+$nMig,'THE_TREE_IS_THE_GENERATED_SIZE_WITH_THE_NEW_MIGRATION_FILES');
 $rcNew=array_values(array_filter(allLines($o,'ROUTES_CHECK'),static fn($x)=>$x['installed']===true))[0]??null;
 check(is_array($rcNew)&&$rcNew['routeCount']===$pin['routes']+(B1158Payload::ROUTES_AFTER-B1158Payload::ROUTES),'ROUTE_COUNT_IS_THE_B1156_COUNT_PLUS_THE_GENERATED_DELTA_(IF_THIS_FAILS_THE_GENERATOR_ESTIMATE_IS_WRONG_PASS_--routes-after_WITH_THE_MEASURED_COUNT):'.json_encode($rcNew));
 $rcOk=true;foreach(B1158InstallCoordinator::NEW_WEB_ROUTES as $nm=>$mt)if(($rcNew['newWebRoutes'][$nm]['methods']??null)!==[$mt])$rcOk=false;check($rcOk,'THE_NEW_WEB_ROUTES_HAVE_THEIR_METHODS');
@@ -670,7 +670,7 @@ if(!$zero){
 [$rc,$o]=$run($allRestores(),'rollback',[],$extraCfg);$rrows=array_values(array_filter($stepRows(),static fn($r)=>str_starts_with($r['point'],'AFTER_RESTORE_')));
 check($rc===0&&lastRaw($o,'B1158_FINAL')==='PASS_ROLLED_BACK_FILES_SCHEMA_AHEAD'&&lastLine($o,'ROLLED_BACK_SCHEMA_AHEAD')['database']==='AHEAD_OF_THE_CODE_NO_DOWN_NO_DROP_NOTHING_UNDONE','OWNER_ROLLBACK_AFTER_THE_MIGRATION_IS_SCHEMA_AHEAD');
 $prefixKept=true;foreach($plan as $s){$sh=$tampered($s['path']);$isMig=in_array($s['path'],B1158InstallCoordinator::migrationFiles(),true);$want=$isMig?$s['payloadSHA256']:($s['kind']==='new'?'ABSENT':$s['preSHA256']);if($sh!==$want)$prefixKept=false;}
-check($prefixKept&&$orphanOk()&&$schemaNew()&&count(glob($active.'/database/migrations/*.php'))===73+$nMig,'FILES_BACK_EXCEPT_THE_MIGRATION_FILES_ORPHANS_RETAINED_DATABASE_STILL_AHEAD');
+check($prefixKept&&$orphanOk()&&$schemaNew()&&count(glob($active.'/database/migrations/*.php'))===B1158InstallCoordinator::RAN+$nMig,'FILES_BACK_EXCEPT_THE_MIGRATION_FILES_ORPHANS_RETAINED_DATABASE_STILL_AHEAD');
 $tr=lastLine($o,'ACTIVE_TREE_AFTER_ROLLBACK');check(is_array($tr)&&$tr['verifiedFiles']===B1158InstallCoordinator::B1157_TREE_FILES+$nMig&&$tr['migrationFilesKept']===true,'THE_TREE_AFTER_THE_ROLLBACK_IS_THE_B1156_TREE_PLUS_THE_MIGRATION_FILES');
 check(lastLine($o,'ROUTES_CHECK')['routeCount']===$pin['routes']&&$status('/notifications/recent')===302,'ROUTES_ARE_BACK_TO_THE_B1156_COUNT');
 $judge($rrows,'ROLLBACK_EVERY_POINT_SERVES_THE_SITE_AND_BOTH_USERS_PAGES_WITH_THE_NEW_SCHEMA_UNDER_THE_OLD_CODE');
