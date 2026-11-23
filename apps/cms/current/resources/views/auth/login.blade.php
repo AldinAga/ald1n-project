@@ -70,7 +70,7 @@
         @elseif($loginMode === 'slideshow')
             <div class="a1-auth-bg__media a1-auth-bg__slides" data-login-slideshow data-interval-ms="{{ $loginInterval * 1000 }}">
                 @foreach($loginSlides as $index => $slide)
-                    <img class="a1-auth-bg__slide {{ $index === 0 ? 'is-active' : '' }}" src="{{ $slide['url'] }}" alt="" decoding="async" data-login-slide>
+                    <img class="a1-auth-bg__slide {{ $index === 0 ? 'is-active' : '' }}" src="{{ $slide['url'] }}" alt="" decoding="async" @if($index > 0)loading="lazy" @endif data-login-slide>
                 @endforeach
             </div>
         @elseif($loginMode === 'youtube')
@@ -86,7 +86,7 @@
         @endif
 
         @if($loginMobileFallbackUrl)
-            <img class="a1-auth-bg__fallback" src="{{ $loginMobileFallbackUrl }}" alt="" decoding="async">
+            <img class="a1-auth-bg__fallback" src="{{ $loginMobileFallbackUrl }}" alt="" decoding="async" loading="lazy">
         @endif
         <div class="a1-auth-bg__veil"></div>
     </div>
