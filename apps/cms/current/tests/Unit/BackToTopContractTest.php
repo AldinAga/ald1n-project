@@ -40,18 +40,74 @@ final class BackToTopContractTest extends TestCase
 
         $missing = [];
         foreach ($layouts as $name => $source) {
-            if (!str_contains($source, self::INCLUDE) || !str_contains($source, 'id="a1-top"')) {
+            if (self::lacksButton($source)) {
                 $missing[] = $name;
             }
         }
         self::assertSame([], $missing, 'Layout without the Nazad na vrh button or id="a1-top": '.implode(', ', $missing));
     }
 
+    private static function lacksButton(string $source): bool
+    {
+        return !str_contains($source, self::INCLUDE) || !str_contains($source, 'id="a1-top"');
+    }
+
     public function test_detector_flags_a_layout_without_the_button(): void
     {
-        // Positive control, independent of the tree: the check above must be able to fail.
-        $bare = '<body class="a1-body"><main></main></body>';
-        self::assertFalse(str_contains($bare, self::INCLUDE));
+        // Positive control: the very check the main test uses must flag a bare layout and accept a complete one.
+        self::assertTrue(self::lacksButton('<body class="a1-body"><main></main></body>'));
+        self::assertTrue(self::lacksButton('<body id="a1-top"><main></main></body>'));
+        self::assertFalse(self::lacksButton('<body id="a1-top">'.self::INCLUDE.'</body>'));
+    }
+
+    /** @return list<list<string>> for every rule that makes something fixed or sticky at the bottom: the classes in its selector */
+    private static function bottomBarRules(string $css): array
+    {
+        $found = [];
+        $css = (string) preg_replace('~/\*.*?\*/~s', '', $css);
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        foreach ($rules as [, $selector, $body]) {
+            if (preg_match('/position\s*:\s*(sticky|fixed)/', $body) !== 1 || preg_match('/(^|[;\s])bottom\s*:/', $body) !== 1) {
+                continue;
+            }
+            preg_match_all('/\.([a-z][a-z0-9_-]*)/i', $selector, $classes);
+            $found[] = array_values(array_unique($classes[1]));
+        }
+
+        return $found;
+    }
+
+    public function test_every_fixed_or_sticky_bottom_bar_is_known_to_the_button(): void
+    {
+        $css = '';
+        foreach (['ald1n-admin.css', 'app.css', 'ald1n-ui-v2.css', 'ald1n-liquid-glass.css', 'ald1n-ui-refinement.css'] as $file) {
+            $css .= (string) file_get_contents($this->root().'/public/assets/css/'.$file)."\n";
+        }
+        $partial = (string) file_get_contents($this->root().'/resources/views/layouts/partials/back-to-top.blade.php');
+        preg_match("/const bars = '([^']+)'/", $partial, $match);
+        $known = array_map(static fn (string $s): string => ltrim($s, '.'), explode(',', $match[1] ?? ''));
+        // Not bars: the button itself and the toast stack (above the button by design, short-lived).
+        $ignored = ['a1-btt', 'a1-toasts'];
+
+        $rules = array_values(array_filter(
+            self::bottomBarRules($css),
+            static fn (array $classes): bool => array_intersect($classes, $ignored) === []
+        ));
+        // Floor: the action bar, the editor bar, the sort bar and the phone dock exist today.
+        self::assertGreaterThanOrEqual(4, count($rules));
+
+        $unknown = [];
+        foreach ($rules as $classes) {
+            if (array_intersect($classes, $known) === []) {
+                $unknown[] = implode(' ', $classes);
+            }
+        }
+        self::assertSame([], $unknown, 'Fixed/sticky bottom bar not listed in back-to-top.blade.php: '.implode(' | ', $unknown));
+
+        // Positive control: the parser must report a new bar that nothing lists.
+        $control = self::bottomBarRules('.zz-new-bar{position:sticky;bottom:0}');
+        self::assertSame([['zz-new-bar']], $control);
+        self::assertSame([], array_intersect($control[0], $known));
     }
 
     public function test_partial_is_accessible_and_scripted_under_the_csp_nonce(): void

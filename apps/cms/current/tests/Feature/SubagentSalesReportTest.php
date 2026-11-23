@@ -274,7 +274,7 @@ final class SubagentSalesReportTest extends TestCase
         $get(self::RANGE)->assertOk()->assertSee('01.10.2026');
     }
 
-    public function test_page_renders_totals_empty_state_and_has_no_back_to_top(): void
+    public function test_page_renders_totals_empty_state_and_has_back_to_top(): void
     {
         $page = $this->actingAs($this->super)->get('/admin/reports/subagents?'.http_build_query(self::RANGE));
         $page->assertOk()

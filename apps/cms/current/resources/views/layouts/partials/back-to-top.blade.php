@@ -8,15 +8,31 @@
     if (!button) return;
     button.setAttribute('data-js', '');
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Fixed or sticky bars at the bottom of the screen; keep this list in step with the CSS (BackToTopContractTest).
+    const bars = '.a1-actionbar,.product-editor-action-bar,.dictionary-sort-finish,.ux-mobile-action-dock';
     let queued = false;
+    const lift = () => {
+        const zone = window.innerHeight - 72;
+        let extra = 0;
+        document.querySelectorAll(bars).forEach((bar) => {
+            const box = bar.getBoundingClientRect();
+            if (box.height > 0 && box.top < window.innerHeight && box.bottom > zone && box.right > window.innerWidth - 72 && box.left < window.innerWidth - 16) {
+                extra = Math.max(extra, window.innerHeight - box.top + 12 - 16);
+            }
+        });
+        button.style.setProperty('--a1-btt-lift', Math.max(0, Math.round(extra)) + 'px');
+    };
     const update = () => {
         queued = false;
         button.classList.toggle('is-shown', window.scrollY > window.innerHeight);
+        lift();
     };
-    window.addEventListener('scroll', () => {
+    const schedule = () => {
         if (!queued) { queued = true; window.requestAnimationFrame(update); }
-    }, { passive: true });
-    window.addEventListener('resize', update, { passive: true });
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    new MutationObserver(schedule).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
     button.addEventListener('click', (event) => {
         event.preventDefault();
         window.scrollTo({ top: 0, behavior: reduced.matches ? 'auto' : 'smooth' });

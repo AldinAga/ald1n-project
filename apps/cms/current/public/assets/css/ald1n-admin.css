@@ -1590,7 +1590,8 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 :root[data-theme="dark"]{
   --ald-success:var(--a1-status-ok-dot);
   --ald-warning:var(--a1-status-warning-dot);
-  --ald-danger:var(--a1-status-danger-dot);
+  --a1x-danger-ink:var(--a1-status-danger-dot);
+  --ald-danger:var(--a1x-danger-ink);
   --ald-info:var(--a1-status-info-dot);
   --lg5-positive-ink:var(--a1-status-ok-dot);
   --lg5-warning-ink:var(--a1-status-warning-dot);
@@ -1599,14 +1600,16 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 :root[data-theme="light"]{
   --ald-success:var(--a1-status-ok-text);
   --ald-warning:var(--a1-status-warning-text);
-  --ald-danger:var(--a1-status-danger-dot);
+  --a1x-danger-ink:color-mix(in srgb,var(--a1-status-danger-dot) 72%,var(--a1-text-primary));
+  --ald-danger:var(--a1x-danger-ink);
   --ald-info:var(--a1-status-info-text);
   --lg5-positive-ink:var(--a1-status-ok-text);
   --lg5-warning-ink:var(--a1-status-warning-text);
-  --lg5-error-ink:var(--a1-status-danger-dot);
+  --lg5-error-ink:var(--a1x-danger-ink);
 }
 /* The old stylesheets paint the body with fixed navy gradients; the Kobalt page wash replaces them. */
-:root[data-theme] body.a1-body{background:radial-gradient(1100px 620px at 4% -6%,var(--a1-glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--a1-glow-2),transparent 64%),var(--a1-surface-page);background-attachment:fixed;color:var(--a1-text-primary)}
+:root[data-theme] body.a1-body:not(:has(.a1-dash,.a1-ops)){background:radial-gradient(1100px 620px at 4% -6%,var(--a1-glow-1),transparent 64%),radial-gradient(900px 620px at 100% 4%,var(--a1-glow-2),transparent 64%),var(--a1-surface-page);background-attachment:fixed;color:var(--a1-text-primary)}
+@media (forced-colors:active){:root[data-theme] body.a1-body{background:Canvas;color:CanvasText}}
 :root[data-theme]{background:var(--a1-surface-page)}
 
 /* Step 2a: filled controls keep a white label on the button blue, so they rebind the primary locally. */
@@ -1626,7 +1629,8 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
   :root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card,.report-summary-card,.settings-hub-card){-webkit-backdrop-filter:var(--a1-fx);backdrop-filter:var(--a1-fx)}
 }
 :root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.analytics-card) :is(h1,h2,h3,h4){color:var(--a1-text-primary)}
-:root[data-theme] .a1-body :is(.muted,small,.eyebrow+p,.page-heading p){color:var(--a1-text-tertiary);opacity:1}
+:root[data-theme] .a1-body :is(.muted,.eyebrow+p,.page-heading p){color:var(--a1-text-tertiary);opacity:1}
+:root[data-theme] .a1-body :is(.panel,.stat-card,.filter-panel,.table-wrap,.admin-table-wrap,.page-heading,.empty-state,.settings-hub-card,.analytics-card,.report-summary-card) small:not([class*="a1-"]){color:var(--a1-text-tertiary);opacity:1}
 :root[data-theme] .a1-body .eyebrow{color:var(--a1-accent-link)}
 :root[data-theme] .a1-body .page-heading h1{color:var(--a1-text-primary)}
 
@@ -1636,15 +1640,15 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 :root[data-theme] .a1-body :is(input:not([type="checkbox"],[type="radio"]),select,textarea):not([class*="a1-"]):focus-visible{border-color:var(--a1-focus-ring);outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:var(--a1-focus-offset-inset);box-shadow:none}
 :root[data-theme] .a1-body :is(input,select,textarea):disabled:not([class*="a1-"]){opacity:var(--a1x-disabled-opacity)}
 :root[data-theme] .a1-body :is(input[type="checkbox"],input[type="radio"],input[type="range"]){accent-color:var(--a1-button-primary-bg)}
-:root[data-theme] .a1-body :is(label,.field>span,.form-grid label>span){color:var(--a1-text-secondary)}
-:root[data-theme] .a1-body :is(.field-error,.text-danger){color:var(--a1-status-danger-dot)}
+:root[data-theme] .a1-body :is(.form-section,.form-grid,.field-grid,.admin-form-grid,.stack-form,.filter-panel,.settings-grid) :is(label:not([class*="a1-"]),.field>span){color:var(--a1-text-secondary)}
+:root[data-theme] .a1-body :is(.field-error,.text-danger){color:var(--a1x-danger-ink)}
 
 /* Step 2d: tables. */
 :root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap){border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-glass-fill);box-shadow:none}
 :root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table :is(th,td),:root[data-theme] .a1-body table:is(.admin-table,.flat-table) :is(th,td){border-bottom-color:var(--a1-border-normal);color:var(--a1-text-primary)}
 :root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table th,:root[data-theme] .a1-body table:is(.admin-table,.flat-table) th{background-color:color-mix(in srgb,var(--a1-text-primary) 6%,var(--a1-surface-solid));color:var(--a1-text-secondary)}
 :root[data-theme] .a1-body :is(.table-wrap,.admin-table-wrap,.flat-table-wrap) table tbody tr:hover td,:root[data-theme] .a1-body table:is(.admin-table,.flat-table) tbody tr:hover td{background-color:var(--a1-button-ghost-hover)}
-:root[data-theme] .a1-body table :is(td,th) small{color:var(--a1-text-tertiary);opacity:1}
+:root[data-theme] .a1-body table:is(.admin-table,.flat-table) small:not([class*="a1-"]){color:var(--a1-text-tertiary);opacity:1}
 
 /* Step 2e: badges and counters. */
 :root[data-theme] .a1-body :is(.status-badge,.count-pill){border:var(--a1x-border-width) solid var(--a1-border-strong);background-color:var(--a1-button-ghost-bg);background-image:none;color:var(--a1-text-primary)}
@@ -1683,10 +1687,13 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
   .a1-btt[data-js]{transition:opacity var(--a1-motion-duration-base) var(--a1-motion-easing-standard),transform var(--a1-motion-duration-base) var(--a1-motion-easing-standard),visibility 0s linear var(--a1-motion-duration-base),background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
   .a1-btt[data-js].is-shown{transition-delay:0s}
 }
-/* Sticky bottom bars: the product editor action bar and the phone action dock sit where the button would be, so it rides above them. */
-body.has-ux-action-dock .a1-btt{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-body:has([data-product-editor-action-bar]) .a1-btt{bottom:calc(104px + env(safe-area-inset-bottom,0px))}
-@media (max-width:720px){body:has([data-product-editor-action-bar]) .a1-btt{bottom:calc(176px + env(safe-area-inset-bottom,0px))}}
+/* Sticky bottom bars (.a1-actionbar, product editor bar, sort bar, phone action dock) sit where the button would be.
+   The script measures the bars on screen and sets --a1-btt-lift so the button rides above them; without JavaScript
+   the fixed fallbacks below apply. BackToTopContractTest requires every fixed/sticky bottom bar in the CSS to be
+   listed in the partial. */
+.a1-btt[data-js]{bottom:calc(max(var(--a1-space-16),env(safe-area-inset-bottom,0px)) + var(--a1-btt-lift,0px))}
+body.has-ux-action-dock .a1-btt:not([data-js]){bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+body:has(.a1-actionbar,[data-product-editor-action-bar],.dictionary-sort-finish) .a1-btt:not([data-js]){bottom:calc(120px + env(safe-area-inset-bottom,0px))}
 body[tabindex="-1"]:focus{outline:0}
 @media (forced-colors:active){.a1-btt{border-color:ButtonText;background:ButtonFace;color:ButtonText;box-shadow:none}}
 @media print{.a1-btt{display:none}}
