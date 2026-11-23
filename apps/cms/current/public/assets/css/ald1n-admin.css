@@ -1835,6 +1835,8 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
 .a1-table td .a1-btn,.admin-table td .button,.table-wrap td .button,.row-actions .button,.a1-table__actions .a1-btn{white-space:nowrap;flex-shrink:0}
 /* Tab bars scroll sideways instead of cutting the last tab; a long tab list never wraps its labels. */
 .access-control-tabs,.inventory-operation-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+/* ald1n-ui-v2.css is a frozen generated asset (CI refuses edits), so its overflow-wrap:anywhere rules on table cells and short values are overridden here. */
+.admin-table th,.admin-table td,.ald-ops-index .operational-orders-table tbody td,.unified-product-card .product-footer .price,.unified-product-card .product-meta>*,.order-workspace-snapshot strong,.order-workspace-snapshot small,.order-buyer-detail-list dd,.ux-product-workspace-meta strong,.ux-product-review-grid strong,.access-control-user-meta strong,.product-type-preview-field strong{overflow-wrap:break-word}
 /* Wide tables: columns never get narrower than their longest word (min-content), the wrapper scrolls sideways
    (keyboard reachable) instead of clipping the overflow, which is what cut off the last column. */
 @media (min-width:901px){
