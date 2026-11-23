@@ -1,18 +1,18 @@
-# B1157: 69 fajlova (7 novih, 62 izmijenjenih), migracije: `2026_11_21_000001_add_return_columns_to_order_shipments`
+# B1157: 123 fajlova (24 novih, 99 izmijenjenih), migracije: `2026_11_21_000001_add_return_columns_to_order_shipments`, `2026_11_23_000001_add_supplier_code_and_ean_to_products`, `2026_11_23_000002_create_account_deletion_requests`
 
 Autor: Ald1n <https://ald1n.com>
 
 Ovaj README se generiše iz `README-SR.tpl.md` komandom `php tools/storefront/b1157/generate.php <SHA>`. Ne uređuje se ručno.
 
-Paket prebacuje produkciju sa stanja B1156 (Izvještaj 1122, 8596 fajlova, 579 ruta, `origin/main` 94de4be5) na `origin/main` b6abb241 (`b6abb2416dd529da0ab47af09dd01db338098794`).
+Paket prebacuje produkciju sa stanja B1156 (Izvještaj 1122, 8596 fajlova, 579 ruta, `origin/main` 94de4be5) na `origin/main` 2ed96694 (`2ed96694c33581c33d565b08703da78abdfe973b`).
 
 ## Šta se mijenja
 
-- 69 fajlova u `apps/cms/current`: 7 novih, 62 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A7 B25 C20 D1 E2 F14.
+- 123 fajlova u `apps/cms/current`: 24 novih, 99 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A24 B33 C31 D1 E3 F31.
 - Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: nema (broj: 0).
-- Stablo posle instalacije ima 8603 fajlova (8596 + 7 novih).
-- Rute: 579 postaje 584 (razlika 5). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
-- Migracije: `2026_11_21_000001_add_return_columns_to_order_shipments`. Izvršene posle migracije: 73 postaje 74.
+- Stablo posle instalacije ima 8620 fajlova (8596 + 24 novih).
+- Rute: 579 postaje 597 (razlika 18). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
+- Migracije: `2026_11_21_000001_add_return_columns_to_order_shipments`, `2026_11_23_000001_add_supplier_code_and_ean_to_products`, `2026_11_23_000002_create_account_deletion_requests`. Izvršene posle migracije: 73 postaje 76.
 - Nema izmjena `composer`, `.env` ni `config`.
 
 ## Redoslijed
@@ -21,8 +21,8 @@ Paket prebacuje produkciju sa stanja B1156 (Izvještaj 1122, 8596 fajlova, 579 r
 2. Kopija svakog izmijenjenog fajla u privatni prostor B1157.
 3. Fajlovi po grupama, sa pauzom i provjerom da sajt radi poslije svake: A novi fajlovi (neaktivni), B biblioteke, C kontroleri i bin alati, D `AppServiceProvider`, E rute, F prikazi.
 4. Tek kad je svaki fajl na mjestu: svježa rezervna kopija baze (`app:backup-create` pa `app:backup-verify`), ponovna provjera te kopije, tačno nove migracije na čekanju, pa jedan poziv `artisan migrate --force --realpath --path=…`. Nikad `fresh`, `refresh`, `rollback` ni `reset`, nikad `down()`, nikad brisanje tabele.
-5. Provjera poslije migracije: 74 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
-6. Prijem: kompajliranje svih 16 prikaza, stilovi, rute, ponovno stablo od 8603 fajlova.
+5. Provjera poslije migracije: 76 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
+6. Prijem: kompajliranje svih 39 prikaza, stilovi, rute, ponovno stablo od 8620 fajlova.
 
 ## Trajanje i prozor rezervne kopije
 

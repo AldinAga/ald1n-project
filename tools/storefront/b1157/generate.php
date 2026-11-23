@@ -32,7 +32,7 @@ foreach($diff as $p=>$k){
     if(str_starts_with($p,'tests/')||str_starts_with($p,'docs/'))continue;
     if(preg_match('~^(config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('GENERATE_FORBIDDEN_PATH_'.$p);
     if(str_starts_with($p,'database/')&&!preg_match('~^database/migrations/\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_DATABASE_PATH_'.$p);
-    if(str_starts_with($p,'routes/')&&!in_array($p,['routes/web.php','routes/api.php'],true))throw new RuntimeException('GENERATE_FORBIDDEN_ROUTES_PATH_'.$p);
+    if(str_starts_with($p,'routes/')&&!in_array($p,['routes/web.php','routes/api.php','routes/console.php'],true))throw new RuntimeException('GENERATE_FORBIDDEN_ROUTES_PATH_'.$p);
     if(str_starts_with($p,'bin/')&&!preg_match('~^bin/[a-z0-9-]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_BIN_PATH_'.$p);
     if($k==='D'){$orph[$p]=hash('sha256',$blob($base,$p));continue;}
     // A path that main deleted in B1156 and now adds again is a retained orphan on the host: it is modified, its pre digest is the orphan digest.
@@ -41,7 +41,7 @@ foreach($diff as $p=>$k){
 }
 $groupOf=static function(string $p):string{
     if($p==='app/Providers/AppServiceProvider.php')return 'D';
-    if($p==='routes/api.php'||$p==='routes/web.php')return 'E';
+    if($p==='routes/api.php'||$p==='routes/web.php'||$p==='routes/console.php')return 'E';
     if(str_ends_with($p,'.blade.php'))return 'F';
     if(str_starts_with($p,'app/Http/Controllers/')||str_starts_with($p,'bin/')||str_starts_with($p,'public/'))return 'C';
     return 'B';

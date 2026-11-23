@@ -211,7 +211,7 @@ jobs:
           git diff --no-renames --name-status "$B1157_BASE" "$B1157_SRC" -- apps/cms/current/database | sort > "$RUNNER_TEMP/database-diff.txt"
           php -r 'require "tools/storefront/b1157/Payload.php";$l=[];foreach(B1157Payload::NEW_MIGRATIONS as $m)$l[]="A\tapps/cms/current/database/migrations/".$m.".php";sort($l);echo implode("\n",$l),"\n";' | cmp - "$RUNNER_TEMP/database-diff.txt"
           git diff --name-only "$B1157_BASE" "$B1157_SRC" -- apps/cms/current/routes | sort > "$RUNNER_TEMP/routes-diff.txt"
-          if test -s "$RUNNER_TEMP/routes-diff.txt"; then grep -vxE 'apps/cms/current/routes/(api|web)\.php' "$RUNNER_TEMP/routes-diff.txt" && exit 2 || true; fi
+          if test -s "$RUNNER_TEMP/routes-diff.txt"; then grep -vxE 'apps/cms/current/routes/(api|web|console)\.php' "$RUNNER_TEMP/routes-diff.txt" && exit 2 || true; fi
           echo "config and composer diff: empty; database diff: the generated migrations only; routes diff: web.php and api.php"
           # Production is the B1156 tree: the B1155 payload commit tree (tests included) is the B1156 code base, and the B1156 payload commit is BASE itself.
           git diff --quiet "$B1153_COMMIT" "$B1154_CODE_BASE" -- apps/cms/current
