@@ -224,7 +224,7 @@
         <section class="a1-card a1-lg-5" aria-labelledby="mg-list-title">
             <h2 class="a1-h2" id="mg-list-title">Rasporedi</h2>
             @forelse($schedules as $schedule)
-            <details class="a1-acc"><summary>{{ $schedule->name }} · {{ $schedule->is_active?'aktivan':'pauziran' }}</summary>
+            <details class="a1-acc" data-report-schedule><summary>{{ $schedule->name }} · {{ $schedule->is_active?'aktivan':'pauziran' }}</summary>
                 <div class="a1-acc__body a1-stack">
                     <dl class="a1-dl">
                         <div class="a1-dl__row"><dt>Učestalost</dt><dd>{{ $frequencyLabels[$schedule->frequency] ?? $schedule->frequency }} · {{ $schedule->send_time }}</dd></div>

@@ -393,7 +393,7 @@ async function main() {
     });
     await check('report-schedule-confirmation', async () => {
       await open(adminPage, '/admin/reports');
-      await adminPage.locator('.analytics-schedule').evaluate(node => { node.open = true; });
+      await adminPage.locator('[data-report-schedule]').evaluate(node => { node.open = true; });
       await confirmForm(adminPage, 'form[action$="/reports/schedules/'+fixture.schedule+'"]');
     });
     await check('warranty-void-confirmation', async () => {
