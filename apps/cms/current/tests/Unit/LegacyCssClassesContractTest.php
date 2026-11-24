@@ -24,21 +24,13 @@ final class LegacyCssClassesContractTest extends TestCase
     /** Views (relative to resources/views, no extension) that still use a removed class. Shrink only. */
     private const VIEW_ALLOWLIST = [
         'account/show',
-        'admin/data-quality/index',
         'admin/dictionary/fields',
         'admin/dictionary/index',
         'admin/dictionary/product-type',
-        'admin/products/bulk',
-        'admin/products/clone',
         'admin/products/form',
-        'admin/products/images',
-        'admin/products/import',
         'admin/reports/index',
-        'admin/service-parts/suppliers',
         'catalog/show',
         'layouts/app',
-        'notifications/index',
-        'partials/correlated-specification-filters',
         'public/assets/js/ald1n-liquid-glass-r3.js',
         'public/assets/js/ux-runtime.js',
     ];
