@@ -215,8 +215,8 @@ jobs:
           git merge-base --is-ancestor "$B1153_CODE_BASE" "$B1153_COMMIT"
           git merge-base --is-ancestor "$B1150_SOURCE" "$B1152_CODE_BASE"
           git merge-base --is-ancestor "$B1149_SOURCE" "$B1150_SOURCE"
-          # No config, composer or .env change (the tests included). Under database/ only the new migration files of Payload.php, under routes/ only web.php and api.php.
-          test -z "$(git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/config apps/cms/current/composer.json apps/cms/current/composer.lock apps/cms/current/.env apps/cms/current/.env.example)"
+          # No config, composer.json or .env change (the tests included); composer.lock may differ (generate.php excludes it from the payload and records it in EXCLUDED_FILES). Under database/ only the new migration files of Payload.php, under routes/ only web.php and api.php.
+          test -z "$(git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/config apps/cms/current/composer.json apps/cms/current/.env apps/cms/current/.env.example)"
           git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/database | sort > "$RUNNER_TEMP/database-diff.txt"
           php -r 'require "tools/storefront/b1158/Payload.php";$l=[];foreach(B1158Payload::NEW_MIGRATIONS as $m)$l[]="A\tapps/cms/current/database/migrations/".$m.".php";sort($l);if($l!==[])echo implode("\n",$l),"\n";' | cmp - "$RUNNER_TEMP/database-diff.txt"
           git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/routes | sort > "$RUNNER_TEMP/routes-diff.txt"
@@ -393,7 +393,7 @@ jobs:
           echo "STEPS=$steps NEW=$nnew MODIFIED=$nmod ORPHANS=$norph"
           test "$steps" -gt 0
           echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
-          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vE $'\tapps/cms/current/(tests|docs)/' | tee "$RUNNER_TEMP/source-diff.txt"
+          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vE $'\tapps/cms/current/((tests|docs)/|composer\\.lock$)' | tee "$RUNNER_TEMP/source-diff.txt"
           test "$(grep -vc $'^D\t' "$RUNNER_TEMP/source-diff.txt")" = "$steps"
           test "$(cut -f2 "$RUNNER_TEMP/source-diff.txt" | sort | uniq -d | wc -l)" = 0
           test "$(grep -c $'^A\t' "$RUNNER_TEMP/source-diff.txt")" = "$nnew"

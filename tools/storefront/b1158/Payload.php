@@ -569,6 +569,8 @@ final class B1158Payload
 );
     public const TIGHT_ORDER=array (
 );
+    public const EXCLUDED_FILES=array (
+);
     public const FILES=41;
     public const NEW_FILES=4;
     public const MODIFIED_FILES=37;

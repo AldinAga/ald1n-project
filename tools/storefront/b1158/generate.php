@@ -31,13 +31,15 @@ if($src===$base)throw new RuntimeException('GENERATE_TARGET_IS_THE_PREVIOUS_PAYL
 $blob=static fn(string $c,string $p):string=>(string)$git(['show',$c.':'.CMS.$p]);
 $diff=[];foreach(explode("\n",trim((string)$git(['diff','--no-renames','--name-status',$base,$src,'--',rtrim(CMS,'/')]))) as $l){if($l==='')continue;if(!preg_match('~^([AMD])\t'.preg_quote(CMS,'~').'(\S+)$~D',$l,$m))throw new RuntimeException('GENERATE_DIFF_LINE');$diff[$m[2]]=$m[1];}
 ksort($diff,SORT_STRING);
-$orphansBefore=defined($P.'::ORPHANS_ALL')?constant($P.'::ORPHANS_ALL'):array_merge(CommissionsInstallCoordinator::ORPHANS,$P::ORPHANS);$new=[];$mod=[];$orph=[];
+$excludedFiles=[];$orphansBefore=defined($P.'::ORPHANS_ALL')?constant($P.'::ORPHANS_ALL'):array_merge(CommissionsInstallCoordinator::ORPHANS,$P::ORPHANS);$new=[];$mod=[];$orph=[];
 foreach($diff as $p=>$k){
     if(str_starts_with($p,'tests/')||str_starts_with($p,'docs/'))continue;
+    // composer.lock is NOT installed (the vendor tree stays as it is on the host): excluded and reported, never shipped. Any other composer, config or .env change stops the build.
+    if($p==='composer.lock'){$excludedFiles[$p]=[hash('sha256',$blob($base,$p)),hash('sha256',$blob($src,$p))];fwrite(STDERR,'WARNING composer.lock differs between the base and the target: it is EXCLUDED from the payload, the vendor tree on the host is NOT updated; check that the code does not need the newer vendor versions'.PHP_EOL);continue;}
     if(preg_match('~^(config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('GENERATE_FORBIDDEN_PATH_'.$p);
     if(str_starts_with($p,'database/')&&!preg_match('~^database/migrations/\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_DATABASE_PATH_'.$p);
     if(str_starts_with($p,'routes/')&&!in_array($p,['routes/web.php','routes/api.php','routes/console.php'],true))throw new RuntimeException('GENERATE_FORBIDDEN_ROUTES_PATH_'.$p);
-    if(str_starts_with($p,'bin/')&&!preg_match('~^bin/[a-z0-9-]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_BIN_PATH_'.$p);
+    if(str_starts_with($p,'bin/')&&!preg_match('~^bin/[A-Za-z0-9._-]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_BIN_PATH_'.$p);
     if($k==='D'){$orph[$p]=hash('sha256',$blob($base,$p));continue;}
     // A path that main deleted in B1156 and now adds again is a retained orphan on the host: it is modified, its pre digest is the orphan digest.
     if($k==='A'&&isset($orphansBefore[$p])){$mod[$p]=$orphansBefore[$p];continue;}
@@ -169,6 +171,7 @@ $out.="    public const ROUTES=".$B_ROUTES.";\n    public const ROUTES_AFTER=".$
 $out.="    public const NEW_BIN=".$v($newBin).";\n    public const VIEW_CHECKS=".$v($viewChecks).";\n    public const SOURCE_MARKERS=".$v($markers).";\n    public const PROOF_CLASSES=".$v($proof).";\n    public const PROVIDER_BINDINGS=".$v($bindings).";\n";
 $out.="    public const ADMIN_CSS_PATHS=".$v($cssChanged?['/assets/css/ald1n-admin.css'=>'public/assets/css/ald1n-admin.css']:[]).";\n";
 $out.="    public const TIGHT_ORDER=".$v($tight).";\n";
+$out.="    public const EXCLUDED_FILES=".$v($excludedFiles).";\n";
 $out.="    public const FILES=".count($steps).";\n    public const NEW_FILES=".$newFiles.";\n    public const MODIFIED_FILES=".(count($steps)-$newFiles).";\n    public const TREE_FILES_AFTER=".$treeAfter.";\n    public const TREE_FILES_BEFORE=".$B_TREE.";\n";
 $out.="    public const CHAIN_REPORT_SHA256=".$v($reportSha??str_repeat('0',64)).";\n    public const CHAIN_STATE_ID=".$v($stateId??str_repeat('0',32)).";\n    public const CHAIN_PINS_FILLED=".($reportSha===null?'false':'true').";\n}\n";
 $dir=__DIR__;
