@@ -69,9 +69,9 @@ final class CommissionStatementPdfService
         $layout->paragraph($this->keepUnits('Kurs na dan isplate: '.$d['rate'].'. Način isplate: '.$d['method'].'. Referenca: '.$d['reference'].'.'), 9);
         $layout->section('Primaoci');
         $layout->table([
-            ['label' => 'SubAgent', 'width' => 163, 'bold' => true],
+            ['label' => 'SubAgent', 'width' => 143, 'bold' => true],
             ['label' => 'Bruto EUR', 'width' => 80, 'align' => 'right'],
-            ['label' => 'Zaduženja EUR', 'width' => 80, 'align' => 'right'],
+            ['label' => 'Zaduženja EUR', 'width' => 100, 'align' => 'right'],
             ['label' => 'Neto EUR', 'width' => 90, 'align' => 'right', 'bold' => true],
             ['label' => 'Neto RSD', 'width' => 110, 'align' => 'right', 'bold' => true],
         ], $d['recipients'], 8.5);
