@@ -111,7 +111,7 @@ final class ProductNotesFormSubmitTest extends TestCase
 
         // Vidljivost ne širi pravo izmene.
         $this->actingAs($other)->put('/admin/catalog/'.$product->id, $this->payload(['sku' => $product->sku, 'notes' => 'Upad']))
-            ->assertNotFound();
+            ->assertForbidden();
         self::assertSame('Tudja napomena', $product->refresh()->notes);
     }
 
