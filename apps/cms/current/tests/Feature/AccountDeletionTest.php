@@ -30,6 +30,10 @@ final class AccountDeletionTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreAccessSeeder::class);
+        // cache.limiter je 'file' i CACHE_STORE=array ga ne mijenja; RateLimiter je vec napravljen u boot-u (imenovani limiteri),
+        // pa mu samo zamijenimo skladiste svjezim array store-om: brojaci ne prelaze iz testa u test ni iz pokretanja u pokretanje.
+        $store = $this->app['cache']->driver('array');
+        (fn () => $this->cache = $store)->call($this->app->make(\Illuminate\Cache\RateLimiter::class));
     }
 
     private function requireMysql(): void
@@ -274,8 +278,33 @@ final class AccountDeletionTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1']);
         $this->post('/login', ['login' => $victim->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($victim);
-        $this->post('/account/deletion')->assertRedirectContains('/account')->assertSessionHasNoErrors();
+        $this->post('/account/deletion')->assertRedirectContains('/account')->assertSessionHasNoErrors()
+            ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
         Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
+
+        // Odmah ponovo: pauza, bez maila i bez tvrdnje da je poslato.
+        $this->post('/account/deletion')->assertRedirectContains('/account')
+            ->assertSessionHas('status', 'Ako je potrebno, link je već poslat u zadnjih 10 minuta; provjerite poštu.');
+        Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
+    }
+
+    public function test_fresh_pending_request_from_a_parallel_request_is_kept_and_not_duplicated(): void
+    {
+        Notification::fake();
+        $user = $this->user('del-race', 'customer');
+        // Simulira drugi zahtjev koji je upravo upisao svoj red (sekvencijalno; pravi paralelizam stiti lockForUpdate na users).
+        DB::table('account_deletion_requests')->insert([
+            'user_id' => $user->id, 'requested_at' => now(), 'status' => 'pending', 'source' => 'web',
+            'confirm_token_hash' => hash('sha256', 'parallel'), 'confirm_expires_at' => now()->addHour(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(\App\Services\UserDeletionService::class)->requestByEmail('del-race@example.test');
+        self::assertFalse(app(\App\Services\UserDeletionService::class)->requestForUser($user));
+
+        self::assertSame(1, DB::table('account_deletion_requests')->where('user_id', $user->id)->count());
+        self::assertSame(hash('sha256', 'parallel'), DB::table('account_deletion_requests')->where('user_id', $user->id)->value('confirm_token_hash'));
+        Notification::assertNothingSent();
     }
 
     public function test_array_in_email_field_is_a_validation_error_not_500(): void
@@ -285,7 +314,9 @@ final class AccountDeletionTest extends TestCase
 
         $this->post('/brisanje-naloga', ['email' => ['del-array@example.test']])
             ->assertStatus(302)->assertSessionHasErrors('email');
-        $this->post('/brisanje-naloga', ['email' => ['x' => ['y']]])->assertStatus(302)->assertSessionHasErrors('email');
+        // Forma poslije redirekta ispisuje old('email'): niz tu ne smije stići (TypeError/500).
+        $this->get('/brisanje-naloga')->assertOk()->assertSee('name="email" value=""', false);
+        $this->followingRedirects()->post('/brisanje-naloga', ['email' => ['x' => ['y']]])->assertOk();
         Notification::assertNothingSent();
     }
 

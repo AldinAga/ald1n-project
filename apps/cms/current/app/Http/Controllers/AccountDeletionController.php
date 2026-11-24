@@ -44,12 +44,12 @@ final class AccountDeletionController extends Controller
             'cf-turnstile-response' => ['nullable', 'string', 'max:4096'],
         ], ['email.required' => 'Unesite e-mail adresu.', 'email.email' => 'Unesite ispravnu e-mail adresu.']);
         if ($validator->fails()) {
-            return AppUrlOrigin::redirect($request, 'account-deletion.show')->withErrors($validator)->withInput($request->only('email'));
+            return AppUrlOrigin::redirect($request, 'account-deletion.show')->withErrors($validator)->withInput($this->oldEmail($request));
         }
 
         if (!UserDeletionService::available()) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
-                ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($request->only('email'));
+                ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($this->oldEmail($request));
         }
 
         try {
@@ -60,7 +60,7 @@ final class AccountDeletionController extends Controller
         }
         if (!$verified['success']) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
-                ->withErrors(['turnstile' => $verified['message']])->withInput($request->only('email'));
+                ->withErrors(['turnstile' => $verified['message']])->withInput($this->oldEmail($request));
         }
 
         $email = (string) $request->input('email');
@@ -80,10 +80,19 @@ final class AccountDeletionController extends Controller
         if ($problem !== null) {
             return redirect()->route('account.show')->withErrors(['deletion' => $problem]);
         }
-        $user = $request->user();
-        $this->afterResponse(static fn () => $deletions->requestForUser($user));
+        // Sinhrono: prijavljenom korisniku vrijeme odgovora ne odaje ništa novo, a poruka mora odgovarati onome što se desilo.
+        try {
+            $sent = $deletions->requestForUser($request->user());
+        } catch (Throwable $exception) {
+            Log::error('Account deletion request failed.', ['exception' => $exception::class]);
 
-        return redirect()->route('account.show')->with('status', 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.');
+            return redirect()->route('account.show')->withErrors(['deletion' => 'Zahtjev trenutno nije moguće obraditi. Pokušajte ponovo kasnije.']);
+        }
+
+        return redirect()->route('account.show')->with('status', $sent
+            ? 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.'
+            // Isti tekst za pauzu i dnevni limit, da poruka ne otkriva koje je stanje.
+            : 'Ako je potrebno, link je već poslat u zadnjih '.UserDeletionService::RESEND_PAUSE_MINUTES.' minuta; provjerite poštu.');
     }
 
     public function confirmShow(string $token, UserDeletionService $deletions): View
@@ -152,6 +161,14 @@ final class AccountDeletionController extends Controller
         $validator = Validator::make($request->all(), ['token' => self::TOKEN_RULE]);
 
         return $validator->fails() ? null : (string) $request->input('token');
+    }
+
+    /** email[]=x ne smije u old('email'): forma ga ispisuje kao string. @return array{email:string} */
+    private function oldEmail(Request $request): array
+    {
+        $email = $request->input('email');
+
+        return ['email' => is_string($email) ? $email : ''];
     }
 
     private function afterResponse(\Closure $work): void

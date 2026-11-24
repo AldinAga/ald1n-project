@@ -101,44 +101,47 @@ final class UserDeletionService
         }
     }
 
-    /** Prijavljen korisnik: link ide na e-poštu naloga; brojač slanja je odvojen od javne forme. */
-    public function requestForUser(User $user): void
+    /**
+     * Prijavljen korisnik: link ide na e-poštu naloga; brojač slanja je odvojen od javne forme.
+     * Vraća false kad pauza ili dnevni limit preskoče slanje.
+     */
+    public function requestForUser(User $user): bool
     {
-        if (self::available()) {
-            $this->requestFor($user, 'own');
-        }
+        return self::available() && $this->requestFor($user, 'own');
     }
 
-    private function requestFor(User $user, string $channel): void
+    private function requestFor(User $user, string $channel): bool
     {
         if ($user->status !== 'active' || $user->retired_at !== null) {
-            return;
+            return false;
         }
         if ($this->successorProblem($user) !== null) {
-            return;
-        }
-        // Pauza po nalogu (ne po upisanoj adresi, jer collation poklapa akcente i fullwidth varijante):
-        // dok je nepotvrđen link mlađi od 10 min, ne šaljemo novi i ne pravimo novi token.
-        $recent = DB::table('account_deletion_requests')
-            ->where('user_id', $user->getKey())
-            ->where('status', 'pending')
-            ->whereNull('grace_until')
-            ->where('requested_at', '>', now()->subMinutes(self::RESEND_PAUSE_MINUTES))
-            ->exists();
-        $dailyKey = 'acct-del-send|'.$channel.'|'.$user->getKey();
-        if ($recent || RateLimiter::tooManyAttempts($dailyKey, self::MAX_SENDS_PER_DAY)) {
-            return;
+            return false;
         }
 
         $plain = Str::random(80);
-        DB::transaction(function () use ($user, $plain): void {
+        $dailyKey = 'acct-del-send|'.$channel.'|'.$user->getKey();
+        $created = DB::transaction(function () use ($user, $plain, $dailyKey): bool {
+            // Zaključan red korisnika: dva istovremena zahtjeva ne prave dva pending reda niti brišu svjež red.
+            User::query()->whereKey($user->getKey())->lockForUpdate()->first(['id']);
+            // Pauza po nalogu (ne po upisanoj adresi, jer collation poklapa akcente i fullwidth varijante):
+            // dok je nepotvrđen link mlađi od 10 min, ne šaljemo novi i ne pravimo novi token.
+            $recent = DB::table('account_deletion_requests')
+                ->where('user_id', $user->getKey())
+                ->where('status', 'pending')
+                ->whereNull('grace_until')
+                ->where('requested_at', '>', now()->subMinutes(self::RESEND_PAUSE_MINUTES))
+                ->exists();
+            if ($recent || RateLimiter::tooManyAttempts($dailyKey, self::MAX_SENDS_PER_DAY)) {
+                return false;
+            }
             DB::table('account_deletion_requests')
                 ->where('user_id', $user->getKey())
                 ->where('status', 'pending')
                 ->whereNull('grace_until')
                 ->delete();
             if ($this->activeRequest((int) $user->getKey()) !== null) {
-                return;
+                return false;
             }
             DB::table('account_deletion_requests')->insert([
                 'user_id' => (int) $user->getKey(),
@@ -150,12 +153,15 @@ final class UserDeletionService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-        });
-
-        if (DB::table('account_deletion_requests')->where('user_id', $user->getKey())->where('confirm_token_hash', hash('sha256', $plain))->exists()) {
             RateLimiter::hit($dailyKey, 86400);
+
+            return true;
+        });
+        if ($created) {
             $this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain));
         }
+
+        return $created;
     }
 
     public function confirmTokenIsValid(string $plain): bool
