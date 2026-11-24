@@ -49,7 +49,7 @@ $check('Navigacija nema duplu listu artikala', str_contains($layout, 'Katalog ar
 
 $css = $source('public/assets/css/app.css');
 $check('Filter paneli imaju Expand Collapse stil', str_contains($css, '.filter-collapse-bar'));
-$check('Aktivni filteri ostaju vidljivi', str_contains($layout, 'hasActiveFilters') && str_contains($layout, '!hasActiveFilters'));
+$check('Layout nema mrtav filter-collapse blok', !str_contains($layout, 'form.filter-panel'));
 $check('Žiro računi koriste dve kompaktne kartice po redu', str_contains($css, '.account-list{grid-template-columns:repeat(2,minmax(0,1fr))') && str_contains($css, '.account-card{padding:13px'));
 
 $dashboard = $source('app/Http/Controllers/DashboardController.php');

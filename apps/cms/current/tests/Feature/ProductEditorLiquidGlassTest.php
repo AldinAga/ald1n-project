@@ -40,7 +40,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         self::assertSame(1, substr_count($bar, 'data-product-save-draft'));
         self::assertSame(1, substr_count($bar, 'data-product-save-primary'));
         self::assertStringContainsString('a1-btn', $bar);
-        self::assertStringNotContainsString('data-product-direct-sale ', $bar);
+        self::assertDoesNotMatchRegularExpression('/data-product-direct-sale(?![-\w])/', $bar);
     }
 
     public function test_active_superadmin_edit_keeps_direct_sale_link_and_primary_edit_submit(): void
@@ -73,7 +73,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         $bar = $this->stickyBar($html);
         self::assertStringContainsString('Sačuvaj izmene', $bar);
         self::assertStringContainsString('Sačuvaj kao nacrt', $bar);
-        self::assertStringNotContainsString('data-product-direct-sale ', $bar);
+        self::assertDoesNotMatchRegularExpression('/data-product-direct-sale(?![-\w])/', $bar);
         self::assertStringNotContainsString('#direct-sale-title', $bar);
     }
 
