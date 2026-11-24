@@ -172,7 +172,7 @@ final class SignedProductMediaRouteTest extends TestCase
         $first = $image->url;
 
         self::assertSame($first, ProductImage::query()->findOrFail($image->id)->url);
-        self::assertSame($first, $image->thumbnail_url, 'without a rendition the thumbnail address is the original');
+        self::assertSame($this->signedParams($first)['v'], $this->signedParams((string) $image->thumbnail_url)['v'], 'without a rendition the thumbnail carries the original version');
 
         $replacement = $this->png(40, 30, [200, 20, 20]);
         Storage::disk('public')->put($image->file_path, $replacement);
@@ -318,6 +318,69 @@ final class SignedProductMediaRouteTest extends TestCase
         $fresh = $this->fetch((string) ProductImage::query()->findOrFail($image->id)->url);
         self::assertStringContainsString('immutable', (string) $fresh->headers->get('Cache-Control'));
         self::assertNotSame($old, $replacement);
+    }
+
+    public function test_image_without_a_rendition_gets_immutable_thumbnail_and_display_with_the_original_version(): void
+    {
+        [, $image, $bytes] = $this->publicImage();
+
+        foreach (['thumbnail' => $image->thumbnail_url, 'display' => $image->display_url] as $rendition => $url) {
+            self::assertStringContainsString('/media/p/'.$image->id.'/'.$rendition.'?', (string) $url);
+            self::assertSame($image->mediaVersion('original'), $this->signedParams((string) $url)['v'], $rendition);
+            $response = $this->fetch((string) $url);
+            $response->assertOk();
+            self::assertSame($bytes, $this->servedBytes($response), $rendition);
+            self::assertStringContainsString('immutable', (string) $response->headers->get('Cache-Control'), $rendition);
+        }
+    }
+
+    public function test_image_with_a_rendition_uses_the_rendition_version_and_is_immutable(): void
+    {
+        [, $image] = $this->publicImage();
+        self::assertTrue(app(ProductImageDerivativeService::class)->supported(), 'CI needs GD or Imagick with WebP');
+        app(ProductImageDerivativeService::class)->ensure($image);
+        $fresh = ProductImage::query()->findOrFail($image->id);
+
+        $params = $this->signedParams((string) $fresh->thumbnail_url);
+        self::assertNotSame($fresh->mediaVersion('original'), $params['v']);
+        self::assertSame($fresh->mediaVersion('thumbnail'), $params['v']);
+        $response = $this->fetch((string) $fresh->thumbnail_url);
+        self::assertSame('image/webp', $response->headers->get('Content-Type'));
+        self::assertStringContainsString('immutable', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_a_rendition_file_that_is_not_webp_is_not_served_and_stays_no_cache(): void
+    {
+        [, $image, $bytes] = $this->publicImage();
+        $path = ProductImageDerivativeService::relativePaths($image)['thumbnail'];
+        Storage::disk('public')->put($path, $bytes); // PNG content under the thumbnail name
+        $url = (string) ProductImage::query()->findOrFail($image->id)->thumbnail_url;
+
+        self::assertSame(ProductImage::query()->findOrFail($image->id)->mediaVersion('thumbnail'), $this->signedParams($url)['v']);
+        $response = $this->fetch($url);
+        $response->assertOk();
+        self::assertSame($bytes, $this->servedBytes($response));
+        self::assertSame('image/png', $response->headers->get('Content-Type'));
+        $cache = (string) $response->headers->get('Cache-Control');
+        self::assertStringContainsString('no-cache', $cache);
+        self::assertStringNotContainsString('immutable', $cache);
+    }
+
+    public function test_replaced_photo_makes_the_old_fallback_thumbnail_url_no_cache(): void
+    {
+        [, $image] = $this->publicImage();
+        $oldUrl = (string) $image->thumbnail_url;
+
+        $replacement = $this->png(40, 30, [200, 20, 20]);
+        Storage::disk('public')->put($image->file_path, $replacement);
+        $image->forceFill(['file_hash' => hash('sha256', $replacement), 'file_size' => strlen($replacement)])->save();
+
+        $stale = $this->fetch($oldUrl);
+        $stale->assertOk();
+        self::assertStringNotContainsString('immutable', (string) $stale->headers->get('Cache-Control'));
+        self::assertStringContainsString('no-cache', (string) $stale->headers->get('Cache-Control'));
+        $fresh = $this->fetch((string) ProductImage::query()->findOrFail($image->id)->thumbnail_url);
+        self::assertStringContainsString('immutable', (string) $fresh->headers->get('Cache-Control'));
     }
 
     public function test_product_resource_returns_signed_urls_that_open_without_a_login(): void

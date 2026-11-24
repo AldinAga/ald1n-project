@@ -73,7 +73,6 @@ final class SignedProductMediaController extends Controller
                 ->whereIn('status', self::SERVED_STATUSES)->exists()) {
                 return $this->notFound();
             }
-            $current = $model->mediaVersion($rendition);
             $file = null;
             $mime = null;
             if ($rendition !== 'original') {
@@ -83,6 +82,8 @@ final class SignedProductMediaController extends Controller
                     $mime = 'image/webp';
                 }
             }
+            // The version of the file actually served (the original when the rendition is missing).
+            $current = $model->mediaVersion($file === null ? 'original' : $rendition);
             if ($file === null) {
                 $original = PublicProductImageFiles::original($model, $productId);
                 $originalMime = $original === null ? '' : (mime_content_type($original) ?: '');

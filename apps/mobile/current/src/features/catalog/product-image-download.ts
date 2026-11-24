@@ -1,5 +1,11 @@
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
+
+import { imageSaveFolderStore } from '@/lib/storage';
+
+import { OFFLINE_MESSAGE, runProductImageSave, type ProductImageSaveResult } from './product-image-save-flow';
+
+export type { ProductImageSaveResult };
 
 const MAX_PRODUCT_IMAGE_BYTES = 30 * 1024 * 1024;
 
@@ -75,12 +81,20 @@ async function loadSharingModule() {
   }
 }
 
-export async function downloadAndShareProductImage(input: ProductImageDownloadInput): Promise<void> {
+type CachedOriginal = { file: File; bytes: Uint8Array; mimeType: string; fileName: string };
+
+async function fetchOriginalToCache(input: ProductImageDownloadInput): Promise<CachedOriginal> {
   assertRemoteImageUrl(input.originalUrl);
 
   // BATCH116 invariant: this transport accepts only the canonical original URL.
   // Optimized display/thumbnail URLs are intentionally not part of this input contract.
-  const response = await fetch(input.originalUrl, { method: 'GET' });
+  let response: Response;
+  try {
+    response = await fetch(input.originalUrl, { method: 'GET' });
+  } catch {
+    // RN fetch rejects only on transport failure (no network, DNS, TLS).
+    throw new Error(OFFLINE_MESSAGE);
+  }
   if (!response.ok) {
     throw new Error(`Preuzimanje originalne fotografije nije uspelo (${response.status}).`);
   }
@@ -107,7 +121,8 @@ export async function downloadAndShareProductImage(input: ProductImageDownloadIn
 
   const safeSku = sanitizeFilePart(input.productSku || input.productName);
   const safeNumber = Math.max(1, Math.floor(input.imageNumber));
-  const file = new File(Paths.cache, `${safeSku}-original-slika-${safeNumber}.${extension}`);
+  const fileName = `${safeSku}-original-slika-${safeNumber}.${extension}`;
+  const file = new File(Paths.cache, fileName);
   file.create({ overwrite: true, intermediates: true });
   file.write(bytes);
 
@@ -116,12 +131,74 @@ export async function downloadAndShareProductImage(input: ProductImageDownloadIn
     throw new Error('Originalnu fotografiju nije moguće bezbedno pripremiti za čuvanje.');
   }
 
+  return { file, bytes, mimeType, fileName };
+}
+
+export async function downloadAndShareProductImage(input: ProductImageDownloadInput): Promise<void> {
+  const { file, mimeType } = await fetchOriginalToCache(input);
+  const safeNumber = Math.max(1, Math.floor(input.imageNumber));
+
   const Sharing = await loadSharingModule();
   const available = await Sharing.isAvailableAsync();
-  if (!available) throw new Error('Sistemski meni za čuvanje fotografije nije dostupan.');
+  if (!available) throw new Error('Sistemski meni za deljenje fotografije nije dostupan.');
 
   await Sharing.shareAsync(file.uri, {
     mimeType,
     dialogTitle: `${input.productName} - originalna slika ${safeNumber}`,
   });
 }
+
+// Direct save without any runtime or manifest permission: the Storage Access Framework
+// folder picker (expo-file-system, already in the native build) grants a persistable
+// write grant for one folder the user picks. No MediaStore insert, no READ_MEDIA_* and no media library module.
+export const canSaveProductImagesToDevice = Platform.OS === 'android';
+
+// Opens the picker in Pictures so the saved photos land in the phone's gallery.
+const PICTURES_TREE_URI = 'content://com.android.externalstorage.documents/document/primary%3APictures';
+
+async function pickSaveFolder(): Promise<Directory | null> {
+  try {
+    return await Directory.pickDirectoryAsync(PICTURES_TREE_URI);
+  } catch (error) {
+    // Closing the picker is a choice, not an error.
+    // Native PickerCancelledException: code ERR_PICKER_CANCELLED, message "...was cancelled by the user".
+    const coded = error as { code?: unknown; message?: unknown } | null;
+    if (/cancel/i.test(`${String(coded?.code ?? '')} ${String(coded?.message ?? '')}`)) return null;
+    throw new Error('Izbor foldera za čuvanje nije uspeo.');
+  }
+}
+
+function openSaveFolder(uri: string): Directory | null {
+  try {
+    const folder = new Directory(uri);
+    return folder.exists ? folder : null;
+  } catch {
+    return null;
+  }
+}
+
+async function isOriginalReachable(input: ProductImageDownloadInput): Promise<boolean> {
+  try {
+    await fetch(input.originalUrl, { method: 'HEAD' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function saveProductImagesToDevice(inputs: ProductImageDownloadInput[]): Promise<ProductImageSaveResult> {
+  if (!canSaveProductImagesToDevice) throw new Error('Direktno čuvanje je dostupno u Android aplikaciji. Koristi Podeli.');
+  return runProductImageSave(inputs, {
+    readStoredFolder: () => imageSaveFolderStore.get(),
+    rememberFolder: (uri) => imageSaveFolderStore.set(uri),
+    forgetFolder: () => imageSaveFolderStore.clear(),
+    openFolder: openSaveFolder,
+    pickFolder: pickSaveFolder,
+    isOnline: isOriginalReachable,
+    fetchOriginal: async (input) => {
+      const original = await fetchOriginalToCache(input);
+      return { ...original, discard: () => { if (original.file.exists) original.file.delete(); } };
+    },
+  });
+}
+
