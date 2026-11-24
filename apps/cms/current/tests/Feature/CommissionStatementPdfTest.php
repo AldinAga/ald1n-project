@@ -210,7 +210,8 @@ final class CommissionStatementPdfTest extends TestCase
         self::assertNotFalse($neto);
         self::assertStringContainsString('(-20,00 EUR) Tj', $pdf);
         self::assertStringContainsString('(0,00 EUR) Tj', substr($pdf, $neto, 400));
-        self::assertStringContainsString('25,00 EUR', $pdf); // otvoreno zaduženje u celosti, ostatak ide u narednu isplatu
+        // otvoreno zaduženje u celosti u pasusu, iznos i EUR spojeni NBSP-om (ne prelamaju se)
+        self::assertStringContainsString($this->pdfText("25,00\u{00A0}EUR"), $pdf);
     }
 
     public function test_large_amounts_and_statuses_stay_on_one_line(): void
@@ -223,6 +224,42 @@ final class CommissionStatementPdfTest extends TestCase
         self::assertStringContainsString('(1.446.912,52 RSD *) Tj', $pdf); // 1.234.567 centi x 117,2
         foreach (['(EUR) Tj', '(RSD) Tj', '(RSD *) Tj', '(*) Tj', '(isplatu) Tj', '(0) Tj'] as $fragment) {
             self::assertStringNotContainsString($fragment, $pdf, 'iznos ili status prelomljen u dva reda');
+        }
+    }
+
+    public function test_month_rule_paid_by_paid_at_and_open_commissions_on_generation_day(): void
+    {
+        $prev = now()->toImmutable()->startOfMonth()->subMonthNoOverflow()->addDays(4);
+        $paidLater = $this->approvedCommission($this->bravo);
+        $paidLater->forceFill(['total_eur' => '31.31', 'status' => 'paid', 'created_at' => $prev, 'paid_at' => now()])->save();
+        $openOld = $this->approvedCommission($this->bravo);
+        $openOld->forceFill(['total_eur' => '41.41', 'created_at' => $prev])->save();
+        $paidPrev = $this->approvedCommission($this->bravo);
+        $paidPrev->forceFill(['total_eur' => '51.51', 'status' => 'paid', 'created_at' => $prev, 'paid_at' => $prev->addDay()])->save();
+        $url = '/admin/commissions/statement.pdf?user_id='.$this->bravo->id.'&month=';
+
+        $previous = $this->actingAs($this->super)->get($url.$prev->format('Y-m'))->assertOk()->getContent();
+        self::assertStringNotContainsString('31,31 EUR', $previous, 'isplaćena u tekućem mesecu ne ulazi u prethodni');
+        self::assertStringContainsString('51,51 EUR', $previous);
+
+        $current = $this->actingAs($this->super)->get($url.now()->format('Y-m'))->assertOk()->getContent();
+        self::assertStringContainsString('31,31 EUR', $current);
+        self::assertStringContainsString('41,41 EUR', $current, 'otvorena provizija iz prošlog meseca je za isplatu');
+        self::assertStringNotContainsString('51,51 EUR', $current, 'isplaćena u prošlom mesecu ne ulazi ponovo');
+        self::assertStringContainsString($this->pdfText('Za isplatu: sve otvorene provizije na dan '.now()->format('d.m.Y').'. Isplaćeno: isplate u mesecu '.now()->format('m.Y').'.'), $current);
+    }
+
+    public function test_payout_rsd_with_star_stays_on_one_line(): void
+    {
+        DB::table('commission_payment_batches')->where('id', $this->batchId)->update(['eur_rsd_rate' => null]);
+        app(SettingsService::class)->putMany(['eur_rsd_rate' => '117.200000'], null);
+        DB::table('order_commissions')->where('payment_batch_id', $this->batchId)->where('user_id', $this->bravo->id)->update(['total_eur' => '12345.67']);
+        DB::table('commission_payment_batches')->where('id', $this->batchId)->update(['total_eur' => '12365.67']);
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/payouts/'.$this->batchId.'.pdf')->assertOk()->getContent();
+        self::assertStringContainsString('(1.446.912,52 RSD *) Tj', $pdf);
+        foreach (['(RSD *) Tj', '(*) Tj', '(RSD) Tj', '(EUR) Tj'] as $fragment) {
+            self::assertStringNotContainsString($fragment, $pdf, 'RSD iznos sa * prelomljen');
         }
     }
 

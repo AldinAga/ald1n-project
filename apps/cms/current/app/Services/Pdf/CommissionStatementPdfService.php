@@ -24,7 +24,8 @@ final class CommissionStatementPdfService
             $this->card('ISPLAĆENO', $d['paid_eur']),
             $this->card('NETO ZA ISPLATU', $d['net_due_eur']),
         ]);
-        $layout->paragraph('Prebijena zaduženja u ovom mesecu: '.$d['settled_eur'].'. Otvorena zaduženja na dan generisanja: '.$d['open_debt_eur'].'; od isplate se oduzima najviše iznos za isplatu, ostatak se prenosi na narednu isplatu. Neto za isplatu u RSD: '.$d['net_due_rsd'].'.', 9);
+        $layout->paragraph((string) $d['rule'], 9, '#202735');
+        $layout->paragraph($this->keepUnits('Prebijena zaduženja u ovom mesecu: '.$d['settled_eur'].'. Otvorena zaduženja na dan generisanja: '.$d['open_debt_eur'].'; od isplate se oduzima najviše iznos za isplatu, ostatak se prenosi na narednu isplatu. Neto za isplatu u RSD: '.$d['net_due_rsd'].'.'), 9);
         $layout->section('Porudžbine');
         // Širine su izabrane da iznosi do 99.999,99 EUR i statusi stanu u jedan red (bez prelamanja).
         $layout->table([
@@ -62,13 +63,10 @@ final class CommissionStatementPdfService
             '',
             (string) $d['note'],
         );
-        $layout->cards([
-            $this->card('BRUTO', $d['gross_eur']),
-            $this->card('PREBIJENA ZADUŽENJA', $d['debit_eur']),
-            $this->card('NETO EUR', $d['net_eur']),
-            $this->card('NETO RSD', $d['net_rsd']),
-        ]);
-        $layout->paragraph('Kurs na dan isplate: '.$d['rate'].'. Način isplate: '.$d['method'].'. Referenca: '.$d['reference'].'.', 9);
+        // Dva reda po dve kartice: „12.345.678,90 RSD *“ staje u jedan red (u četiri kolone se prelamao).
+        $layout->cards([$this->card('BRUTO', $d['gross_eur']), $this->card('PREBIJENA ZADUŽENJA', $d['debit_eur'])]);
+        $layout->cards([$this->card('NETO EUR', $d['net_eur']), $this->card('NETO RSD', $d['net_rsd'])]);
+        $layout->paragraph($this->keepUnits('Kurs na dan isplate: '.$d['rate'].'. Način isplate: '.$d['method'].'. Referenca: '.$d['reference'].'.'), 9);
         $layout->section('Primaoci');
         $layout->table([
             ['label' => 'SubAgent', 'width' => 163, 'bold' => true],
@@ -79,10 +77,10 @@ final class CommissionStatementPdfService
         ], $d['recipients'], 8.5);
         $layout->section('Provizije u isplati');
         $layout->table([
-            ['label' => 'Porudžbina', 'width' => 160, 'bold' => true],
-            ['label' => 'SubAgent', 'width' => 183],
-            ['label' => 'Iznos EUR', 'width' => 90, 'align' => 'right', 'bold' => true],
-            ['label' => 'Iznos RSD', 'width' => 90, 'align' => 'right'],
+            ['label' => 'Porudžbina', 'width' => 140, 'bold' => true],
+            ['label' => 'SubAgent', 'width' => 173],
+            ['label' => 'Iznos EUR', 'width' => 95, 'align' => 'right', 'bold' => true],
+            ['label' => 'Iznos RSD', 'width' => 115, 'align' => 'right'],
         ], $d['rows'], 8);
         if ($d['debits'] !== []) {
             $layout->section('Prebijena zaduženja');
@@ -99,5 +97,11 @@ final class CommissionStatementPdfService
     private function card(string $title, mixed $value): array
     {
         return ['title' => $title, 'fields' => [['text' => (string) $value, 'bold' => true, 'size' => 10]]];
+    }
+
+    /** Neprelomivi razmak između broja i valute u pasusu (wrap ne deli reči na NBSP). */
+    private function keepUnits(string $text): string
+    {
+        return (string) preg_replace('/(\d) (EUR|RSD)/u', "\$1\u{00A0}\$2", $text);
     }
 }

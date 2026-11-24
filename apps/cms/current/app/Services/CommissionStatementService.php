@@ -27,12 +27,15 @@ final class CommissionStatementService
         private readonly SettingsService $settings,
         private readonly ExchangeRateService $rates,
         private readonly CommissionStatementPdfService $pdf,
+        private readonly CommissionReversalService $reversals,
     ) {}
 
     /**
-     * Obračun SubAgenta za mesec (Y-m): samo provizije „Za isplatu“ i „Isplaćena“ nastale ili isplaćene u tom mesecu.
+     * Obračun SubAgenta: „Za isplatu“ = sve otvorene (approved) provizije na dan generisanja, bez obzira na mesec nastanka;
+     * „Isplaćena“ = provizije isplaćene u izabranom mesecu po paid_at. Isplaćena provizija zato ulazi u tačno jedan mesec.
      * Iznos provizije je total_eur (storno ga već umanjuje, isto kao stranica provizija i izveštaji);
-     * neto za isplatu = Za isplatu minus otvorena zaduženja (najviše do iznosa za isplatu), isto kao masovna isplata.
+     * neto za isplatu = Za isplatu minus otvorena zaduženja na dan generisanja (najviše do iznosa za isplatu),
+     * iz istog izvora kao masovna isplata (CommissionReversalService::openDebitsForUser), oduzeto jednom.
      */
     public function monthly(User $agent, string $month): string
     {
@@ -40,8 +43,8 @@ final class CommissionStatementService
         $to = $from->endOfMonth();
         $commissions = OrderCommission::query()->with(M::hasAdjustments() ? ['order.items', 'adjustments'] : ['order.items'])
             ->where('user_id', $agent->id)
-            ->whereIn('status', ['approved', 'paid'])
-            ->where(static fn ($q) => $q->whereBetween('created_at', [$from, $to])->orWhereBetween('paid_at', [$from, $to]))
+            ->where(static fn ($q) => $q->where('status', 'approved')
+                ->orWhere(static fn ($paid) => $paid->where('status', 'paid')->whereBetween('paid_at', [$from, $to])))
             ->orderBy('id')->get();
 
         $current = $this->currentRate();
@@ -89,12 +92,15 @@ final class CommissionStatementService
             ];
         }
 
-        [$openDebt, $settledMonth, $debitRows] = $this->debits((int) $agent->id, $from, $to);
+        $hasSettlements = M::hasAdjustments() && Schema::hasTable('commission_debit_settlements');
+        $openDebt = $hasSettlements ? array_sum($this->reversals->openDebitsForUser((int) $agent->id)) : 0;
+        [$settledMonth, $debitRows] = $hasSettlements ? $this->settledInMonth((int) $agent->id, $from, $to) : [0, []];
         $appliedDebt = min($openDebt, $due);
         $netDue = $due - $appliedDebt;
         $netDueRsd = $current === null ? null : max(0, $dueRsd - $this->rsdCents($appliedDebt, $current));
         $s = $this->settings->all();
-        $note = 'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. RSD je zaokružen po stavci; zbir je zbir stavki.';
+        $note = 'Osnovica i % su iz porudžbine, pre storna; iznos provizije je posle storna. '
+            .'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. RSD je zaokružen po stavci; zbir je zbir stavki.';
         if ($sources !== []) {
             $note .= ' Iznosi sa * u RSD su indikativni (kurs isplate nije zabeležen). Izvor kursa: '.implode('; ', array_keys($sources)).'.';
         }
@@ -104,6 +110,7 @@ final class CommissionStatementService
             'agent' => $agent->displayName(),
             'period' => $from->format('m.Y'),
             'generated_at' => now()->format('d.m.Y H:i'),
+            'rule' => 'Za isplatu: sve otvorene provizije na dan '.now()->format('d.m.Y').'. Isplaćeno: isplate u mesecu '.$from->format('m.Y').'.',
             'total_eur' => $this->eur($total),
             'paid_eur' => $this->eur($paid),
             'gross_due_eur' => $this->eur($due + $dueStorno),
@@ -258,33 +265,22 @@ final class CommissionStatementService
         return [$base, $base > 0 ? number_format($items / $base * 100, 2, ',', '.') : '-'];
     }
 
-    /** @return array{0:int,1:int,2:list<list<string>>} otvoreni debit, prebijeno u mesecu, redovi prebijanja u mesecu (centi/redovi) */
-    private function debits(int $userId, CarbonImmutable $from, CarbonImmutable $to): array
+    /** @return array{0:int,1:list<list<string>>} zaduženja prebijena u mesecu (centi) i njihovi redovi */
+    private function settledInMonth(int $userId, CarbonImmutable $from, CarbonImmutable $to): array
     {
-        if (!M::hasAdjustments() || !Schema::hasTable('commission_debit_settlements')) {
-            return [0, 0, []];
-        }
-        $owed = 0;
-        foreach (DB::table('commission_adjustments as a')->join('order_commissions as c', 'c.id', '=', 'a.commission_id')
-            ->where('c.user_id', $userId)->where('a.kind', 'debit')->where('a.status', 'confirmed')->pluck('a.amount_eur') as $v) {
-            $owed += M::cents($v);
-        }
         $settled = DB::table('commission_debit_settlements as s')->join('commission_adjustments as a', 'a.id', '=', 's.adjustment_id')
-            ->join('order_commissions as c', 'c.id', '=', 'a.commission_id')->where('c.user_id', $userId)->orderBy('s.id')
+            ->join('order_commissions as c', 'c.id', '=', 'a.commission_id')->where('c.user_id', $userId)
+            ->whereBetween('s.created_at', [$from, $to])->orderBy('s.id')
             ->get(['s.amount_eur', 's.created_at', 'a.reason']);
-        $all = $month = 0;
+        $month = 0;
         $rows = [];
         foreach ($settled as $row) {
             $cents = M::cents($row->amount_eur);
-            $all += $cents;
-            $at = CarbonImmutable::parse((string) $row->created_at);
-            if ($at->between($from, $to)) {
-                $month += $cents;
-                $rows[] = [$at->format('d.m.Y'), (string) $row->reason, $this->eur($cents)];
-            }
+            $month += $cents;
+            $rows[] = [CarbonImmutable::parse((string) $row->created_at)->format('d.m.Y'), (string) $row->reason, $this->eur($cents)];
         }
 
-        return [max(0, $owed - $all), $month, $rows];
+        return [$month, $rows];
     }
 
     /** @param array<string,mixed> $s */

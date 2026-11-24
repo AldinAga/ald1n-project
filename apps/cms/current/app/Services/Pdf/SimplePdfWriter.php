@@ -359,7 +359,8 @@ final class SimplePdfWriter
         $paragraphs = preg_split('/\R/u', trim($text)) ?: [''];
         $lines = [];
         foreach ($paragraphs as $paragraph) {
-            $words = preg_split('/\h+/u', trim($paragraph), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            // NBSP (U+00A0) ne prelama red: „12,00 EUR“ ostaje zajedno.
+            $words = preg_split('/(?:(?!\x{00A0})\h)+/u', trim($paragraph), -1, PREG_SPLIT_NO_EMPTY) ?: [];
             if ($words === []) { $lines[] = ''; continue; }
             $line = '';
             foreach ($words as $word) {
