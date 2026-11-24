@@ -23,11 +23,6 @@ final class LegacyCssClassesContractTest extends TestCase
 {
     /** Views (relative to resources/views, no extension) that still use a removed class. Shrink only. */
     private const VIEW_ALLOWLIST = [
-        'account/show',
-        'admin/dictionary/fields',
-        'admin/dictionary/index',
-        'admin/dictionary/product-type',
-        'admin/reports/index',
     ];
 
     /** Files (relative to the CMS root) that still use an old custom property. Shrink only. */

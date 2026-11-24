@@ -30,23 +30,41 @@ final class ProductImage extends Model
      */
     public function getUrlAttribute(): ?string
     {
+        return $this->signedUrl('original');
+    }
+
+    /**
+     * The version a URL of this rendition carries today (null when the row
+     * or the rendition file does not exist). The signed route compares it
+     * with the version in the request to tell a current URL from an old one.
+     */
+    public function mediaVersion(string $rendition): ?string
+    {
         try {
-            $disk = trim((string) $this->storage_disk);
-            $path = ltrim(str_replace('\\', '/', trim((string) $this->file_path)), '/');
+            if ($rendition === 'original') {
+                $disk = trim((string) $this->storage_disk);
+                $path = ltrim(str_replace('\\', '/', trim((string) $this->file_path)), '/');
 
-            if (!in_array($disk, ['public', 'legacy'], true) || (int) $this->getKey() < 1) {
+                if (!in_array($disk, ['public', 'legacy'], true) || (int) $this->getKey() < 1) {
+                    return null;
+                }
+                if ($path === '' || in_array('..', explode('/', $path), true)) {
+                    return null;
+                }
+
+                return ProductMediaUrl::version($this->cacheVersion($path).'|original');
+            }
+
+            $path = ProductImageDerivativeService::relativePaths($this)[$rendition] ?? null;
+            if (!is_string($path) || !Storage::disk('public')->exists($path) || (int) $this->getKey() < 1) {
                 return null;
             }
-            if ($path === '' || in_array('..', explode('/', $path), true)) {
-                return null;
-            }
 
-            return $this->signedUrl('original', $this->cacheVersion($path).'|original');
+            return ProductMediaUrl::version($this->optimizedCacheVersion($path).'|'.$rendition);
         } catch (Throwable) {
             // A malformed image row must never crash product presentation.
+            return null;
         }
-
-        return null;
     }
 
     public function getOriginalUrlAttribute(): ?string
@@ -77,32 +95,26 @@ final class ProductImage extends Model
 
     private function optimizedUrl(string $rendition): ?string
     {
+        return $this->signedUrl($rendition);
+    }
+
+    private function signedUrl(string $rendition): ?string
+    {
         try {
-            $paths = ProductImageDerivativeService::relativePaths($this);
-            $path = $paths[$rendition] ?? null;
-            if (!is_string($path) || !Storage::disk('public')->exists($path)) {
+            $version = $this->mediaVersion($rendition);
+            if ($version === null) {
                 return null;
             }
-            if ((int) $this->getKey() < 1) {
+            $id = (int) $this->getKey();
+            $signature = ProductMediaUrl::signature($id, $rendition, $version);
+            if ($signature === null) {
                 return null;
             }
 
-            return $this->signedUrl($rendition, $this->optimizedCacheVersion($path).'|'.$rendition);
+            return route('media.product.signed', ['image' => $id, 'rendition' => $rendition, 'v' => $version, 's' => $signature]);
         } catch (Throwable) {
             return null;
         }
-    }
-
-    private function signedUrl(string $rendition, string $versionSeed): ?string
-    {
-        $id = (int) $this->getKey();
-        $version = ProductMediaUrl::version($versionSeed);
-        $signature = ProductMediaUrl::signature($id, $rendition, $version);
-        if ($signature === null) {
-            return null;
-        }
-
-        return route('media.product.signed', ['image' => $id, 'rendition' => $rendition, 'v' => $version, 's' => $signature]);
     }
 
     private function optimizedCacheVersion(string $path): string
