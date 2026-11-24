@@ -209,6 +209,21 @@ export default function ProductDetailScreen() {
         </View>
       ) : null}
 
+      {product.notes && product.notes.trim() !== '' ? (
+        <View
+          style={styles.operatorSection}
+          accessible
+          accessibilityRole="summary"
+          accessibilityLabel={`Napomena: ${product.notes.trim()}`}
+        >
+          <View style={styles.sectionHeadingCopy}>
+            <Text style={styles.sectionEyebrow}>INFORMACIJE</Text>
+            <Text style={styles.sectionTitle}>Napomena</Text>
+          </View>
+          <Text style={styles.description}>{product.notes}</Text>
+        </View>
+      ) : null}
+
       {product.specifications?.length ? (
         <View style={styles.operatorSection}>
           <View style={styles.sectionHeadingCopy}>
