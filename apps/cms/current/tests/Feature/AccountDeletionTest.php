@@ -284,8 +284,33 @@ final class AccountDeletionTest extends TestCase
 
         // Odmah ponovo: pauza, bez maila i bez tvrdnje da je poslato.
         $this->post('/account/deletion')->assertRedirectContains('/account')
-            ->assertSessionHas('status', 'Ako je potrebno, link je već poslat u zadnjih 10 minuta; provjerite poštu.');
+            ->assertSessionHas('status', 'Ako je potrebno, link je već poslat u poslednjih 10 minuta; proverite poštu.');
         Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
+    }
+
+    public function test_logged_in_request_reports_failed_mail_and_keeps_no_row_or_spent_budget(): void
+    {
+        $user = $this->user('del-own-smtp', 'user');
+        $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
+        $this->assertAuthenticatedAs($user);
+        $this->app->instance(\Illuminate\Contracts\Notifications\Dispatcher::class, new class implements \Illuminate\Contracts\Notifications\Dispatcher {
+            public function send($notifiables, $notification): void { throw new \RuntimeException('smtp down'); }
+            public function sendNow($notifiables, $notification, ?array $channels = null): void { throw new \RuntimeException('smtp down'); }
+        });
+
+        $this->post('/account/deletion')->assertRedirectContains('/account')->assertSessionHasErrors('deletion')->assertSessionMissing('status');
+        self::assertSame(0, DB::table('account_deletion_requests')->where('user_id', $user->id)->count());
+
+        // SMTP radi ponovo: nema pauze (red je obrisan) i dnevni brojac nije potrosen.
+        // instance() iznad je skinuo alias Dispatcher -> ChannelManager, pa fake vezujemo i na ugovor.
+        $this->app->instance(\Illuminate\Contracts\Notifications\Dispatcher::class, Notification::fake());
+        for ($i = 0; $i < 3; $i++) {
+            $this->post('/account/deletion')->assertSessionHasNoErrors()
+                ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
+            $this->travel(11)->minutes();
+        }
+        Notification::assertSentToTimes($user, AccountDeletionNotification::class, 3);
+        self::assertSame('own', DB::table('account_deletion_requests')->where('user_id', $user->id)->value('source'));
     }
 
     public function test_fresh_pending_request_from_a_parallel_request_is_kept_and_not_duplicated(): void
@@ -300,7 +325,7 @@ final class AccountDeletionTest extends TestCase
         ]);
 
         app(\App\Services\UserDeletionService::class)->requestByEmail('del-race@example.test');
-        self::assertFalse(app(\App\Services\UserDeletionService::class)->requestForUser($user));
+        self::assertSame('skipped', app(\App\Services\UserDeletionService::class)->requestForUser($user));
 
         self::assertSame(1, DB::table('account_deletion_requests')->where('user_id', $user->id)->count());
         self::assertSame(hash('sha256', 'parallel'), DB::table('account_deletion_requests')->where('user_id', $user->id)->value('confirm_token_hash'));

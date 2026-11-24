@@ -103,26 +103,31 @@ final class UserDeletionService
 
     /**
      * Prijavljen korisnik: link ide na e-poštu naloga; brojač slanja je odvojen od javne forme.
-     * Vraća false kad pauza ili dnevni limit preskoče slanje.
+     *
+     * @return 'sent'|'skipped'|'failed' skipped = pauza ili dnevni limit, failed = mail nije otišao (red je obrisan)
      */
-    public function requestForUser(User $user): bool
+    public function requestForUser(User $user): string
     {
-        return self::available() && $this->requestFor($user, 'own');
+        return self::available() ? $this->requestFor($user, 'own') : 'skipped';
     }
 
-    private function requestFor(User $user, string $channel): bool
+    /** @return 'sent'|'skipped'|'failed' */
+    private function requestFor(User $user, string $channel): string
     {
         if ($user->status !== 'active' || $user->retired_at !== null) {
-            return false;
+            return 'skipped';
         }
         if ($this->successorProblem($user) !== null) {
-            return false;
+            return 'skipped';
         }
 
         $plain = Str::random(80);
         $dailyKey = 'acct-del-send|'.$channel.'|'.$user->getKey();
-        $created = DB::transaction(function () use ($user, $plain, $dailyKey): bool {
+        $created = DB::transaction(function () use ($user, $plain, $dailyKey, $channel): bool {
             // Zaključan red korisnika: dva istovremena zahtjeva ne prave dva pending reda niti brišu svjež red.
+            // Redoslijed: users pa account_deletion_requests, kao startGrace. cancel/process zaključavaju prvo red zahtjeva,
+            // ali samo red sa grace_until, koji ovaj put ne dira. shortcut: moguć rijedak deadlock preko index lockova
+            // (InnoDB ga prekida, zahtjev se samo odbije); ako se pojavi u logu, ujednačiti redoslijed i tamo.
             User::query()->whereKey($user->getKey())->lockForUpdate()->first(['id']);
             // Pauza po nalogu (ne po upisanoj adresi, jer collation poklapa akcente i fullwidth varijante):
             // dok je nepotvrđen link mlađi od 10 min, ne šaljemo novi i ne pravimo novi token.
@@ -147,21 +152,35 @@ final class UserDeletionService
                 'user_id' => (int) $user->getKey(),
                 'requested_at' => now(),
                 'status' => 'pending',
-                'source' => 'web',
+                'source' => $channel,
                 'confirm_token_hash' => hash('sha256', $plain),
                 'confirm_expires_at' => now()->addMinutes(self::CONFIRM_TTL_MINUTES),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            RateLimiter::hit($dailyKey, 86400);
+            if ($channel === 'web') {
+                // Javni kanal: brojač se troši i kad SMTP padne (odgovor ionako ništa ne otkriva).
+                RateLimiter::hit($dailyKey, 86400);
+            }
 
             return true;
         });
-        if ($created) {
-            $this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain));
+        if (!$created) {
+            return 'skipped';
+        }
+        if ($this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain))) {
+            if ($channel !== 'web') {
+                RateLimiter::hit($dailyKey, 86400);
+            }
+
+            return 'sent';
+        }
+        if ($channel !== 'web') {
+            // Prijavljeni korisnik mora znati da mail nije otišao: bez reda i bez potrošenog brojača može odmah ponovo.
+            DB::table('account_deletion_requests')->where('confirm_token_hash', hash('sha256', $plain))->delete();
         }
 
-        return $created;
+        return 'failed';
     }
 
     public function confirmTokenIsValid(string $plain): bool
@@ -704,12 +723,16 @@ final class UserDeletionService
         ]);
     }
 
-    private function send(User $user, AccountDeletionNotification $notification): void
+    private function send(User $user, AccountDeletionNotification $notification): bool
     {
         try {
             $user->notify($notification);
+
+            return true;
         } catch (Throwable $exception) {
             Log::warning('Account deletion e-mail failed.', ['user_id' => $user->getKey(), 'exception' => $exception::class]);
+
+            return false;
         }
     }
 }

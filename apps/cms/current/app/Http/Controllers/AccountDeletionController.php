@@ -82,17 +82,19 @@ final class AccountDeletionController extends Controller
         }
         // Sinhrono: prijavljenom korisniku vrijeme odgovora ne odaje ništa novo, a poruka mora odgovarati onome što se desilo.
         try {
-            $sent = $deletions->requestForUser($request->user());
+            $outcome = $deletions->requestForUser($request->user());
         } catch (Throwable $exception) {
             Log::error('Account deletion request failed.', ['exception' => $exception::class]);
-
-            return redirect()->route('account.show')->withErrors(['deletion' => 'Zahtjev trenutno nije moguće obraditi. Pokušajte ponovo kasnije.']);
+            $outcome = 'failed';
+        }
+        if ($outcome === 'failed') {
+            return redirect()->route('account.show')->withErrors(['deletion' => 'Nismo uspeli da pošaljemo e-poruku sa linkom. Pokušajte ponovo kasnije.']);
         }
 
-        return redirect()->route('account.show')->with('status', $sent
+        return redirect()->route('account.show')->with('status', $outcome === 'sent'
             ? 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.'
-            // Isti tekst za pauzu i dnevni limit, da poruka ne otkriva koje je stanje.
-            : 'Ako je potrebno, link je već poslat u zadnjih '.UserDeletionService::RESEND_PAUSE_MINUTES.' minuta; provjerite poštu.');
+            // Pauza i dnevni limit dobijaju isti tekst: korisnik zna samo da link treba da potraži u pošti, ne koje ograničenje važi.
+            : 'Ako je potrebno, link je već poslat u poslednjih '.UserDeletionService::RESEND_PAUSE_MINUTES.' minuta; proverite poštu.');
     }
 
     public function confirmShow(string $token, UserDeletionService $deletions): View
