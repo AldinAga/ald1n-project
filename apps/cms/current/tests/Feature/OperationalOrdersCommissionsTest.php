@@ -267,8 +267,16 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $html = (string) file_get_contents(resource_path('views/admin/orders/show.blade.php'));
         self::assertStringContainsString('class="a1-card a1-od-anchor" id="order-workspace-customer"', $html);
         self::assertStringContainsString('href="tel:{{ $buyerPhoneDial }}" aria-label="Pozovi primaoca porudžbine', $html);
-        self::assertStringContainsString('.a1-od-anchor', $css);
-        self::assertStringContainsString('@media (max-width:', $css);
+        // Buyer first on a small screen: the single-column flow follows source order, so the buyer card precedes the command card.
+        self::assertLessThan(
+            strpos($html, 'id="order-workspace-command"'),
+            strpos($html, 'id="order-workspace-customer"'),
+        );
+        // The phone link is a 44px target with a visible keyboard focus ring.
+        self::assertMatchesRegularExpression('/\.a1-link\{[^}]*min-height:var\(--a1-size-touch-target\)/', $css);
+        self::assertStringContainsString('.a1-app :focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring)', $css);
+        self::assertMatchesRegularExpression('/--a1-size-touch-target:\s*44px/', (string) file_get_contents(public_path('assets/css/ald1n-tokens.css')));
+        self::assertStringContainsString('.a1-od-anchor{scroll-margin-top', $css);
     }
 
     private function createOrder(User $customer, User $supplier, Product $product, string $key): Order

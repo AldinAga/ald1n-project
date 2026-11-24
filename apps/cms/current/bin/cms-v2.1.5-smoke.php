@@ -37,7 +37,7 @@ $check('Mobilni action dock koristi originalno dugme formulara', str_contains($j
 $check('Layout učitava UX runtime pre page skripti', str_contains($layout, "assets/js/ux-runtime.js") && strpos($layout, 'ux-runtime.js') < strpos($layout, "@stack('scripts')"));
 $check('Dugi formular proizvoda ima sticky akcije', str_contains($productForm, 'data-ux-sticky-actions'));
 $check('Dugi formular porudžbine ima sticky akcije', str_contains($orderForm, 'data-ux-sticky-actions'));
-$check('CSS definiše mobilne touch targete', str_contains($css, '.a1-btn--sm{min-height:var(--a1-size-touch-target)') && str_contains($css, '@media (max-width:'));
+$check('CSS definiše mobilne touch targete', str_contains($css, '.a1-btn--sm{min-height:var(--a1-size-touch-target)') && str_contains($css, '.a1-link{display:inline-flex') && str_contains($css, 'min-height:var(--a1-size-touch-target)') && preg_match('/--a1-size-touch-target:\s*44px/', (string) file_get_contents($root.'/public/assets/css/ald1n-tokens.css')) === 1);
 $check('CSS sadrži focus i invalid stanja', str_contains($css, '.a1-app :focus-visible{') && str_contains($css, '.a1-error{') && str_contains($css, 'aria-invalid'));
 $check('CSS sadrži action dock i loading stanje', str_contains($css, '.a1-dock') && str_contains($css, 'safe-area-inset-bottom'));
 $check('CSS poštuje reduced motion', str_contains($css, 'prefers-reduced-motion'));

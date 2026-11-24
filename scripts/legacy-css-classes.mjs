@@ -5,6 +5,7 @@
 //   node scripts/legacy-css-classes.mjs --check   exit 1 when the fixture is stale (used by CI)
 // Author: Ald1n <https://ald1n.com>
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,8 +78,12 @@ if (missingLegacy.length > 0) {
     process.exit(1);
   }
   const frozen = existsSync(frozenPath) ? JSON.parse(readFileSync(frozenPath, 'utf8')) : null;
-  if (!frozen || JSON.stringify(frozen.legacy_files) !== JSON.stringify(LEGACY) || !Array.isArray(frozen.classes) || frozen.classes.length <= 500) {
-    console.error('removed-css-classes.json is missing, truncated or its legacy_files list changed.');
+  // Exact pin: the ratchet list may only change together with a deliberate edit of these two constants.
+  const FROZEN_COUNT = 1139;
+  const FROZEN_SHA256 = 'a81f257a27aa45a9967aa7610849b5e9739c26d89d493c4668dd4660ed87acc7'; // sha256 of classes.join('\n')
+  const digest = frozen && Array.isArray(frozen.classes) ? createHash('sha256').update(frozen.classes.join('\n')).digest('hex') : '';
+  if (!frozen || JSON.stringify(frozen.legacy_files) !== JSON.stringify(LEGACY) || frozen.classes.length !== FROZEN_COUNT || digest !== FROZEN_SHA256) {
+    console.error(`removed-css-classes.json changed after the legacy stylesheets were deleted (expected ${FROZEN_COUNT} classes, sha256 ${FROZEN_SHA256}).`);
     process.exit(1);
   }
   console.log(`removed-css-classes.json frozen (${frozen.classes.length} classes); deleted: ${missingLegacy.join(', ')}`);

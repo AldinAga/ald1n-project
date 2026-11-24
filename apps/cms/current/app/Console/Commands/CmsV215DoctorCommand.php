@@ -62,7 +62,7 @@ final class CmsV215DoctorCommand extends Command
             '.a1-btn--sm{min-height:var(--a1-size-touch-target)',
             '.a1-error{',
             '[aria-invalid',
-            '@media (max-width:',
+            '.a1-link{display:inline-flex',
             'prefers-reduced-motion',
         ] as $needle) {
             if (!str_contains($css, $needle)) {

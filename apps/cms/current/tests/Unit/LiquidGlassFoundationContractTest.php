@@ -25,7 +25,11 @@ final class LiquidGlassFoundationContractTest extends TestCase
     public function test_glass_surfaces_have_opaque_fallback(): void
     {
         $css = $this->css();
-        self::assertStringContainsString('@supports not', $css);
+        self::assertStringContainsString('@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){', $css);
+        self::assertStringContainsString('.a1-card,.a1-kpi,.a1-filters,.a1-empty,.a1-header{background-image:none}', $css);
+        // Forced colors gives opaque system Canvas surfaces without blur; reduced transparency drops the sheen gradients.
+        self::assertStringContainsString('@media (prefers-reduced-transparency:reduce){', $css);
+        self::assertStringContainsString('-webkit-backdrop-filter:none;backdrop-filter:none;background:Canvas;color:CanvasText', $css);
         self::assertStringContainsString('backdrop-filter', $css);
         self::assertStringNotContainsString('z-index: 9999', $css);
         self::assertStringNotContainsString('z-index:9999', $css);
@@ -74,6 +78,14 @@ final class LiquidGlassFoundationContractTest extends TestCase
         self::assertStringContainsString('.a1-ol-purge{', $css);
         self::assertStringContainsString('.a1-ol-purge__title .a1-text{overflow-wrap:break-word}', $css);
         self::assertStringContainsString('env(safe-area-inset-bottom', $css);
+    }
+
+    public function test_sticky_actionbar_keeps_spacing_safe_area_and_the_back_to_top_lift(): void
+    {
+        $css = $this->css();
+        self::assertStringContainsString('.a1-actionbar{position:sticky;bottom:0;', $css);
+        self::assertStringContainsString('margin-top:var(--a1-space-24);padding:var(--a1-space-12) var(--a1-space-16) calc(var(--a1-space-12) + env(safe-area-inset-bottom,0px))', $css);
+        self::assertStringContainsString('body:has(.a1-actionbar,[data-product-editor-action-bar],.dictionary-sort-finish) .a1-btt:not([data-js]){bottom:calc(176px + env(safe-area-inset-bottom,0px))}', $css);
     }
 
     public function test_small_mobile_touch_targets_are_at_least_44px(): void

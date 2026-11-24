@@ -24,9 +24,12 @@ foreach ($files as $file) {
         $definitions[$name] = true;
     }
 
-    // A reference with a fallback, var(--x, 0px), is optional by design (e.g. --a1-btt-lift is set by back-to-top JS).
-    preg_match_all('/var\(\s*(--[A-Za-z0-9_-]+)\s*\)/', $content, $referenceMatches);
+    // Every reference counts, with or without a fallback, except variables that JavaScript sets on purpose.
+    preg_match_all('/var\(\s*(--[A-Za-z0-9_-]+)/', $content, $referenceMatches);
     foreach ($referenceMatches[1] as $name) {
+        if (in_array($name, ['--a1-btt-lift'], true)) { // set by layouts/partials/back-to-top.blade.php via style.setProperty
+            continue;
+        }
         $references[$name][$file] = true;
     }
 }

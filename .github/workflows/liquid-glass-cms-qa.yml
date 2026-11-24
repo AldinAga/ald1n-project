@@ -78,7 +78,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           cp .env.example .env
           php artisan key:generate --force
-      - name: Verify untouched generated theme assets
+      - name: Verify operator tokens untouched and Cobalt stylesheets present
         shell: bash
         run: |
           set -euo pipefail
@@ -88,7 +88,7 @@ jobs:
           git diff --quiet "$BASE_SHA" HEAD -- packages/design-tokens/ald1n-operator.json
           test -f apps/cms/current/public/assets/css/ald1n-admin.css
           test -f apps/cms/current/public/assets/css/ald1n-tokens.css
-          echo 'GENERATED_THEME_UNCHANGED=PASS'
+          echo 'OPERATOR_TOKENS_UNCHANGED_AND_COBALT_STYLESHEETS_PRESENT=PASS'
       - name: Execute real PHPUnit and canonical static gate
         working-directory: apps/cms/current
         shell: bash
