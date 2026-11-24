@@ -7,7 +7,7 @@ import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
 import { OperatorRow } from '@/components/ui/operator-row';
-import { LoadingState } from '@/components/ui/states';
+import { EmptyState } from '@/components/ui/states';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { hasAdminAccess } from '@/features/admin/admin-access';
 import { apiAdmin } from '@/features/admin/admin-api';
@@ -108,7 +108,7 @@ export default function HomeScreen() {
         <View style={styles.heroAccent} />
         <View style={styles.workspaceState}>
           <View style={styles.workspaceDot} />
-          <Text style={styles.workspaceLabel}>Aktivan radni prostor</Text>
+          <Text style={styles.workspaceLabel} numberOfLines={1} ellipsizeMode="tail">Aktivan radni prostor</Text>
         </View>
         <Text style={styles.greeting}>
           Dobro došli, {user?.first_name ?? user?.name?.split(' ')[0] ?? 'korisniče'}.
@@ -117,8 +117,8 @@ export default function HomeScreen() {
           Najvažniji poslovni podaci, obaveze i radni tokovi na jednom mestu.
         </Text>
         <View style={styles.heroMeta}>
-          <Text style={styles.heroMetaLabel}>Uloga</Text>
-          <Text style={styles.heroMetaValue}>{user?.role?.name ?? 'Korisnik'}</Text>
+          <Text style={styles.heroMetaLabel} numberOfLines={1}>Uloga</Text>
+          <Text style={styles.heroMetaValue} numberOfLines={1} ellipsizeMode="tail">{user?.role?.name ?? 'Korisnik'}</Text>
         </View>
       </View>
 
@@ -145,19 +145,28 @@ export default function HomeScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Detalji poslovnog pregleda"
               onPress={() => router.push('/admin/reports')}
-              style={({ pressed }) => pressed && styles.pressed}
+              style={({ pressed }) => [styles.sectionLinkTarget, pressed && styles.pressed]}
             >
-              <Text style={styles.sectionLink}>Detalji ›</Text>
+              <Text style={styles.sectionLink} numberOfLines={1}>Detalji ›</Text>
             </Pressable>
           </View>
 
           {reportQuery.isLoading ? (
-            <LoadingState label="Učitavanje poslovnih podataka" />
+            <DashboardSkeleton />
           ) : reportQuery.isError ? (
             <Card muted style={styles.stateCard}>
               <Text style={styles.stateTitle}>Dashboard trenutno nije dostupan</Text>
               <Text style={styles.stateCopy}>Ostatak aplikacije radi normalno. Povuci nadole za novi pokušaj.</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Pokušaj ponovo učitati dashboard"
+                onPress={() => void reportQuery.refetch()}
+                style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
+              >
+                <Text style={styles.retryLabel} numberOfLines={1}>Pokušaj ponovo</Text>
+              </Pressable>
             </Card>
           ) : report ? (
             <>
@@ -281,7 +290,26 @@ export default function HomeScreen() {
           </View>
         </>
       ) : null}
+
+      {!reportsAllowed && quickActions.length + myActivities.length + adminActions.length === 0 ? (
+        <EmptyState title="Još nema radnih akcija" message="Kada ti administrator dodeli dozvole, brze akcije će se pojaviti ovde." />
+      ) : null}
     </Screen>
+  );
+}
+
+function DashboardSkeleton() {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View accessibilityRole="progressbar" accessibilityLabel="Učitavanje poslovnih podataka" accessibilityLiveRegion="polite" style={styles.kpiGrid}>
+      {[0, 1, 2, 3].map((key) => (
+        <View key={key} style={[styles.kpiPressable, styles.skeletonCard]}>
+          <View style={[styles.skeletonLine, styles.skeletonShort]} />
+          <View style={[styles.skeletonLine, styles.skeletonValue]} />
+          <View style={[styles.skeletonLine, styles.skeletonMid]} />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -375,8 +403,8 @@ function HomeFocusPanel({
   return (
     <>
       <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Fokus danas</Text>
-        <Text style={styles.sectionMeta}>
+        <Text style={styles.sectionTitle} numberOfLines={1}>Fokus danas</Text>
+        <Text style={styles.sectionMeta} numberOfLines={1} ellipsizeMode="tail">
           {unread > 0 ? `${unread} novih` : 'Sve pod kontrolom'}
         </Text>
       </View>
@@ -392,8 +420,8 @@ function HomeFocusPanel({
             <View style={[styles.focusSignalIcon, { backgroundColor: signal.surface }]}>
               <Glyph name={signal.glyph} size={20} color={signal.color} />
             </View>
-            <Text style={styles.focusSignalValue}>{signal.value}</Text>
-            <Text style={styles.focusSignalLabel}>{signal.label}</Text>
+            <Text style={styles.focusSignalValue} numberOfLines={1}>{signal.value}</Text>
+            <Text style={styles.focusSignalLabel} numberOfLines={2} ellipsizeMode="tail">{signal.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -426,14 +454,17 @@ function DashboardMetric({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}. ${meta}`}
       onPress={() => router.push(route)}
       style={({ pressed }) => [styles.kpiPressable, pressed && styles.pressed]}
     >
       <Card style={styles.dashboardMetricCard}>
-        <View style={[styles.metricDot, toneStyles[tone]]} />
-        <Text style={styles.dashboardMetricLabel}>{label}</Text>
-        <Text style={styles.dashboardMetricValue} numberOfLines={2}>{value}</Text>
-        <Text style={styles.dashboardMetricMeta}>{meta}</Text>
+        <View style={styles.metricHead}>
+          <View style={[styles.metricDot, toneStyles[tone]]} />
+          <Text style={styles.dashboardMetricLabel} numberOfLines={3} ellipsizeMode="tail">{label}</Text>
+        </View>
+        <Text style={styles.dashboardMetricValue} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{value}</Text>
+        <Text style={styles.dashboardMetricMeta} numberOfLines={3} ellipsizeMode="tail">{meta}</Text>
       </Card>
     </Pressable>
   );
@@ -515,8 +546,8 @@ function Metric({
   return (
     <Card style={styles.metricCard}>
       <View style={[styles.metricDot, toneStyles[tone]]} />
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{value}</Text>
+      <Text style={styles.metricLabel} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
     </Card>
   );
 }
@@ -538,9 +569,9 @@ function createStyles(theme: AppColors) {
       minHeight: 168,
       borderRadius: radii.xl,
       padding: spacing.xl,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.hero,
       borderWidth: 1,
-      borderColor: theme.line,
+      borderColor: theme.heroMuted + '33',
       justifyContent: 'center',
       gap: spacing.sm,
     },
@@ -550,7 +581,7 @@ function createStyles(theme: AppColors) {
       top: 0,
       bottom: 0,
       width: 4,
-      backgroundColor: theme.primary,
+      backgroundColor: theme.accent,
     },
     workspaceState: {
       alignSelf: 'flex-start',
@@ -567,11 +598,12 @@ function createStyles(theme: AppColors) {
     },
     workspaceLabel: {
       ...typography.small,
-      color: theme.muted,
+      flexShrink: 1,
+      color: theme.heroMuted,
       fontWeight: '700',
     },
-    greeting: { ...typography.h1, color: theme.ink, maxWidth: 330 },
-    heroCopy: { ...typography.body, color: theme.muted, maxWidth: 350 },
+    greeting: { ...typography.h1, color: theme.white },
+    heroCopy: { ...typography.body, color: theme.heroMuted },
     heroMeta: {
       alignSelf: 'flex-start',
       flexDirection: 'row',
@@ -580,11 +612,12 @@ function createStyles(theme: AppColors) {
       marginTop: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+      maxWidth: '100%',
       borderRadius: radii.md,
-      backgroundColor: theme.surfaceContainer,
+      backgroundColor: theme.heroMuted + '22',
     },
-    heroMetaLabel: { ...typography.small, color: theme.muted },
-    heroMetaValue: { ...typography.label, color: theme.ink, fontWeight: '700' },
+    heroMetaLabel: { ...typography.small, flexShrink: 0, color: theme.heroMuted },
+    heroMetaValue: { ...typography.label, flexShrink: 1, color: theme.white, fontWeight: '700' },
     dashboardSection: { gap: spacing.md },
     sectionHead: {
       flexDirection: 'row',
@@ -599,10 +632,11 @@ function createStyles(theme: AppColors) {
       fontWeight: '700',
       letterSpacing: 0.2,
     },
-    sectionTitle: { ...typography.h2, color: theme.ink },
+    sectionTitle: { ...typography.h2, color: theme.ink, flexShrink: 1 },
     sectionSubtitle: { ...typography.small, color: theme.muted, marginTop: 2 },
-    sectionLink: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
-    sectionMeta: { ...typography.small, color: theme.muted },
+    sectionLinkTarget: { minHeight: 44, minWidth: 44, flexShrink: 0, justifyContent: 'center', alignItems: 'flex-end' },
+    sectionLink: { ...typography.label, color: theme.primary },
+    sectionMeta: { ...typography.small, color: theme.muted, flexShrink: 0 },
     focusGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -639,6 +673,31 @@ function createStyles(theme: AppColors) {
     stateCard: { gap: spacing.xs },
     stateTitle: { ...typography.label, color: theme.ink },
     stateCopy: { ...typography.small, color: theme.muted },
+    retry: {
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      backgroundColor: theme.primarySoft,
+    },
+    retryLabel: { ...typography.label, color: theme.primary, flexShrink: 0 },
+    skeletonCard: {
+      minHeight: 128,
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      backgroundColor: theme.surface,
+    },
+    skeletonLine: { height: 10, borderRadius: radii.sm, backgroundColor: theme.primarySoft },
+    skeletonShort: { width: '50%' },
+    skeletonValue: { width: '80%', height: 18, marginTop: spacing.xs },
+    skeletonMid: { width: '65%' },
+    metricHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     kpiGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -651,7 +710,7 @@ function createStyles(theme: AppColors) {
       borderRadius: radii.lg,
       padding: spacing.md,
     },
-    dashboardMetricLabel: { ...typography.small, color: theme.muted },
+    dashboardMetricLabel: { ...typography.small, flex: 1, minWidth: 0, color: theme.muted },
     dashboardMetricValue: { ...typography.h3, color: theme.ink, marginTop: spacing.xs },
     dashboardMetricMeta: { ...typography.small, color: theme.muted },
     pulseCard: { gap: spacing.md },
@@ -703,13 +762,13 @@ function createStyles(theme: AppColors) {
     focusValue: { ...typography.label, color: theme.ink, flex: 1, textAlign: 'right' },
     metrics: { flexDirection: 'row', gap: spacing.sm },
     metricCard: { flex: 1, padding: spacing.md, gap: 3, borderRadius: radii.lg },
-    metricDot: { width: 8, height: 8, borderRadius: 4, marginBottom: spacing.sm },
+    metricDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
     metricValue: { ...typography.h2, color: theme.ink },
     metricLabel: { ...typography.small, color: theme.muted },
     actions: { gap: spacing.md },
     operatorList: {
       overflow: 'hidden',
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: 1,
       borderColor: theme.line,
       backgroundColor: theme.surface,
