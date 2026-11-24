@@ -118,6 +118,7 @@ final class CatalogNotesApiTest extends TestCase
         return Product::query()->create([
             'sku' => strtoupper($slug), 'name' => 'Artikal', 'slug' => $slug, 'price_amount' => 100,
             'price_currency' => 'EUR', 'description' => 'Opis', 'notes' => $notes, 'stock_quantity' => 2, 'status' => 'active',
+            'created_by' => $this->user('admin', [])->id, // products.created_by nema default
         ]);
     }
 }
