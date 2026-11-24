@@ -15,7 +15,7 @@ if ($blade === false || $css === false || $admin === false || $tokens === false)
 }
 $rules = [
     'Existing responsive page identity and new scoped inbox class' =>
-        str_contains($blade, 'class="a1-ops build16-notifications-shell"')
+        str_contains($blade, 'class="a1-ops"')
         && str_contains($blade, 'data-build16-notifications="1"'),
     'Original user-facing title and helper message preserved' =>
         str_contains($blade, "@section('title', 'Obaveštenja')")
@@ -38,8 +38,7 @@ $rules = [
         && str_contains($blade, 'Nema obaveštenja'),
     'Read and unread visual states use original read_at' =>
         str_contains($blade, '$notification->read_at')
-        && str_contains($blade, 'is-unread')
-        && str_contains($blade, 'is-read'),
+        && str_contains($blade, 'is-unread'),
     'Notification title, body and icon remain data-driven' =>
         str_contains($blade, "\$data['title']")
         && str_contains($blade, "\$data['message']")

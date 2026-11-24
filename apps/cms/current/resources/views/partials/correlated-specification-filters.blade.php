@@ -25,7 +25,7 @@
             <label class="a1-field"><span class="a1-label">{{ $field->name }}</span><input class="a1-input" name="spec_filters[{{ $field->id }}]" value="{{ $selectedValue }}" placeholder="Pretraži vrednost"></label>
         @endif
         @if($field->detail_input_enabled)
-            <label class="a1-field filter-spec-detail"><span class="a1-label">{{ $field->detail_label ?: 'Tačan model / detalj' }}</span><input class="a1-input" name="spec_details[{{ $field->id }}]" value="{{ $selectedDetail }}" placeholder="{{ $field->detail_placeholder }}"></label>
+            <label class="a1-field"><span class="a1-label">{{ $field->detail_label ?: 'Tačan model / detalj' }}</span><input class="a1-input" name="spec_details[{{ $field->id }}]" value="{{ $selectedDetail }}" placeholder="{{ $field->detail_placeholder }}"></label>
         @endif
     </div>
 @endforeach

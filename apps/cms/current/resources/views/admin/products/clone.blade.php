@@ -5,7 +5,7 @@
 <div class="a1-ops">
 <nav aria-label="Putanja">
     <ol class="a1-crumbs">
-        <li><a class="back-link" href="{{ route('admin.products.edit',$product) }}">Nazad na artikal</a></li>
+        <li><a href="{{ route('admin.products.edit',$product) }}">Nazad na artikal</a></li>
         <li aria-current="page">Kloniraj</li>
     </ol>
 </nav>

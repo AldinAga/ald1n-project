@@ -5,7 +5,7 @@
 <div class="a1-ops" data-product-images-ready="1">
     <nav aria-label="Putanja">
         <ol class="a1-crumbs">
-            <li><a class="back-link" href="{{ route('admin.products.edit', $product) }}">Nazad na artikal</a></li>
+            <li><a href="{{ route('admin.products.edit', $product) }}">Nazad na artikal</a></li>
             <li aria-current="page">Slike</li>
         </ol>
     </nav>
@@ -45,7 +45,7 @@
         <form method="post" action="{{ route('admin.products.images.reorder', $product) }}" class="a1-form" data-image-reorder-fallback>
             @csrf
             @method('PUT')
-            <div class="a1-pc-imggrid image-sortable-grid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder', $product) }}">
+            <div class="a1-pc-imggrid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder', $product) }}">
                 @forelse($product->images as $image)
                     @include('admin.products.partials.image-card', ['product' => $product, 'image' => $image, 'iteration' => $loop->iteration, 'allowDelete' => true])
                     <input type="hidden" name="orders[{{ $image->id }}]" value="{{ $image->sort_order }}" data-order-input="{{ $image->id }}">
