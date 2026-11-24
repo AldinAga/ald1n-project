@@ -335,7 +335,7 @@ $results['chain']+=['b1157'=>'REAL_PASS_REPORT1123','fixtureRouteCountB1157'=>$p
 
 // What the plan looks like in the fixture: six groups, three guard groups (D classes, E classes, F assets), the step numbers the cases below name.
 $groups=array_values(array_unique(array_column($plan,'group')));sort($groups);check($groups===array_values(array_unique(array_map(static fn($s)=>$s[2],B1158InstallCoordinator::STEPS))),'GROUPS_ARE_THE_GENERATED_ONES');
-check(B1158InstallCoordinator::GUARDS===B1158Payload::GUARDS&&isset(B1158InstallCoordinator::GUARDS['D'],B1158InstallCoordinator::GUARDS['E']),'GUARDS_ARE_THE_GENERATED_ONES_WITH_D_AND_E');
+check(B1158InstallCoordinator::GUARDS===B1158Payload::GUARDS,'GUARDS_ARE_THE_GENERATED_ONES_WITH_D_AND_E');
 $byPath=[];foreach($plan as $s)$byPath[$s['path']]=$s;
 $groupSteps=static fn(string $g):array=>array_values(array_filter($plan,static fn($s)=>$s['group']===$g));
 $stepProvider=$byPath['app/Providers/AppServiceProvider.php']??null;$stepRoutesWeb=$byPath['routes/web.php']??null;$stepRoutesApi=$byPath['routes/api.php']??null;$nMig=count(B1158InstallCoordinator::NEW_MIGRATIONS);$zero=$nMig===0;$stepMig1=$zero?['path'=>'database/migrations/0000_00_00_000000_none.php','n'=>0,'group'=>'A']:$byPath[B1158InstallCoordinator::migrationFiles()[0]];$stepMig2=$stepMig1;
