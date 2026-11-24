@@ -8,9 +8,11 @@
  * token, so dark, light and system themes, reduced transparency and more
  * contrast follow the tokens without extra rules.
  *
- * Loaded last on purpose: the old app.css and ald1n-ui-v2.css still style
- * body.auth-body, .floating-theme and .auth-login-* until they are removed,
+ * Loaded last on purpose: the old app.css and ald1n-ui-v2.css may still carry
+ * body.auth-body, .floating-theme and .auth-login-* rules until they are removed,
  * so the few rules that meet them are written with a higher specificity.
+ * .floating-theme and .auth-login-form are page hooks styled only here; the theme
+ * button no longer depends on .icon-button from app.css.
  * CSP: the login background settings (overlay, blur) are carried by data
  * attributes, never by style attributes.
  * Author: Ald1n <https://ald1n.com>
@@ -112,6 +114,7 @@ html body.a1-error-body{margin:0;padding:0;background:var(--a1-surface-page);col
   .a1-auth,.a1-error__card{animation:a1-auth-enter var(--a1-motion-duration-rise) var(--a1-motion-easing-standard) both}
   html body.auth-body .a1-btn.auth-login-submit{transition:background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic),transform var(--a1-motion-duration-fast) var(--a1-motion-easing-standard)}
   html body.auth-body .a1-btn.auth-login-submit:hover{transform:translateY(-1px)}
+  html body.auth-body .auth-login-form .a1-input,html body.auth-body>.floating-theme{transition:border-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic),background-color var(--a1-motion-duration-fast) var(--a1-motion-easing-basic)}
   .auth-login-submit-arrow{transition:transform var(--a1-motion-duration-base) var(--a1-motion-easing-standard)}
   .auth-login-submit:hover .auth-login-submit-arrow{transform:translateX(4px)}
 }
