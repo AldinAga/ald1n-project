@@ -85,6 +85,51 @@ final class ProductNotesFormSubmitTest extends TestCase
         self::assertSame(1, Product::query()->count());
     }
 
+    public function test_superadmin_who_is_not_the_author_sees_notes_on_detail_and_list(): void
+    {
+        $author = $this->manager('notes-author');
+        $product = $this->product($author->id, 'Tudja napomena');
+
+        $this->actingAs($this->superadmin())->get('/catalog/'.$product->slug)
+            ->assertOk()->assertSee('data-product-internal-notes', false)->assertSee('Tudja napomena');
+        $this->actingAs($this->superadmin())->get('/catalog')
+            ->assertOk()->assertSee('data-product-has-notes', false);
+    }
+
+    public function test_manager_who_is_not_author_or_superadmin_does_not_see_notes(): void
+    {
+        $author = $this->manager('notes-author');
+        $product = $this->product($author->id, 'Tudja napomena');
+        $other = $this->manager('notes-other');
+
+        $this->actingAs($other)->get('/catalog/'.$product->slug)
+            ->assertOk()->assertDontSee('data-product-internal-notes', false)->assertDontSee('Tudja napomena');
+        $this->actingAs($other)->get('/catalog')
+            ->assertOk()->assertDontSee('data-product-has-notes', false);
+    }
+
+    public function test_non_superadmin_author_sees_own_notes(): void
+    {
+        $author = $this->manager('notes-author');
+        $product = $this->product($author->id, 'Moja napomena');
+
+        $this->actingAs($author)->get('/catalog/'.$product->slug)
+            ->assertOk()->assertSee('data-product-internal-notes', false)->assertSee('Moja napomena');
+        $this->actingAs($author)->get('/catalog')
+            ->assertOk()->assertSee('data-product-has-notes', false);
+    }
+
+    private function manager(string $username): User
+    {
+        return User::query()->create([
+            'role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id'),
+            'username' => $username,
+            'email' => $username.'@example.test',
+            'password_hash' => Hash::make('Secret123!'),
+            'status' => 'active',
+        ]);
+    }
+
     /** @param array<string,mixed> $overrides */
     private function payload(array $overrides = []): array
     {
