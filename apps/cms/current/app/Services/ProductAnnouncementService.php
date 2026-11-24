@@ -216,7 +216,9 @@ final class ProductAnnouncementService
      */
     public function absoluteImageUrl(Product $product): ?string
     {
-        $imageUrl = trim((string) ($product->images()->first()?->url ?? ''));
+        // images() je već sortirano: glavna slika, pa sort_order, pa id. Učitana relacija izbjegava upit po artiklu.
+        $first = $product->relationLoaded('images') ? $product->images->first() : $product->images()->first();
+        $imageUrl = trim((string) ($first?->url ?? ''));
         if ($imageUrl === '') return null;
         return Str::startsWith($imageUrl, ['http://', 'https://']) ? $imageUrl : url($imageUrl);
     }
