@@ -200,9 +200,9 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         $this->seedRates();
         $before = $this->tableHashes();
 
+        // Mockery: red izlaza troši prvo očekivanje koje mu odgovara, pa očekivanja moraju biti različiti redovi.
         $this->fix()
             ->expectsOutputToContain('DRY-RUN')
-            ->expectsOutputToContain(self::EXPECTED_HISTORY)
             ->expectsOutputToContain('ukupno povećanje: '.self::EXPECTED_HISTORY.' EUR')
             ->assertSuccessful();
 

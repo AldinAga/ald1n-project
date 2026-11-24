@@ -58,6 +58,11 @@ final class FixNoRateCommissionsCommand extends Command
     public function handle(SettingsService $settings, AuditLogger $audit): int
     {
         $apply = (bool) $this->option('apply');
+        // Instanca komande se ponovo koristi u istom procesu (Artisan::call, testovi): stanje se uvek kreće od nule.
+        $this->rows = [];
+        $this->applicable = [];
+        $this->rateKinds = [];
+        $this->stats = array_map(static fn (): int => 0, $this->stats);
         $this->loadRates($settings);
         $this->line($apply ? 'APPLY' : 'DRY-RUN (ništa se ne menja)');
 
