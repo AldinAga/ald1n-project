@@ -218,6 +218,8 @@ export type Product = {
   name: string;
   slug: string;
   description?: Nullable<string>;
+  // Samo u detalju proizvoda i samo uz dozvolu catalog.view_notes; inače ključa nema.
+  notes?: Nullable<string>;
   brand: Nullable<Taxonomy>;
   line: Nullable<Taxonomy>;
   model: Nullable<string>;
