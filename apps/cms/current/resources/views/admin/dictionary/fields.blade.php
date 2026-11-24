@@ -54,7 +54,7 @@
                     @foreach($orderedFields as $field)
                         @php($assigned=$item?->fields?->firstWhere('id',$field->id))
                         @php($pivot=$assigned?->pivot)
-                        <article class="a1-pc-fieldrow {{ $assigned ? 'is-enabled' : 'is-disabled' }}" data-template-field-row data-sort-item data-sort-id="{{ $field->id }}">
+                        <article class="a1-pc-fieldrow {{ $assigned ? '' : 'is-disabled' }}" data-template-field-row data-sort-item data-sort-id="{{ $field->id }}">
                             <button class="a1-pc-handle" type="button" data-sort-handle aria-label="Prevuci polje {{ $field->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
                             <label class="a1-check"><input class="a1-check__input" type="checkbox" name="field_config[{{ $field->id }}][enabled]" value="1" @checked(old('field_config.'.$field->id.'.enabled',(bool)$assigned))><span class="a1-check__box" aria-hidden="true"></span><span><strong data-field-name>{{ $field->name }}</strong><small class="a1-help">{{ $field->slug }} · {{ $field->data_type }}@if($field->unit) · {{ $field->unit }}@endif</small></span></label>
                             <label class="a1-field"><span class="a1-label">Redosled</span><input class="a1-input" type="number" min="0" step="1" name="field_config[{{ $field->id }}][sort_order]" value="{{ old('field_config.'.$field->id.'.sort_order',$pivot?->sort_order??(($loop->index+1)*10)) }}" data-sort-order-input></label>
