@@ -47,10 +47,8 @@ $check('Catalog ownership doctor proverava scope render i legacy redirect', str_
 $check('Stable release profil proverava vlasništvo kataloga', in_array('catalog_ownership', (array) ($release['profiles']['stable'] ?? []), true));
 $check('Navigacija nema duplu listu artikala', str_contains($layout, 'Katalog artikala') && !str_contains($layout, '>Svi artikli<'));
 
-$css = $source('public/assets/css/app.css');
-$check('Filter paneli imaju Expand Collapse stil', str_contains($css, '.filter-collapse-bar'));
+// G7 PR B: the old app.css checks (.filter-collapse-bar, .account-list/.account-card) were removed; no view uses those classes.
 $check('Layout nema mrtav filter-collapse blok', !str_contains($layout, 'form.filter-panel'));
-$check('Žiro računi koriste dve kompaktne kartice po redu', str_contains($css, '.account-list{grid-template-columns:repeat(2,minmax(0,1fr))') && str_contains($css, '.account-card{padding:13px'));
 
 $dashboard = $source('app/Http/Controllers/DashboardController.php');
 $check('Dashboard katalog link vodi na jedinstveni katalog', str_contains($dashboard, "route('catalog.index', ['stock'=>'out'])") && !str_contains($dashboard, "route('admin.products.index', ['stock'=>'out'])"));

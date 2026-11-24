@@ -83,8 +83,11 @@ jobs:
         run: |
           set -euo pipefail
           BASE_SHA="$(git merge-base HEAD origin/main)"
-          git diff --quiet "$BASE_SHA" HEAD -- apps/cms/current/public/assets/css/ald1n-ui-v2.css packages/design-tokens/ald1n-operator.json
-          test -f apps/cms/current/public/assets/css/ald1n-liquid-glass.css
+          # G7 PR B: ald1n-ui-v2.css is no longer pinned and ald1n-liquid-glass.css is no longer required (both are deleted in PR D);
+          # the Cobalt shell and token stylesheets must exist instead.
+          git diff --quiet "$BASE_SHA" HEAD -- packages/design-tokens/ald1n-operator.json
+          test -f apps/cms/current/public/assets/css/ald1n-admin.css
+          test -f apps/cms/current/public/assets/css/ald1n-tokens.css
           echo 'GENERATED_THEME_UNCHANGED=PASS'
       - name: Execute real PHPUnit and canonical static gate
         working-directory: apps/cms/current

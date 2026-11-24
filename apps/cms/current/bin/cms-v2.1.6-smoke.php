@@ -30,7 +30,6 @@ $dictionary = $source('app/Http/Controllers/Admin/CatalogDictionaryController.ph
 $user = $source('app/Models/User.php');
 $release = $source('config/release.php');
 $composer = $source('composer.json');
-$css = $source('public/assets/css/app.css');
 $upgrade = $source('docs/UPGRADE-V2.1.6.md');
 
 $check('Aktuelna verzija zadržava v2.1.6 ugovor', version_compare($version, '2.1.6', '>=') && $tag === 'v'.$version && version_compare(ltrim($from, 'v'), $version, '<'));
@@ -56,7 +55,7 @@ $check('Data Quality rute su zaštićene catalog.audit dozvolom', str_contains($
 $check('Navigacija sadrži Data Quality Center', str_contains($layout, 'Data Quality Center') && str_contains($layout, 'admin.data-quality.index'));
 $check('Data Quality prikaz ima score probleme i repair', str_contains($view, 'Data quality score') && str_contains($view, 'Pronađeni problemi') && str_contains($view, 'Bezbedna automatska popravka'));
 $check('Data Quality prikaz koristi postojeće ikonice', !str_contains($view, 'refresh-cw') && !str_contains($view, 'name="tool"'));
-$check('Data Quality CSS ima desktop i mobilni raspored', str_contains($css, '.data-quality-overview') && str_contains($css, '@media(max-width:720px)'));
+// G7 PR B: the "Data Quality CSS" check read .data-quality-overview from the old app.css; that markup no longer exists.
 $check('Performance doctor proverava sve ciljane indekse', str_contains($performance, 'products_catalog_active_created_v216_idx') && str_contains($performance, 'audit_logs_level_created_v216_idx'));
 $check('Performance doctor meri reprezentativne upite', str_contains($performance, 'representativeQueries') && str_contains($performance, 'slow_query_failure_ms'));
 $check('Dashboard kešira schema metadata tokom requesta', str_contains($dashboard, 'tableColumnsCache') && str_contains($dashboard, 'array_key_exists($table'));

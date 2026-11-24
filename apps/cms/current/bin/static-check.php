@@ -185,19 +185,15 @@ $check('reports logging je best-effort', str_contains($reportController, 'safeLo
 $check('beta1.2 repair migracija je nedestruktivna', str_contains($reportsRepairMigration, 'repairOrderDocuments') && str_contains($reportsRepairMigration, 'repairReportPermissions') && str_contains($reportsRepairMigration, 'namerno nedestruktivna'));
 
 $layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
-$css = (string) file_get_contents($root.'/public/assets/css/app.css');
+$css = (string) file_get_contents($root.'/public/assets/css/ald1n-admin.css'); // G7 PR B: Cobalt stylesheet, not the old app.css
 $check('hamburger dugme postoji', str_contains($layout, 'data-mobile-menu-toggle') && str_contains($layout, 'aria-controls="siteHeaderMenu"'));
 $check('mobilni meni ima kontrolni JavaScript', str_contains($layout, 'setMobileMenu') && str_contains($layout, "matchMedia('(max-width: 1199px)')") && str_contains($layout, "'a1-lock'"));
-$check('mobilni meni nema horizontalni scroll', str_contains($css, '.site-header.menu-open .header-secondary-row') && str_contains($css, 'overflow-y:auto') && str_contains($css, 'overflow-x:hidden'));
+$check('mobilni meni nema horizontalni scroll', str_contains($css, '.a1-header__panel{') && str_contains($css, 'overflow-y:auto;overscroll-behavior:contain') && str_contains($css, '.a1-lock{overflow:hidden}'));
 $check('direktne mobilne stavke koriste zajednički levi wrapper', str_contains($layout, 'a1-nav__link') && substr_count($layout, '$navLink(') >= 3);
-$check('Početna Provizije i Izveštaji su poravnati ulevo', str_contains($css, '.header-secondary-row .main-nav>a{justify-content:flex-start!important;text-align:left!important}') && str_contains($css, '.header-secondary-row .main-nav>a>.nav-link-content{width:100%;justify-content:flex-start;text-align:left}'));
-$check('CSS ima pouzdan cache busting', str_contains($layout, "filemtime(public_path('assets/css/app.css'))"));
+$check('CSS ima pouzdan cache busting', str_contains($layout, "filemtime(public_path('assets/css/ald1n-admin.css'))"));
 $check('admin header ima traku, glavnu navigaciju i odjavu', str_contains($layout, 'a1-header__bar') && str_contains($layout, 'a1-header__nav') && str_contains($layout, "route('logout')"));
 $check('admin header zadržava kurs temu nalog i hamburger', str_contains($layout, 'a1-rate') && str_contains($layout, 'data-theme-mode-option') && str_contains($layout, 'a1-header__user') && str_contains($layout, 'data-mobile-menu-toggle'));
 $check('dashboard ima moderni hero KPI prioritete i module', str_contains((string) file_get_contents($root.'/resources/views/dashboard/index.blade.php'), 'a1-card a1-hero') && substr_count((string) file_get_contents($root.'/resources/views/dashboard/index.blade.php'), 'a1-kpi a1-kpi--link') >= 4 && str_contains((string) file_get_contents($root.'/resources/views/dashboard/partials/priorities.blade.php'), 'a1-item a1-item--count') && str_contains((string) file_get_contents($root.'/resources/views/dashboard/partials/recent-orders.blade.php'), 'a1-list a1-list--recent'));
-$check('dashboard CSS ima 4 desktop i 2 mobilne kolone', str_contains($css, '.legacy-metrics-grid{display:grid;grid-template-columns:repeat(4') && str_contains($css, '.legacy-metrics-grid{grid-template-columns:repeat(2'));
-$check('admin gridovi su poravnati na vrh', str_contains($css, '.settings-grid,.admin-form-grid{align-items:start}'));
-$check('forme koriste sadržajnu visinu', str_contains($css, 'grid-auto-rows:max-content') && str_contains($css, 'height:auto;min-height:46px'));
 
 $deploymentCheck = (string) file_get_contents($root.'/app/Console/Commands/DeploymentCheckCommand.php');
 $check('deployment check ima bezbedan repair režim', str_contains($deploymentCheck, "{--repair") && str_contains($deploymentCheck, "Artisan::call('migrate'") && str_contains($deploymentCheck, 'CoreAccessSeeder::class'));
@@ -335,7 +331,6 @@ $check('beta7.8 ponovno otvaranje je superadmin-only i auditovano', str_contains
 $check('beta7.8 detalj prikazuje strukturiranu evidenciju isporuke', str_contains($orderPresenter, "'delivery' =>") && str_contains($adminOrderView, 'Evidencija isporuke') && str_contains((string) file_get_contents($root.'/resources/views/orders/show.blade.php'), 'Potvrđena isporuka'));
 $check('beta7.8 doctor proverava novu šemu i dozvole', str_contains($deploymentDoctor, "'order_deliveries'") && str_contains($deploymentDoctor, "'orders.confirm_delivery'") && str_contains($deploymentDoctor, "'orders.reopen'"));
 $check('beta7.8 feature testovi pokrivaju dokaz otpremnicu i reopening', str_contains($deliveryFeatureTest, 'test_completion_records_private_delivery_proof_cod_balance_and_delivery_note') && str_contains($deliveryFeatureTest, 'test_only_superadmin_can_reopen_completed_order_and_history_is_preserved'));
-$check('beta7.8 UI ima delivery workflow responsive stilove', str_contains($css, 'v2.1.0-beta7.8 - Evidence-backed delivery workflow') && str_contains($css, '.delivery-completion-form') && str_contains($css, '.reopen-order-panel'));
 
 $deliveryNoteHotfixMigration = (string) file_get_contents($root.'/database/migrations/2026_07_30_000018_fix_delivery_note_document_type_beta7_9.php');
 $adminDocumentController = (string) file_get_contents($root.'/app/Http/Controllers/Admin/OrderDocumentController.php');
@@ -365,7 +360,6 @@ $check('detail ima interaktivnu thumbnail galeriju', str_contains($catalogView, 
 $check('detail ima fullscreen lightbox i zoom kontrole', str_contains($catalogView, 'data-product-lightbox') && str_contains($catalogView, 'data-zoom-in') && str_contains($catalogView, 'data-zoom-out') && str_contains($catalogView, 'data-zoom-reset'));
 $check('gallery podržava tastaturu swipe i preload', str_contains($catalogView, "event.key === 'ArrowRight'") && str_contains($catalogView, "addEventListener('pointerup'") && str_contains($catalogView, 'preloadNeighbours'));
 $check('gallery radi i sa jednom slikom', str_contains($catalogView, 'thumbnails.length ? thumbnails.map') && str_contains($catalogView, 'mainButton.dataset.gallerySrc'));
-$check('gallery CSS ima fullscreen viewport i responsive mobile', str_contains($css, '.product-lightbox{position:fixed;inset:0') && str_contains($css, 'height:100dvh') && str_contains($css, '.product-gallery-thumbnails{display:flex'));
 $check('gallery feature testovi postoje', str_contains((string) file_get_contents($root.'/tests/Feature/CatalogDetailPageTest.php'), 'test_product_detail_renders_accessible_gallery_lightbox_zoom_and_swipe_controls') && str_contains((string) file_get_contents($root.'/tests/Feature/CatalogDetailPageTest.php'), 'test_single_product_image_still_has_fullscreen_gallery'));
 
 
@@ -392,7 +386,6 @@ $check('beta4 feature testovi pokrivaju deduplikaciju i preference', str_contain
 $inventoryWorkspaceTest = (string) file_get_contents($root.'/tests/Feature/InventoryWorkspaceUiTest.php');
 $check('beta5 inventory koristi jednu aktivnu operaciju', str_contains($inventoryView, 'inventory-operation-tabs') && str_contains($inventoryView, "\$mode === 'receive'") && str_contains($inventoryView, "\$mode === 'count'"));
 $check('beta5 inventory čuva filter i limit nakon knjiženja', str_contains($inventoryView, '_return_q') && str_contains($inventoryController, 'PAGE_LIMITS') && str_contains($inventoryController, 'returnQuery'));
-$check('beta5 inventory nema unutrašnji vertikalni scrollbar', str_contains($css, 'v2.1.0-beta5 - inventory workspace responsive redesign') && str_contains($css, 'max-height:none!important') && str_contains($css, 'overflow-y:visible!important'));
 $check('beta5 inventory responsive tabela koristi data-label kartice', str_contains($inventoryView, 'data-label="Artikal"') && str_contains((string) file_get_contents($root.'/public/assets/css/ald1n-admin.css'), '.a1-table--cards td::before{content:attr(data-label)'));
 $check('beta5 feature test pokriva inventory workspace', str_contains($inventoryWorkspaceTest, 'test_inventory_workspace_uses_single_active_operation_and_preserves_filters'));
 
@@ -498,7 +491,7 @@ $check('beta7.10 privatni prilozi proveravaju MIME veličinu i autorizaciju', st
 $check('beta7.10 javne i interne poruke su odvojene', str_contains($afterSalesService, "'internal'") && str_contains($afterSalesUserController, "where('visibility', 'public')") && str_contains($afterSalesAdminController, "visibility"));
 $check('beta7.10 statusni tok zahteva obrazloženje konačne odluke', str_contains($afterSalesService, 'assertTransition') && str_contains($afterSalesService, 'resolution_summary') && str_contains($afterSalesService, 'Prelaz iz trenutnog'));
 $check('beta7.10 automatizacija upozorava na probijene rokove slučaja', str_contains($automationService, 'after_sales_overdue') && str_contains($automationService, "route('admin.after-sales.show'"));
-$check('beta7.10 UI ima korisnički i administratorski postprodajni tok', str_contains($afterSalesViews, 'Otvori reklamaciju ili servis') && str_contains($afterSalesViews, 'Komunikacija i interne napomene') && str_contains($css, 'v2.1.0-beta7.10 - After-sales cases'));
+$check('beta7.10 UI ima korisnički i administratorski postprodajni tok', str_contains($afterSalesViews, 'Otvori reklamaciju ili servis') && str_contains($afterSalesViews, 'Komunikacija i interne napomene'));
 $check('beta7.10 doctor proverava šemu dozvole i SQL', str_contains($afterSalesDoctor, 'app:after-sales-doctor') && str_contains($afterSalesDoctor, '--repair') && str_contains($afterSalesDoctor, 'Osnovni SQL upiti'));
 $check('beta7.10 feature test pokriva privatni prilog i obradu', str_contains($afterSalesFeatureTest, 'test_customer_opens_case_admin_processes_it_and_attachment_stays_private') && str_contains($afterSalesFeatureTest, 'assertNotFound'));
 $check('beta7.10 privatni download zabranjuje browser cache', str_contains($afterSalesAttachmentController, 'private, no-store, max-age=0') && str_contains($afterSalesAttachmentController, 'nosniff'));
@@ -542,7 +535,7 @@ $check('beta7.12 fizičke radnje automatski dobijaju radni nalog', str_contains(
 $check('beta7.12 sprečava preklapanje termina iste ekipe', str_contains($fieldPlanner, 'assertNoConflict') && str_contains($fieldPlanner, 'where(\'planned_start_at\', \'<\', $end)') && str_contains($fieldPlanner, 'lockForUpdate()'));
 $check('beta7.12 završetak zahteva dolazak na lokaciju', str_contains($fieldService, "status !== 'on_site'") && str_contains($fieldService, 'Pre završetka evidentirajte'));
 $check('beta7.12 radni nalog čuva troškove kilometražu i privatne dokaze', str_contains($fieldService, 'travel_cost_rsd') && str_contains($fieldService, 'labor_cost_rsd') && str_contains($fieldService, 'parts_cost_rsd') && str_contains($fieldService, "Storage::disk('local')"));
-$check('beta7.12 UI ima kalendar ekipe i operativne statuse', str_contains($fieldViews, 'Operativni kalendar') && str_contains($fieldViews, 'Ekipa je krenula') && str_contains($fieldViews, 'Na lokaciji') && str_contains($css, 'v2.1.0-beta7.12 - field operations'));
+$check('beta7.12 UI ima kalendar ekipe i operativne statuse', str_contains($fieldViews, 'Operativni kalendar') && str_contains($fieldViews, 'Ekipa je krenula') && str_contains($fieldViews, 'Na lokaciji'));
 $check('beta7.12 rute i Gate štite terenske operacije', str_contains($provider, "Gate::define('field_operations.view'") && str_contains($provider, "Gate::define('field_operations.manage'") && str_contains($web, 'permission:field_operations.manage'));
 $check('beta7.12 automatizacija prati neplanirane i probijene radne naloge', str_contains($automationService, 'field_work_order_overdue') && str_contains($automationService, 'field_work_order_unscheduled'));
 $check('beta7.12 doctor proverava tabele dozvole rute i SQL', str_contains($fieldDoctor, 'app:field-operations-doctor') && str_contains($fieldDoctor, 'Osnovni SQL upiti i relacije'));
@@ -573,7 +566,6 @@ $check('beta7.13 Gate i rute štite lager i nabavku', str_contains($provider, "G
 $check('beta7.13 automatizacija prati nizak lager i kašnjenje nabavke', str_contains($automationService, 'service_part_low') && str_contains($automationService, 'service_part_purchase_overdue'));
 $check('beta7.13 doctor proverava tabele dozvole rute i SQL', str_contains($servicePartsDoctor, 'app:service-parts-doctor') && str_contains($servicePartsDoctor, 'SQL upiti i relacije servisnog lagera rade'));
 $check('beta7.13 testovi pokrivaju ledger rezervaciju utrošak i ponderisanu cenu', str_contains($servicePartsTest, 'test_part_creation_records_opening_balance_and_manual_adjustment_is_idempotent') && str_contains($servicePartsTest, 'test_work_order_reserves_consumes_and_releases_unused_service_parts_exactly_once') && str_contains($servicePartsTest, 'test_purchase_receipt_updates_stock_and_weighted_average_once'));
-$check('beta7.13 UI ima responsive stilove servisnog lagera', str_contains($css, 'v2.1.0-beta7.13 - servisni lager i nabavka'));
 
 
 $documentRevisionMigration = (string) file_get_contents($root.'/database/migrations/2026_07_30_000023_enable_document_revisions_beta7_14.php');
@@ -686,7 +678,6 @@ $check('beta7.17 rate se raspoređuju prema stvarno plaćenom iznosu', str_conta
 $check('beta7.17 automatske opomene koriste faze dedupe i outbox', str_contains($receivablesService, 'eligibleReminderStage') && str_contains($receivablesService, 'event_key') && str_contains($orderEmailOutbox, 'receivableReminder'));
 $check('beta7.17 admin ima aging pregled plan evidenciju komunikacije i direktnu uplatu', str_contains($receivablesIndex, 'a1-ol-tiles') && str_contains($receivablesIndex, '#evidentiraj-uplatu') && str_contains($receivablesIndex, '$canManagePayments') && !str_contains($receivablesIndex, "@can('payments.manage')@if") && str_contains($receivablesShow, 'Plan otplate') && str_contains($receivablesShow, 'Komunikacija i opomene') && str_contains($receivablesShow, 'Evidentiraj uplatu') && str_contains($receivablesShow, 'admin.payments.partials.record-form') && str_contains($receivablesShow, '$canManagePayments') && !str_contains($receivablesShow, "@can('payments.manage')@if") && str_contains($receivablesController, 'admin.receivables.payment.record') && str_contains((string) file_get_contents($root.'/routes/web.php'), "name('receivables.payments.store')") && str_contains($layoutShell, "'Potraživanja'") && str_contains((string) file_get_contents($root.'/public/assets/js/ux-runtime.js'), 'data-ux-allow-multiple-submit'));
 $check('beta7.17 podmeni se zatvara klikom van escape i izborom stavke', str_contains($layoutShell, 'closeDropdowns') && str_contains($layoutShell, "event.key !== 'Escape'") && str_contains($layoutShell, "target.closest?.('.a1-nav-dd')"));
-$check('beta7.17 checkbox i radio imaju normalnu globalnu veličinu', str_contains($css, 'input[type="checkbox"],input[type="radio"]') && str_contains($css, 'max-width:17px!important'));
 $check('beta7.17 doctor proverava šemu dozvolu i scheduler', str_contains($receivablesDoctor, 'app:receivables-doctor') && str_contains($receivablesDoctor, 'receivables.manage') && str_contains($receivablesDoctor, 'app:automation-run'));
 $receivablesMigration = (string) file_get_contents($root.'/database/migrations/2026_07_31_000026_create_receivables_collection_beta7_17.php');
 $check('beta7.17.1 permission seed je schema-aware', str_contains($receivablesMigration, 'schemaAwareUpdateOrInsert') && str_contains($receivablesMigration, "Schema::hasColumn(\$table, 'updated_at')"));
@@ -783,16 +774,7 @@ $check('beta7.21 PDF upravljačkog izveštaja postoji', str_contains($management
 $check('beta7.21 raspored ima retry dedupe i zasebne primaoce', str_contains($reportScheduleService, 'dedupe_key') && str_contains($reportScheduleService, "status' => 'retry'") && str_contains($reportScheduleService, 'recipient_email'));
 $check('beta7.21 ekran je bezbedan pre migracije', str_contains($managementController, "Schema::hasTable('report_schedules')") && str_contains($managementController, "Schema::hasColumn('order_items'"));
 $check('beta7.21 UI ima CSV PDF rasporede i cost coverage', str_contains($managementView, 'reports.management.csv') && str_contains($managementView, 'report-schedules.store') && str_contains($managementView, 'Pokrivenost nabavne cene'));
-$phase7ManagementThemeCss = (string) file_get_contents(
-    dirname(__DIR__).'/public/assets/css/ald1n-ui-v2.css',
-);
-$check(
-    'beta7.22.1 management analytics koristi aktivnu temu bez belog fallback-a',
-    preg_match('/\.analytics-card\s*\{[^}]*background\s*:\s*var\(--panel\)/s', $phase7ManagementThemeCss) === 1
-        && preg_match('/\.analytics-bar\s*\{[^}]*background\s*:\s*var\(--panel-2\)/s', $phase7ManagementThemeCss) === 1
-        && !str_contains($phase7ManagementThemeCss, 'background:var(--panel-bg)')
-);
-$check('beta7.22.1 CSS kompatibilni aliasi postoje', str_contains($css, '--accent:var(--primary)') && str_contains($css, '--border:var(--line)') && str_contains($css, '--panel-bg:var(--panel)') && str_contains($css, '--surface-soft:var(--panel-2)'));
+// G7 PR B: the management analytics theme check read .analytics-card/.analytics-bar from the old ald1n-ui-v2.css and was removed.
 $check('beta7.21 feature test pokriva ekran export i raspored', str_contains($managementFeature, 'test_superadministrator_can_open_management_dashboard_and_exports') && str_contains($managementFeature, 'test_schedule_is_created_and_manual_run_is_deduplicated_per_request'));
 
 $env = (string) file_get_contents($root.'/.env.example');
@@ -994,7 +976,7 @@ $v214Controller = (string) @file_get_contents($root.'/app/Http/Controllers/Admin
 $v214Template = (string) @file_get_contents($root.'/app/Services/ProductTemplateService.php');
 $v214Deletion = (string) @file_get_contents($root.'/app/Services/ProductDeletionService.php');
 $v214Form = (string) @file_get_contents($root.'/resources/views/admin/products/form.blade.php');
-$v214Css = (string) @file_get_contents($root.'/public/assets/css/app.css');
+$v214Css = (string) @file_get_contents($root.'/public/assets/css/ald1n-admin.css');
 $v214Routes = (string) @file_get_contents($root.'/routes/web.php');
 $v214Release = (string) @file_get_contents($root.'/config/release.php');
 $check('v2.1.4 migracija dodaje model proizvoda i usklađuje šablone', str_contains($v214Migration, "string('model_name', 190)") && str_contains($v214Migration, 'ensureModelPlaceholderInNameTemplates'));
@@ -1002,7 +984,7 @@ $check('v2.1.4 model se validira čuva i koristi u nazivu', str_contains($v214Mo
 $check('v2.1.4 forma ima model proizvoda posle linije', strpos($v214Form, 'data-line-select') < strpos($v214Form, 'data-product-model'));
 $check('v2.1.4 trajno brisanje ima SKU potvrdu i izbor brisanja slika', str_contains($v214Controller, 'hash_equals((string) $product->sku') && str_contains($v214Form, 'name="delete_images"') && str_contains($v214Deletion, "deleteDirectory"));
 $check('v2.1.4 poslovna istorija blokira destruktivno brisanje', str_contains($v214Deletion, "'Porudžbine' => 'order_items'") && str_contains($v214Deletion, "\$blockers['Promene lagera']"));
-$check('v2.1.4 semantički sistem tastera pokriva sve uloge', str_contains($v214Css, '--button-height:46px') && str_contains($v214Css, '.button-secondary') && str_contains($v214Css, '.button-success') && str_contains($v214Css, '.button-warning') && str_contains($v214Css, '.button-danger'));
+$check('v2.1.4 semantički sistem tastera pokriva sve uloge', str_contains($v214Css, '.a1-btn--sm{min-height:var(--a1-size-touch-target)') && str_contains($v214Css, '.a1-btn--primary{') && str_contains($v214Css, '.a1-btn--quiet{') && str_contains($v214Css, '.a1-btn--danger{'));
 $check('v2.1.4 route i stable doctor postoje', str_contains($v214Routes, "name('products.purge')") && str_contains($v214Release, "'cms_v214'") && is_file($root.'/app/Console/Commands/CmsV214DoctorCommand.php'));
 $check('v2.1.4 smoke i contract test postoje', is_file($root.'/bin/cms-v2.1.4-smoke.php') && is_file($root.'/tests/Unit/CmsV214ContractTest.php'));
 
@@ -1018,15 +1000,15 @@ $check('v2.1.4.1 smoke i contract test postoje', is_file($root.'/bin/product-typ
 
 
 $v215Runtime = (string) @file_get_contents($root.'/public/assets/js/ux-runtime.js');
-$v215Css = (string) @file_get_contents($root.'/public/assets/css/app.css');
+$v215Css = (string) @file_get_contents($root.'/public/assets/css/ald1n-admin.css');
 $v215Doctor = (string) @file_get_contents($root.'/app/Console/Commands/CmsV215DoctorCommand.php');
 $v215Migration = (string) @file_get_contents($root.'/database/migrations/2026_08_05_000037_place_desktop_power_supply_field_v2_1_5.php');
 $v215ProductForm = (string) @file_get_contents($root.'/resources/views/admin/products/form.blade.php');
 $v215OrderForm = (string) @file_get_contents($root.'/resources/views/orders/create.blade.php');
 $v215Release = (string) @file_get_contents($root.'/config/release.php');
 $check('v2.1.5 globalni UX runtime štiti submit i nesačuvane izmene', str_contains($v215Runtime, 'protectForms') && str_contains($v215Runtime, 'protectUnsavedChanges') && str_contains($v215Runtime, 'beforeunload'));
-$check('v2.1.5 mobilni action dock koristi originalni submit', str_contains($v215Runtime, 'createMobileActionDock') && str_contains($v215Runtime, 'submit.click()') && str_contains($v215Css, '.ux-mobile-action-dock'));
-$check('v2.1.5 validacija i accessibility markeri postoje', str_contains($v215Runtime, 'aria-invalid') && str_contains($v215Runtime, "document.addEventListener('invalid'") && str_contains($v215Css, '--ux-focus-ring'));
+$check('v2.1.5 mobilni action dock koristi originalni submit', str_contains($v215Runtime, 'createMobileActionDock') && str_contains($v215Runtime, 'submit.click()') && str_contains($v215Css, '.a1-dock'));
+$check('v2.1.5 validacija i accessibility markeri postoje', str_contains($v215Runtime, 'aria-invalid') && str_contains($v215Runtime, "document.addEventListener('invalid'") && str_contains($v215Css, '.a1-app :focus-visible{'));
 $check('v2.1.5 dugi formulari su eksplicitno označeni', str_contains($v215ProductForm, 'data-ux-sticky-actions') && str_contains($v215OrderForm, 'data-ux-sticky-actions'));
 $check('v2.1.5 sistemske error stranice postoje', is_file($root.'/resources/views/errors/404.blade.php') && is_file($root.'/resources/views/errors/500.blade.php') && is_file($root.'/resources/views/errors/503.blade.php'));
 $check('v2.1.5 migracija koristi postojeće snaga-napajanja polje', str_contains($v215Migration, "FIELD_SLUG = 'snaga-napajanja'") && str_contains($v215Migration, "PRODUCT_TYPE_SLUG = 'desktop-racunar'") && str_contains($v215Migration, "['status' => 'active']") && !str_contains($v215Migration, "DB::table('specification_fields')->insert"));

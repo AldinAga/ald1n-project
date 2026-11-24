@@ -34,7 +34,7 @@ final class CmsV215DoctorCommand extends Command
         $warned = false;
 
         foreach ([
-            public_path('assets/css/app.css'),
+            public_path('assets/css/ald1n-admin.css'),
             public_path('assets/js/ux-runtime.js'),
             resource_path('views/layouts/app.blade.php'),
             resource_path('views/errors/minimal.blade.php'),
@@ -53,16 +53,16 @@ final class CmsV215DoctorCommand extends Command
             $this->info('PASS v2.1.5 UX i migration fajlovi postoje.');
         }
 
-        $css = (string) @file_get_contents(public_path('assets/css/app.css'));
+        $css = (string) @file_get_contents(public_path('assets/css/ald1n-admin.css'));
         $js = (string) @file_get_contents(public_path('assets/js/ux-runtime.js'));
         $layout = (string) @file_get_contents(resource_path('views/layouts/app.blade.php'));
 
         foreach ([
-            'ux-mobile-action-dock',
-            '--ux-touch-target:46px',
-            '.has-field-error',
-            '.error-page-card',
-            '@media(max-width:820px)',
+            '.a1-dock',
+            '.a1-btn--sm{min-height:var(--a1-size-touch-target)',
+            '.a1-error{',
+            '[aria-invalid',
+            '@media (max-width:',
             'prefers-reduced-motion',
         ] as $needle) {
             if (!str_contains($css, $needle)) {

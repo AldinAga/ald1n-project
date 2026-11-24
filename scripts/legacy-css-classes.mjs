@@ -67,6 +67,24 @@ function classesOf(file) {
   return out;
 }
 
+// G7: once an old stylesheet is deleted the list can no longer be derived. The fixture is then frozen: --check only
+// validates it (still the same legacy_files, still more than 500 classes) and the write mode refuses to shrink it.
+const missingLegacy = LEGACY.filter((f) => !existsSync(css(f)));
+if (missingLegacy.length > 0) {
+  const frozenPath = join(cms, 'tests', 'Fixtures', 'removed-css-classes.json');
+  if (!process.argv.includes('--check')) {
+    console.error(`legacy stylesheet(s) deleted (${missingLegacy.join(', ')}); the fixture is frozen and is not rewritten.`);
+    process.exit(1);
+  }
+  const frozen = existsSync(frozenPath) ? JSON.parse(readFileSync(frozenPath, 'utf8')) : null;
+  if (!frozen || JSON.stringify(frozen.legacy_files) !== JSON.stringify(LEGACY) || !Array.isArray(frozen.classes) || frozen.classes.length <= 500) {
+    console.error('removed-css-classes.json is missing, truncated or its legacy_files list changed.');
+    process.exit(1);
+  }
+  console.log(`removed-css-classes.json frozen (${frozen.classes.length} classes); deleted: ${missingLegacy.join(', ')}`);
+  process.exit(0);
+}
+
 const legacy = new Set(LEGACY.flatMap((f) => [...classesOf(css(f))]));
 const kept = new Set(KEPT.flatMap((f) => [...classesOf(css(f))]));
 const skip = new Set(FALSE_POSITIVES);

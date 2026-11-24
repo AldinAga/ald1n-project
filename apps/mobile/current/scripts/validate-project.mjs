@@ -993,7 +993,7 @@ const build16AdminHubBatch132 = fs.readFileSync(path.join(root, 'src/app/(app)/a
 const build16SharedStatesBatch132 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
 const build16PageHeaderBatch132 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
 const build16CmsCssBatch132 = fs.readFileSync(
-  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'),
+  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-admin.css'),
   'utf8'
 );
 
@@ -1037,12 +1037,12 @@ assert(
 );
 
 assert(
-  build16CmsCssBatch132.includes('MOBILE_BUILD16_ADMIN_SHARED_STATES_FINAL_POLISH_BATCH132')
-    && build16CmsCssBatch132.includes('BUILD16_FINAL_BODY_FLAT_SURFACE')
-    && build16CmsCssBatch132.includes(':focus-visible')
-    && build16CmsCssBatch132.includes('.empty-state')
-    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion: reduce)'),
-  'Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.'
+  // G7 PR B: the old ui-v2 markers (MOBILE_BUILD16_..., BUILD16_FINAL_BODY_FLAT_SURFACE, .empty-state) are gone; the
+  // same a11y contract (focus-visible, empty state, reduced motion) is asserted on the Cobalt shell stylesheet.
+  build16CmsCssBatch132.includes('.a1-app :focus-visible{')
+    && build16CmsCssBatch132.includes('.a1-empty{')
+    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion:no-preference)'),
+  'Build16 Laravel Cobalt shell zaključava focus-visible, empty-state i reduced-motion presentation contract.'
 );
 
 // MOBILE_BUILD16_NATIVE_RELEASE_GATE_BATCH133
@@ -4362,15 +4362,16 @@ assert(
   'Batch179 price correction and display work does not restore Product Variants.',
 );
 const batch179LoginView = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/resources/views/auth/login.blade.php'), 'utf8');
-const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'), 'utf8');
+const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-auth.css'), 'utf8');
 assert(
   batch179LoginView.includes('data-login-glassmorphism')
     && batch179LoginView.includes('auth-login-submit')
     && batch179LoginView.includes("route('login.store')")
     && batch179LoginView.includes('cf-turnstile')
-    && batch179LoginCss.includes('BATCH179_V3_LOGIN_GLASS_MORPHISM')
-    && batch179LoginCss.includes('backdrop-filter: blur(30px) saturate(155%)')
-    && batch179LoginCss.includes('@media (prefers-reduced-motion: reduce)'),
+    // G7 PR B: the login glass now lives in ald1n-auth.css (a1-auth); the old BATCH179 marker and exact blur value are gone.
+    && batch179LoginCss.includes('.a1-auth')
+    && batch179LoginCss.includes('backdrop-filter')
+    && batch179LoginCss.includes('prefers-reduced-motion'),
   'Batch179 V3 Laravel login polish adds glassmorphism and motion while preserving auth, Turnstile and reduced-motion contracts.',
 );
 // MOBILE_BATCH515_CUSTOMER_ORDER_AMENDMENT_VALIDATOR

@@ -104,7 +104,7 @@ final class UiRefinement794Test extends TestCase
         $response->assertSee('data-dashboard-command-row', false)
             ->assertSee('data-dashboard-period="custom"', false)
             ->assertSee('d1-priority-heading', false)->assertSee('name="date_from"', false)
-            ->assertSee('ald1n-ui-refinement.css', false);
+            ->assertSee('assets/css/ald1n-admin.css', false);
         $this->exportFixture('dashboard', (string) $response->getContent());
     }
 
@@ -137,7 +137,7 @@ final class UiRefinement794Test extends TestCase
         $response = $this->actingAs($actor)->get('/catalog/'.$product->slug)->assertOk();
         $response->assertSee('data-catalog-detail-ready="1"', false)
             ->assertSee('a1-cat-detail', false)->assertSee('data-product-gallery', false)
-            ->assertSee('ald1n-ui-refinement.css', false)->assertSee('Direktna prodaja');
+            ->assertSee('assets/css/ald1n-admin-catalog.css', false)->assertSee('Direktna prodaja');
         $this->exportFixture('product', (string) $response->getContent());
     }
 

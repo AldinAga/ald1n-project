@@ -38,7 +38,7 @@ $gallery = $source('resources/views/admin/products/images.blade.php');
 $imageCard = $source('resources/views/admin/products/partials/image-card.blade.php');
 $upload = $source('resources/views/admin/products/partials/image-upload.blade.php');
 $js = $source('public/assets/js/product-media-manager.js');
-$css = $source('public/assets/css/app.css');
+$css = $source('public/assets/css/ald1n-admin-products.css'); // G7: image drag handle is a1-pc-* now
 $check('Forma ima redosled naziv slike specifikacije', strpos($form, '<h2>Naziv artikla</h2>') < strpos($form, '<h2>Dodavanje slika</h2>') && strpos($form, '<h2>Dodavanje slika</h2>') < strpos($form, '<h2>Specifikacije</h2>'));
 $check('Upload prikazuje izbor fotografija', str_contains($upload, 'data-image-selection-grid') && str_contains($upload, 'data-image-selection-count') && str_contains($js, 'renderSelection'));
 $check('Upload ima procenat i progress bar', str_contains($upload, 'data-image-upload-percent') && str_contains($upload, 'data-image-upload-bar') && str_contains($js, 'xhr.upload.addEventListener'));

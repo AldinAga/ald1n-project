@@ -36,14 +36,14 @@ final class CmsV214ContractTest extends TestCase
 
     public function test_button_system_preserves_semantic_colours_with_one_geometry(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2).'/public/assets/css/app.css');
+        // G7: the button contract now lives in ald1n-admin.css (a1-btn); the old --button-height/.button-* rules go with app.css.
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/public/assets/css/ald1n-admin.css');
 
-        self::assertStringContainsString('--button-height:46px', $css);
-        self::assertStringContainsString('--button-radius:15px', $css);
-        foreach (['primary', 'secondary', 'success', 'warning', 'danger'] as $role) {
-            self::assertStringContainsString('.button-'.$role, $css);
+        foreach (['primary', 'quiet', 'danger', 'sm'] as $variant) {
+            self::assertStringContainsString('.a1-btn--'.$variant.'{', $css);
         }
-        self::assertStringContainsString('.button:focus-visible', $css);
+        self::assertStringContainsString('.a1-btn:hover{', $css);
+        self::assertStringContainsString('.a1-app :focus-visible{', $css);
         self::assertStringContainsString('prefers-reduced-motion', $css);
     }
 
