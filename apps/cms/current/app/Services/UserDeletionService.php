@@ -600,10 +600,17 @@ final class UserDeletionService
                 DB::table($table)->where('user_id', $id)->delete();
             }
         }
-        DB::table('user_login_sessions')->where('user_id', $id)
-            ->update(['ip_address' => null, 'user_agent' => null, 'device_label' => null]);
+        // Sesije nose session_hash (identifikator) i uređaj; nalog je već povučen, pa redovi ne trebaju.
+        DB::table('user_login_sessions')->where('user_id', $id)->delete();
+        if (Schema::hasTable('notifications')) {
+            // Obavještenja u aplikaciji mogu nositi ime kupca, broj porudžbine i e-poštu.
+            DB::table('notifications')->where('notifiable_id', $id)
+                ->whereIn('notifiable_type', array_unique([(new User())->getMorphClass(), User::class]))->delete();
+        }
         if (Schema::hasTable('security_events')) {
-            DB::table('security_events')->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
+            // Događaj ostaje (vrsta, vrijeme, ozbiljnost), a lični podaci odlaze.
+            DB::table('security_events')->where('user_id', $id)
+                ->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null, 'request_id' => null]);
         }
 
         // Audit zapisi o samom korisniku nose IP, user agent i stare vrednosti profila.

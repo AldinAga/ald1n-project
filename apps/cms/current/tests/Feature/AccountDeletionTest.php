@@ -191,6 +191,95 @@ final class AccountDeletionTest extends TestCase
         Notification::assertSentTo($user, AccountDeletionNotification::class, static fn ($n): bool => $n->kind === 'confirm');
     }
 
+    // ---- Ogranicenje i izjednaceno vrijeme javnog zahtjeva ---------------------
+
+    public function test_public_request_is_limited_per_address_and_per_ip_with_identical_429(): void
+    {
+        Notification::fake();
+        $known = $this->user('del-limit', 'customer');
+
+        // Isti e-mail sa razlicitih IP adresa: cetvrti zahtjev u satu je 429 (bez obzira na IP).
+        foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3'] as $ip) {
+            $this->withServerVariables(['REMOTE_ADDR' => $ip])->post('/brisanje-naloga', ['email' => 'del-limit@example.test'])->assertRedirect();
+        }
+        $existing = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])->post('/brisanje-naloga', ['email' => 'DEL-limit@example.test']);
+        $unknownFor = 'nepoznat-limit@example.test';
+        foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3'] as $ip) {
+            $this->withServerVariables(['REMOTE_ADDR' => $ip])->post('/brisanje-naloga', ['email' => $unknownFor])->assertRedirect();
+        }
+        $unknown = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])->post('/brisanje-naloga', ['email' => $unknownFor]);
+        $existing->assertStatus(429);
+        $unknown->assertStatus(429);
+        self::assertSame($existing->getContent(), $unknown->getContent());
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 3); // 4. zahtjev nije poslao mail
+
+        // Jedna IP adresa, razliciti e-mailovi: gornja granica 20 po satu.
+        $ip = ['REMOTE_ADDR' => '203.0.113.50'];
+        for ($i = 1; $i <= 20; $i++) {
+            $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => "bulk{$i}@example.test"])->assertStatus(302);
+        }
+        $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => 'bulk21@example.test'])->assertStatus(429);
+    }
+
+    public function test_request_work_runs_after_the_response_so_known_and_unknown_look_the_same(): void
+    {
+        Notification::fake();
+        $known = $this->user('del-defer', 'customer');
+        $before = [];
+        // Registrovano prije kontrolera, pa se izvrsava prvo: do tada se ne smije desiti nista sto odaje nalog.
+        $this->app->terminating(static function () use (&$before): void {
+            $before = ['rows' => DB::table('account_deletion_requests')->count()];
+        });
+
+        $known1 = $this->post('/brisanje-naloga', ['email' => 'del-defer@example.test']);
+        self::assertSame(['rows' => 0], $before);
+        self::assertSame(1, DB::table('account_deletion_requests')->count());
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 1);
+
+        $unknown = $this->post('/brisanje-naloga', ['email' => 'nema-me@example.test']);
+        self::assertSame($known1->getStatusCode(), $unknown->getStatusCode());
+        self::assertSame($known1->headers->get('Location'), $unknown->headers->get('Location'));
+        self::assertSame($known1->getContent(), $unknown->getContent());
+        self::assertSame($known1->getSession()->get('status'), $unknown->getSession()->get('status'));
+    }
+
+    // ---- Anonimizacija: ostaci podataka ----------------------------------------
+
+    public function test_anonymisation_removes_notifications_sessions_and_pii_from_security_events(): void
+    {
+        $target = $this->user('del-leftovers', 'customer');
+        $other = $this->user('del-other', 'customer');
+        $this->loginSession($target, '203.0.113.7');
+        DB::table('notifications')->insert([
+            ['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'notifiable_type' => (new User())->getMorphClass(), 'notifiable_id' => $target->id,
+                'data' => json_encode(['customer' => 'Marko', 'email' => 'marko@example.test']), 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'notifiable_type' => (new User())->getMorphClass(), 'notifiable_id' => $other->id,
+                'data' => '{}', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('security_events')->insert([
+            ['user_id' => $target->id, 'event_type' => 'login.failed', 'severity' => 'warning', 'request_id' => 'req-1', 'route_name' => 'login',
+                'ip_address' => '203.0.113.7', 'user_agent' => 'Mozilla', 'context_json' => json_encode(['login' => 'marko@example.test']), 'created_at' => now()],
+            ['user_id' => $other->id, 'event_type' => 'login.failed', 'severity' => 'warning', 'request_id' => 'req-2', 'route_name' => 'login',
+                'ip_address' => '203.0.113.8', 'user_agent' => 'Mozilla', 'context_json' => json_encode(['login' => 'x']), 'created_at' => now()],
+        ]);
+
+        $method = new \ReflectionMethod(\App\Services\UserDeletionService::class, 'anonymize');
+        $method->invoke(app(\App\Services\UserDeletionService::class), (int) $target->id);
+
+        self::assertSame(0, DB::table('notifications')->where('notifiable_id', $target->id)->count());
+        self::assertSame(1, DB::table('notifications')->where('notifiable_id', $other->id)->count());
+        self::assertSame(0, DB::table('user_login_sessions')->where('user_id', $target->id)->count());
+        $event = DB::table('security_events')->where('user_id', $target->id)->first();
+        self::assertNotNull($event, 'Dogadjaj ostaje.');
+        self::assertSame('login.failed', $event->event_type);
+        foreach (['context_json', 'request_id', 'ip_address', 'user_agent'] as $column) {
+            self::assertNull($event->{$column}, $column);
+        }
+        $untouched = DB::table('security_events')->where('user_id', $other->id)->first();
+        self::assertNotNull($untouched->context_json);
+        self::assertSame('req-2', $untouched->request_id);
+    }
+
     // ---- Konacno brisanje (MySQL) -------------------------------------------
 
     public function test_completion_anonymises_identity_but_keeps_business_history(): void
@@ -256,9 +345,7 @@ final class AccountDeletionTest extends TestCase
             self::assertSame(0, DB::table($table)->where('user_id', $target->id)->count(), $table);
         }
         self::assertSame(0, $target->tokens()->count());
-        $session = DB::table('user_login_sessions')->where('user_id', $target->id)->first();
-        self::assertNull($session->ip_address);
-        self::assertNull($session->device_label);
+        self::assertSame(0, DB::table('user_login_sessions')->where('user_id', $target->id)->count());
         $profileAudit = AuditLog::query()->where('action', 'account.profile_updated')->firstOrFail();
         self::assertNull($profileAudit->ip_address);
         self::assertNull($profileAudit->before_json);

@@ -296,6 +296,17 @@ final class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // Zahtjev za brisanje naloga šalje mail trećem licu: gornja granica po IP-u i po adresi (bez IP-a).
+        RateLimiter::for('account-deletion-request', static function (Request $request): array {
+            $email = mb_strtolower(trim((string) ($request->user()?->email ?? $request->input('email', 'guest'))));
+
+            return [
+                Limit::perMinute(3)->by('acct-del|'.hash('sha256', $email.'|'.$request->ip())),
+                Limit::perHour(20)->by('acct-del-ip|'.$request->ip()),
+                Limit::perHour(3)->by('acct-del-mail|'.hash('sha256', $email)),
+            ];
+        });
+
         RateLimiter::for('password-reset', static function (Request $request): Limit {
             $token = (string) $request->input('token', 'missing');
             return Limit::perMinute(5)->by(hash('sha256', $token.'|'.$request->ip()));

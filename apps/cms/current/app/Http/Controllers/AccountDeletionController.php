@@ -152,11 +152,14 @@ final class AccountDeletionController extends Controller
 
     private function start(UserDeletionService $deletions, string $email): void
     {
-        try {
-            $deletions->requestByEmail($email);
-        } catch (Throwable $exception) {
-            Log::error('Account deletion request failed.', ['exception' => $exception::class]);
-        }
+        // Posle odgovora: vrijeme odgovora ne smije odavati da nalog postoji (SMTP traje stotine ms).
+        app()->terminating(static function () use ($deletions, $email): void {
+            try {
+                $deletions->requestByEmail($email);
+            } catch (Throwable $exception) {
+                Log::error('Account deletion request failed.', ['exception' => $exception::class]);
+            }
+        });
     }
 
     private function neutralMessage(): string
