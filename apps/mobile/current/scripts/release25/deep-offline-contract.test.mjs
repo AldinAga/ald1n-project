@@ -60,9 +60,9 @@ test('native npm builds require signed 16KiB release gates; historic Build25 con
  assert.equal(pkg.scripts['submit:android:production'],'node scripts/submit-android-production.mjs');
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@25.0.0'));
  assert.ok(!JSON.stringify(pkg.scripts).includes('eas-cli@24.8.0'));
- assert.equal(eas.cli.version,'27.2.0');
- marker(helper,"const EAS_CLI_VERSION = '27.2.0'");
- marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'27.2.0\'")');
+ assert.equal(eas.cli.version,'27.11.0');
+ marker(helper,"const EAS_CLI_VERSION = '27.11.0'");
+ marker(validator,'productionSubmitHelper505R.includes("const EAS_CLI_VERSION = \'27.11.0\'")');
 });
 
 test('production build and legacy submit remain explicitly fail closed',()=>{
@@ -73,7 +73,7 @@ test('production build and legacy submit remain explicitly fail closed',()=>{
  marker(wf,'      - audit/build25-native-ci-explicit-trigger-20261009');
 });
 test('production Android identity and API remain unchanged',()=>{
- marker(app,"'1.0.0-m17-sdk58-play2'");
+ marker(app,"'1.0.0-m17-sdk58-play3'");
  marker(app,"'1.5.0-native2'");
  marker(app,"ALD1N_V15_RELEASE_GATE === 'approved'");
  marker(app,"'1.0.0'");

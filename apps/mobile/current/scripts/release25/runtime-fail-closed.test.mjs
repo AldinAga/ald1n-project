@@ -16,7 +16,7 @@ const EXPECTED={
  preview:null,
  'ios-simulator':null,
  'm17-sdk58-uat':'1.0.0-m17-sdk58-uat2',
- 'm17-sdk58-play-rc':'1.0.0-m17-sdk58-play2',
+ 'm17-sdk58-play-rc':'1.0.0-m17-sdk58-play3',
  production:null,
  'production-v15-16kb':'1.5.0-native2',
 };
