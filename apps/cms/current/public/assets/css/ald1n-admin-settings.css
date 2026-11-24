@@ -1,6 +1,6 @@
 /* Kobalt G4: stranice pod Podešavanja. Samo --a1-* tokeni, bez heksa i rgba. Author: Ald1n <https://ald1n.com> */
 .a1-set [hidden]{display:none}
-.a1-set code{padding:1px var(--a1-space-4);border-radius:var(--a1-radius-sm);background:var(--a1-button-ghost-hover);color:var(--a1-text-primary);font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere}
+.a1-set code{padding:1px var(--a1-space-4);border-radius:var(--a1-radius-sm);background:var(--a1-button-ghost-hover);color:var(--a1-text-primary);font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:break-word}
 .a1-set p{margin:0}
 .a1-set .a1-card>.a1-h2+.a1-muted,.a1-set .a1-card>div>.a1-h2+.a1-muted{margin-top:var(--a1-space-4)}
 .a1-set-nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8) var(--a1-space-16)}

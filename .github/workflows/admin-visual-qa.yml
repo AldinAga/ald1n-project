@@ -18,6 +18,7 @@ on:
       - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-contrast.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-menu.cjs'
+      - 'apps/cms/current/tests/Browser/lib-inpage-words.cjs'
       - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
   push:
     paths:
@@ -28,6 +29,7 @@ on:
       - 'apps/cms/current/tests/Browser/admin-visual-qa-report.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-contrast.cjs'
       - 'apps/cms/current/tests/Browser/lib-inpage-menu.cjs'
+      - 'apps/cms/current/tests/Browser/lib-inpage-words.cjs'
       - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
   workflow_dispatch:
 permissions:
@@ -112,6 +114,7 @@ jobs:
           node --check tests/Browser/admin-visual-qa-report.cjs
           node --check tests/Browser/lib-inpage-contrast.cjs
           node --check tests/Browser/lib-inpage-menu.cjs
+          node --check tests/Browser/lib-inpage-words.cjs
       - name: Install disposable Chromium and WebKit outside repository
         shell: bash
         env:
