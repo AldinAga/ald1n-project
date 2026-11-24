@@ -15,7 +15,7 @@ final class CorrelatedSpecificationUiContractTest extends TestCase
         $dictionary = (string) file_get_contents($root.'/resources/views/admin/dictionary/fields.blade.php');
         $request = (string) file_get_contents($root.'/app/Http/Requests/ProductRequest.php');
         $service = (string) file_get_contents($root.'/app/Services/SpecificationDependencyService.php');
-        $css = (string) file_get_contents($root.'/public/assets/css/app.css');
+        $css = (string) file_get_contents($root.'/public/assets/css/ald1n-admin-products.css');
 
         self::assertStringContainsString('data-brand-select', $form);
         self::assertStringContainsString('data-line-select', $form);
@@ -28,6 +28,6 @@ final class CorrelatedSpecificationUiContractTest extends TestCase
         self::assertStringContainsString('Izabrana opcija nije povezana sa roditeljskim izborom.', $request);
         self::assertStringContainsString('assertNoCycle', $service);
         self::assertStringContainsString('clearParentDependenciesForField', $service);
-        self::assertStringContainsString('.spec-field-group.is-dependency-empty{display:none}', $css);
+        self::assertStringContainsString('.a1-pc-specfield.is-dependency-empty{display:none}', $css);
     }
 }
