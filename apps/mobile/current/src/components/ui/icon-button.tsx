@@ -38,7 +38,7 @@ export function IconButton({
       justifyContent="center"
       opacity={disabled ? 0.48 : 1}
       transition="quickLessBouncy"
-      focusStyle={{ borderColor: '$focusRing', borderWidth: 3 }}
+      focusStyle={{ borderColor: '$focusRing' }}
       pressStyle={{
         scale: 0.94,
         backgroundColor: '$brandContainer',

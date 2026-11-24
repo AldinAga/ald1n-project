@@ -120,9 +120,13 @@ test('M3: danger Button and danger Pill use dangerFill keys and never wrap mid-w
   assert.match(button, /background: '\$dangerFill'[\s\S]*text: '\$onDangerFill'/);
   assert.match(pill, /dangerSolid: \{\s*background: '\$dangerFill',\s*text: '\$onDangerFill'/);
   for (const [name, src] of [['button', button], ['pill', pill]]) {
-    assert.match(src, /numberOfLines=\{1\}/, name + ' label must be single line');
+    const lines = Number(src.match(/numberOfLines=\{(\d)\}/)?.[1]);
+    assert.ok(lines >= 2 && lines <= 3, name + ' label is limited to 2-3 lines (wraps at spaces only)');
     assert.match(src, /ellipsizeMode="tail"/, name + ' label must ellipsize');
+    assert.doesNotMatch(src, /textBreakStrategy|lineBreakMode="(char|clip)|wordBreak|break-all/i, name + ' must not break words by character');
   }
+  assert.match(button, /adjustsFontSizeToFit/);
+  assert.match(button, /focusStyle=\{\{ borderColor: '\$focusRing' \}\}/, 'focus must not change the border width');
   assert.match(pill, /flexShrink=\{0\}/);
   assert.match(button, /minHeight=\{controlHeight\}/);
 });

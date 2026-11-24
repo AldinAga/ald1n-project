@@ -5,7 +5,6 @@ import type {
 import { Button as TamaguiButton, Spinner, Text } from 'tamagui';
 import {
   controlHeight,
-  focusRing,
   radii,
   shadowThemes,
   spacing,
@@ -89,17 +88,18 @@ export function Button({
         scale: 0.975,
         opacity: 0.94,
       }}
-      focusStyle={{
-        borderColor: '$focusRing',
-        borderWidth: focusRing.width,
-      }}
+      // Colour only: a wider border would shift the content on focus.
+      focusStyle={{ borderColor: '$focusRing' }}
       style={[variant === 'primary' && !isDisabled ? { boxShadow: shadowThemes[scheme].button } : null, style]}
     >
       {loading ? (
         <Spinner color={palette.text} />
       ) : (
         <Text
-          numberOfLines={1}
+          // Wraps only at spaces (RN never breaks inside a word that fits); at most 2 lines, then shrinks to 0.8x, then ellipsis.
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
           ellipsizeMode="tail"
           flexShrink={1}
           fontSize={typography.label.fontSize}

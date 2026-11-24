@@ -8,7 +8,7 @@ import { Input, Text, YStack } from 'tamagui';
 
 import { KeyboardScrollContext } from '@/components/layout/keyboard-scroll-context';
 
-import { controlHeight, focusRing, radii, spacing, typography } from '@/constants/theme';
+import { controlHeight, radii, spacing, typography } from '@/constants/theme';
 
 type TamaguiInputProps = ComponentProps<typeof Input>;
 
@@ -36,6 +36,9 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
     return (
       <YStack gap={spacing.sm}>
         <Text
+          // The input carries the label; hide this copy so TalkBack does not read it twice.
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
           paddingHorizontal={spacing.xs}
           fontSize={typography.label.fontSize}
           lineHeight={typography.label.lineHeight}
@@ -61,7 +64,6 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
           transition="100ms"
           focusStyle={{
             borderColor: error ? '$danger' : '$focusRing',
-            borderWidth: focusRing.width,
             backgroundColor: '$surface',
           }}
           style={style}

@@ -77,7 +77,7 @@ export function Pill({
       transition="100ms"
     >
       <Text
-        numberOfLines={1}
+        numberOfLines={2}
         ellipsizeMode="tail"
         flexShrink={1}
         fontSize={typography.small.fontSize}
