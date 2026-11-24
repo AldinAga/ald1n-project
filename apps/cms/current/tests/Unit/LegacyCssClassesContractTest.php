@@ -27,18 +27,11 @@ final class LegacyCssClassesContractTest extends TestCase
         'admin/dictionary/fields',
         'admin/dictionary/index',
         'admin/dictionary/product-type',
-        'admin/products/form',
         'admin/reports/index',
-        'catalog/show',
-        'layouts/app',
-        'public/assets/js/ald1n-liquid-glass-r3.js',
-        'public/assets/js/ux-runtime.js',
     ];
 
     /** Files (relative to the CMS root) that still use an old custom property. Shrink only. */
-    private const VAR_ALLOWLIST = [
-        'resources/views/layouts/app.blade.php',
-    ];
+    private const VAR_ALLOWLIST = [];
 
     private const VAR_PATTERN = '/var\(\s*--(?:primary|line|bg|panel|ald-[\w-]+|lg5-[\w-]+|lg2-[\w-]+)\b/';
 
