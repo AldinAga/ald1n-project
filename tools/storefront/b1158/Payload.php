@@ -18,7 +18,6 @@ final class B1158Payload
         ['resources/views/admin/products/partials/styles.blade.php','new','A','M'],
         ['resources/views/components/icon-action-pill.blade.php','new','A','M'],
         ['database/migrations/2026_11_24_000001_add_catalog_view_notes_permission.php','new','A','M'],
-        ['MANIFEST-SHA256.txt','modified','B','M'],
         ['app/Console/Commands/CmsV214DoctorCommand.php','modified','B','M'],
         ['app/Console/Commands/CmsV215DoctorCommand.php','modified','B','M'],
         ['app/Console/Commands/DeploymentCheckCommand.php','modified','B','M'],
@@ -134,7 +133,6 @@ final class B1158Payload
         'resources/views/admin/products/partials/styles.blade.php'=>[NULL,'99b1022a97c4125d5f7f764408b3d5372b55b0d2cf58524e4d8e1a39dc74a005'],
         'resources/views/components/icon-action-pill.blade.php'=>[NULL,'bb3f2a48bdf48c8cc6871c087813a393ab7b449e920621d65cf360c954b434a9'],
         'database/migrations/2026_11_24_000001_add_catalog_view_notes_permission.php'=>[NULL,'00b988b693b96c257c1ccfb6857b379a231652ff86c2c799d12e1a975010c083'],
-        'MANIFEST-SHA256.txt'=>['115afe66a1363167521cdb5e18f8bae6de58a855d59a5a9d35a4a8d95f0ddd8b','1bf81987734d009504591b17920583eacad4eebce1c40231faa40a0739cb4233'],
         'app/Console/Commands/CmsV214DoctorCommand.php'=>['d7ec70eb8d5ce39efa488a371f2a83df271da350d7dea4dab58a23efc44a7819','38eb9471acdcc2ab1a7d43bdd580db98d90449c6da542101ad23a5bb930586d0'],
         'app/Console/Commands/CmsV215DoctorCommand.php'=>['0de4d4d84d9b34b6035f0aea529ec7e77e045d4a37792372e9f678cd2ab9f090','596c2308ebf9b4137861ed4516d365287c21d363c26b59dabba1796e02ca0875'],
         'app/Console/Commands/DeploymentCheckCommand.php'=>['3bd95e4074153329312a64acea91ecf001fab413361d1c7b8fb1fd26a04c9ac1','0793becb3145bf32ebc4c8d1c2cba276f8fdd6782d795b10b5a3d6a2a34ee3f0'],
@@ -783,15 +781,20 @@ final class B1158Payload
     public const TIGHT_ORDER=array (
 );
     public const EXCLUDED_FILES=array (
+  'MANIFEST-SHA256.txt' => 
+  array (
+    0 => '115afe66a1363167521cdb5e18f8bae6de58a855d59a5a9d35a4a8d95f0ddd8b',
+    1 => '1bf81987734d009504591b17920583eacad4eebce1c40231faa40a0739cb4233',
+  ),
   'composer.lock' => 
   array (
     0 => '4937d2e652bd41f83005faebfa5f238e4425db3a02506985695b4f3da2b8613b',
     1 => '14c8674060018b8155afb06accaa2b523b5e1018b476eadd507c36263d8bdb68',
   ),
 );
-    public const FILES=114;
+    public const FILES=113;
     public const NEW_FILES=10;
-    public const MODIFIED_FILES=104;
+    public const MODIFIED_FILES=103;
     public const TREE_FILES_AFTER=8630;
     public const TREE_FILES_BEFORE=8620;
     public const CHAIN_REPORT_SHA256='62f1789cefa18f418effc34b8581459e5e0afb13da55d046d1dbfe234363338f';

@@ -214,7 +214,7 @@ $whole=$diff($base,$payloadCommit);$deleted=[];
 foreach(array_keys($whole) as $p){
     if(!str_starts_with($p,CMS))throw new RuntimeException('PACKAGE_DIFF_OUTSIDE_CMS_'.$p);
     $r=substr($p,strlen(CMS));
-    if($r==='composer.lock'&&isset(B1158Payload::EXCLUDED_FILES[$r])){$excluded[]=$p;unset($whole[$p]);continue;}
+    if(isset(B1158Payload::EXCLUDED_FILES[$r])){$excluded[]=$p;unset($whole[$p]);continue;}
     if(preg_match('~^(config/|composer\.|\.env)~',$r)===1)throw new RuntimeException('PACKAGE_CONFIG_COMPOSER_ENV_CHANGE_STOP_AND_REPORT_'.$p);
     if(str_starts_with($r,'database/')&&!str_starts_with($r,'database/migrations/')&&!preg_match('~^database/seeders/[A-Za-z0-9_/]+\.php$~D',$r))throw new RuntimeException('PACKAGE_DATABASE_CHANGE_OTHER_THAN_A_MIGRATION_STOP_AND_REPORT_'.$p);
     if(str_starts_with($r,'database/migrations/')&&!in_array($r,DR::migrationFiles(),true))throw new RuntimeException('PACKAGE_UNEXPECTED_MIGRATION_STOP_AND_REPORT_'.$p);

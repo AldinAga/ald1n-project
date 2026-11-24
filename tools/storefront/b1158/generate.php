@@ -34,6 +34,8 @@ ksort($diff,SORT_STRING);
 $excludedFiles=[];$orphansBefore=defined($P.'::ORPHANS_ALL')?constant($P.'::ORPHANS_ALL'):array_merge(CommissionsInstallCoordinator::ORPHANS,$P::ORPHANS);$new=[];$mod=[];$orph=[];
 foreach($diff as $p=>$k){
     if(str_starts_with($p,'tests/')||str_starts_with($p,'docs/'))continue;
+    // A path outside the runtime manifest roots (e.g. MANIFEST-SHA256.txt at the root of apps/cms/current) is not on the host at all: excluded and reported, never shipped.
+    if(preg_match('~^(app|bootstrap|config|database/(migrations|seeders)|resources|routes|public|bin)/|^(artisan|composer\.json|composer\.lock|VERSION|RELEASE-TAG|CHANGELOG\.md)$~D',$p)!==1){$h=static fn(string $c)=>($bb=$git(['show',$c.':'.CMS.$p],false))===null?null:hash('sha256',$bb);$excludedFiles[$p]=[$k==='A'?null:$h($base),$k==='D'?null:$h($src)];fwrite(STDERR,'WARNING '.$p.' is outside the runtime manifest roots: EXCLUDED from the payload'.PHP_EOL);continue;}
     // composer.lock is NOT installed (the vendor tree stays as it is on the host): excluded and reported, never shipped. Any other composer, config or .env change stops the build.
     if($p==='composer.lock'){$excludedFiles[$p]=[hash('sha256',$blob($base,$p)),hash('sha256',$blob($src,$p))];fwrite(STDERR,'WARNING composer.lock differs between the base and the target: it is EXCLUDED from the payload, the vendor tree on the host is NOT updated; check that the code does not need the newer vendor versions'.PHP_EOL);continue;}
     if(preg_match('~^(config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('GENERATE_FORBIDDEN_PATH_'.$p);

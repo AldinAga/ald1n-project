@@ -394,7 +394,7 @@ jobs:
           echo "STEPS=$steps NEW=$nnew MODIFIED=$nmod ORPHANS=$norph"
           test "$steps" -gt 0
           echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
-          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vE $'\tapps/cms/current/((tests|docs)/|composer\\.lock$)' | tee "$RUNNER_TEMP/source-diff.txt"
+          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vE $'\tapps/cms/current/((tests|docs)/|composer\\.lock$|MANIFEST-SHA256\\.txt$)' | tee "$RUNNER_TEMP/source-diff.txt"
           test "$(grep -vc $'^D\t' "$RUNNER_TEMP/source-diff.txt")" = "$steps"
           test "$(cut -f2 "$RUNNER_TEMP/source-diff.txt" | sort | uniq -d | wc -l)" = 0
           test "$(grep -c $'^A\t' "$RUNNER_TEMP/source-diff.txt")" = "$nnew"
