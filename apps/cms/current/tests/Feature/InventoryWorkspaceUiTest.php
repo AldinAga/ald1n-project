@@ -23,12 +23,8 @@ final class InventoryWorkspaceUiTest extends TestCase
 
     public function test_inventory_css_contains_no_vertical_table_scroll_and_mobile_card_layout(): void
     {
-        $css = (string) file_get_contents(public_path('assets/css/app.css'));
-
-        $this->assertStringContainsString('v2.1.0-beta5 - inventory workspace responsive redesign', $css);
-        $this->assertStringContainsString('max-height:none!important', $css);
-        $this->assertStringContainsString('overflow-y:visible!important', $css);
-        $this->assertStringContainsString('.inventory-meta-grid', $css);
-        $this->assertStringContainsString('.inventory-data-table td{display:grid!important', $css);
+        // G7: the old app.css assertions (inventory-meta-grid, max-height overrides) were about the old stylesheet only;
+        // the Cobalt card layout below is the contract that remains.
+        $this->assertStringContainsString('.a1-table--cards td::before{content:attr(data-label)', (string) file_get_contents(public_path('assets/css/ald1n-admin.css')));
     }
 }

@@ -13,7 +13,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const source=readFileSync(path.join(root,'scripts/release27/signed-16kb-sdk58-aab-gate.mjs'),'utf8');
 const pkg=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8'));
 const eas=JSON.parse(readFileSync(path.join(root,'eas.json'),'utf8'));
-const RUNTIME='1.0.0-m17-sdk58-play2';
+const RUNTIME='1.0.0-m17-sdk58-play3';
 
 function fixture(callback) {
   const dir=mkdtempSync(path.join(os.tmpdir(),'ald1n-sdk58-aab-args-'));
@@ -36,11 +36,11 @@ function fixture(callback) {
 function parse(a){return parseReleaseArgs(Object.entries(a).flatMap(([k,v])=>['--'+k,v]))}
 
 test('SDK58 Play binary gate is distinct from old v1.5 source-only gate',()=>{
- assert.equal(pkg.dependencies.expo,'~58.0.25');
+ assert.equal(pkg.dependencies.expo,'~58.0.26');
  assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
  assert.equal(pkg.dependencies['react-native-nitro-modules'],'0.37.1');
  assert.equal(pkg.packageManager,'npm@12.2.1');
- assert.equal(eas.cli.version,'27.2.0');
+ assert.equal(eas.cli.version,'27.11.0');
  assert.equal(eas.build['m17-sdk58-play-rc'].android.buildType,'app-bundle');
  assert.ok(source.includes("const EXPECTED_VERSION = '1.0.0'"));
  assert.ok(source.includes("const EXPECTED_RUNTIME = '"+RUNTIME+"'"));

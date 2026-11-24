@@ -44,10 +44,19 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         self::assertStringContainsString('data-order-detail-ready="1"', $root);
         self::assertSame(1, substr_count($root, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0001</h1>', $root);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(1, substr_count($root, 'a1-btn--primary'), 'exactly one primary action');
-        // New, unaccepted order: the primary action is the real accept form, not a link.
-        self::assertMatchesRegularExpression('~<form id="order-workspace-accept" method="post" action="[^"]+/admin/orders/'.$order->id.'/accept">.{0,400}a1-btn a1-btn--primary~s', $root);
+        // Nova porudžbina: glavna akcija je prava forma "Potvrdi porudžbinu" (token svežine + jedan korak), nikad "Preuzmi".
+        self::assertMatchesRegularExpression('~<form id="order-confirm-form" method="post" action="[^"]+/admin/orders/'.$order->id.'/confirm">.{0,800}a1-btn a1-btn--primary" type="submit">.{0,600}Potvrdi porudžbinu\s*</button>~s', $root);
+        self::assertStringContainsString('name="order_version_token" value="'.app(\App\Services\OrderVersionService::class)->token($order->fresh()).'"', $root);
+        self::assertStringNotContainsString('Preuzmi', $root);
+        self::assertStringNotContainsString('/accept"', $root);
+        // Sekundarne akcije u kartici "Sledeći korak": ista potvrda (atribut form), otkazivanje sa obaveznim razlogom i potvrdom.
+        self::assertStringContainsString('id="order-confirm"', $root);
+        self::assertMatchesRegularExpression('~<textarea class="a1-textarea" id="od-confirm-note" name="note" form="order-confirm-form"~', $root);
+        self::assertMatchesRegularExpression('~<summary id="order-cancel">.*?<form method="post" action="[^"]+/admin/orders/'.$order->id.'/cancel".*?name="reason"[^>]*required.*?data-confirm="Otkazati porudžbinu ODM3-0001\?~s', $root);
+        self::assertStringContainsString('href="#order-cancel">Otkaži porudžbinu</a>', $root);
+        self::assertStringContainsString('Porudžbina čeka potvrdu', $root);
 
         // Status and payment state are dot plus text pills.
         self::assertMatchesRegularExpression('~a1-pill a1-pill--warning">Nova</span>~', $root);
@@ -98,26 +107,31 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         $html = (string) $this->actingAs($super)->get('/admin/orders/'.$order->id)->assertOk()->getContent();
         $root = $this->root($html);
 
+        // Jedna kartica "Isporuka" (odluka 7): način isporuke bira korak; nema dva ravnopravna dugmeta za potvrdu.
         self::assertStringContainsString('id="order-workspace-logistics-actions" data-logistics-actions', $root);
-        self::assertMatchesRegularExpression('~data-logistics-action="shipment" aria-controls="order-workspace-shipment-entry" aria-expanded="false"~', $root);
-        self::assertMatchesRegularExpression('~data-logistics-action="delivery" aria-controls="delivery-completion" aria-expanded="false"~', $root);
-        // Both panels start hidden and are shown by the script; #delivery-completion is the anchor the list page links to.
-        self::assertMatchesRegularExpression('~id="order-workspace-shipment-entry" aria-labelledby="od-shipentry-title"\s+hidden\s*>~', $root);
-        self::assertMatchesRegularExpression('~<section id="delivery-completion" class="[^"]*a1-od-toggle" data-logistics-panel="delivery" aria-labelledby="od-del-title"\s+hidden\s*>~', $root);
-        self::assertMatchesRegularExpression('~enctype="multipart/form-data" class="a1-form" data-shipment-form~', $root);
-        self::assertStringContainsString('data-shipment-method', $root);
+        self::assertStringContainsString('<h2 class="a1-h2" id="od-logistics-title">Isporuka</h2>', $root);
+        self::assertSame(1, substr_count($root, 'id="order-workspace-logistics-actions"'));
+        self::assertStringNotContainsString('data-logistics-action="', $root);
+        self::assertMatchesRegularExpression('~<select class="a1-select" id="od-method-switch" data-delivery-method-switch>.*?<option value="courier" selected>Kurirska služba</option>.*?<option value="own_transport"[^>]*>Sopstvena dostava</option>.*?<option value="customer_pickup"[^>]*>Lično preuzimanje</option>~s', $root);
+        // Kurir je podrazumevan: korak slanja je vidljiv, korak isporuke skriven dok se ne izabere drugi način ili ne stigne pošiljka.
+        self::assertMatchesRegularExpression('~data-shipment-form data-logistics-panel="shipment" id="order-workspace-shipment-entry" aria-label="Pošiljka je poslata"\s*>~', $root);
+        self::assertMatchesRegularExpression('~id="delivery-completion" method="post" action="[^"]+/complete" enctype="multipart/form-data" data-logistics-panel="delivery" aria-label="Potvrdi isporuku"\s+hidden\s*>~', $root);
+        self::assertStringContainsString('<input type="hidden" name="shipment_method" value="courier" data-shipment-method>', $root);
         self::assertStringContainsString('data-courier-field', $root);
         self::assertStringContainsString('data-tracking-field', $root);
-        self::assertStringContainsString('data-confirm="Potvrditi da je pošiljka poslata? Ova akcija ne potvrđuje isporuku niti naplatu."', $root);
-        self::assertStringContainsString('data-confirm="Potvrditi da je pošiljka isporučena? Ova akcija kompletira porudžbinu."', $root);
-        // The "next step" band keeps its anchor id (an unaccepted order points at accepting it first).
+        self::assertMatchesRegularExpression('~name="tracking_number"[^>]*required~', $root);
+        self::assertStringContainsString('data-confirm="Potvrditi da je pošiljka poslata? Ovo ne potvrđuje isporuku niti naplatu."', $root);
+        self::assertStringContainsString('data-confirm="Potvrditi isporuku? Račun se izdaje automatski, a garancija teče od datuma isporuke."', $root);
+        // Naplata nije uslov isporuke: dugme je ponuđeno i za neplaćenu uplatu na račun, a uz njega je prečica ka uplati.
+        self::assertStringContainsString('data-delivery-payment-shortcut', $root);
+        self::assertStringContainsString('Uplata nije uslov isporuke.', $root);
+        self::assertStringNotContainsString('Potvrdi da je pošiljka isporučena', $root);
+        // The "next step" band keeps its anchor id (a confirmed, unshipped order points at the shipment step).
         self::assertStringContainsString('id="order-workspace-command"', $root);
-        self::assertStringContainsString('Preuzmi je za obradu.', $root);
+        self::assertStringContainsString('Sledeći korak je slanje pošiljke', $root);
         // The inline script keeps its CSP nonce and its behaviour.
-        self::assertMatchesRegularExpression('/<script nonce="[^"]+">\s*\(\(\) => \{\s*const logisticsButtons/', $html);
+        self::assertMatchesRegularExpression('/<script nonce="[^"]+">\s*\(\(\) => \{\s*\/\/ Kartica/', $html);
         self::assertSame(0, preg_match('/\sonclick=|\sonchange=/i', $root));
-        // The route that the list page used still has its own button text.
-        self::assertStringContainsString('Potvrdi da je pošiljka isporučena', $root);
     }
 
     public function test_superadmin_only_blocks_are_absent_for_an_administrator(): void
@@ -130,13 +144,20 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         $asSuper = $this->root((string) $this->actingAs($super)->get('/admin/orders/'.$order->id)->assertOk()->getContent());
         $asAdmin = $this->root((string) $this->actingAs($admin)->get('/admin/orders/'.$order->id)->assertOk()->getContent());
 
-        // Positive controls: both roles got the full page, the buyer card and the manual status form.
+        // Positive controls: both roles got the full page, the buyer card and the one-step confirm.
         foreach ([$asSuper, $asAdmin] as $page) {
             self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0004</h1>', $page);
             self::assertStringContainsString('id="order-workspace-customer"', $page);
-            self::assertStringContainsString('id="order-workspace-status"', $page);
+            self::assertStringContainsString('id="order-confirm-form"', $page);
             self::assertSame(1, substr_count($page, 'a1-btn--primary'));
         }
+        // "Ručna promena statusa" je samo za superadmina, i nudi samo prelaze iz trenutnog statusa (Nova: potvrđena, otkazana).
+        self::assertStringContainsString('id="order-workspace-status"', $asSuper);
+        self::assertStringNotContainsString('id="order-workspace-status"', $asAdmin);
+        self::assertStringNotContainsString('Ručna promena statusa', $asAdmin);
+        self::assertMatchesRegularExpression('~<select class="a1-select" id="od-status" name="status" required>\s*<option value="" selected disabled>Sada: Nova</option>\s*<option value="confirmed">Potvrđena</option>\s*<option value="cancelled">Otkazana</option>\s*</select>~', $asSuper);
+        self::assertStringNotContainsString('value="processing"', $asSuper);
+        self::assertStringNotContainsString('value="new"', $asSuper);
         // Reassignment and courier tracking are superadministrator-only.
         self::assertStringContainsString('id="order-workspace-reassign"', $asSuper);
         self::assertStringContainsString('<dt>Kurirska služba</dt>', $asSuper);

@@ -88,7 +88,9 @@ final class OrderReportService
             $query->whereNotNull('completed_at');
         } elseif ($status === 'shipped') {
             $query->where('status', 'shipped')->whereNull('completed_at');
-        } elseif (in_array($status, ['new', 'processing', 'confirmed', 'cancelled'], true)) {
+        } elseif (in_array($status, ['new', 'processing'], true)) {
+            $query->whereIn('status', ['new', 'processing'])->whereNull('completed_at');
+        } elseif (in_array($status, ['confirmed', 'cancelled'], true)) {
             $query->where('status', $status)->whereNull('completed_at');
         }
         if (in_array($filters['payment_status'] ?? null, ['pending', 'paid', 'cancelled'], true)) {

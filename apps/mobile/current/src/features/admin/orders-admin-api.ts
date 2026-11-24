@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { File } from 'expo-file-system';
 
 import { apiExpoMultipartRequest, apiRequest, queryString } from '@/lib/api/client';
@@ -162,7 +163,7 @@ export type AdminOrderDocumentMutationResponse = {
 };
 
 // MOBILE_V0_7_ORDERS_ADMIN_MUTATION_UI_BATCH7
-export type AdminOrderStatus = 'new' | 'processing' | 'confirmed' | 'cancelled';
+export type AdminOrderStatus = 'confirmed' | 'cancelled';
 export type AdminOrderShipmentMethod = 'courier' | 'own_transport' | 'other';
 export type AdminOrderDeliveryMethod = 'own_transport' | 'courier' | 'customer_pickup' | 'other';
 export type AdminOrderPaymentEntryType = 'payment' | 'refund';
@@ -193,6 +194,8 @@ export type AdminOrderMutationResult = {
 export type AdminOrderStatusInput = {
   status: AdminOrderStatus;
   note?: string | null;
+  /** Obavezan kad je status 'cancelled' (backend vraća 422 na polju reason). */
+  reason?: string;
   order_version_token?: string | null;
 };
 
@@ -215,6 +218,7 @@ export type AdminOrderPaymentEntryInput = {
   paid_at: string;
   reference?: string | null;
   note?: string | null;
+  idempotency_key: string;
 };
 
 // MOBILE_V0_8_SHIPMENT_COURIER_DIRECTORY_BATCH11
@@ -326,8 +330,6 @@ export const apiAdminOrders = {
   purgeArchived: (orderId: number, input: { confirmation: string; purge_reason: string }) =>
     apiRequest<AdminOrderArchivePurgeResponse> (`admin/orders/archived/${orderId}/purge`, { method: 'DELETE', body: input }),  status: (orderId: number, input: AdminOrderStatusInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/status`, { method: 'PATCH', body: input }),
-  accept: (orderId: number) =>
-    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/accept`, { method: 'POST' }),
   internalNote: (orderId: number, note: string) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/internal-notes`, { method: 'POST', body: { note } }),
   reassign: (orderId: number, input: AdminOrderReassignInput) =>
@@ -341,7 +343,7 @@ export const apiAdminOrders = {
   salePriceCorrection: (orderId: number, input: AdminOrderSalePriceCorrectionInput) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/sale-price`, { method: 'PATCH', body: input }),
   paymentStore: (orderId: number, input: AdminOrderPaymentEntryInput) =>
-    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments`, { method: 'POST', body: input }),
+    apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments`, { method: 'POST', body: { ...input, idempotency_key: input.idempotency_key ?? Crypto.randomUUID() } }),
   paymentVerify: (orderId: number, paymentId: number) =>
     apiRequest<AdminOrderMutationResult> (`admin/orders/${orderId}/payments/${paymentId}/verify`, { method: 'POST' }),
   paymentReject: (orderId: number, paymentId: number, reason: string) =>

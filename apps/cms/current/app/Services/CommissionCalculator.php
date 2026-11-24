@@ -54,15 +54,9 @@ final class CommissionCalculator
             return false;
         }
 
-        $normalizedCurrency = strtoupper(trim($currency));
-        if ($normalizedCurrency === 'RSD' && ($eurRsdRate === null || $eurRsdRate <= 0.0)) {
-            return false;
-        }
-        if (!in_array($normalizedCurrency, ['EUR', 'RSD'], true)) {
-            return false;
-        }
-
-        return true;
+        // Ručni iznos je već u EUR: bez kursa se čuva takav kakav jeste (ranije je pao na automatski obračun = 0,00).
+        // Porudžbina sa takvom stavkom čeka kurs pre nego što provizija postane dospela (CommissionEligibilityService).
+        return in_array(strtoupper(trim($currency)), ['EUR', 'RSD'], true);
     }
 
     private function priceEur(float $priceAmount, string $currency, ?float $eurRsdRate): float

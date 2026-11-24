@@ -44,7 +44,6 @@ final class ProductAnnouncementService
             return 0;
         }
 
-        $product->loadMissing('primaryImage');
         $interval = max(0, min(1440, (int) $this->settings->get('product_email_new_items_interval_minutes', '0')));
         $scheduledFor = now()->addMinutes($interval);
         $subject = $this->truncate('Novi artikal: '.trim((string) $product->name), 255);
@@ -173,12 +172,13 @@ final class ProductAnnouncementService
 
         $event = 'product.published.'.(int) $product->id;
         $route = '/product/'.rawurlencode($slug);
+        $imageUrl = $this->absoluteImageUrl($product);
 
         User::query()
             ->where('status', 'active')
             ->whereHas('notificationPreference', static fn ($query) => $query->where('push_enabled', true))
             ->orderBy('id')
-            ->chunkById(200, function ($recipients) use ($event, $route, $product): void {
+            ->chunkById(200, function ($recipients) use ($event, $route, $imageUrl, $product): void {
                 foreach ($recipients as $recipient) {
                     try {
                         $alreadyQueued = MobilePushOutbox::query()
@@ -193,6 +193,7 @@ final class ProductAnnouncementService
                             'title' => 'Novi artikal u katalogu',
                             'message' => (string) $product->name,
                             'route' => $route,
+                            'image_url' => $imageUrl,
                             'icon' => 'catalog',
                             'severity' => 'info',
                         ]);
@@ -211,9 +212,15 @@ final class ProductAnnouncementService
                 }
             });
     }
-    private function absoluteImageUrl(Product $product): ?string
+    /**
+     * Prva slika artikla (glavna ako postoji, inače po redosledu) kao apsolutni potpisani URL
+     * koji ne traži prijavu. Javno i za slanje: dispatcher ga osvježava ako je slika dodata kasnije.
+     */
+    public function absoluteImageUrl(Product $product): ?string
     {
-        $imageUrl = trim((string) ($product->primaryImage?->url ?? ''));
+        // images() je već sortirano: glavna slika, pa sort_order, pa id. Učitana relacija izbjegava upit po artiklu.
+        $first = $product->relationLoaded('images') ? $product->images->first() : $product->images()->first();
+        $imageUrl = trim((string) ($first?->url ?? ''));
         if ($imageUrl === '') return null;
         return Str::startsWith($imageUrl, ['http://', 'https://']) ? $imageUrl : url($imageUrl);
     }

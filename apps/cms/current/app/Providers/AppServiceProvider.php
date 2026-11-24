@@ -181,6 +181,8 @@ final class AppServiceProvider extends ServiceProvider
         Gate::before(static function (User $user, string $ability): ?bool {
             // A role-wide grant must not resurrect personal purchases for the operator.
             if ($user->isPersonalOrderRestricted($ability)) return false;
+            // backups.manage / automation.manage: samo SuperAdministrator, kao SMTP.
+            if ($user->isSuperadminOnlyRestricted($ability)) return false;
             if ($user->hasRole('superadmin', 'admin')) {
                 return true;
             }
@@ -190,6 +192,7 @@ final class AppServiceProvider extends ServiceProvider
 
         Gate::define('catalog.view', static fn (User $user): bool => $user->hasPermission('catalog.view'));
         Gate::define('catalog.view_prices', static fn (User $user): bool => $user->hasPermission('catalog.view_prices'));
+        Gate::define('catalog.view_notes', static fn (User $user): bool => $user->hasPermission('catalog.view_notes'));
         Gate::define('orders.create', static fn (User $user): bool => $user->hasPermission('orders.create'));
         Gate::define('orders.view_own', static fn (User $user): bool => $user->hasPermission('orders.view_own'));
         Gate::define('orders.cancel_own', static fn (User $user): bool => $user->hasPermission('orders.cancel_own'));
@@ -293,6 +296,12 @@ final class AppServiceProvider extends ServiceProvider
                 Limit::perHour(10)->by($key),
             ];
         });
+
+        // Javni zahtjev za brisanje naloga: samo gornja granica po IP-u. Limit po nalogu (pauza 10 min, 3 slanja dnevno)
+        // je u UserDeletionService i broji samo stvarna slanja, pa tuđa adresa u formi ne troši ničiji limit ovdje.
+        RateLimiter::for('account-deletion-request', static fn (Request $request): Limit => Limit::perHour(20)->by('acct-del-ip|'.$request->ip()));
+        // Prijavljen korisnik: sopstveni ključ po user_id, odvojen od javne forme.
+        RateLimiter::for('account-deletion-own', static fn (Request $request): Limit => Limit::perHour(10)->by('acct-del-own|'.$request->user()?->getAuthIdentifier()));
 
         RateLimiter::for('password-reset', static function (Request $request): Limit {
             $token = (string) $request->input('token', 'missing');

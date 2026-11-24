@@ -15,6 +15,11 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
+/**
+ * Namjerno: svaki Administrator i SuperAdministrator vidi i vodi sve razgovore sa kupcima
+ * (nema vezivanja za dodijeljenog radnika), da se upit kupca ne izgubi kad je neko odsutan.
+ * Ne sužavati vidljivost bez odluke vlasnika; vidi docs/ARCHITECTURE.md.
+ */
 final class PortalConversationController extends Controller
 {
     public function show(

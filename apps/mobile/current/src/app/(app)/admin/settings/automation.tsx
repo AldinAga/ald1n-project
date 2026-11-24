@@ -31,7 +31,7 @@ export default function AdminAutomationSettingsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const feedback = useAppFeedback();
   const client = useQueryClient();
-  const allowed = can('system.manage_settings');
+  const allowed = can('automation.manage');
   const query = useQuery({ queryKey: adminQueryKeys.systemSettingsAutomation(), queryFn: apiAdminSystemSettings.automation.state, enabled: allowed });
   const [values, setValues] = useState<Record<string, string>>({});
   const [digest, setDigest] = useState(false);

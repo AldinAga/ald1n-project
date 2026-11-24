@@ -171,8 +171,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $workflow=app(\App\Services\OrderWorkflowService::class);
         $versions=app(\App\Services\OrderVersionService::class);
 
-        $processing=$workflow->changeStatus($order,'processing',$admin);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+        $confirmed=$workflow->changeStatus($order,'confirmed',$admin,null,$versions->token($order));
         $courier=\App\Models\CourierService::query()->create([
             'name'=>'B800 Sinteticki Kurir','slug'=>'b800-synthetic-retail-courier',
             'tracking_url'=>'https://tracking.example.test/order',
@@ -264,7 +263,7 @@ final class PublicRetailCheckoutB799Test extends TestCase
             ->assertSee($note->document_number);
     }
 
-    public function test_unpaid_guest_bank_transfer_cannot_be_completed_or_fabricate_a_payment(): void
+    public function test_unpaid_bank_transfer_is_delivered_without_a_payment_with_warranty_from_delivery_and_paid_later(): void
     {
         $this->enableSyntheticWarrantyRule();
         $account=BankAccount::query()->create([
@@ -283,28 +282,25 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $admin=User::query()->where('username','b799-retail-admin')->firstOrFail();
         $workflow=app(\App\Services\OrderWorkflowService::class);
         $versions=app(\App\Services\OrderVersionService::class);
-        $processing=$workflow->changeStatus($order,'processing',$admin);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$versions->token($processing));
+        $confirmed=$workflow->changeStatus($order,'confirmed',$admin,null,$versions->token($order));
 
-        try {
-            $workflow->complete($confirmed,$admin,[
-                'delivery_method'=>'own_transport',
-                'delivered_at'=>now()->subMinute()->toDateTimeString(),
-            ]);
-            self::fail('Unpaid transfer must not be completed automatically.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            self::assertArrayHasKey('completion',$e->errors());
-        }
-        self::assertNull($order->fresh()->completed_at);
+        // Isporuka je odvojena od naplate: neplaćen prenos se isporučuje, dug ostaje otvoren, a garancija teče od isporuke.
+        $deliveredAt=now()->subMinute()->toDateTimeString();
+        $delivered=$workflow->complete($confirmed,$admin,[
+            'delivery_method'=>'own_transport','delivered_at'=>$deliveredAt,
+        ]);
+        self::assertNotNull($delivered->completed_at);
         self::assertSame('unpaid',$order->fresh()->payment_state);
-        self::assertSame(0,OrderPayment::query()->count());
-        self::assertSame(0,\App\Models\OrderDelivery::query()->count());
+        self::assertSame(0,OrderPayment::query()->count(),'Delivery must not fabricate a payment.');
+        self::assertSame(1,\App\Models\OrderDelivery::query()->count());
         self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
-        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
+        $deliveredWarranty=\App\Models\ProductWarranty::query()->sole();
+        self::assertSame('active',$deliveredWarranty->status);
+        self::assertSame(substr($deliveredAt,0,10),$deliveredWarranty->starts_at->format('Y-m-d'));
 
         $this->loginActor($admin);
         $this->post('/admin/orders/'.$order->id.'/payments',[
-            'entry_type'=>'payment','amount_rsd'=>'24000.00',
+            'idempotency_key'=>'b800-bank-ack','entry_type'=>'payment','amount_rsd'=>'24000.00',
             'payment_method'=>'bank_transfer',
             'paid_at'=>now()->toDateTimeString(),
             'reference'=>'B800-SYNTHETIC-BANK-ACK',
@@ -313,34 +309,19 @@ final class PublicRetailCheckoutB799Test extends TestCase
         self::assertSame('verified',$receipt->status);
         self::assertSame('paid',$order->fresh()->payment_state);
         self::assertSame(24000.0,(float)$order->fresh()->paid_total_rsd);
-        $pending=\App\Models\WarrantyIssuance::query()->sole();
-        self::assertSame('issued_pending_delivery',$pending->status);
-        self::assertNull($pending->activated_warranty_id);
-        self::assertSame(0,\App\Models\ProductWarranty::query()->count());
-        $this->loginActor($this->buyer);
-        $this->get($privatePath)->assertOk()->assertSee($pending->warranty_number)
-            ->assertSee('Izdato');
-        $pendingPdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
-            ->assertHeader('Content-Type','application/pdf')
-            ->assertHeader('Cache-Control','max-age=0, no-store, private')->getContent();
-        self::assertStringStartsWith('%PDF-1.4',$pendingPdf);
-        $workflow->complete($order->fresh(),$admin,[
-            'delivery_method'=>'own_transport',
-            'delivered_at'=>now()->subMinute()->toDateTimeString(),
-        ]);
-        self::assertNotNull($order->fresh()->completed_at);
+        // Uplata posle isporuke ne pravi drugi sertifikat i ne pomera početak garancije.
+        self::assertSame(0,\App\Models\WarrantyIssuance::query()->count());
+        $afterPayment=\App\Models\ProductWarranty::query()->sole();
+        self::assertSame($deliveredWarranty->warranty_number,$afterPayment->warranty_number);
+        self::assertSame(substr($deliveredAt,0,10),$afterPayment->starts_at->format('Y-m-d'));
         self::assertSame(1,OrderPayment::query()->count(),
             'Verified transfer must not trigger a duplicate automatic COD entry.');
-        $activated=$pending->fresh();
-        self::assertSame('activated',$activated->status);
-        self::assertSame($activated->warranty_number,
-            \App\Models\ProductWarranty::query()->sole()->warranty_number);
-        $activePdf=$this->get($privatePath.'/garancija/'.$pending->id)->assertOk()
-            ->assertHeader('Content-Type','application/pdf')->getContent();
-        self::assertStringStartsWith('%PDF-1.4',$activePdf);
-        self::assertNotSame($pendingPdf,$activePdf,
-            'An activated certificate must show real delivery dates, not pending placeholders.');
+        $workflow->complete($order->fresh(),$admin,[
+            'delivery_method'=>'own_transport','delivered_at'=>$deliveredAt,
+        ]);
+        self::assertSame(1,\App\Models\ProductWarranty::query()->count());
         self::assertSame(0,OrderCommission::query()->count());
+        $this->loginActor($this->buyer);
         $this->get($privatePath)->assertOk()->assertSee('24.000,00');
     }
 
@@ -413,11 +394,11 @@ final class PublicRetailCheckoutB799Test extends TestCase
         $this->loginActor($admin);
         $this->get('/admin/orders/'.$order->id)->assertOk();
         $workflow=app(\App\Services\OrderWorkflowService::class);
-        $processing=$workflow->changeStatus($order->fresh(),'processing',$admin);
-        self::assertSame('processing',$processing->status);
-        $token=app(\App\Services\OrderVersionService::class)->token($processing);
-        $confirmed=$workflow->changeStatus($processing,'confirmed',$admin,null,$token);
+        $fresh=$order->fresh();
+        $token=app(\App\Services\OrderVersionService::class)->token($fresh);
+        $confirmed=$workflow->changeStatus($fresh,'confirmed',$admin,null,$token);
         self::assertSame('confirmed',$confirmed->status);
+        self::assertSame($admin->id,(int)$confirmed->accepted_by);
 
         $document=app(\App\Services\OrderDocumentService::class)
             ->issue($confirmed,'order_confirmation',$admin);
@@ -536,6 +517,18 @@ final class PublicRetailCheckoutB799Test extends TestCase
             'password_hash'=>Hash::make('SyntheticOnly123!'),'status'=>'active',
             'email_verified_at'=>now(),'portal_activated_at'=>now(),
         ]);
+    }
+
+    public function test_checkout_with_an_empty_cart_shows_a_friendly_page_with_a_link_back_not_a_bare_409(): void
+    {
+        $response=$this->get('/porucivanje')->assertStatus(409);
+
+        $response->assertSee('Korpa nije spremna za poručivanje')
+            ->assertSee('Korpa je prazna, pa nema šta da se poruči.')
+            ->assertSee('Pogledaj katalog');
+        self::assertStringContainsString('href="/katalog"',$response->getContent());
+        self::assertStringNotContainsString('Korpa mora sadržati dostupne artikle',$response->getContent());
+        self::assertSame(0,Order::query()->count());
     }
 
     private function loginActor(User $actor): void

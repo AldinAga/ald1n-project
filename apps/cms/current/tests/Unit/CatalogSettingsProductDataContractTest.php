@@ -19,7 +19,8 @@ final class CatalogSettingsProductDataContractTest extends TestCase
 
         self::assertStringContainsString('/catalog-settings/product-type/{productType:slug}', $routes);
         self::assertStringContainsString("getRouteKeyName(): string { return 'slug'; }", $productType);
-        self::assertStringContainsString('product-type-summary-card', $index);
+        self::assertStringContainsString("route('admin.dictionary.product-type',\$item)", $index);
+        self::assertStringContainsString('data-sort-item', $index);
         self::assertStringContainsString('data-sort-edit-start', $page);
         self::assertStringContainsString('data-sort-edit-finish', $page);
         self::assertStringContainsString("addEventListener('pointerdown'", $script);
@@ -73,11 +74,11 @@ final class CatalogSettingsProductDataContractTest extends TestCase
     public function test_gallery_and_product_email_preserve_product_information(): void
     {
         $root = dirname(__DIR__, 2);
-        $css = (string) file_get_contents($root.'/public/assets/css/app.css');
+        $css = (string) file_get_contents($root.'/public/assets/css/ald1n-admin-catalog.css');
         $announcement = (string) file_get_contents($root.'/app/Services/ProductAnnouncementService.php');
         $mail = (string) file_get_contents($root.'/resources/views/emails/order-events.blade.php');
 
-        self::assertStringContainsString('.thumbnail-grid img{object-fit:contain!important', $css);
+        self::assertStringContainsString('.a1-cat-gal__thumb img{width:100%;height:100%;border-radius:var(--a1-radius-photo);object-fit:contain}', $css);
         self::assertStringContainsString("'product_image_url'", $announcement);
         self::assertStringContainsString("'product_description'", $announcement);
         self::assertStringContainsString("'product_price_formatted'", $announcement);

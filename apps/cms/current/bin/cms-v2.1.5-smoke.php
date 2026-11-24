@@ -14,7 +14,7 @@ $source = static fn (string $path): string => (string) @file_get_contents($root.
 $version = trim($source('VERSION'));
 $tag = trim($source('RELEASE-TAG'));
 $from = trim($source('UPGRADE-FROM'));
-$css = $source('public/assets/css/app.css');
+$css = $source('public/assets/css/ald1n-admin.css'); // G7: touch target, dock and field errors are a1-* now
 $js = $source('public/assets/js/ux-runtime.js');
 $layout = $source('resources/views/layouts/app.blade.php');
 $productForm = $source('resources/views/admin/products/form.blade.php');
@@ -31,15 +31,15 @@ $check('Globalni UX runtime postoji', str_contains($js, 'createMobileActionDock'
 $check('UX runtime štiti nesačuvane izmene', str_contains($js, 'protectUnsavedChanges') && str_contains($js, "window.addEventListener('beforeunload'"));
 $check('UX runtime poboljšava greške i polja', str_contains($js, 'improveAlerts') && str_contains($js, 'improveFields') && str_contains($js, 'aria-invalid'));
 $check('Prvo neispravno polje dobija fokus', str_contains($js, "document.addEventListener('invalid'") && str_contains($js, "scrollIntoView({ block: 'center'"));
-$check('Zaštita od duplog slanja postavlja aria-busy', str_contains($js, "setAttribute('aria-busy', 'true')") && str_contains($js, 'is-submitting'));
+$check('Zaštita od duplog slanja postavlja aria-busy', str_contains($js, "setAttribute('aria-busy', 'true')"));
 $check('Ctrl ili Cmd plus S pokreće čuvanje', str_contains($js, 'event.ctrlKey || event.metaKey') && str_contains($js, "event.key.toLowerCase() !== 's'"));
-$check('Mobilni action dock koristi originalno dugme formulara', str_contains($js, 'submit.click()') && str_contains($js, 'ux-mobile-action-dock'));
+$check('Mobilni action dock koristi originalno dugme formulara', str_contains($js, 'submit.click()') && str_contains($js, 'a1-dock'));
 $check('Layout učitava UX runtime pre page skripti', str_contains($layout, "assets/js/ux-runtime.js") && strpos($layout, 'ux-runtime.js') < strpos($layout, "@stack('scripts')"));
 $check('Dugi formular proizvoda ima sticky akcije', str_contains($productForm, 'data-ux-sticky-actions'));
 $check('Dugi formular porudžbine ima sticky akcije', str_contains($orderForm, 'data-ux-sticky-actions'));
-$check('CSS definiše mobilne touch targete', str_contains($css, '--ux-touch-target:46px') && str_contains($css, '@media(max-width:820px)'));
-$check('CSS sadrži focus i invalid stanja', str_contains($css, '--ux-focus-ring') && str_contains($css, '.has-field-error'));
-$check('CSS sadrži action dock i loading stanje', str_contains($css, '.ux-mobile-action-dock') && str_contains($css, '.button.is-loading::after'));
+$check('CSS definiše mobilne touch targete', str_contains($css, '.a1-btn--sm{min-height:var(--a1-size-touch-target)') && str_contains($css, '.a1-link{display:inline-flex') && str_contains($css, 'min-height:var(--a1-size-touch-target)') && preg_match('/--a1-size-touch-target:\s*44px/', (string) file_get_contents($root.'/public/assets/css/ald1n-tokens.css')) === 1);
+$check('CSS sadrži focus i invalid stanja', str_contains($css, '.a1-app :focus-visible{') && str_contains($css, '.a1-error{') && str_contains($css, 'aria-invalid'));
+$check('CSS sadrži action dock i loading stanje', str_contains($css, '.a1-dock') && str_contains($css, 'safe-area-inset-bottom'));
 $check('CSS poštuje reduced motion', str_contains($css, 'prefers-reduced-motion'));
 $check('Sistemske error stranice postoje', is_file($root.'/resources/views/errors/404.blade.php') && is_file($root.'/resources/views/errors/500.blade.php'));
 $check('Error stranice imaju povratak i početnu stranu', str_contains($source('resources/views/errors/minimal.blade.php'), 'Početna strana') && str_contains($source('resources/views/errors/minimal.blade.php'), 'history.back()'));

@@ -97,8 +97,8 @@ final class ProductionOrderInventoryTest extends TestCase
         $order = Order::query()->sole();
         self::assertSame(1, $product->fresh()->stock_quantity);
 
-        $this->actingAs($user)->post('/orders/'.$order->id.'/cancel', ['note' => 'Kupac odustao'])->assertRedirect();
-        $this->actingAs($user)->post('/orders/'.$order->id.'/cancel', ['note' => 'Ponovljen zahtev'])->assertRedirect();
+        $this->actingAs($user)->post('/orders/'.$order->id.'/cancel', ['reason' => 'Kupac odustao'])->assertRedirect();
+        $this->actingAs($user)->post('/orders/'.$order->id.'/cancel', ['reason' => 'Ponovljen zahtev'])->assertRedirect();
 
         self::assertSame(4, $product->fresh()->stock_quantity);
         self::assertSame('returned', $order->fresh()->inventory_state);
@@ -155,7 +155,7 @@ final class ProductionOrderInventoryTest extends TestCase
             'commission_total_eur_snapshot' => 40,
         ]);
 
-        $this->actingAs($admin)->from('/admin/orders/'.$legacy->id)->patch('/admin/orders/'.$legacy->id.'/status', ['status' => 'cancelled'])
+        $this->actingAs($admin)->from('/admin/orders/'.$legacy->id)->patch('/admin/orders/'.$legacy->id.'/status', ['status' => 'cancelled', 'note' => 'Pokušaj otkazivanja legacy porudžbine.'])
             ->assertRedirect('/admin/orders/'.$legacy->id)
             ->assertSessionHasErrors('order');
 

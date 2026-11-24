@@ -2,15 +2,7 @@
 @section('title', 'Moje porudžbine')
 @section('content')
 @php
-    // Same Serbian labels the admin list and the order forms use; unknown values fall back to the raw value.
-    $statusLabels = [
-        'new' => 'Nova',
-        'processing' => 'Obrada',
-        'confirmed' => 'Potvrđena',
-        'shipped' => 'Poslata',
-        'completed' => 'Isporučena',
-        'cancelled' => 'Otkazana',
-    ];
+    // Status labels and tones come from App\Support\OrderStatus (one source for the whole product).
     $paymentLabels = [
         'pending' => 'Na čekanju',
         'paid' => 'Plaćeno',
@@ -66,18 +58,13 @@
                 <tbody role="rowgroup">
                     @foreach($orders as $order)
                         @php
-                            $statusTone = $order->completed_at ? 'ok' : match ($order->status) {
-                                'cancelled' => 'danger',
-                                'shipped' => 'info',
-                                'new', 'processing', 'confirmed' => 'warning',
-                                default => '',
-                            };
+                            $statusTone = \App\Support\OrderStatus::tone((string) $order->status, $order->completed_at !== null);
                         @endphp
                         <tr role="row">
                             <td role="cell" class="a1-table__primary a1-ol-primary" data-label="Broj">{{ $order->order_number }}</td>
                             <td role="cell" class="a1-ol-late" data-label="Dobavljač">{{ $order->sales_channel === 'direct_sale' ? 'Direktna prodaja' : ($order->supplier_name_snapshot ?: $order->supplier?->displayName() ?: '—') }}</td>
                             <td role="cell" data-label="Status">
-                                <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ $order->completed_at ? 'Isporučena' : ($statusLabels[$order->status] ?? $order->status) }}</span>
+                                <span class="a1-pill {{ $statusTone !== '' ? 'a1-pill--'.$statusTone : '' }}">{{ \App\Support\OrderStatus::label((string) $order->status, $order->completed_at !== null) }}</span>
                             </td>
                             <td role="cell" class="a1-ol-late" data-label="Plaćanje">{{ $methodLabels[$order->payment_method] ?? $order->payment_method }} / {{ $paymentLabels[$order->payment_status] ?? $order->payment_status }}</td>
                             <td role="cell" class="a1-table__num" data-label="Iznos"><strong>{{ number_format((float)$order->subtotal_rsd,2,',','.') }} RSD</strong></td>

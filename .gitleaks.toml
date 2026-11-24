@@ -27,7 +27,7 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "line"
 paths = [
-  '''^(?:.*/b1099-tracked-tree/)?apps/cms/current/tests/Feature/(?:PasswordResetTest|AuthenticationTest|CoreAccessRoleIdStabilityB876Test|CustomerPortal2Test|StorefrontLocalValidationB889Test)\.php$''',
+  '''^(?:.*/b1099-tracked-tree/)?apps/cms/current/tests/Feature/(?:PasswordResetTest|AuthenticationTest|AuthLocalRedirectB883Test|CoreAccessRoleIdStabilityB876Test|CustomerPortal2Test|StorefrontLocalValidationB889Test)\.php$''',
 ]
 regexes = [
   ''''password(?:_confirmation|_hash)?'\s*=>''',
@@ -73,3 +73,30 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^(?:.*/b1099-tracked-tree/)?apps/mobile/current/scripts/batch528-native-contract\.mjs$''']
 regexes = ['''CreateRestoreCredentialRequest''']
+
+# Integrity pin: SHA-256 of the served ald1n-tokens.css, checked by the B1155 install coordinator; a file digest, not a credential.
+[[allowlists]]
+description = "CSS file digest constant in the B1155 dashboard install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1155/DashboardReportsInstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+# Same integrity pin in the B1156 commissions install coordinator (merged by #204); this is what turned redacted-secrets red on main-based PRs.
+[[allowlists]]
+description = "CSS file digest constant in the B1156 commissions install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1156/CommissionsInstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+# Same integrity pin in the B1157 install coordinator.
+[[allowlists]]
+description = "CSS file digest constant in the B1157 install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1157/B1157InstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']

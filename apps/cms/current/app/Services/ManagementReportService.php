@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Pdf\ManagementReportPdfService;
+use App\Support\CommissionSql;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -115,7 +116,7 @@ final class ManagementReportService
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NOT NULL THEN ri.purchase_total_rsd_snapshot ELSE 0 END),0) as cogs_rsd')
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NULL THEN ri.line_total_rsd ELSE 0 END),0) as revenue_missing_cost_rsd')
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NULL THEN 1 ELSE 0 END),0) as missing_cost_lines')
-            ->selectRaw('COALESCE(SUM(COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(report_order_data.eur_rsd_rate,0)),0) as commissions_rsd')
+            ->selectRaw('COALESCE(SUM('.CommissionSql::itemRsd('ri', 'report_order_data').'),0) as commissions_rsd')
             // EUR view of the same RSD figures: each item at the rate stored on ITS order (orders without a stored rate are not converted).
             ->selectRaw('COALESCE(SUM(ri.line_total_rsd / NULLIF(report_order_data.eur_rsd_rate,0)),0) as revenue_eur')
             ->selectRaw('COALESCE(SUM(CASE WHEN ri.purchase_total_rsd_snapshot IS NOT NULL THEN ri.purchase_total_rsd_snapshot / NULLIF(report_order_data.eur_rsd_rate,0) ELSE 0 END),0) as cogs_eur')
@@ -317,17 +318,12 @@ final class ManagementReportService
     }
 
     /**
-     * Commission of one order item in RSD (EUR snapshot x the order's rate). A commission record that was
-     * cancelled is not owed, so its orders contribute 0. Same item snapshots as summary() and the subagent report.
+     * Commission of one order item in RSD: the commission page's own amount (order_commissions incl. storno, debits and
+     * cancelled status, see CommissionSql) x the order's rate. Same source in summary(), the breakdowns and the subagent report.
      */
     private function commissionRsdSql(string $item = 'ri', string $order = 'o'): string
     {
-        $raw = "(COALESCE($item.commission_total_eur_snapshot,0) * COALESCE($order.eur_rsd_rate,0))";
-        if (!Schema::hasTable('order_commissions')) {
-            return $raw;
-        }
-
-        return "(CASE WHEN EXISTS (SELECT 1 FROM order_commissions oc WHERE oc.order_id = $order.id AND oc.status = 'cancelled') THEN 0 ELSE $raw END)";
+        return CommissionSql::itemRsd($item, $order);
     }
 
     /**
@@ -391,15 +387,10 @@ final class ManagementReportService
         return $out;
     }
 
-    /** Stored EUR commission of one item; cancelled commission records are not owed (same rule as commissionRsdSql). */
+    /** EUR commission of one item from the commission page's source (same rule as commissionRsdSql). */
     private function commissionEurSql(string $item = 'ri', string $order = 'o'): string
     {
-        $raw = "COALESCE($item.commission_total_eur_snapshot,0)";
-        if (!Schema::hasTable('order_commissions')) {
-            return "($raw)";
-        }
-
-        return "(CASE WHEN EXISTS (SELECT 1 FROM order_commissions oc WHERE oc.order_id = $order.id AND oc.status = 'cancelled') THEN 0 ELSE $raw END)";
+        return CommissionSql::itemEur($item, $order);
     }
 
     /** @return array<string,mixed> */
@@ -587,7 +578,7 @@ final class ManagementReportService
             ->select(['ri.order_id', 'ri.quantity', 'ri.line_total_rsd', 'ri.purchase_total_rsd_snapshot'])
             ->selectRaw("COALESCE(NULLIF(TRIM(ri.product_sku),''), NULLIF(TRIM(ri.product_name),''), 'unknown') as product_key")
             ->selectRaw("COALESCE(NULLIF(TRIM(ri.product_name),''), NULLIF(TRIM(ri.product_sku),''), 'Unknown product') as product_label")
-            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(o.eur_rsd_rate,0) as commission_rsd');
+            ->selectRaw(CommissionSql::itemRsd().' as commission_rsd');
 
         $rows = DB::query()->fromSub($base, 'product_profit_rows')
             ->selectRaw('product_key as `key`')
@@ -701,7 +692,7 @@ final class ManagementReportService
             ->selectRaw($key.' as dimension_key')
             ->selectRaw($label.' as dimension_label')
             ->selectRaw($email.' as dimension_email')
-            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(o.eur_rsd_rate,0) as commission_rsd');
+            ->selectRaw(CommissionSql::itemRsd().' as commission_rsd');
 
         $refunds = $this->dimensionRefunds($ids, $dimension, $restrictCustomerIds);
         $serviceCosts = $this->dimensionServiceCosts($ids, $dimension, $restrictCustomerIds);

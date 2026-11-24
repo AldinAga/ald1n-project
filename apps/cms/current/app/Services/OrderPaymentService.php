@@ -126,13 +126,24 @@ final class OrderPaymentService
                     ]);
                 }
             }
+            if ($type === 'refund') {
+                $netPaid = (float) OrderPayment::query()->where('order_id', $locked->id)->where('status', 'verified')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
+                    ->value('net_total');
+                if (round((float) ($data['amount_rsd'] ?? 0), 2) > round(max(0, $netPaid), 2) + 0.004) {
+                    throw ValidationException::withMessages([
+                        'amount_rsd' => 'Refundacija ne može biti veća od trenutno neto uplaćenog iznosa '.number_format(max(0, $netPaid), 2, ',', '.').' RSD.',
+                    ]);
+                }
+            }
             $payment = OrderPayment::query()->create([
                 'order_id' => $locked->id,
                 'payment_number' => $this->numbers->next($type === 'refund' ? 'refund' : 'payment', (int) now()->format('Y')),
                 'entry_type' => $type,
                 'status' => 'verified',
                 'amount_rsd' => (float) $data['amount_rsd'],
-                'payment_method' => (string) $data['payment_method'],
+                // Jedna šifra za pouzeće: stari ulaz "cod" (potraživanja) se čuva kao "cash_on_delivery".
+                'payment_method' => (string) $data['payment_method'] === 'cod' ? 'cash_on_delivery' : (string) $data['payment_method'],
                 'paid_at' => $data['paid_at'],
                 'reference' => trim((string) ($data['reference'] ?? '')) ?: null,
                 'note' => trim((string) ($data['note'] ?? '')) ?: null,
@@ -324,13 +335,8 @@ final class OrderPaymentService
             ]);
         }
 
-        // Deferred Direct Sale is physically completed/delivered while its receivable stays open.
-        // Payment record/verify/void lifecycle is therefore allowed; generic refunds remain blocked above.
-        if ($order->completed_at !== null && !$deferredDirectSale) {
-            throw ValidationException::withMessages([
-                $field => 'Porudžbina je kompletirana i finansijske stavke su zaključane.',
-            ]);
-        }
+        // Isporuka je odvojena od naplate (odluka vlasnika 16.11.2026, tačka 2): posle isporuke dug ostaje otvoren u Potraživanjima,
+        // pa se uplate, refundacije, potvrde i storniranja i dalje evidentiraju. Samo (neodložena) direktna prodaja ima zaključan ledger.
     }
 
     private function notifyCustomer(OrderPayment $payment, string $title, string $message, string $severity): void

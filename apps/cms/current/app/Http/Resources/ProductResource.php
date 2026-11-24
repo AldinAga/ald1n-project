@@ -14,7 +14,8 @@ final class ProductResource extends JsonResource
     public function toArray(Request $request): array
     {
         $canViewPrices = $request->user()?->can('catalog.view_prices') ?? false;
-        $rate = app(SettingsService::class)->eurRsdRate();
+        $canViewNotes = $request->user()?->can('catalog.view_notes') ?? false;
+        $rate =app(SettingsService::class)->eurRsdRate();
         $commission = app(CommissionCalculator::class)->unitEur((float) $this->price_amount, (string) $this->price_currency, $this->manual_commission_eur !== null ? (float) $this->manual_commission_eur : null, $rate);
 
         return [
@@ -23,6 +24,8 @@ final class ProductResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->when($request->routeIs('api.v1.products.show'), $this->description),
+            // Napomene samo na detalju i uz dozvolu catalog.view_notes (SubAgent grupe, Admin, SuperAdmin); kupac nikad.
+            'notes' => $this->when($canViewNotes && $request->routeIs('api.v1.products.show'), fn () => filled($this->notes) ? (string) $this->notes : null),
             'brand' => $this->whenLoaded('brand', fn () => $this->brand ? ['id' => $this->brand->id, 'name' => $this->brand->name, 'slug' => $this->brand->slug] : null),
             'line' => $this->whenLoaded('line', fn () => $this->line ? ['id' => $this->line->id, 'name' => $this->line->name, 'slug' => $this->line->slug] : null),
             'model' => $this->model_name,

@@ -26,6 +26,22 @@ final class CommissionEligibilityService
 
     public const STATES = ['due', 'not_due', 'approved', 'paid', 'cancelled'];
 
+    public function __construct(private readonly SettingsService $settings) {}
+
+    /**
+     * Zadržavanje zbog kursa: porudžbina je nastala bez EUR/RSD kursa, ima RSD stavku sa ručnom EUR provizijom
+     * i kurs još nije postavljen u podešavanjima. Takva provizija ne može postati dospela dok se kurs ne postavi.
+     * Isto pravilo kao SQL u dueOrder(); mora ostati usklađeno.
+     */
+    public function awaitsExchangeRate(Order $order): bool
+    {
+        if ($this->settings->eurRsdRate() !== null || (float) $order->eur_rsd_rate > 0.0) {
+            return false;
+        }
+
+        return $order->items()->where('commission_source_snapshot', 'manual')->where('original_currency', 'RSD')->exists();
+    }
+
     public const STATE_LABELS = [
         'due' => 'Dospela',
         'not_due' => 'Nije dospela',
@@ -55,6 +71,9 @@ final class CommissionEligibilityService
         if ((string) $order->status === 'cancelled') {
             return $this->result('not_due', false, 'order_cancelled', 'Nije dospela — porudžbina je otkazana.');
         }
+        if ($this->awaitsExchangeRate($order)) {
+            return $this->result('not_due', false, 'waiting_exchange_rate', 'Nije dospela — čeka se kurs EUR/RSD. Ručna provizija u EUR za artikal u RSD ne može se potvrditi bez kursa; postavite kurs u Podešavanja → Kurs EUR/RSD.');
+        }
         if ($order->completed_at !== null) {
             return $this->result('due', true, 'delivered', 'Dospela — isporuka je potvrđena.');
         }
@@ -77,6 +96,7 @@ final class CommissionEligibilityService
     public function orderMeetsCondition(Order $order): bool
     {
         return (string) $order->status !== 'cancelled'
+            && !$this->awaitsExchangeRate($order)
             && ($order->completed_at !== null || in_array((string) $order->payment_state, self::FULLY_PAID_STATES, true));
     }
 
@@ -99,9 +119,17 @@ final class CommissionEligibilityService
     /** @param Builder<Order> $order @return Builder<Order> */
     private function dueOrder(Builder $order): Builder
     {
-        return $order->where('orders.status', '!=', 'cancelled')->where(static function (Builder $any): void {
+        $order->where('orders.status', '!=', 'cancelled')->where(static function (Builder $any): void {
             $any->whereNotNull('orders.completed_at')->orWhereIn('orders.payment_state', self::FULLY_PAID_STATES);
         });
+        if ($this->settings->eurRsdRate() === null) { // zadržavanje zbog kursa, vidi awaitsExchangeRate()
+            $order->where(static function (Builder $rate): void {
+                $rate->where('orders.eur_rsd_rate', '>', 0)->orWhereDoesntHave('items', static fn (Builder $item): Builder => $item
+                    ->where('commission_source_snapshot', 'manual')->where('original_currency', 'RSD'));
+            });
+        }
+
+        return $order;
     }
 
     /** @return array{state:string,state_label:string,payable:bool,code:string,reason:string} */

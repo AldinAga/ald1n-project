@@ -195,8 +195,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     });
                     // MOBILE_V1_0_SYSTEM_SETTINGS_PARITY_BATCH37
                     Route::prefix('system-settings')->name('system-settings.')->group(function (): void {
-                        Route::get('/automation', [AdminSystemSettingsController::class, 'automation'])->name('automation.index');
-                        Route::put('/automation', [AdminSystemSettingsController::class, 'updateAutomation'])->middleware('throttle:admin-write')->name('automation.update');
+                        Route::get('/automation', [AdminSystemSettingsController::class, 'automation'])->middleware('permission:automation.manage')->name('automation.index');
+                        Route::put('/automation', [AdminSystemSettingsController::class, 'updateAutomation'])->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.update');
                         Route::post('/automation/run', [AdminSystemSettingsController::class, 'runAutomation'])->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.run');
                         Route::post('/automation/alerts/{alert}/resolve', [AdminSystemSettingsController::class, 'resolveAutomationAlert'])->whereNumber('alert')->middleware(['permission:automation.manage', 'throttle:admin-write'])->name('automation.alerts.resolve');
                         Route::get('/turnstile', [AdminSystemSettingsController::class, 'turnstile'])->name('turnstile.index');
@@ -276,6 +276,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                         Route::post('/orders/{order}/complete', [AdminOrderMutationController::class, 'complete'])->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
                         Route::post('/orders/{order}/reopen', [AdminOrderMutationController::class, 'reopen'])->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
                         Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])->whereNumber('order')->name('orders.shipment.store');
+                        Route::post('/orders/{order}/shipment/return', [AdminOrderShipmentController::class, 'returned'])->whereNumber('order')->name('orders.shipment.return');
                         Route::middleware('permission:payments.manage')->group(function (): void {
                             Route::post('/orders/{order}/payments', [AdminOrderMutationController::class, 'paymentStore'])->whereNumber('order')->name('orders.payments.store');
                             Route::post('/orders/{order}/payments/{payment}/verify', [AdminOrderMutationController::class, 'paymentVerify'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.verify');
@@ -528,6 +529,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:api-sensitive')
             ->name('me.password');
         Route::put('/me/notification-preferences', [AccountController::class, 'notifications'])->name('me.notification-preferences');
+        // Google Play: brisanje naloga iz aplikacije (rok mirovanja 14 dana, poništavanje linkom iz e-pošte).
+        Route::get('/account/deletion', [AccountController::class, 'deletionStatus'])->name('account.deletion.show');
+        Route::post('/account/deletion', [AccountController::class, 'requestDeletion'])
+            ->middleware('throttle:api-sensitive')->name('account.deletion.store');
+        Route::delete('/account/deletion', [AccountController::class, 'cancelDeletion'])
+            ->middleware('throttle:api-sensitive')->name('account.deletion.destroy');
         // MOBILE_V1_0_ACCOUNT_LOGIN_SESSIONS_PARITY_BATCH32
         Route::get('/me/sessions', [AccountController::class, 'sessions'])->name('me.sessions.index');
         Route::delete('/me/sessions/others', [AccountController::class, 'revokeOtherSessions'])

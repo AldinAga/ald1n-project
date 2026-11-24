@@ -218,6 +218,8 @@ export type Product = {
   name: string;
   slug: string;
   description?: Nullable<string>;
+  // Samo u detalju proizvoda i samo uz dozvolu catalog.view_notes; inače ključa nema.
+  notes?: Nullable<string>;
   brand: Nullable<Taxonomy>;
   line: Nullable<Taxonomy>;
   model: Nullable<string>;
@@ -881,6 +883,8 @@ export type AdminProductCreateInput = {
   brand_id?: number;
   product_line_id?: number;
   model_name?: string;
+  supplier_code?: string | null;
+  ean?: string | null;
   name?: string;
   regenerate_sku?: boolean;
   regenerate_name?: boolean;
@@ -894,6 +898,7 @@ export type AdminProductCreateInput = {
   low_stock_threshold?: number;
   status: 'draft' | 'active' | 'inactive';
   save_draft?: boolean;
+  autosave?: boolean;
   category_ids?: number[];
   specs?: Record<string, string | number | boolean>;
   spec_details?: Record<string, string>;

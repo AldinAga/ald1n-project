@@ -55,6 +55,18 @@ final class AfterSalesAccessService
         return $order->completed_at !== null || $order->delivery()->exists();
     }
 
+    /**
+     * Otvaranje slučaja u ime kupca: odgovorno lice te porudžbine i superadmin, posle isporuke. SubAgent ne (on otvara svoje).
+     */
+    public function canCreateOnBehalf(Order $order, User $user): bool
+    {
+        if (!$user->hasRole('admin', 'superadmin') || !$user->hasPermission('after_sales.manage')) return false;
+        if (!$user->hasRole('superadmin') && (int) $order->supplier_user_id !== (int) $user->id) return false;
+        if ((string) $order->source_system !== 'laravel' || (string) $order->status === 'cancelled') return false;
+
+        return $order->completed_at !== null || $order->delivery()->exists();
+    }
+
     public function authorizeView(AfterSalesCase $case, User $user): void
     {
         abort_unless($this->canView($case, $user), 404);

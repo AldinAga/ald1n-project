@@ -158,12 +158,12 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         $html = (string) $this->actingAs($admin)
             ->get('/admin/reports/subagents?period=custom&date_from=2026-01-01&date_to=2026-01-31')->assertOk()->getContent();
 
-        // Promet 18.000 RSD / 117 = 153,85 EUR; bruto 6.000 RSD / 117 = 51,28 EUR; provizija as stored in EUR (20 + 10 + 5);
-        // neto EUR = 51,28 - 35,00 = 16,28; prosek 153,85 / 3 = 51,28.
+        // Promet 18.000 RSD / 117 = 153,85 EUR; bruto 6.000 RSD / 117 = 51,28 EUR; provizija iz stranice provizija (20 + 10;
+        // 5 EUR je stornirana pa se ne duguje, isto kao na kartici zarade); neto EUR = 51,28 - 30,00 = 21,28; prosek 153,85 / 3 = 51,28.
         self::assertStringContainsString('data-sbs-eur="revenue">153,85 EUR<', $html);
         self::assertStringContainsString('data-sbs-eur="gross">51,28 EUR<', $html);
-        self::assertStringContainsString('data-sbs-eur="commission">35,00 EUR<', $html);
-        self::assertStringContainsString('data-sbs-eur="net">16,28 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="commission">30,00 EUR<', $html);
+        self::assertStringContainsString('data-sbs-eur="net">21,28 EUR<', $html);
         self::assertStringContainsString('data-sbs-eur="avg">51,28 EUR<', $html);
     }
 
@@ -295,6 +295,24 @@ final class DashboardOwnerFeedback1116Test extends TestCase
         $response = $this->actingAs($admin)->get(self::JANUARY)->assertOk();
         self::assertTrue($response->viewData('reportStats')['ready']);
         self::assertEqualsWithDelta(18000.0, $response->viewData('reportStats')['summary']['revenue_rsd'], 0.001);
+    }
+
+    public function test_view_data_keeps_the_keys_the_production_view_reads_for_rollback(): void
+    {
+        // B1156 rollback: novi kontroler + stari view (d2c07f62) ne sme da da 500 dok radnici ne vide stari kontroler.
+        app(\App\Services\SettingsService::class)->putMany(['eur_rsd_rate' => '117.25', 'eur_rsd_source' => 'NBS'], null);
+        $oldViewKeys = ['user', 'access', 'orderStats', 'productStats', 'userStats', 'afterSalesStats', 'fieldOperationsStats',
+            'servicePartsStats', 'warrantyStats', 'receivableStats', 'reportStats', 'dashboardPeriod', 'dashboardBrandMix',
+            'dashboardOutstandingNow', 'inventoryValuation', 'recentOrders', 'priorityActions', 'eurRsdRate', 'eurRsdSource', 'portal'];
+
+        foreach (['superadmin', 'user'] as $role) {
+            $response = $this->actingAs($this->person($role, '-compat'))->get('/')->assertOk();
+            foreach ($oldViewKeys as $key) {
+                self::assertArrayHasKey($key, $response->original->getData(), $role.' view data must keep '.$key);
+            }
+            self::assertEqualsWithDelta(117.25, $response->viewData('eurRsdRate'), 0.0001, $role);
+            self::assertSame('NBS', $response->viewData('eurRsdSource'), $role);
+        }
     }
 
     public function test_dodaj_artikal_in_the_header_band_follows_the_product_permission(): void

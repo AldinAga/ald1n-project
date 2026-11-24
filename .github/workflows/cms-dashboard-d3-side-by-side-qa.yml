@@ -6,7 +6,7 @@ on:
   pull_request:
     paths:
       - 'apps/cms/current/resources/views/dashboard/index.blade.php'
-      - 'apps/cms/current/public/assets/css/ald1n-dashboard-d1.css'
+      - 'apps/cms/current/public/assets/css/ald1n-admin.css'
       - 'apps/cms/current/tests/Unit/DashboardD3PairedLayoutTest.php'
       - '.github/workflows/cms-dashboard-d3-side-by-side-qa.yml'
 permissions:

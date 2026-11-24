@@ -18,12 +18,12 @@ function b794_readonly_render(string $cms): void
         $session->start();
         Illuminate\Support\Facades\View::share('errors',new Illuminate\Support\ViewErrorBag());
         $cases=[
-            ['name'=>'dashboard','path'=>'/','markers'=>['data-dashboard-command-row','ald1n-ui-refinement.css']],
-            ['name'=>'users','path'=>'/admin/users','markers'=>['data-user-editor-sections','access-control-user-avatar']],
+            ['name'=>'dashboard','path'=>'/','markers'=>['data-dashboard-command-row','assets/css/ald1n-admin.css']],
+            ['name'=>'users','path'=>'/admin/users','markers'=>['data-user-editor-sections','data-user-avatar']],
         ];
         $product=App\Models\Product::query()->publiclyVisible()->first();
         if(!$product) throw new RuntimeException('READONLY_RENDER_VISIBLE_PRODUCT_NOT_FOUND');
-        $cases[]=['name'=>'product','path'=>'/catalog/'.rawurlencode((string)$product->slug),'markers'=>['data-product-gallery','build16-product-summary','ald1n-ui-refinement.css']];
+        $cases[]=['name'=>'product','path'=>'/catalog/'.rawurlencode((string)$product->slug),'markers'=>['data-product-gallery','a1-cat-detail','assets/css/ald1n-admin-catalog.css']];
         foreach($cases as $case) {
             $request=Illuminate\Http\Request::create('https://cms.ald1n.com'.$case['path'],'GET');
             $request->setUserResolver(static fn()=>$actor);

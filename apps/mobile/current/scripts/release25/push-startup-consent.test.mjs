@@ -24,6 +24,7 @@ function fixture(options = {}) {
       getExpoPushTokenAsync: async () => { tokens++; if (options.tokenError) throw Error('Synthetic token failure'); return { data: options.token === undefined ? 'ExponentPushToken[synthetic-b1124]' : options.token }; },
     },
     'react-native': { Platform: { OS: options.platform ?? 'android' } },
+    '@/design/ald1n-tokens.kobalt.generated': { kobalt: { light: { button: { primary: { bg: '#2d50bf' } } } } },
     '@/lib/api/client': { ApiError },
     '@/lib/api/endpoints': { api: { devices: {
       register: async input => { if (options.postGate) await options.postGate; calls.push({ method: 'POST', input }); if (options.postError) throw options.postError; return device; },

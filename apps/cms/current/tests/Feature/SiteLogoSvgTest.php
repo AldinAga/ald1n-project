@@ -778,7 +778,7 @@ final class SiteLogoSvgTest extends TestCase
 
         $admin = (string) $this->actingAs($this->owner)->get('/admin/settings/appearance')->assertOk()->getContent();
         self::assertMatchesRegularExpression('~<img id="siteHeaderLogo" class="a1-brand__logo" src="[^"]*/site-assets/'.preg_quote(basename($dark), '~').'\?v=[a-z0-9-]+"~', $admin);
-        self::assertMatchesRegularExpression('~<div class="asset-preview light">\s*<img src="[^"]*/site-assets/'.preg_quote(basename($light), '~').'~', $admin);
+        self::assertMatchesRegularExpression('~<div class="a1-set-preview a1-set-preview--light">\s*<img src="[^"]*/site-assets/'.preg_quote(basename($light), '~').'~', $admin);
         self::assertSame(4, substr_count($admin, 'alt="Sačuvani logo na '), 'both logos on the light and the dark swatch');
         self::assertStringNotContainsString('/storage/site-assets/'.basename($light), $admin);
         self::assertStringNotContainsString('<object', $admin);

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\User;
+use App\Support\OrderStatus;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -57,18 +58,26 @@ final class OrderDetailPresenter
             'archive' => $this->allows($actor, 'orders.manage'),
             'buyer_tracking' => $actor->hasRole('superadmin'),
             'courier_settings' => $actor->hasRole('superadmin') && $this->allows($actor, 'system.manage_settings'),
+            'manual_status' => $actor->hasRole('superadmin'),
+            'receivables_manage' => $this->allows($actor, 'receivables.manage'),
         ];
+        $receivableId = is_array($detail['receivable'] ?? null) ? (int) ($detail['receivable']['id'] ?? 0) : 0;
         $detail['urls'] = array_replace($detail['urls'], [
             'back' => $this->route('admin.orders.index'),
-            'accept' => $this->route('admin.orders.accept', ['order' => $id]),
+            'confirm' => $this->route('admin.orders.confirm', ['order' => $id]),
+            'cancel' => $this->route('admin.orders.cancel', ['order' => $id]),
+            'receivable' => ($receivableId > 0 && $detail['permissions']['receivables_manage'])
+                ? $this->route('admin.receivables.show', ['receivable' => $receivableId])
+                : null,
             'confirmation' => $this->route('orders.documents.confirmation', ['order' => $id]),
             'document_store' => $this->route('admin.orders.documents.store', ['order' => $id]),
             'commission' => $isDirectSale ? null : $this->route('admin.commissions.index', ['q' => $detail['order']['order_number']]),
             'reassign' => $this->route('admin.orders.reassign', ['order' => $id]),
             'internal_note' => $this->route('admin.orders.notes.store', ['order' => $id]),
             'deadlines' => $this->route('admin.orders.deadlines', ['order' => $id]),
-            'tracking' => $this->route('admin.orders.tracking', ['order' => $id]),
             'shipment_store' => $this->route('admin.orders.shipment.store', ['order' => $id]),
+            'shipment_return' => $this->route('admin.orders.shipment.return', ['order' => $id]),
+            'after_sales_create' => $this->route('admin.orders.after-sales.create', ['order' => $id]),
             'shipment_proof' => $this->route('orders.shipment.proof', ['order' => $id]),
             'courier_settings' => $this->route('admin.settings.couriers.index'),
             'invoice_pdf' => $this->route('admin.orders.invoice.pdf', ['order' => $id]),
@@ -81,13 +90,26 @@ final class OrderDetailPresenter
             'sale_price_correction' => $this->route('admin.orders.sale-price-correction', ['order' => $id]),
             'after_sales' => $this->route('admin.after-sales.index', ['q' => $detail['order']['order_number']]),
         ]);
+        $awaitingConfirmation = !$isCompleted
+            && !$isDirectSale
+            && $sourceSystem === 'laravel'
+            && in_array($status, ['new', 'processing'], true);
+        $manualOptions = array_map(
+            static fn (string $target): array => ['value' => $target, 'label' => OrderStatus::label($target)],
+            OrderWorkflowService::manualTransitions($status),
+        );
+        $detail['manual_status_options'] = $detail['permissions']['manual_status'] && !$isCompleted && !$isDirectSale && $sourceSystem === 'laravel'
+            ? $manualOptions
+            : [];
         $detail['actions'] = [
-            'accept' => !$isCompleted
+            // Jedan glavni korak: potvrda ujedno preuzima porudžbinu (odluka vlasnika 16.11.2026, tačka 1).
+            'confirm' => $awaitingConfirmation && $detail['urls']['confirm'] !== null,
+            'cancel' => !$isCompleted
                 && !$isDirectSale
                 && $sourceSystem === 'laravel'
-                && $detail['order']['accepted_at'] === null
-                && !in_array($status, ['shipped', 'cancelled'], true)
-                && $detail['urls']['accept'] !== null,
+                && in_array($status, ['new', 'processing', 'confirmed', 'shipped'], true)
+                && $detail['urls']['cancel'] !== null,
+            'manual_status' => $detail['manual_status_options'] !== [] && $detail['urls']['status'] !== null,
             'reassign' => !$isCompleted
                 && !$isDirectSale
                 && $detail['permissions']['reassign']
@@ -102,12 +124,27 @@ final class OrderDetailPresenter
                 && !$isDirectSale
                 && $detail['permissions']['reopen']
                 && $detail['urls']['reopen'] !== null,
+            // Slanje se (ponovo) evidentira dok nema aktivne pošiljke: ni jedne, ili je prethodna vraćena.
             'shipment' => !$isCompleted
                 && !$isDirectSale
                 && $sourceSystem === 'laravel'
                 && in_array($status, ['confirmed', 'shipped'], true)
-                && $detail['shipment'] === null
+                && ($detail['shipment'] === null || ($detail['shipment']['is_returned'] ?? false))
                 && $detail['urls']['shipment_store'] !== null,
+            'return_shipment' => !$isCompleted
+                && !$isDirectSale
+                && $sourceSystem === 'laravel'
+                && $status === 'shipped'
+                && is_array($detail['shipment'])
+                && !($detail['shipment']['is_returned'] ?? false)
+                && $detail['urls']['shipment_return'] !== null,
+            // Reklamacija / servis u ime kupca: odgovorno lice i superadmin, samo posle isporuke (SubAgent otvara svoju sa svoje strane porudžbine).
+            'open_after_sales' => ($isCompleted || $detail['delivery'] !== null)
+                && !$isDirectSale
+                && $sourceSystem === 'laravel'
+                && $status !== 'cancelled'
+                && $detail['permissions']['after_sales_manage']
+                && $detail['urls']['after_sales_create'] !== null,
             'sale_price_correction' => $isCompleted
                 && $isDirectSale
                 && $detail['permissions']['sale_price_correction']
@@ -115,6 +152,37 @@ final class OrderDetailPresenter
                 && $status !== 'cancelled'
                 && $detail['urls']['sale_price_correction'] !== null,
         ];
+
+        // Jedna kartica "Isporuka": način isporuke određuje korake. Kurir: "Pošiljka je poslata" pa "Potvrdi isporuku";
+        // sopstveni prevoz, lično preuzimanje i drugo: samo "Potvrdi isporuku". Podrazumevani način: aktivna pošiljka, pa izbor kupca, pa kurir.
+        $shipmentRow = is_array($detail['shipment']) ? $detail['shipment'] : null;
+        $shipmentActive = $shipmentRow !== null && !($shipmentRow['is_returned'] ?? false);
+        $preferred = '';
+        try {
+            $preference = app(PublicRetailPreferenceService::class)->forOrder($order);
+            $preferred = is_array($preference) ? (string) ($preference['delivery_method'] ?? '') : '';
+        } catch (Throwable) {
+            $preferred = '';
+        }
+        $methodKeys = ['courier', 'own_transport', 'customer_pickup', 'other'];
+        $detail['delivery_default_method'] = $shipmentActive
+            ? (in_array((string) $shipmentRow['shipment_method'], ['courier', 'own_transport'], true) ? (string) $shipmentRow['shipment_method'] : 'other')
+            : (in_array($preferred, $methodKeys, true) ? $preferred : 'courier');
+        $detail['delivery_methods'] = array_map(
+            static fn (string $key): array => ['value' => $key, 'label' => \App\Support\PublicRetailOptions::DELIVERY[$key] ?? $key],
+            $methodKeys,
+        );
+        $detail['shipment_active'] = $shipmentActive;
+        if ($shipmentActive) {
+            // Zajednička polja se unose jednom: korak isporuke se popunjava iz evidencije slanja.
+            $detail['form_defaults']['recipient_name'] = (string) $shipmentRow['recipient_name'];
+            if (($shipmentRow['recipient_phone'] ?? '—') !== '—') {
+                $detail['form_defaults']['recipient_phone'] = (string) $shipmentRow['recipient_phone'];
+            }
+            if (($shipmentRow['tracking_number'] ?? '—') !== '—') {
+                $detail['form_defaults']['delivery_reference'] = (string) $shipmentRow['tracking_number'];
+            }
+        }
 
         $detail['suppliers'] = $suppliers
             ->filter(static fn (mixed $supplier): bool => $supplier instanceof User)
@@ -389,6 +457,7 @@ final class OrderDetailPresenter
             'contacted_at' => $this->date($item, 'contacted_at'),
         ])->values()->all();
         return [
+            'id' => (int) $receivable->getKey(),
             'case_number' => $this->text($receivable, 'case_number'),
             'status' => $this->text($receivable, 'status', 'monitoring'),
             'next_action_at' => $this->date($receivable, 'next_action_at'),
@@ -423,6 +492,10 @@ final class OrderDetailPresenter
             'recorded_by' => $this->userName($recorder instanceof User ? $recorder : null, 'Administrator'),
             'has_proof' => $this->text($shipment, 'proof_path') !== '',
             'proof_original_name' => $this->text($shipment, 'proof_original_name', 'Dokaz slanja'),
+            // Vraćena pošiljka (kolone dolaze iz migracije; bez njih je sve "nije vraćena").
+            'is_returned' => $this->dateOrNull($shipment, 'returned_at') !== null,
+            'returned_at' => $this->dateOrNull($shipment, 'returned_at'),
+            'return_reason' => $this->text($shipment, 'return_reason'),
         ];
     }
     /** @return array<string,mixed>|null */
@@ -758,13 +831,7 @@ final class OrderDetailPresenter
 
     private function statusLabel(string $status): string
     {
-        return [
-            'new' => 'Nova',
-            'processing' => 'U obradi',
-            'confirmed' => 'Potvrđena',
-            'shipped' => 'Poslata',
-            'cancelled' => 'Otkazana',
-        ][$status] ?? $status;
+        return OrderStatus::label($status);
     }
 
     private function statusClass(string $status): string

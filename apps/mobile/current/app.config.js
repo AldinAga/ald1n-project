@@ -37,12 +37,16 @@ const v15ReleaseProfile = 'production-v15-16kb';
 const M17_UAT_PROFILE = 'm17-sdk58-uat';
 const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat2';
 const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
-const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
+// play3 = Kobalt native colours (M5 lite, camera-free). The live AAB (versionCode 29) is play2; OTA targeting play2 can never reach play3.
+const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play3';
+// Kobalt native colours. CommonJS cannot import the generated .ts, so the values are duplicated here (kobaltDark tokens).
+const KOBALT_SPLASH_BG = '#0d1216'; // kobaltDark.surface.page
+const KOBALT_ACCENT = '#3557c7'; // kobaltDark.button.primary.bg
 // Explicit local/dev-client runtime; never shared with a store or OTA identity.
 const DEV_RUNTIME = '1.0.0-dev-client';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
-  m17Deps.expo === '~58.0.25'
+  m17Deps.expo === '~58.0.26'
   && m17Deps['react-native'] === '0.88.1'
   && m17Deps['react-native-nitro-google-signin'] === '2.3.1'
   && m17Deps['react-native-nitro-modules'] === '0.37.1';
@@ -147,7 +151,7 @@ module.exports = ({ config }) => {
 
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#101214',
+        backgroundColor: KOBALT_SPLASH_BG,
       },
 
       predictiveBackGestureEnabled: true,
@@ -194,7 +198,7 @@ module.exports = ({ config }) => {
       [
         'expo-splash-screen',
         {
-          backgroundColor: '#101214',
+          backgroundColor: KOBALT_SPLASH_BG,
           image: './assets/splash-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
@@ -215,7 +219,7 @@ module.exports = ({ config }) => {
       [
         'expo-notifications',
         {
-          color: '#C45116',
+          color: KOBALT_ACCENT,
           defaultChannel: 'business-updates',
         },
       ],

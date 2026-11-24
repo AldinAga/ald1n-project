@@ -5,11 +5,11 @@ declare(strict_types=1);
 // Batch565: source-only catalog cards and HTML5 form-association regression.
 $root = dirname(__DIR__);
 $bladePath = $argv[1] ?? $root.'/resources/views/catalog/index.blade.php';
-$cssPath = $argv[2] ?? $root.'/public/assets/css/ald1n-ui-v2.css';
+// G7 PR B: the CSS checks (ald1n-ui-v2.css markers for .build16-catalog-shell / .catalog-card-action-row) were about the
+// old stylesheet only and were removed; the catalog cards are a1-cat-* in ald1n-admin-catalog.css (CatalogCobaltContractTest).
 $blade = @file_get_contents($bladePath);
-$css = @file_get_contents($cssPath);
-if ($blade === false || $css === false) {
-    fwrite(STDERR, "FAIL: Catalog Blade or CSS unreadable.\n");
+if ($blade === false) {
+    fwrite(STDERR, "FAIL: Catalog Blade unreadable.\n");
     exit(2);
 }
 $bulkStart = strpos($blade, 'id="catalog-bulk-operation-form"');
@@ -18,7 +18,6 @@ $grid = strpos($blade, '<div class="product-grid unified-product-grid">');
 $status = strpos($blade, 'data-product-status-toggle');
 $primary = strpos($blade, 'class="catalog-card-action-row catalog-card-primary-actions"');
 $secondary = strpos($blade, 'class="catalog-card-action-row catalog-card-secondary-actions"');
-$cssMarker = strpos($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565');
 $checks = [
     'Bulk form has an explicit ID' =>
         $bulkStart !== false && str_contains($blade, 'data-unified-catalog-bulk'),
@@ -53,15 +52,6 @@ $checks = [
         str_contains($blade, '@if($canManageCatalog)')
         && str_contains($blade, '@if($canManageThis)')
         && str_contains($blade, '@if($canManageThisImages)'),
-    'New styling is restricted to catalog shell' =>
-        $cssMarker !== false
-        && str_contains($css, '.build16-catalog-shell .unified-product-card .catalog-card-action-row'),
-    'Action groups use explicit two-column grid' =>
-        str_contains($css, 'grid-template-columns: repeat(2, minmax(0, 1fr));'),
-    'Single permitted action stretches across both columns' =>
-        str_contains($css, '.catalog-card-action-row > :only-child'),
-    'Existing responsive 4-3-2-1 layout is preserved' =>
-        str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010'),
 ];
 $pass = 0;
 foreach ($checks as $name => $ok) {

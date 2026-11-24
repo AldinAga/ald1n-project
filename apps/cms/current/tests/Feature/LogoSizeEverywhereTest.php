@@ -148,7 +148,7 @@ final class LogoSizeEverywhereTest extends TestCase
         $html = (string) $this->get('/login')->assertOk()->getContent();
 
         self::assertStringNotContainsString('auth-logo', $html);
-        self::assertStringContainsString('<span class="brand-mark">A</span>', $html);
+        self::assertStringContainsString('<span class="a1-auth__mark" aria-hidden="true">A</span>', $html);
         self::assertStringContainsString('ZZ FIRMA ZZ', $html);
     }
 

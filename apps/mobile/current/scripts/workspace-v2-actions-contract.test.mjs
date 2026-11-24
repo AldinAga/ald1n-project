@@ -39,7 +39,7 @@ test('a next-step request cannot reopen a submitted or dismissed panel on refetc
 test('AdminOrderActions reuses existing panels with capability-driven compact links', () => {
   const s = read('src/features/admin/orders-admin-actions.tsx');
   assert.match(s, /<QuickActionHub/);
-  assert.match(s, /canAccept/);
+  assert.match(s, /canConfirm/);
   assert.match(s, /capabilities\.internal_notes/);
   assert.match(s, /capabilities\.payments/);
   assert.match(s, /canComplete/);
@@ -49,4 +49,21 @@ test('AdminOrderActions reuses existing panels with capability-driven compact li
   assert.match(s, /panel === 'shipment'/);
   assert.match(s, /panel === 'complete'/);
   assert.match(s, /panel === 'reopen'/);
+});
+
+test('order flow contract (PR 203/205): one-step confirm, required cancel reason, stable payment key', () => {
+  const actions = read('src/features/admin/orders-admin-actions.tsx');
+  const api = read('src/features/admin/orders-admin-api.ts');
+  const customer = read('src/app/(app)/order/[id].tsx');
+  const endpoints = read('src/lib/api/endpoints.ts');
+  assert.doesNotMatch(api, /\/accept`/);
+  assert.doesNotMatch(actions, /apiAdminOrders\.accept|panel === 'accept'|U obradi/);
+  assert.match(api, /AdminOrderStatus = 'confirmed' \| 'cancelled'/);
+  assert.match(actions, /Razlog otkazivanja je obavezan/);
+  assert.match(actions, /idempotency_key: paymentIdempotencyKey/);
+  assert.match(actions, /function openPaymentEntry[\s\S]*Crypto\.randomUUID\(\)/);
+  assert.doesNotMatch(api, /randomUUID/);
+  assert.match(endpoints, /cancel: async \(id: number, reason: string\)[\s\S]*body: \{ reason \}/);
+  assert.doesNotMatch(endpoints, /note: note \|\| null/);
+  assert.match(customer, /Unesi razlog otkazivanja/);
 });

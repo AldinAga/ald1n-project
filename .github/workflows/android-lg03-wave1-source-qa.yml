@@ -54,7 +54,7 @@ jobs:
           // and the isolated SDK58 PR candidate. Reject unsupported/mixed versions.
           const exactBaselines = {
             '~57.0.27': { rn:'0.86.3', google:'1.0.2', nitro:'0.36.1', npm:'npm@10.9.2', eas:'25.0.0', label:'SDK57' },
-            '~58.0.25': { rn:'0.88.1', google:'2.3.1', nitro:'0.37.1', npm:'npm@12.2.1', eas:'27.2.0', label:'SDK58' },
+            '~58.0.26': { rn:'0.88.1', google:'2.3.1', nitro:'0.37.1', npm:'npm@12.2.1', eas:'27.11.0', label:'SDK58' },
           };
           const baseline = exactBaselines[p.dependencies.expo];
           if(p.version!=='1.0.0'||p.packageManager!==baseline.npm||!baseline
@@ -82,6 +82,11 @@ jobs:
         run: npm run test:release25
       - name: Build25-compatible Android JS bundle export (never publish)
         working-directory: apps/mobile/current
+        env:
+          # app.config.js fails closed without an approved identity (no default runtime on SDK58).
+          # Source-only Play identity (as in LG-03 wave 2): keeps the production env, is not a build, OTA or submit approval.
+          ALD1N_M17_SDK58_PLAY_RC: source-only
+          ALD1N_M17_SDK58_PLAY_PROFILE: m17-sdk58-play-rc
         run: |
           set -euo pipefail
           npx expo export --platform android --output-dir "$RUNNER_TEMP/ald1n-lg03-wave1-android-export"

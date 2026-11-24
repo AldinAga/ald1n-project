@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ExchangeRateHistory;
+use App\Models\Order;
+use App\Models\OrderCommission;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -24,6 +29,7 @@ final class ExchangeRateService
     private const FRANKFURTER_SOURCE = 'Frankfurter API v2 - sekundarni EUR/RSD referentni fallback';
     private const FAILURE_PROVIDER = 'provider_chain';
     private const FAILURE_SOURCE = 'NBS javna kursna lista -> Frankfurter API -> poslednji uspesno sacuvan kurs ostaje aktivan';
+    private const RELEASE_FAILED_MESSAGE = 'Kurs je sačuvan, ali provizije koje su čekale kurs nisu oslobođene. Pokušaj se ponavlja pri sledećem pokretanju kursa; po potrebi ponovo sačuvaj kurs.';
     private const MANUAL_SOURCE = 'Rucni override - Komercijalni prodajni EUR/RSD kurs';
 
     public function __construct(
@@ -55,7 +61,8 @@ final class ExchangeRateService
         ];
     }
 
-    public function saveManual(float $rate, int $userId): void
+    /** @return bool false ako oslobađanje zadržanih provizija nije uspelo (kurs je ipak sačuvan) */
+    public function saveManual(float $rate, int $userId): bool
     {
         $this->assertRate($rate);
         $before = $this->configuration();
@@ -83,8 +90,47 @@ final class ExchangeRateService
             'updated_by' => $userId,
         ]);
         $this->audit->log('exchange_rate.manual_updated', 'Komercijalni prodajni EUR/RSD kurs', null, $before, $this->configuration());
+        return $this->releaseCommissionsWaitingForRate();
     }
 
+    /**
+     * Provizije zadržane jer kursa nije bilo (CommissionEligibilityService::awaitsExchangeRate) postaju dospele čim kurs postoji.
+     * Kurs se upisuje na te porudžbine (orders.eur_rsd_rate), inače bi izveštaji u RSD za njih računali 0.
+     * Ako oslobađanje padne, greška ide u log, audit i vidljivi "last_error"; ponovni pokušaj radi exchange-rate:update.
+     */
+    public function releaseCommissionsWaitingForRate(): bool
+    {
+        $rate = $this->settings->eurRsdRate();
+        if ($rate === null) {
+            return true;
+        }
+        try {
+            // Jedna transakcija: ako oslobadanje padne, kurs na narudzbinama se vraca i ponovni pokusaj ih opet nalazi.
+            DB::transaction(function () use ($rate): void {
+                $held = Order::query()
+                    ->where(static fn (Builder $q): Builder => $q->whereNull('eur_rsd_rate')->orWhere('eur_rsd_rate', '<=', 0))
+                    ->whereIn('id', OrderCommission::query()->where('status', 'pending')->select('order_id'))
+                    ->whereHas('items', static fn (Builder $i): Builder => $i->where('commission_source_snapshot', 'manual')->where('original_currency', 'RSD'));
+                $ids = (clone $held)->pluck('id')->all();
+                if ($ids === []) {
+                    return;
+                }
+                $held->update(['eur_rsd_rate' => number_format($rate, 6, '.', '')]);
+                app(CommissionAutoApprovalService::class)->backfill($ids);
+            });
+            if ((string) $this->settings->get('eur_rsd_last_error') === self::RELEASE_FAILED_MESSAGE) {
+                $this->settings->putMany(['eur_rsd_last_error' => ''], null);
+            }
+
+            return true;
+        } catch (Throwable $exception) {
+            Log::warning('Release of commissions waiting for the EUR/RSD rate failed.', ['exception' => $exception]);
+            $this->settings->putMany(['eur_rsd_last_error' => self::RELEASE_FAILED_MESSAGE], null);
+            $this->audit->log('exchange_rate.commission_release_failed', 'Oslobađanje provizija zadržanih zbog kursa', null, null, ['error' => mb_substr($exception->getMessage(), 0, 300)]);
+
+            return false;
+        }
+    }
     public function setAutomatic(bool $enabled, int $staleHours, int $userId): void
     {
         $before = $this->configuration();
@@ -138,62 +184,69 @@ final class ExchangeRateService
             $provider = (string) $result['provider'];
             $source = (string) $result['source'];
             $this->assertRate($rate);
-
-            $this->settings->putMany([
-                'eur_rsd_rate' => number_format($rate, 6, '.', ''),
-                'eur_rsd_mode' => $effectiveMode,
-                'eur_rsd_provider' => $provider,
-                'eur_rsd_source' => $source,
-                'eur_rsd_provider_date' => $date,
-                'eur_rsd_updated_at' => $attemptAt,
-                'eur_rsd_last_attempt_at' => $attemptAt,
-                'eur_rsd_last_error' => '',
-            ], $userId);
-
-            $message = match ($provider) {
-                self::PRIMARY_PROVIDER => 'NBS javna kursna lista je uspesno preuzeta; prodajni EUR/RSD kurs za devize je postavljen kao glavni kurs.',
-                self::FRANKFURTER_PROVIDER => 'NBS javna kursna lista nije bila dostupna; Frankfurter API v2 sekundarni fallback je postavljen kao privremeni EUR/RSD kurs.',
-                default => 'EUR/RSD kurs je automatski osvezen.',
-            };
-            $fallbackReason = trim((string) ($result['fallback_reason'] ?? ''));
-            if ($fallbackReason !== '') {
-                $message .= ' Fallback razlog: '.mb_substr($fallbackReason, 0, 250);
-            }
-
-            ExchangeRateHistory::query()->create([
-                'old_rate' => $before['rate'],
-                'new_rate' => $rate,
-                'mode' => $effectiveMode,
-                'provider' => $provider,
-                'source' => $source,
-                'provider_date' => $date,
-                'triggered_by' => $triggeredBy,
-                'status' => 'success',
-                'message' => mb_substr($message, 0, 500),
-                'updated_by' => $userId,
-            ]);
-
-            return $result;
         } catch (Throwable $exception) {
             $message = mb_substr($this->safeProviderError($exception), 0, 500);
-            $this->settings->putMany([
-                'eur_rsd_last_error' => $message,
-                'eur_rsd_last_attempt_at' => $attemptAt,
-            ], $userId);
-            ExchangeRateHistory::query()->create([
-                'old_rate' => $before['rate'],
-                'new_rate' => null,
-                'mode' => $effectiveMode,
-                'provider' => self::FAILURE_PROVIDER,
-                'source' => self::FAILURE_SOURCE,
-                'provider_date' => $before['provider_date'],
-                'triggered_by' => $triggeredBy,
-                'status' => 'failed',
-                'message' => $message,
-                'updated_by' => $userId,
-            ]);
+            // Zapis neuspjeha ne smije prekriti pravu grešku izvora ako i on pukne.
+            try {
+                $this->settings->putMany([
+                    'eur_rsd_last_error' => $message,
+                    'eur_rsd_last_attempt_at' => $attemptAt,
+                ], $userId);
+                ExchangeRateHistory::query()->create([
+                    'old_rate' => $before['rate'],
+                    'new_rate' => null,
+                    'mode' => $effectiveMode,
+                    'provider' => self::FAILURE_PROVIDER,
+                    'source' => self::FAILURE_SOURCE,
+                    'provider_date' => $before['provider_date'],
+                    'triggered_by' => $triggeredBy,
+                    'status' => 'failed',
+                    'message' => $message,
+                    'updated_by' => $userId,
+                ]);
+            } catch (Throwable $recordFailure) {
+                Log::warning('Recording the failed EUR/RSD fetch failed.', ['exception' => $recordFailure]);
+            }
             throw new RuntimeException($message, 0, $exception);
         }
+
+        // Kurs je uspješno preuzet: greška pri upisu ne smije se zabilježiti kao neuspjelo preuzimanje.
+        $this->settings->putMany([
+            'eur_rsd_rate' => number_format($rate, 6, '.', ''),
+            'eur_rsd_mode' => $effectiveMode,
+            'eur_rsd_provider' => $provider,
+            'eur_rsd_source' => $source,
+            'eur_rsd_provider_date' => $date,
+            'eur_rsd_updated_at' => $attemptAt,
+            'eur_rsd_last_attempt_at' => $attemptAt,
+            'eur_rsd_last_error' => '',
+        ], $userId);
+
+        $message = match ($provider) {
+            self::PRIMARY_PROVIDER => 'NBS javna kursna lista je uspesno preuzeta; prodajni EUR/RSD kurs za devize je postavljen kao glavni kurs.',
+            self::FRANKFURTER_PROVIDER => 'NBS javna kursna lista nije bila dostupna; Frankfurter API v2 sekundarni fallback je postavljen kao privremeni EUR/RSD kurs.',
+            default => 'EUR/RSD kurs je automatski osvezen.',
+        };
+        $fallbackReason = trim((string) ($result['fallback_reason'] ?? ''));
+        if ($fallbackReason !== '') {
+            $message .= ' Fallback razlog: '.mb_substr($fallbackReason, 0, 250);
+        }
+
+        ExchangeRateHistory::query()->create([
+            'old_rate' => $before['rate'],
+            'new_rate' => $rate,
+            'mode' => $effectiveMode,
+            'provider' => $provider,
+            'source' => $source,
+            'provider_date' => $date,
+            'triggered_by' => $triggeredBy,
+            'status' => 'success',
+            'message' => mb_substr($message, 0, 500),
+            'updated_by' => $userId,
+        ]);
+        $this->releaseCommissionsWaitingForRate();
+
+        return $result;
     }
 
     /** @return array{rate:float,date:string,source:string,provider:string} */

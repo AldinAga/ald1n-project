@@ -2,7 +2,11 @@
 @section('title', $product->name)
 @section('content')
 {{-- MOBILE_BUILD16_PRODUCT_DETAIL_REDESIGN_BATCH128 --}}
-<div class="build16-product-detail-shell" data-catalog-detail-ready="1" data-build16-product-detail-redesign="1">
+@pushOnce('head', 'a1-admin-catalog-css')
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin-catalog.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin-catalog.css')) ?: config('app.version') }}">
+@endPushOnce
+<div class="a1-cat">
+<div class="a1-cat-shell" data-catalog-detail-ready="1" data-build16-product-detail-redesign="1">
 @php
     $displayImages = $product->images
         ->map(fn ($image) => ['model' => $image, 'url' => $image->url, 'download_url' => $image->download_url])
@@ -11,40 +15,40 @@
     $mainImage = $displayImages->first();
     $galleryCount = $displayImages->count();
 @endphp
-<a class="back-link" href="{{ route('catalog.index') }}"><x-icon name="chevron-left" size="18" /> Nazad na artikle</a>
-<div class="product-detail build16-product-detail-layout {{ filled($product->description) ? 'has-desktop-description' : '' }}">
-    <section class="gallery-panel product-gallery build16-product-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
+<div><a class="a1-btn a1-btn--quiet a1-btn--sm" href="{{ route('catalog.index') }}"><x-icon name="chevron-left" size="18" :shell="true" /> Nazad na artikle</a></div>
+<div class="a1-cat-layout {{ filled($product->description) ? 'a1-cat-layout--desc' : '' }}">
+    <section class="a1-card a1-cat-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
         @if($mainImage)
-            <div class="product-gallery-stage" data-gallery-stage>
+            <div class="a1-cat-gal__stage" data-gallery-stage>
                 @if($galleryCount > 1)
-                    <button class="product-gallery-arrow product-gallery-arrow-prev" type="button" data-gallery-prev aria-label="Prethodna slika">
+                    <button class="a1-cat-gal__arrow a1-cat-gal__arrow--prev" type="button" data-gallery-prev aria-label="Prethodna slika">
                         <x-icon name="chevron-left" size="24" />
                     </button>
                 @endif
 
-                <button class="product-gallery-main" type="button" data-gallery-open data-gallery-src="{{ $mainImage['url'] }}" data-gallery-alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" data-gallery-download="{{ $mainImage['download_url'] }}" aria-label="Otvori sliku preko celog ekrana">
+                <button class="a1-cat-gal__main" type="button" data-gallery-open data-gallery-src="{{ $mainImage['url'] }}" data-gallery-alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" data-gallery-download="{{ $mainImage['download_url'] }}" aria-label="Otvori sliku preko celog ekrana">
                     <img data-gallery-main-image src="{{ $mainImage['url'] }}" alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}">
-                    <span class="product-gallery-open-hint"><x-icon name="expand" size="18" /> Uvećaj</span>
+                    <span class="a1-cat-gal__hint"><x-icon name="expand" size="18" /> Uvećaj</span>
                 </button>
-                <a class="product-gallery-download" href="{{ $mainImage['download_url'] }}" data-gallery-download-link aria-label="Preuzmi fotografiju u punoj rezoluciji" title="Preuzmi punu rezoluciju"><x-icon name="download" size="18" /> Preuzmi</a>
+                <a class="a1-cat-gal__download" href="{{ $mainImage['download_url'] }}" data-gallery-download-link aria-label="Preuzmi fotografiju u punoj rezoluciji" title="Preuzmi punu rezoluciju"><x-icon name="download" size="18" /> Preuzmi</a>
 
                 @if($galleryCount > 1)
-                    <button class="product-gallery-arrow product-gallery-arrow-next" type="button" data-gallery-next aria-label="Sledeća slika">
+                    <button class="a1-cat-gal__arrow a1-cat-gal__arrow--next" type="button" data-gallery-next aria-label="Sledeća slika">
                         <x-icon name="chevron-right" size="24" />
                     </button>
                 @endif
 
-                <div class="product-gallery-status" aria-live="polite">
+                <div class="a1-cat-gal__status" aria-live="polite">
                     <span data-gallery-counter>1 / {{ $galleryCount }}</span>
                     @if($galleryCount > 1)<small>Prevuci prstom ili koristi strelice</small>@endif
                 </div>
             </div>
 
             @if($galleryCount > 1)
-                <div class="product-gallery-thumbnails" role="list" aria-label="Sve slike proizvoda">
+                <div class="a1-cat-gal__thumbs" role="list" aria-label="Sve slike proizvoda">
                     @foreach($displayImages as $image)
                         <button
-                            class="product-gallery-thumbnail {{ $loop->first ? 'is-active' : '' }}"
+                            class="a1-cat-gal__thumb {{ $loop->first ? 'is-active' : '' }}"
                             type="button"
                             role="listitem"
                             data-gallery-thumbnail
@@ -62,96 +66,100 @@
                 </div>
             @endif
 
-            <div class="product-lightbox" data-product-lightbox hidden role="dialog" aria-modal="true" aria-label="Uvećan prikaz proizvoda {{ $product->name }}">
-                <button class="product-lightbox-backdrop" type="button" data-lightbox-close tabindex="-1" aria-label="Zatvori galeriju"></button>
-                <div class="product-lightbox-dialog">
-                    <header class="product-lightbox-header">
+            <div class="a1-cat-lb" data-product-lightbox hidden role="dialog" aria-modal="true" aria-label="Uvećan prikaz proizvoda {{ $product->name }}">
+                <button class="a1-cat-lb__backdrop" type="button" data-lightbox-close tabindex="-1" aria-label="Zatvori galeriju"></button>
+                <div class="a1-cat-lb__dialog">
+                    <header class="a1-cat-lb__header">
                         <div>
                             <strong>{{ $product->name }}</strong>
                             <small data-lightbox-counter>1 / {{ $galleryCount }}</small>
                         </div>
-                        <button class="product-lightbox-close" type="button" data-lightbox-close aria-label="Zatvori galeriju"><x-icon name="x" size="24" /></button>
+                        <button class="a1-cat-lb__close" type="button" data-lightbox-close aria-label="Zatvori galeriju"><x-icon name="x" size="24" /></button>
                     </header>
 
-                    <div class="product-lightbox-viewport" data-lightbox-viewport>
+                    <div class="a1-cat-lb__viewport" data-lightbox-viewport>
                         @if($galleryCount > 1)
-                            <button class="product-lightbox-arrow product-lightbox-arrow-prev" type="button" data-lightbox-prev aria-label="Prethodna slika"><x-icon name="chevron-left" size="30" /></button>
+                            <button class="a1-cat-lb__arrow a1-cat-lb__arrow--prev" type="button" data-lightbox-prev aria-label="Prethodna slika"><x-icon name="chevron-left" size="30" /></button>
                         @endif
-                        <div class="product-lightbox-image-wrap" data-lightbox-image-wrap>
+                        <div class="a1-cat-lb__imgwrap" data-lightbox-image-wrap>
                             <img data-lightbox-image src="{{ $mainImage['url'] }}" alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" draggable="false">
-                            <div class="product-gallery-image-error" data-gallery-image-error hidden>Slika trenutno nije dostupna.</div>
+                            <div class="a1-cat-gal__error" data-gallery-image-error hidden>Slika trenutno nije dostupna.</div>
                         </div>
                         @if($galleryCount > 1)
-                            <button class="product-lightbox-arrow product-lightbox-arrow-next" type="button" data-lightbox-next aria-label="Sledeća slika"><x-icon name="chevron-right" size="30" /></button>
+                            <button class="a1-cat-lb__arrow a1-cat-lb__arrow--next" type="button" data-lightbox-next aria-label="Sledeća slika"><x-icon name="chevron-right" size="30" /></button>
                         @endif
                     </div>
 
-                    <footer class="product-lightbox-toolbar">
+                    <footer class="a1-cat-lb__toolbar">
                         <span>Točkić miša, dvostruki klik ili dugmad za zoom</span>
-                        <div class="product-lightbox-toolbar-actions">
-                            <div class="product-lightbox-zoom-controls" aria-label="Kontrole uvećanja">
+                        <div class="a1-cat-lb__actions">
+                            <div class="a1-cat-lb__zoom" aria-label="Kontrole uvećanja">
                                 <button type="button" data-zoom-out aria-label="Umanji"><x-icon name="zoom-out" size="20" /></button>
                                 <button type="button" data-zoom-reset aria-label="Vrati originalni prikaz"><span data-zoom-value>100%</span></button>
                                 <button type="button" data-zoom-in aria-label="Uvećaj"><x-icon name="zoom-in" size="20" /></button>
                             </div>
-                            <a class="product-lightbox-download" href="{{ $mainImage['download_url'] }}" data-lightbox-download><x-icon name="download" size="18" /> Puna rezolucija</a>
+                            <a class="a1-cat-lb__download" href="{{ $mainImage['download_url'] }}" data-lightbox-download><x-icon name="download" size="18" /> Puna rezolucija</a>
                         </div>
                     </footer>
                 </div>
             </div>
         @else
-            <div class="main-product-image product-gallery-empty"><x-icon name="image" size="38" /><span>Bez slike</span></div>
+            <div class="a1-cat-gal__empty"><x-icon name="image" size="38" /><span>Bez slike</span></div>
         @endif
     </section>
 
     @if(filled($product->description))
-        <section class="panel product-description-desktop build16-product-description" aria-labelledby="product-description-title">
-            <div class="product-description-heading">
-                <h2 id="product-description-title">Opis artikla</h2>
+        <section class="a1-card a1-cat-desc-card" aria-labelledby="product-description-title">
+            <div class="a1-cat-descbar">
+                <h2 class="a1-h2" id="product-description-title">Opis artikla</h2>
                 <button
                     type="button"
-                    class="button button-small button-ghost product-description-copy"
+                    class="a1-btn a1-btn--sm"
                     data-product-description-copy
                 >Kopiraj opis</button>
             </div>
-            <div class="description">{!! nl2br(e((string) $product->description)) !!}</div>
+            <div class="a1-cat-desc">{!! nl2br(e((string) $product->description)) !!}</div>
             <textarea data-product-description-copy-source hidden>{{ (string) $product->description }}</textarea>
-            <span class="product-description-copy-status" data-product-description-copy-status aria-live="polite"></span>
+            <span class="a1-cat-copy-status" data-product-description-copy-status aria-live="polite"></span>
         </section>
     @endif
 
-    <section class="detail-panel build16-product-summary">
-        <div class="tags">
-            @if($product->type)<span>{{ $product->type->name }}</span>@endif
-            @if($product->brand)<span class="neutral">{{ $product->brand->name }}</span>@endif
-            @if($product->line)<span>{{ $product->line->name }}</span>@endif
-            @if($product->model_name)<span>{{ $product->model_name }}</span>@endif
+    <section class="a1-card a1-cat-detail">
+        <ul class="a1-cat-tags">
+            @if($product->type)<li><span class="a1-pill a1-pill--info">{{ $product->type->name }}</span></li>@endif
+            @if($product->brand)<li><span class="a1-pill">{{ $product->brand->name }}</span></li>@endif
+            @if($product->line)<li><span class="a1-pill">{{ $product->line->name }}</span></li>@endif
+            @if($product->model_name)<li><span class="a1-pill">{{ $product->model_name }}</span></li>@endif
+        </ul>
+        <div>
+            <span class="a1-eyebrow">Artikal</span>
+            <h1 class="a1-cat-detail__title">{{ $product->name }}</h1>
+            <p class="a1-muted">SKU: {{ $product->sku }}</p>
         </div>
-        <span class="eyebrow">Artikal</span>
-        <h1>{{ $product->name }}</h1>
-        <div class="sku">SKU: {{ $product->sku }}</div>
         @if($canManageProduct)
-            <div class="catalog-detail-management">
-                <a class="button button-primary button-small" href="{{ route('admin.products.edit', $product) }}">Izmeni artikal</a>
+            <div class="a1-cat-manage" data-catalog-detail-management>
+                <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.products.edit', $product) }}">Izmeni artikal</a>
 
-                @if($canManageImages)<a class="button button-ghost button-small" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
-                <a class="button button-ghost button-small" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
+                @if($canManageImages)<a class="a1-btn a1-btn--sm" href="{{ route('admin.products.images.index', $product) }}">Slike</a>@endif
+                <a class="a1-btn a1-btn--sm" href="{{ route('admin.products.clone', $product) }}">Kloniraj</a>
             </div>
         @endif
-        <div class="detail-numbers build16-product-metrics">
+        <div class="a1-cat-metrics">
             @if($canViewPrices)
-                <div><small>Cena</small><strong data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float) $product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong></div>
+                <div class="a1-cat-metric"><span>Cena</span><strong data-display-money data-money-amount="{{ $product->price_amount }}" data-money-currency="{{ strtoupper((string) $product->price_currency) }}">{{ number_format((float) $product->price_amount, 2, ',', '.') }} {{ $product->price_currency }}</strong></div>
             @endif
-            <div><small>Provizija po komadu</small><strong>{{ number_format($commissionEur, 2, ',', '.') }} €</strong></div>
-            <div><small>Lager</small><strong>{{ $product->stock_quantity }}</strong></div>
+            <div class="a1-cat-metric"><span>Provizija po komadu</span><strong>{{ number_format($commissionEur, 2, ',', '.') }} €</strong></div>
+            <div class="a1-cat-metric"><span>Lager</span><strong>{{ $product->stock_quantity }}</strong></div>
         </div>
-        <div class="category-list">
-            @foreach($product->categories as $category)
-                <span>{{ $category->name }}</span>
-            @endforeach
-        </div>
+        @if($product->categories->isNotEmpty())
+            <ul class="a1-cat-tags" aria-label="Kategorije">
+                @foreach($product->categories as $category)
+                    <li><span class="a1-pill">{{ $category->name }}</span></li>
+                @endforeach
+            </ul>
+        @endif
         @if($product->specificationValues->isNotEmpty())
-            <dl class="product-specification-list build16-product-specifications">
+            <dl class="a1-dl a1-cat-specs">
                 @foreach($product->specificationValues->sortBy(fn ($value) => $value->field?->sort_order ?? 0) as $specification)
                     @continue(!$specification->field || $specification->field->status !== 'active')
                     @php
@@ -162,41 +170,53 @@
                             ?? ($specification->value_boolean === null ? null : ($specification->value_boolean ? 'Da' : 'Ne'));
                     @endphp
                     @if($displayValue !== null && $displayValue !== '')
-                        <dt>{{ $specification->field?->name ?? 'Specifikacija' }}</dt>
-                        <dd>
-                            {{ $displayValue }}
-                            @if($specification->value_detail)
-                                <strong>{{ $specification->value_detail }}</strong>
-                            @endif
-                            @if($specification->field?->unit)
-                                {{ $specification->field->unit }}
-                            @endif
-                        </dd>
+                        <div class="a1-dl__row">
+                            <dt>{{ $specification->field?->name ?? 'Specifikacija' }}</dt>
+                            <dd>
+                                {{ $displayValue }}
+                                @if($specification->value_detail)
+                                    <strong>{{ $specification->value_detail }}</strong>
+                                @endif
+                                @if($specification->field?->unit)
+                                    {{ $specification->field->unit }}
+                                @endif
+                            </dd>
+                        </div>
                     @endif
                 @endforeach
             </dl>
         @endif
         @if(filled($product->description))
-            <div class="description product-description-mobile">{!! nl2br(e((string) $product->description)) !!}</div>
+            <div class="a1-cat-desc a1-cat-desc--mobile">{!! nl2br(e((string) $product->description)) !!}</div>
+        @endif
+        {{-- Interna napomena: samo SuperAdmin i autor artikla s catalog.manage_products; nikad kupci, portal ni javna vitrina. --}}
+        @if($canManageProduct && filled($product->notes))
+            <section class="a1-card a1-cat-notes" data-product-internal-notes aria-labelledby="product-notes-title">
+                <div class="a1-cat-descbar">
+                    <h2 class="a1-h2" id="product-notes-title">Napomene</h2>
+                    <span class="a1-pill a1-pill--warning">Interno</span>
+                </div>
+                <div class="a1-cat-desc">{!! nl2br(e((string) $product->notes)) !!}</div>
+            </section>
         @endif
         @include('partials.cart-add-control', ['product' => $product, 'compact' => false])
         @can('orders.create')
             @if($product->stock_quantity > 0)
-                <div class="alpha-note">Dodavanje u korpu ne rezerviše lager. Lager se proverava i rezerviše tek pri slanju porudžbine.</div>
+                <div class="a1-alert" role="note"><x-icon name="alert" size="20" :shell="true" /><p class="a1-text">Dodavanje u korpu ne rezerviše lager. Lager se proverava i rezerviše tek pri slanju porudžbine.</p></div>
             @endif
         @endcan
     </section>
 </div>
 </div>
 @if($canRecordDirectSale)
-<section class="panel direct-sale-card build16-direct-sale" aria-labelledby="direct-sale-title">
-    <div class="direct-sale-heading">
+<section class="a1-card a1-cat-sale" aria-labelledby="direct-sale-title">
+    <div class="a1-cat-sale__head">
         <div>
-            <span class="eyebrow">SUPER ADMINISTRATOR</span>
-            <h2 id="direct-sale-title">Direktna prodaja</h2>
+            <span class="a1-eyebrow">SUPER ADMINISTRATOR</span>
+            <h2 class="a1-h2" id="direct-sale-title">Direktna prodaja</h2>
             <p>Evidentira prodaju koju je Super Administrator direktno realizovao sa krajnjim kupcem, bez SubAgenta i bez provizije. Za odmah plaćene metode uplata se evidentira kao verifikovana; kod odloženog plaćanja prva rata se evidentira odmah, a ostatak se prati kroz Potraživanja.</p>
         </div>
-        <span class="direct-sale-badge">Direktno · bez provizije</span>
+        <span class="a1-pill a1-pill--info">Direktno · bez provizije</span>
     </div>
 
     @php
@@ -207,17 +227,18 @@
     <form
         method="post"
         action="{{ route('admin.products.direct-sale', $product) }}"
-        class="direct-sale-form"
+        class="a1-form"
         data-ux-allow-multiple-submit
         data-direct-sale-confirm="Evidentirati direktnu prodaju? Lager će biti umanjen i artikal označen kao lično dostavljen. Kod odloženog plaćanja prva rata se evidentira odmah, a ostatak prati kroz Potraživanja."
     >
         @csrf
         <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', $directSaleIdempotencyKey) }}">
 
-        <div class="direct-sale-grid">
-            <label class="direct-sale-field">
-                <span>Ime krajnjeg kupca · opciono</span>
+        <div class="a1-cat-sale__grid">
+            <label class="a1-field">
+                <span class="a1-label">Ime krajnjeg kupca · opciono</span>
                 <input
+                    class="a1-input"
                     type="text"
                     name="buyer_name"
                     maxlength="190"
@@ -227,9 +248,10 @@
                 >
             </label>
 
-            <label class="direct-sale-field">
-                <span>Telefon kupca · opciono</span>
+            <label class="a1-field">
+                <span class="a1-label">Telefon kupca · opciono</span>
                 <input
+                    class="a1-input"
                     type="tel"
                     name="buyer_phone"
                     maxlength="80"
@@ -239,14 +261,15 @@
                 >
             </label>
 
-            <label class="direct-sale-field">
-                <span>Količina</span>
-                <input type="number" name="quantity" min="1" max="1000" step="1" value="{{ old('quantity', 1) }}" required>
+            <label class="a1-field">
+                <span class="a1-label">Količina</span>
+                <input class="a1-input" type="number" name="quantity" min="1" max="1000" step="1" value="{{ old('quantity', 1) }}" required>
             </label>
 
-            <label class="direct-sale-field">
-                <span>Stvarna prodajna cena · RSD / kom</span>
+            <label class="a1-field">
+                <span class="a1-label">Stvarna prodajna cena · RSD / kom</span>
                 <input
+                    class="a1-input"
                     type="number"
                     name="sale_price_rsd"
                     min="0.01"
@@ -259,9 +282,9 @@
                 >
             </label>
 
-            <label class="direct-sale-field">
-                <span>Način plaćanja</span>
-                <select name="payment_method" data-direct-sale-payment-method required>
+            <label class="a1-field">
+                <span class="a1-label">Način plaćanja</span>
+                <select class="a1-select" name="payment_method" data-direct-sale-payment-method required>
                     <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Gotovina</option>
                     <option value="card" @selected(old('payment_method') === 'card')>Kartica</option>
                     <option value="bank_transfer" @selected(old('payment_method') === 'bank_transfer')>Prenos na račun</option>
@@ -270,34 +293,34 @@
                 </select>
             </label>
 
-            <div class="direct-sale-deferred-panel" data-direct-sale-deferred-panel @if(old('payment_method') !== 'deferred_payment') hidden @endif>
-                <div class="direct-sale-deferred-heading">
+            <div class="a1-cat-sale__deferred" data-direct-sale-deferred-panel @if(old('payment_method') !== 'deferred_payment') hidden @endif>
+                <div class="a1-cat-sale__deferred-head">
                     <div>
-                        <span class="eyebrow">PLAN OTPLATE</span>
-                        <h3>Odloženo plaćanje</h3>
+                        <span class="a1-eyebrow">PLAN OTPLATE</span>
+                        <h3 class="a1-h3">Odloženo plaćanje</h3>
                         <p>Podrazumevano su 3 rate. Iznos i datum svake rate možeš izmeniti. Prva rata je obavezno današnja i evidentira se odmah kao stvarna uplata.</p>
                     </div>
-                    <span class="direct-sale-deferred-badge">Prva rata odmah</span>
+                    <span class="a1-pill a1-pill--warning">Prva rata odmah</span>
                 </div>
 
-                <div class="direct-sale-deferred-controls">
-                    <label class="direct-sale-field">
-                        <span>Broj rata</span>
-                        <input type="number" min="1" max="24" step="1" name="installment_count" value="{{ $directSaleInstallmentCount }}" data-direct-sale-installment-count>
+                <div class="a1-cat-sale__controls">
+                    <label class="a1-field">
+                        <span class="a1-label">Broj rata</span>
+                        <input class="a1-input" type="number" min="1" max="24" step="1" name="installment_count" value="{{ $directSaleInstallmentCount }}" data-direct-sale-installment-count>
                     </label>
-                    <label class="direct-sale-field">
-                        <span>Način plaćanja prve rate</span>
-                        <select name="first_payment_method" data-direct-sale-first-payment-method>
+                    <label class="a1-field">
+                        <span class="a1-label">Način plaćanja prve rate</span>
+                        <select class="a1-select" name="first_payment_method" data-direct-sale-first-payment-method>
                             <option value="cash" @selected(old('first_payment_method', 'cash') === 'cash')>Gotovina</option>
                             <option value="card" @selected(old('first_payment_method') === 'card')>Kartica</option>
                             <option value="bank_transfer" @selected(old('first_payment_method') === 'bank_transfer')>Prenos na račun</option>
                             <option value="other" @selected(old('first_payment_method') === 'other')>Drugo</option>
                         </select>
                     </label>
-                    <button class="button button-ghost" type="button" data-direct-sale-split-installments>Rasporedi iznos ravnomerno</button>
+                    <button class="a1-btn" type="button" data-direct-sale-split-installments>Rasporedi iznos ravnomerno</button>
                 </div>
 
-                <div class="direct-sale-installments" data-direct-sale-installments>
+                <div class="a1-cat-sale__rows" data-direct-sale-installments>
                     @for($installmentIndex = 0; $installmentIndex < $directSaleInstallmentCount; $installmentIndex++)
                         @php
                             $savedInstallment = is_array($directSaleOldInstallments[$installmentIndex] ?? null) ? $directSaleOldInstallments[$installmentIndex] : [];
@@ -305,11 +328,12 @@
                             $savedDue = $savedInstallment['due_at'] ?? now()->addMonths($installmentIndex)->toDateString();
                             if ($installmentIndex === 0) $savedDue = now()->toDateString();
                         @endphp
-                        <div class="direct-sale-installment-row" data-direct-sale-installment-row>
+                        <div class="a1-cat-sale__row" data-direct-sale-installment-row>
                             <strong>Rata <span data-installment-number>{{ $installmentIndex + 1 }}</span></strong>
-                            <label class="direct-sale-field">
-                                <span>Iznos · RSD</span>
+                            <label class="a1-field">
+                                <span class="a1-label">Iznos · RSD</span>
                                 <input
+                                    class="a1-input"
                                     type="number"
                                     min="0.01"
                                     max="9999999999.99"
@@ -320,9 +344,10 @@
                                     data-installment-amount
                                 >
                             </label>
-                            <label class="direct-sale-field">
-                                <span>Datum dospeća</span>
+                            <label class="a1-field">
+                                <span class="a1-label">Datum dospeća</span>
                                 <input
+                                    class="a1-input"
                                     type="date"
                                     min="{{ now()->toDateString() }}"
                                     name="installments[{{ $installmentIndex }}][due_at]"
@@ -334,7 +359,7 @@
                         </div>
                     @endfor
                 </div>
-                <div class="direct-sale-installment-summary">
+                <div class="a1-cat-sale__sum">
                     <span>Ukupno po ratama</span>
                     <strong data-direct-sale-installment-total>0,00 RSD</strong>
                     <small data-direct-sale-installment-balance>Unesi cenu i klikni „Rasporedi iznos ravnomerno”.</small>
@@ -342,19 +367,19 @@
             </div>
         </div>
 
-        <div class="direct-sale-actions">
-            <div class="direct-sale-note">
+        <div class="a1-cat-sale__actions">
+            <div class="a1-cat-sale__note">
                 <strong>Direktna prodaja Super Administratora</strong>
                 <span>Nalog kupca nije potreban. Ime i telefon su opcioni. SubAgent i provizija se ne kreiraju. Kod odloženog plaćanja prva rata ulazi odmah u finansijski ledger, a preostale rate u Potraživanja.</span>
             </div>
-            <button class="button button-primary" type="submit">Evidentiraj prodaju</button>
+            <button class="a1-btn a1-btn--primary" type="submit">Evidentiraj prodaju</button>
         </div>
     </form>
 
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
     // BATCH149D_V4_DEFERRED_DIRECT_SALE_UI
     (() => {
-        const form = document.querySelector('.direct-sale-form[data-direct-sale-confirm]');
+        const form = document.querySelector('form[data-direct-sale-confirm]');
         if (!form) return;
 
         const method = form.querySelector('[data-direct-sale-payment-method]');
@@ -433,16 +458,17 @@
             rowsWrap.textContent = '';
             for (let index = 0; index < requested; index += 1) {
                 const row = document.createElement('div');
-                row.className = 'direct-sale-installment-row';
+                row.className = 'a1-cat-sale__row';
                 row.dataset.directSaleInstallmentRow = '1';
 
                 const title = document.createElement('strong');
                 title.textContent = `Rata ${index + 1}`;
 
                 const amountLabel = document.createElement('label');
-                amountLabel.className = 'direct-sale-field';
-                amountLabel.innerHTML = '<span>Iznos · RSD</span>';
+                amountLabel.className = 'a1-field';
+                amountLabel.innerHTML = '<span class="a1-label">Iznos · RSD</span>';
                 const amount = document.createElement('input');
+                amount.className = 'a1-input';
                 amount.type = 'number';
                 amount.min = '0.01';
                 amount.max = '9999999999.99';
@@ -454,9 +480,10 @@
                 amountLabel.appendChild(amount);
 
                 const dueLabel = document.createElement('label');
-                dueLabel.className = 'direct-sale-field';
-                dueLabel.innerHTML = '<span>Datum dospeća</span>';
+                dueLabel.className = 'a1-field';
+                dueLabel.innerHTML = '<span class="a1-label">Datum dospeća</span>';
                 const due = document.createElement('input');
+                due.className = 'a1-input';
                 due.type = 'date';
                 due.min = todayText;
                 due.name = `installments[${index}][due_at]`;
@@ -528,6 +555,7 @@
 
 
 @endif
+</div>
 @endsection
 
 @push('scripts')
@@ -627,7 +655,7 @@
             lightboxImage.alt = image.alt;
             if (mainDownload && image.download) mainDownload.href = image.download;
             if (lightboxDownload && image.download) lightboxDownload.href = image.download;
-            mainImage.closest('.product-gallery-main')?.classList.remove('has-image-error');
+            mainImage.closest('.a1-cat-gal__main')?.classList.remove('has-image-error');
             imageError?.setAttribute('hidden', '');
 
             images.forEach((item, itemIndex) => {
@@ -652,7 +680,7 @@
         const openLightbox = () => {
             lastFocus = document.activeElement;
             lightbox.hidden = false;
-            document.body.classList.add('product-lightbox-open');
+            document.body.classList.add('a1-cat-lb-open');
             updateImage(index, false);
             requestAnimationFrame(() => gallery.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
         };
@@ -660,7 +688,7 @@
         const closeLightbox = () => {
             if (!isOpen()) return;
             lightbox.hidden = true;
-            document.body.classList.remove('product-lightbox-open');
+            document.body.classList.remove('a1-cat-lb-open');
             resetZoom();
             if (lastFocus instanceof HTMLElement) lastFocus.focus();
         };
@@ -704,10 +732,10 @@
         });
 
         lightboxImage.addEventListener('error', () => {
-            lightboxImage.closest('.product-lightbox-image-wrap')?.classList.add('has-image-error');
+            lightboxImage.closest('.a1-cat-lb__imgwrap')?.classList.add('has-image-error');
             imageError?.removeAttribute('hidden');
         });
-        mainImage.addEventListener('error', () => mainImage.closest('.product-gallery-main')?.classList.add('has-image-error'));
+        mainImage.addEventListener('error', () => mainImage.closest('.a1-cat-gal__main')?.classList.add('has-image-error'));
 
         lightboxViewport?.addEventListener('wheel', (event) => {
             event.preventDefault();

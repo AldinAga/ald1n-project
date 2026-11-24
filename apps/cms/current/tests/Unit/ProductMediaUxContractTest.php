@@ -13,8 +13,9 @@ final class ProductMediaUxContractTest extends TestCase
         $view = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/admin/products/form.blade.php');
 
         $name = strpos($view, 'data-product-name');
-        $images = strpos($view, '<h2>Dodavanje slika</h2>');
-        $specifications = strpos($view, '<h2>Specifikacije</h2>');
+        // Kobalt: naslovi nose a1-h2 klasu i id, pa se traži sadržaj naslova, ne goli tag.
+        $images = strpos($view, '>Dodavanje slika</h2>');
+        $specifications = strpos($view, '>Specifikacije</h2>');
 
         self::assertIsInt($name);
         self::assertIsInt($images);
@@ -31,7 +32,7 @@ final class ProductMediaUxContractTest extends TestCase
         $upload = (string) file_get_contents($root.'/resources/views/admin/products/partials/image-upload.blade.php');
         $script = (string) file_get_contents($root.'/public/assets/js/product-media-manager.js');
 
-        self::assertStringContainsString('image-primary-control', $card);
+        self::assertStringContainsString('a1-pc-img__star', $card);
         self::assertStringContainsString('data-image-drag-handle', $card);
         self::assertStringContainsString('↶ 90°', $card);
         self::assertStringContainsString('↷ 90°', $card);

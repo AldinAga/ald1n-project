@@ -89,8 +89,7 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         $this->actingAs($customer)->post('/orders', $this->orderPayload($product, $admin, 'email-events-order-1'))->assertRedirect();
         $order = Order::query()->sole();
 
-        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'processing', 'note' => 'Obrada je počela.'])->assertRedirect();
-        $this->actingAs($admin)->patch('/admin/orders/'.$order->id.'/status', ['status' => 'confirmed', 'note' => 'Porudžbina je potvrđena.', 'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])->assertRedirect();
+        $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/confirm', ['note' => 'Porudžbina je potvrđena.', 'order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])->assertRedirect();
         $courierId = (int) \App\Models\CourierService::query()->where('slug', 'post-express')->value('id');
         self::assertGreaterThan(0, $courierId);
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/shipment', [
@@ -104,7 +103,10 @@ final class OrderEmailsIpsWarrantyTest extends TestCase
         ])->assertRedirect();
         $this->actingAs($admin)->post('/admin/orders/'.$order->id.'/documents', ['document_type' => 'invoice'])->assertRedirect();
 
-        self::assertTrue(OrderEmailOutbox::query()->where('event_type', 'order_status_changed')->exists());
+        // Potvrda ne šalje mejl o promeni statusa (odluka vlasnika: mejlovi su primljena, poslata, isporučena).
+        self::assertFalse(OrderEmailOutbox::query()->where('event_type', 'order_status_changed')->exists());
+        self::assertFalse(OrderEmailOutbox::query()->where('event_type', 'order_accepted')->exists());
+        self::assertTrue(OrderEmailOutbox::query()->where('event_type', 'order_shipment_recorded')->exists());
         self::assertTrue(OrderShipment::query()->where('order_id', $order->id)->where('tracking_number_snapshot', 'TRACK-716')->exists());
         $order->refresh();
         self::assertSame('shipped', (string) $order->status);

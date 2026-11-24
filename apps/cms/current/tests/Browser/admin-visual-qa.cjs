@@ -43,7 +43,9 @@ const playwright = require(path.resolve(nodeRoot, 'node_modules/playwright'));
 const axeSource = fs.readFileSync(path.resolve(nodeRoot, 'node_modules/axe-core/axe.min.js'), 'utf8');
 
 const inPageContrast = require('./lib-inpage-contrast.cjs');
-const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(',').map(Number);
+const inPageWords = require('./lib-inpage-words.cjs');
+// Default matrix for pages without their own width list: 360 (smallest phone) and 1920 (wide desktop) join the old four, so the word gate sees the extremes.
+const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '360,375,430,768,1280,1920').split(',').map(Number);
 // Shell pages: 360 (smallest phone), 768 (sheet menu), 1200 (first desktop width) and 1280 are added to the matrix.
 const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
@@ -94,6 +96,11 @@ async function openGroup(page, summary) {
   if (await page.locator(toggle).isVisible()) await summary.click(); else await summary.hover();
 }
 const prepare = {
+  // Kartica "Isporuka": lično preuzimanje skriva korak slanja (kurirska polja) i otvara samo "Potvrdi isporuku".
+  async deliveryPickup(page) {
+    await page.locator('#od-method-switch').selectOption('customer_pickup');
+    await page.waitForFunction(() => { const s = document.querySelector('[data-logistics-panel="shipment"]'); const d = document.querySelector('[data-logistics-panel="delivery"]'); return s && d && s.hidden && !d.hidden; }, null, { timeout: 5000 });
+  },
   async navDropdown(page) {
     await openMobileMenuIfNeeded(page);
     const summary = page.locator('.a1-header__nav details.a1-nav-dd > summary').first();
@@ -283,7 +290,11 @@ const PAGES = [
   { module: 'orders', key: 'orders-show-long-amount', path: (i) => `/admin/orders/${i.order_long_amount}`, widths: ORDERS_WIDTHS_4 },
   { module: 'orders', key: 'orders-show-paid', path: (i) => `/admin/orders/${i.order_paid}`, widths: ORDERS_WIDTHS_3 },
   { module: 'orders', key: 'orders-show-partly-paid', path: (i) => `/admin/orders/${i.order_partly_paid}`, widths: ORDERS_WIDTHS_3 },
-  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: ORDERS_WIDTHS_3 },
+  { module: 'orders', key: 'orders-show-shipped', path: (i) => `/admin/orders/${i.order_shipped}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  // Potvrđena porudžbina u kartici "Isporuka": kurir (podrazumevano: "Pošiljka je poslata") i lično preuzimanje (samo "Potvrdi isporuku"); isporučena (zeleno).
+  { module: 'orders', key: 'orders-show-confirmed-courier', path: (i) => `/admin/orders/${i.order_paid}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-confirmed-pickup', path: (i) => `/admin/orders/${i.order_paid}`, prepare: prepare.deliveryPickup, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
+  { module: 'orders', key: 'orders-show-delivered', path: (i) => `/admin/orders/${i.order_completed}`, widths: (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 768, 1280]) },
   { module: 'orders', key: 'orders-show-cancelled', path: (i) => `/admin/orders/${i.order_cancelled}`, widths: ORDERS_WIDTHS_3 },
   // One list cell per status the list can show (new is covered by orders-index-filtered). Archived orders have no detail page (404 by design).
   { module: 'orders', key: 'orders-status-processing', path: '/admin/orders?status=processing', widths: ORDERS_WIDTHS_2 },
@@ -309,6 +320,8 @@ const PAGES = [
   { module: 'products', key: 'products-form', path: (i) => `/admin/catalog/${i.product}/edit` },
   { module: 'products', key: 'inventory', path: '/admin/inventory' },
   { module: 'products', key: 'dictionary', path: '/admin/catalog-settings/categories' },
+  // Brands: status badge "Aktivan" and the type badges in the table (owner report 2026-11-24: the word broke into letters). Seeded in seed-admin-visual-qa.php.
+  { module: 'products', key: 'brands-index', path: '/admin/catalog-settings/brands' },
   { module: 'warranties', key: 'warranties-index', path: '/admin/warranties' },
   { module: 'warranties', key: 'warranties-show', path: (i) => `/admin/warranties/${i.warranty}` },
   { module: 'customers', key: 'users-index', path: '/admin/users' },
@@ -710,7 +723,92 @@ async function ordersChecks(page, pg, width, theme) {
   if (dom.missing) { out.push({ ...base, rule: 'orders-structure', count: 1, selectors: [ORDERS_SCOPE + ' missing'] }); return out; }
   if (dom.unlabeled.length) out.push({ ...base, rule: 'unlabeled-control', count: dom.unlabeled.length, selectors: dom.unlabeled.slice(0, 3) });
   if (dom.h1 !== 1) out.push({ ...base, rule: 'orders-structure', count: 1, selectors: ['h1 x' + dom.h1] });
+  out.push(...await ordersFlowChecks(page, pg, width, base));
   if (width >= DESKTOP_FROM) out.push(...await ordersLayoutChecks(page, pg, width, base));
+  return out;
+}
+// One-step order flow (owner decisions 16.11.2026, items 1-4), recorded as findings (strict for "orders"):
+//  - no "Preuzmi" / "U obradu" / "U obradi" anywhere in the admin order pages (status names are Nova, Potvrđena, Poslata, Isporučena, Otkazana);
+//  - the admin list carries no inline status forms and every "Potvrdi" row action is a link to the detail's #order-confirm panel (F1);
+//  - the "new" detail (seed order) has exactly one primary action, "Potvrdi porudžbinu", a 64-character freshness token, the shared note field and a
+//    cancel panel whose reason is required and whose submit keeps its confirmation dialog;
+//  - the legacy "processing" detail shows "Nova" and is confirmable; confirmed/shipped/delivered/cancelled details have no confirm form;
+//  - the manual status select (superadmin) offers only transitions allowed from the current status.
+async function ordersFlowChecks(page, pg, width, base) {
+  const out = [];
+  const isDetail = /^orders-show/.test(pg.key);
+  const isList = /^orders-(index|status|attention)/.test(pg.key);
+  if (!isDetail && !isList) return out;
+  const bad = (rule, detail) => out.push({ ...base, rule, count: 1, selectors: [detail] });
+  const d = await page.evaluate((scope) => {
+    const root = document.querySelector(scope);
+    const txt = (root ? root.innerText : '');
+    const q = (sel) => (root ? [...root.querySelectorAll(sel)] : []);
+    const confirmForm = root ? root.querySelector('#order-confirm-form') : null;
+    const cancelSummary = root ? root.querySelector('summary#order-cancel') : null;
+    const cancelForm = cancelSummary ? cancelSummary.closest('details').querySelector('form') : null;
+    const status = root ? root.querySelector('#od-status') : null;
+    const vis = (sel) => root ? [...root.querySelectorAll(sel)].filter((e) => e.getClientRects().length > 0) : [];
+    const cardEl = root ? root.querySelector('#order-workspace-logistics-actions') : null;
+    return {
+      removed: ['Preuzmi', 'U obradu', 'U obradi', 'Evidentiraj isporuku', 'Evidentiraj slanje', 'Potvrdi da je pošiljka isporučena', 'Izdaj / otvori račun'].filter((w) => txt.includes(w)),
+      card: cardEl ? {
+        count: root.querySelectorAll('#order-workspace-logistics-actions').length,
+        title: (cardEl.querySelector('h2') || {}).textContent || '',
+        shipmentPanelVisible: vis('[data-logistics-panel="shipment"]').length > 0,
+        deliveryPanelVisible: vis('[data-logistics-panel="delivery"]').length > 0,
+        trackingVisible: vis('#od-ship-tracking, #od-ship-courier').length > 0,
+        // Buttons inside a closed <details> (e.g. "Pošiljka vraćena") are not a visible step.
+        visibleSubmits: vis('#order-workspace-logistics-actions button[type=submit]').filter((b) => { const dd = b.closest('details'); return !dd || dd.open; }).map((b) => (b.textContent || '').trim()),
+      } : null,
+      paymentForm: root ? !!root.querySelector('form[data-payment-record-form]') : false,
+      pillTone: (root && root.querySelector('.a1-od-facts .a1-pill')) ? root.querySelector('.a1-od-facts .a1-pill').className : '',
+      rowStatusForms: q('tbody form').length,
+      confirmLinks: q('a[aria-label^="Potvrdi porudžbinu"]').map((a) => a.getAttribute('href') || ''),
+      primary: q('.a1-btn--primary').filter((e) => e.getClientRects().length > 0).map((e) => (e.textContent || '').trim()),
+      confirmToken: confirmForm ? (confirmForm.querySelector('input[name=order_version_token]') || {}).value || '' : null,
+      confirmNote: root ? !!root.querySelector('textarea[name=note][form="order-confirm-form"]') : false,
+      cancelReason: cancelForm ? { required: !!cancelForm.querySelector('textarea[name=reason][required]'), confirm: ((cancelForm.querySelector('button[type=submit]') || document.createElement('i')).getAttribute('data-confirm')) || '' } : null,
+      pill: (root && root.querySelector('.a1-od-facts .a1-pill')) ? root.querySelector('.a1-od-facts .a1-pill').textContent.trim() : null,
+      manualOptions: status ? [...status.options].map((o) => o.value) : null,
+    };
+  }, ORDERS_SCOPE);
+  if (d.removed.length) bad('order-flow-removed-step-visible', d.removed.join(', '));
+  if (isList) {
+    if (d.rowStatusForms) bad('order-flow-list-inline-form', 'forms in tbody: ' + d.rowStatusForms);
+    const wrong = d.confirmLinks.filter((h) => !h.endsWith('#order-confirm'));
+    if (wrong.length) bad('order-flow-list-confirm-not-a-link-to-detail', wrong.slice(0, 2).join(' | '));
+    return out;
+  }
+  // One "Isporuka" card (owner decision 7): courier = "Pošiljka je poslata" first, pickup / own transport = only "Potvrdi isporuku".
+  if (d.card) {
+    if (d.card.count !== 1 || !/^Isporuka$/.test(d.card.title.trim())) bad('order-flow-delivery-card', JSON.stringify(d.card));
+    if (d.card.visibleSubmits.length !== 1) bad('order-flow-delivery-one-visible-step', JSON.stringify(d.card.visibleSubmits));
+    if (pg.key === 'orders-show-confirmed-courier' && !(d.card.shipmentPanelVisible && !d.card.deliveryPanelVisible && /Pošiljka je poslata$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-courier-step', JSON.stringify(d.card));
+    if (pg.key === 'orders-show-confirmed-pickup' && !(!d.card.shipmentPanelVisible && d.card.deliveryPanelVisible && !d.card.trackingVisible && /Potvrdi isporuku$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-pickup-step', JSON.stringify(d.card));
+    if (pg.key === 'orders-show-shipped' && !(d.card.deliveryPanelVisible && !d.card.shipmentPanelVisible && /Potvrdi isporuku$/.test(d.card.visibleSubmits[0] || ''))) bad('order-flow-shipped-step', JSON.stringify(d.card));
+  } else if (['orders-show-confirmed-courier', 'orders-show-confirmed-pickup', 'orders-show-shipped'].includes(pg.key)) {
+    bad('order-flow-delivery-card-missing', pg.key);
+  }
+  if (pg.key === 'orders-show-delivered') {
+    if (d.card) bad('order-flow-delivered-has-delivery-card', pg.key);
+    if (d.pill !== 'Isporučena' || !/a1-pill--ok/.test(d.pillTone)) bad('order-flow-delivered-chip', d.pill + ' / ' + d.pillTone);
+    if (!d.paymentForm) bad('order-flow-delivered-payments-open', 'no payment form on a delivered order');
+  }
+  // The seed has "new" orders (orders-show, items15, long-name) and one legacy "processing" order (partly-paid); both read "Nova" and must be confirmable.
+  const isNova = d.pill === 'Nova';
+  if (pg.key === 'orders-show' || pg.key === 'orders-show-partly-paid') {
+    if (!isNova) bad('order-flow-new-status-label', 'pill ' + d.pill);
+  }
+  if (isNova) {
+    if (d.primary.length !== 1 || !/^Potvrdi porudžbinu$/.test(d.primary[0])) bad('order-flow-one-primary-confirm', JSON.stringify(d.primary));
+    if (!d.confirmToken || d.confirmToken.length !== 64) bad('order-flow-confirm-token', 'token length ' + (d.confirmToken ? d.confirmToken.length : 'none'));
+    if (!d.confirmNote) bad('order-flow-confirm-note', 'note field with form= missing');
+    if (!d.cancelReason || !d.cancelReason.required || !/^Otkazati porudžbinu/.test(d.cancelReason.confirm)) bad('order-flow-cancel-panel', JSON.stringify(d.cancelReason));
+    if (!d.manualOptions || d.manualOptions.join() !== ',confirmed,cancelled') bad('order-flow-manual-status-options', JSON.stringify(d.manualOptions));
+  } else if (d.confirmToken !== null) {
+    bad('order-flow-confirm-on-non-new-order', pg.key);
+  }
   return out;
 }
 // Desktop layout gates for the orders module (generic over .a1-tablewrap, no page names except the median row height).
@@ -907,6 +1005,17 @@ async function runCell(ctx, pg, width, theme) {
         selectors: overflow.offenders });
     }
     for (const v of await runAxe(page, pg.module === 'shell', pg.module === 'orders' ? ORDERS_AXE_RULES : AXE_RULES)) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
+    // Word-integrity gate (all modules, all cells; the report fails on these in every module regardless of strict mode).
+    for (const v of await page.evaluate(inPageWords)) {
+      findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: v.rule, count: 1,
+        detail: `${target} :: ${v.s} :: "${v.t}" (${v.w}px)`, selectors: [`${v.s} "${v.t}"`] });
+    }
+    // The brands page must really render the "Aktivan" status pill (owner report); an empty page must never pass the gate.
+    if (pg.key === 'brands-index') {
+      const n = await page.evaluate(() => [...document.querySelectorAll('.a1-pill')].filter((e) => e.textContent.trim() === 'Aktivan').length);
+      if (n < 1) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'word-gate-control-missing', count: 1,
+        detail: `${target} :: .a1-pill :: "Aktivan" missing (brand seed or markup changed)`, selectors: ['.a1-pill "Aktivan" missing'] });
+    }
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
     if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
     if (pg.module === 'orders') findings.push(...await ordersChecks(page, pg, width, theme));
@@ -938,6 +1047,21 @@ async function runCell(ctx, pg, width, theme) {
       await page.evaluate(() => document.getElementById('vqa-selftest').remove());
       selfTests.push({ overflowDetector: probe.offenders.length > 0, probe });
       if (!probe.offenders.length) fail('SELFTEST', 'overflow detector did not see a 3000px element: ' + JSON.stringify(probe));
+      // Positive control of the word gate: "Aktivan" in a 20px box must be caught both as a broken word and as short text that overflows.
+      await page.evaluate(() => {
+        const a = document.createElement('span');
+        a.id = 'vqa-word-a'; a.style.cssText = 'display:inline-block;width:20px;overflow-wrap:anywhere;word-break:break-all;white-space:normal;font:16px/1.4 sans-serif';
+        a.textContent = 'Aktivan';
+        const b = document.createElement('span');
+        b.id = 'vqa-word-b'; b.className = 'a1-pill'; b.style.cssText = 'display:inline-block;width:20px;overflow:visible;white-space:nowrap';
+        b.textContent = 'Aktivan';
+        document.body.append(a, b);
+      });
+      const wordProbe = await page.evaluate(inPageWords);
+      await page.evaluate(() => { document.getElementById('vqa-word-a')?.remove(); document.getElementById('vqa-word-b')?.remove(); });
+      const wordOk = wordProbe.some((v) => v.rule === 'word-broken' && v.t === 'Aktivan') && wordProbe.some((v) => v.rule === 'short-text-overflow' && v.t === 'Aktivan');
+      selfTests.push({ wordDetector: wordOk, probe: wordProbe.slice(0, 6) });
+      if (!wordOk) fail('SELFTEST', 'word gate did not catch "Aktivan" in a 20px box: ' + JSON.stringify(wordProbe.slice(0, 6)));
     }
   } catch (e) {
     cell.status = 'infra-failure';

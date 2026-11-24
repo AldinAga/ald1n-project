@@ -23,6 +23,7 @@ final class OrderResource extends JsonResource
             'source_system' => $this->source_system,
             'status' => $this->completed_at !== null ? 'completed' : $this->status,
             'workflow_status' => $this->status,
+            'status_label' => \App\Support\OrderStatus::label((string) $this->status, $this->completed_at !== null),
             'completed_at' => optional($this->completed_at)->toIso8601String(),
             'completed_by' => $this->completed_by,
             'completion_note' => $this->completion_note,

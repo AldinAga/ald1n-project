@@ -104,7 +104,7 @@ final class UiRefinement794Test extends TestCase
         $response->assertSee('data-dashboard-command-row', false)
             ->assertSee('data-dashboard-period="custom"', false)
             ->assertSee('d1-priority-heading', false)->assertSee('name="date_from"', false)
-            ->assertSee('ald1n-ui-refinement.css', false);
+            ->assertSee('assets/css/ald1n-admin.css', false);
         $this->exportFixture('dashboard', (string) $response->getContent());
     }
 
@@ -114,8 +114,8 @@ final class UiRefinement794Test extends TestCase
         $target = $this->person('user');
         $target->update(['first_name' => 'Demo', 'last_name' => 'Kupac', 'phone' => '0600000000']);
         $response = $this->actingAs($actor)->get('/admin/users')->assertOk();
-        $response->assertSee('data-user-editor-sections', false)->assertSee('access-control-user-avatar', false)
-            ->assertSee('access-control-user-danger-zone', false)
+        $response->assertSee('data-user-editor-sections', false)->assertSee('data-user-avatar', false)
+            ->assertSee('data-user-danger-zone', false)
             ->assertSee(route('admin.users.retirement.preview', $target), false)
             ->assertDontSee(route('admin.users.retirement.preview', $actor), false)
             ->assertSee('name="_token"', false)->assertSee('name="_method" value="put"', false);
@@ -136,8 +136,8 @@ final class UiRefinement794Test extends TestCase
         $product = $this->product($actor);
         $response = $this->actingAs($actor)->get('/catalog/'.$product->slug)->assertOk();
         $response->assertSee('data-catalog-detail-ready="1"', false)
-            ->assertSee('build16-product-summary', false)->assertSee('data-product-gallery', false)
-            ->assertSee('ald1n-ui-refinement.css', false)->assertSee('Direktna prodaja');
+            ->assertSee('a1-cat-detail', false)->assertSee('data-product-gallery', false)
+            ->assertSee('assets/css/ald1n-admin-catalog.css', false)->assertSee('Direktna prodaja');
         $this->exportFixture('product', (string) $response->getContent());
     }
 

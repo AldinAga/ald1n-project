@@ -26,6 +26,7 @@ function fixture(options = {}) {
     'expo/fetch': { fetch: () => { throw new Error('Unexpected multipart transport'); } },
     '@/lib/storage': { tokenStore: { get: async () => options.token === undefined ? 'synthetic-token' : options.token } },
     'expo-file-system': { File, Paths: { cache: 'file:///synthetic-cache' } },
+    'expo-crypto': { randomUUID: () => '00000000-0000-4000-8000-000000000000' },
     'react-native': { Platform: { OS: 'android' } },
     'expo-sharing': { isAvailableAsync: async () => true, shareAsync: async (...args) => shared.push(args) },
   };

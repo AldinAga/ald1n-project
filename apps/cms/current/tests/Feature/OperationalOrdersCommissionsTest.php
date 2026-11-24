@@ -87,10 +87,12 @@ final class OperationalOrdersCommissionsTest extends TestCase
             ->assertRedirect();
         self::assertSame(1, OrderInternalNote::query()->where('order_id', $order->id)->count());
 
+        // Potvrda ujedno preuzima porudžbinu na ime potvrđivača (nema više odvojenog koraka "Preuzmi").
         $this->actingAs($firstAdmin)
-            ->post('/admin/orders/'.$order->id.'/accept')
+            ->post('/admin/orders/'.$order->id.'/confirm', ['order_version_token' => app(\App\Services\OrderVersionService::class)->token($order->fresh())])
             ->assertRedirect();
         $order->refresh();
+        self::assertSame('confirmed', $order->status);
         self::assertSame($firstAdmin->id, $order->accepted_by);
         self::assertNotNull($order->accepted_at);
 
@@ -149,7 +151,7 @@ final class OperationalOrdersCommissionsTest extends TestCase
         self::assertSame(2, OrderCommission::query()->whereNotNull('payment_batch_id')->count());
     }
 
-    public function test_commission_action_uses_large_viewport_modal_without_table_scroll(): void
+    public function test_commission_action_uses_native_dialog_without_table_scroll(): void
     {
         $admin = $this->user('modal-admin', 'admin');
         $customer = $this->user('modal-owner', 'user');
@@ -159,10 +161,34 @@ final class OperationalOrdersCommissionsTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/commissions')
             ->assertOk()
-            ->assertSee('commission-table-wrap', false)
-            ->assertSee('table-action-popover-head', false)
-            ->assertSee('commission-popover-close', false)
-            ->assertSee("event.key !== 'Escape'", false);
+            ->assertSee('a1-tablewrap', false)
+            ->assertSee('class="a1-dialog" id="process-', false)
+            ->assertSee('data-process-open', false)
+            ->assertSee('data-dialog-close', false);
+    }
+
+    public function test_commission_process_dialog_can_be_opened_and_closed_and_returns_focus(): void
+    {
+        $admin = $this->user('dialog-admin', 'admin');
+        $customer = $this->user('dialog-owner', 'user');
+        $product = $this->product($admin, 'DIALOG-ITEM', 10);
+        $this->createOrder($customer, $admin, $product, 'commission-dialog-flow');
+
+        $html = $this->actingAs($admin)->get('/admin/commissions')->assertOk()->getContent();
+
+        // Svako dugme "Obradi" ima dijalog sa istim id-jem i dugmetom za zatvaranje.
+        self::assertSame(1, preg_match_all('/data-process-open="(process-\d+)"/', $html, $opens));
+        foreach ($opens[1] as $id) {
+            self::assertStringContainsString('<dialog class="a1-dialog" id="'.$id.'"', $html);
+        }
+        self::assertStringContainsString('data-dialog-close', $html);
+        // Skripta otvara (showModal), zatvara (close), vraća fokus i ne briše upisano bez potvrde.
+        self::assertStringContainsString('dialog.showModal()', $html);
+        self::assertStringContainsString("button.closest('dialog')?.close()", $html);
+        self::assertStringContainsString('dialog._opener?.focus?.()', $html);
+        self::assertStringContainsString("dialog.dataset.dirty && !window.confirm(", $html);
+        // Izaberi sve je vidljiva kontrola van zaglavlja tabele (zaglavlje je skriveno na uskim ekranima).
+        self::assertStringNotContainsString('<thead><tr><th scope="col" class="a1-table__select"><label', $html);
     }
 
     // ALD1N_ORDER_WORKSPACE_V2_BUYER_FIRST_WEB
@@ -235,12 +261,22 @@ final class OperationalOrdersCommissionsTest extends TestCase
 
     public function test_admin_order_buyer_panel_stacks_first_on_small_web_screens(): void
     {
-        $css = file_get_contents(public_path('assets/css/ald1n-ui-v2.css'));
+        // G7: the order page is a1-od-* now; the old ui-v2 grid-template-areas / .order-buyer-call rules are gone with that file.
+        $css = file_get_contents(public_path('assets/css/ald1n-admin.css'));
         self::assertNotFalse($css);
-        self::assertStringContainsString('grid-template-areas:"command buyer"', $css);
-        self::assertStringContainsString('grid-template-areas:"buyer" "command"', $css);
-        self::assertStringContainsString('.order-buyer-call:focus-visible', $css);
-        self::assertStringContainsString('min-height:44px', $css);
+        $html = (string) file_get_contents(resource_path('views/admin/orders/show.blade.php'));
+        self::assertStringContainsString('class="a1-card a1-od-anchor" id="order-workspace-customer"', $html);
+        self::assertStringContainsString('href="tel:{{ $buyerPhoneDial }}" aria-label="Pozovi primaoca porudžbine', $html);
+        // Buyer first on a small screen: the single-column flow follows source order, so the buyer card precedes the command card.
+        self::assertLessThan(
+            strpos($html, 'id="order-workspace-command"'),
+            strpos($html, 'id="order-workspace-customer"'),
+        );
+        // The phone link is a 44px target with a visible keyboard focus ring.
+        self::assertMatchesRegularExpression('/\.a1-link\{[^}]*min-height:var\(--a1-size-touch-target\)/', $css);
+        self::assertStringContainsString('.a1-app :focus-visible{outline:var(--a1-focus-width) solid var(--a1-focus-ring)', $css);
+        self::assertMatchesRegularExpression('/--a1-size-touch-target:\s*44px/', (string) file_get_contents(public_path('assets/css/ald1n-tokens.css')));
+        self::assertStringContainsString('.a1-od-anchor{scroll-margin-top', $css);
     }
 
     private function createOrder(User $customer, User $supplier, Product $product, string $key): Order

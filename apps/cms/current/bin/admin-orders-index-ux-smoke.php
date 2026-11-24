@@ -6,16 +6,15 @@ declare(strict_types=1);
 // Read-only source contract; no bootstrap, .env, database or route execution.
 $cmsRoot = dirname(__DIR__);
 $bladePath = $argv[1] ?? ($cmsRoot.'/resources/views/admin/orders/index.blade.php');
-$cssPath = $argv[2] ?? ($cmsRoot.'/public/assets/css/ald1n-ui-v2.css');
+// $argv[2] used to be the old ald1n-ui-v2.css path; it is ignored now (G7 PR B) and kept only so callers' argv[3] still works.
 $adminCssPath = $argv[3] ?? ($cmsRoot.'/public/assets/css/ald1n-admin.css');
 $blade = @file_get_contents($bladePath);
-$css = @file_get_contents($cssPath);
 // Row actions live in a partial (quick-action forms, routes, CSRF); the contract covers both sources.
 if ($blade !== false && is_file($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php')) {
     $blade .= "\n".file_get_contents($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php');
 }
 $adminCss = @file_get_contents($adminCssPath);
-if ($blade === false || $css === false || $adminCss === false) {
+if ($blade === false || $adminCss === false) {
     fwrite(STDERR, "FAIL: expected admin orders Blade/CSS source is unreadable.\n");
     exit(2);
 }
@@ -30,9 +29,8 @@ foreach ($filters as $name) {
 }
 $actions = [
     "route('admin.orders.show', \$order)",
-    "route('admin.orders.accept', \$order)",
-    "route('admin.orders.status', \$order)",
-    '#delivery-completion',
+    '#order-confirm',
+    '#order-workspace-logistics-actions',
 ];
 $checkActions = true;
 foreach ($actions as $value) {
@@ -56,7 +54,7 @@ $checks = [
         => $checkFilters && str_contains($blade, '<form class="a1-filters a1-ol-filters" method="get"'),
     'Filters have a search landmark without extra form'
         => str_contains($blade, 'role="search" aria-label="Filtriranje porudžbina"')
-           && substr_count($blade, '<form') === 4,
+           && substr_count($blade, '<form') === 1,
     'Data table and headers remain semantically available'
         => str_contains($blade, '<table class="a1-table a1-table--cards a1-ol-table" role="table">')
            && str_contains($blade, 'aria-label="Lista porudžbina"')
@@ -75,9 +73,11 @@ $checks = [
         => $checkActions
            && str_contains($blade, 'a1-ol-actions')
            && str_contains($blade, "\$order->source_system === 'laravel'"),
-    'Original POST/PATCH CSRF protection remains'
-        => substr_count($blade, '@csrf') >= 2
-           && substr_count($blade, "@method('PATCH')") === 2,
+    'List rows carry no inline status forms: "Potvrdi" opens the confirm panel on the detail (token freshness is kept there)'
+        => !str_contains($blade, '@csrf')
+           && !str_contains($blade, "@method('PATCH')")
+           && !str_contains($blade, "route('admin.orders.accept'")
+           && !str_contains($blade, 'value="processing"'),
     'No form wraps an order list row'
         => strpos($blade, '<form') < strpos($blade, '<table')
            && strpos($blade, '</form>') < strpos($blade, '<table'),
@@ -90,15 +90,14 @@ $checks = [
     'Mobile cards have safe one-column fallback and data labels'
         => str_contains($adminCss, '@media (max-width:560px)')
            && str_contains($adminCss, 'content:attr(data-label)'),
-    'POST quick-action forms stay independent interactive boxes'
-        => str_contains($blade, 'class="a1-ol-inline" method="post"'),
+    'Quick action is a single link to the confirm panel (no Preuzmi / U obradu)'
+        => str_contains($blade, 'aria-label="Potvrdi porudžbinu: ')
+           && !str_contains($blade, 'aria-label="Preuzmi')
+           && !str_contains($blade, 'aria-label="U obradu'),
     'Quick actions keep keyboard focus treatment'
         => str_contains($adminCss, '.a1-ops :focus-visible')
            && str_contains($adminCss, 'outline-offset:var(--a1-focus-offset)'),
-    'Existing catalog and buyer-first deployment layers remain'
-        => str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
-           && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')
-           && str_contains($css, 'order-priority-layout'),
+    // G7 PR B: the "existing catalog and buyer-first layers" check read old ui-v2.css markers only and was removed.
 ];
 $passed = 0;
 foreach ($checks as $name => $ok) {

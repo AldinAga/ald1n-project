@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\CommissionSql;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -21,8 +22,8 @@ use Illuminate\Validation\Validator as ValidatorContract;
  *
  * Sale definition, actor scope and money formulas are the ones of
  * ManagementReportService::summary(): same order subset (ManagementReportService::reportOrderIds),
- * same item snapshots (line_total_rsd, purchase_total_rsd_snapshot, commission_total_eur_snapshot
- * times the order's own eur_rsd_rate). Sums stay DECIMAL in SQL and are rounded once, at output.
+ * same item snapshots (line_total_rsd, purchase_total_rsd_snapshot); commission comes from the commission page's
+ * own source (CommissionSql: order_commissions with storno, debits and status) times the order's own eur_rsd_rate. Sums stay DECIMAL in SQL and are rounded once, at output.
  * A "subagent" is the buyer on a normal order (orders.user_id, role slug "user"); direct sales and
  * public retail orders have no subagent and appear as fixed buckets so totals reconcile.
  */
@@ -458,7 +459,7 @@ final class SubagentSalesReportService
             default => ['Subagent'],
         };
         $header = array_merge($labelHeader, ['Porudžbina', 'Komada', 'Promet RSD', 'Zarada RSD', 'Marža %',
-            'Provizija RSD', 'Provizija isplaćena RSD', 'Provizija neisplaćena RSD', 'Neto posle provizije RSD',
+            'Provizija RSD', 'Provizija isplaćena (neto) RSD', 'Provizija neisplaćena (neto) RSD', 'Neto posle provizije RSD',
             'Prosečna porudžbina RSD', 'Udeo u prometu %']);
 
         $line = function (array $labels, array $r): array {
@@ -529,7 +530,9 @@ final class SubagentSalesReportService
             $query->whereNotNull('ri.purchase_total_rsd_snapshot');
         }
 
-        $comm = '(COALESCE(ri.commission_total_eur_snapshot,0) * COALESCE(o.eur_rsd_rate,0))';
+        // Provizija iz istog izvora kao stranica provizija (storno, zaduženja, status), ne iz snimka stavke.
+        $commEur = CommissionSql::itemEur('ri', 'o');
+        $comm = CommissionSql::itemRsd('ri', 'o');
         $query->select(['ri.order_id'])
             ->selectRaw('ri.quantity AS qty')
             ->selectRaw('ri.line_total_rsd AS revenue')
@@ -537,7 +540,7 @@ final class SubagentSalesReportService
             ->selectRaw($comm.' AS comm')
             ->selectRaw('(ri.line_total_rsd / NULLIF(o.eur_rsd_rate,0)) AS revenue_eur')
             ->selectRaw('(ri.purchase_total_rsd_snapshot / NULLIF(o.eur_rsd_rate,0)) AS cost_eur')
-            ->selectRaw('COALESCE(ri.commission_total_eur_snapshot,0) AS comm_eur')
+            ->selectRaw($commEur.' AS comm_eur')
             ->selectRaw("CASE WHEN oc.status = 'paid' THEN $comm ELSE 0 END AS comm_paid")
             ->selectRaw("CASE WHEN oc.status IS NULL OR oc.status IN ('pending','approved') THEN $comm ELSE 0 END AS comm_unpaid");
         foreach ($groupSelects as $alias => $expression) {

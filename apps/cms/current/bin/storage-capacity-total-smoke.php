@@ -58,7 +58,7 @@ $check('Storage servis koristi samo product specifikacije nakon decommissiona', 
 $check('Doctor proverava i popravlja disk kapacitete', str_contains($doctor, 'StorageSpecificationService') && str_contains($doctor, 'integrityCounts') && str_contains($serviceSource, 'unshared_type_pairs'));
 $check('Brisanje izvornog polja čisti storage dependency', str_contains($lifecycle, "where('storage_source_field_id', \$fieldId)"));
 $check('Bulk izmena ne može ručno da pokvari izvedeni zbir', str_contains($bulk, 'Diskovi i ukupan kapacitet menjaju se na formi konkretnog artikla'));
-$check('CSS postoji za kompaktnu readonly karticu ukupnog kapaciteta', str_contains((string) file_get_contents($root.'/public/assets/css/app.css'), '.storage-total-card'));
+$check('CSS postoji za kompaktnu readonly karticu ukupnog kapaciteta', str_contains((string) file_get_contents($root.'/public/assets/css/ald1n-admin-products.css'), '.a1-pc-total'));
 
 $failed = count(array_filter($checks, static fn (array $row): bool => !$row[1]));
 fwrite(STDOUT, sprintf("\nStorage Capacity Total smoke: %d/%d uspesno.\n", count($checks) - $failed, count($checks)));

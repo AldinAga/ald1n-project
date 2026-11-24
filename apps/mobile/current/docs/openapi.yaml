@@ -1013,6 +1013,72 @@ paths:
                   reauthenticate: { type: boolean, const: true }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/account/deletion:
+    get:
+      tags: [Account]
+      summary: Stanje zahteva za brisanje naloga
+      operationId: getAccountDeletionStatus
+      responses:
+        '200':
+          description: Stanje zahteva (none dok zahtev ne postoji)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Account]
+      summary: Zahtev za brisanje naloga uz ponovnu proveru identiteta
+      description: Traži lozinku ili Google ID token (Google nalog mora biti povezan sa ovim nalogom). Nalog se odmah blokira, API tokeni i push tokeni se opozivaju, a konačno brisanje sledi posle roka mirovanja od 14 dana. Poništavanje je moguće linkom iz e-pošte, jer posle zahteva nijedna prijava nije važeća. Administratorski nalog traži drugog aktivnog SuperAdministratora (inače 422). Otvorene provizije i zaduženja zadržavaju zahtev u statusu waiting_obligations.
+      operationId: requestAccountDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string, description: Obavezno ako nije poslat id_token }
+                id_token: { type: string, description: Svež Google ID token; obavezan ako nije poslata lozinka }
+      responses:
+        '202':
+          description: Brisanje je zakazano; klijent mora da odjavi korisnika
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data, reauthenticate]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+                  reauthenticate: { type: boolean, const: true }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: Brisanje naloga trenutno nije dostupno
+    delete:
+      tags: [Account]
+      summary: Poništavanje zahteva za brisanje naloga
+      operationId: cancelAccountDeletion
+      responses:
+        '200':
+          description: Zahtev je poništen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, data]
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AccountDeletionState' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404':
+          description: Nema aktivnog zahteva
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/me/notification-preferences:
     put:
       tags: [Account]
@@ -1305,7 +1371,8 @@ paths:
             schema:
               type: object
               properties:
-                note: { type: [string, 'null'], maxLength: 1000 }
+                reason: { type: string, maxLength: 1000, description: 'Razlog otkazivanja je obavezan (stari klijenti mogu da ga pošalju kao note).' }
+                note: { type: [string, 'null'], maxLength: 1000, description: 'Zastarelo; isto što i reason.' }
       responses:
         '200': { description: Porudžbina je otkazana }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -2637,7 +2704,7 @@ paths:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     patch:
-      summary: Change order status without bypassing shipment workflow
+      summary: Confirm (status=confirmed, which also takes the order over for the caller) or cancel (status=cancelled, reason required) an order
       operationId: adminOrdersStatus
       security:
         - bearerAuth: []
@@ -2649,25 +2716,26 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [new, processing, confirmed, cancelled] }
+                status: { type: string, enum: [confirmed, cancelled], description: 'Samo confirmed i cancelled su prihvaćeni; svaka druga vrednost (npr. processing, new, shipped) vraća 422 sa greškom status.' }
                 note: { type: string, nullable: true, maxLength: 1000 }
+                reason: { type: string, nullable: true, maxLength: 1000, description: 'Obavezan za cancelled (ili note).' }
+                order_version_token: { type: string, minLength: 64, maxLength: 64, description: 'Obavezan za confirmed.' }
       responses:
         '200': { description: Status changed through OrderWorkflowService. }
         '403': { description: orders.manage permission and managed scope required. }
-        '422': { description: Invalid or disallowed transition. }
+        '422': { description: Invalid or disallowed transition, missing cancellation reason. }
         '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/accept:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     post:
-      summary: Accept order for processing
+      summary: Removed step "Preuzmi" (kept so older clients fail soft)
       operationId: adminOrdersAccept
       security:
         - bearerAuth: []
       responses:
-        '200': { description: Order accepted through OrderOperationalService. }
         '403': { description: orders.manage permission and managed scope required. }
-        '422': { description: Order cannot be accepted in its current state. }
+        '422': { description: 'Uvek 422 sa code order_accept_removed: potvrda porudžbine je ujedno preuzima.' }
         '429': { description: Admin write rate limit exceeded. }
   /api/v1/admin/orders/{order}/internal-notes:
     parameters:
@@ -2740,7 +2808,7 @@ paths:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
     post:
-      summary: Confirm actual delivery and complete the order
+      summary: Confirm actual delivery (no payment required; the invoice is issued automatically and the warranty starts on the delivery date)
       operationId: adminOrdersComplete
       security:
         - bearerAuth: []
@@ -2829,8 +2897,9 @@ paths:
               type: object
               required: [entry_type, amount_rsd, payment_method, paid_at]
               properties:
+                idempotency_key: { type: string, maxLength: 200, description: 'Optional (older app versions omit it). Repeating a request with the same key returns the same ledger row instead of creating a second one. When missing, the server derives the key from order, user, entry type, amount, method and paid_at, so an identical repeat is also one row.' }
                 entry_type: { type: string, enum: [payment, refund] }
-                amount_rsd: { type: number, format: double, minimum: 0.01 }
+                amount_rsd: { type: number, format: double, minimum: 0.01, maximum: 9999999999.99, description: 'A refund cannot exceed the net amount paid so far.' }
                 payment_method: { type: string, enum: [bank_transfer, cash, cash_on_delivery, card, other] }
                 paid_at: { type: string, format: date-time }
                 reference: { type: string, nullable: true, maxLength: 190 }
@@ -2925,6 +2994,28 @@ paths:
         '404': { description: Order or managed resource not found. }
         '422': { description: Shipment validation or domain invariant failed. }
         '429': { description: Admin write rate limit exceeded. }
+  /api/v1/admin/orders/{order}/shipment/return:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+    post:
+      summary: Mark a shipped, undelivered order's shipment as returned (the order goes back to Confirmed, stock stays reserved)
+      operationId: adminOrdersShipmentReturn
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 2000 }
+      responses:
+        '200': { description: Shipment kept and marked as returned; order status confirmed. }
+        '403': { description: orders.manage permission required. }
+        '404': { description: Order outside the managed scope. }
+        '422': { description: Missing reason or the order is not shipped and undelivered. }
   /api/v1/admin/orders/{order}/shipment-proof:
     parameters:
       - { name: order, in: path, required: true, schema: { type: integer } }
@@ -4893,6 +4984,13 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    AccountDeletionState:
+      type: object
+      required: [status, grace_until, requested_at]
+      properties:
+        status: { type: string, enum: [none, pending, waiting_obligations] }
+        grace_until: { type: [string, 'null'], format: date-time }
+        requested_at: { type: [string, 'null'], format: date-time }
     RestoreCredentialCeremony:
       type: object
       additionalProperties: false
@@ -5265,6 +5363,7 @@ components:
         last_login_at: { type: [string, 'null'], format: date-time }
         password_changed_at: { type: [string, 'null'], format: date-time }
         approved_at: { type: [string, 'null'], format: date-time }
+        can_manage: { type: boolean, description: 'False kada je red SuperAdmin nalog, a pozivalac nije SuperAdmin (nalog se ne može mijenjati). Odsutno na starijim serverima; klijent tada ništa ne zaključava.' }
         last_active_superadmin_protected: { type: boolean }
     AdminUserStatusOption:
       type: object
@@ -6766,6 +6865,8 @@ components:
         brand_id: { type: integer }
         product_line_id: { type: integer }
         model_name: { type: string, maxLength: 190 }
+        supplier_code: { type: [string, "null"], maxLength: 100, description: "Supplier product code. Optional, searchable in the catalog." }
+        ean: { type: [string, "null"], pattern: '^[0-9]{8,14}$', description: "EAN/GTIN barcode, 8 to 14 digits (spaces and dashes are removed). Optional, searchable in the catalog." }
         name: { type: string, maxLength: 190 }
         regenerate_sku: { type: boolean }
         regenerate_name: { type: boolean }

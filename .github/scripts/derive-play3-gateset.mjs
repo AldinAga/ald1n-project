@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+// Author: Ald1n <https://ald1n.com>
+// Derives the play3 release gate set (B1141 build, B1142 post-build, play3 attest) from the frozen play2 set
+// (B1041, B1042, b1042-m17-aab-attest). Run by hand on the merged source (24.11.2026: after PR 252 and PR 257 were merged):
+//
+//   node .github/scripts/derive-play3-gateset.mjs --sha <40 hex merged main commit> --tree <40 hex tree of that commit> \
+//        --pr <merged PR> --ci-runs <id,id,...> --cutoff <that PR's merged_at> [--out <repo root>]
+//   Run 24.11.2026: --sha 57e74e81... --tree 1eb17ac3... --pr 257 --cutoff 2026-11-24T15:47:18Z
+//   --ci-runs = PR 252 head runs of the 6 remaining play2 gates (b1032 was removed in PR 252). Their head_sha is not the
+//   merge SHA, so the B1141 CI guard stays fail-closed (HOLD) until the owner decides how merged-main CI evidence is proven.
+//
+// Every substitution must hit an exact number of times, otherwise the script aborts and writes nothing.
+// The 16 KB / ELF / bundletool / certificate checks are copied unchanged. Only identity values move:
+//   source SHA/tree, PR number and its CI run ids, runtime play2->play3, expo ~58.0.22->~58.0.26, eas-cli 27.2.0->27.11.0,
+//   remote versionCode gate 28->29 (the new AAB must be 30), and the PR guard (draft PR 128 -> merged PR, merge commit == SHA).
+// The result is a proposal for review: nothing here builds, submits or publishes; B1141 stays manual (workflow_dispatch on main).
+import fs from 'node:fs';
+import path from 'node:path';
+
+const arg = (n) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : undefined; };
+const sha = arg('sha'), tree = arg('tree'), pr = arg('pr'), runs = (arg('ci-runs') || '').split(',').filter(Boolean);
+const cutoff = arg('cutoff');
+const out = path.resolve(arg('out') || process.cwd());
+const hex40 = /^[0-9a-f]{40}$/;
+if (!hex40.test(sha || '') || !hex40.test(tree || '') || !/^[1-9][0-9]*$/.test(pr || '') || !runs.length || runs.some((r) => !/^[1-9][0-9]*$/.test(r)) ||
+    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(cutoff || '') || !Number.isFinite(Date.parse(cutoff)) || Date.parse(cutoff) > Date.now()) {
+  console.error('Usage: --sha <40hex> --tree <40hex> --pr <number> --ci-runs <id,id,...> --cutoff <PR merged_at, YYYY-MM-DDTHH:MM:SSZ, not in the future> [--out <dir>]'); process.exit(2);
+}
+const OLD_SHA = '6adb3b440b8cfdc068b142a98c418d9d91487f64', OLD_TREE = 'fc4578c93820df8b0c85f5215924ab2bc501ba01';
+const read = (f) => fs.readFileSync(path.join(out, f), 'utf8').replace(/\r\n/g, '\n');
+
+// [from, to, exact count]
+function sub(text, rules, label) {
+  for (const [from, to, n] of rules) {
+    const c = text.split(from).length - 1;
+    if (c !== n) throw new Error(`${label}: expected ${n} x ${JSON.stringify(from)}, found ${c}`);
+    text = text.split(from).join(to);
+  }
+  return text;
+}
+const PR_GUARD_OLD = `if(pr.head?.sha!==sha || pr.head?.repo?.full_name!=='AldinAga/ald1n-project' ||
+             pr.state!=='open' || pr.draft!==true || pr.merged_at!==null)`;
+const PR_GUARD_NEW = `if(pr.merge_commit_sha!==sha || pr.base?.repo?.full_name!=='AldinAga/ald1n-project' ||
+             pr.state!=='closed' || pr.merged_at===null)`;
+const ids = '[41333706448,41333706461,41333706455,41333706508,41333706470,41333706450,41333706493]';
+const rename = [['b1042-m17-aab-attest', 'b1142-m17-play3-aab-attest'], ['b1041', 'b1141'], ['B1041', 'B1141'], ['b1042', 'b1142'], ['B1042', 'B1142']];
+const renameAll = (t) => rename.reduce((a, [f, g]) => a.split(f).join(g), t);
+
+const files = {};
+files['.github/workflows/b1141-m17-sdk58-play3-eas27-signed-aab-manual.yml'] = renameAll(sub(read('.github/workflows/b1041-m17-sdk58-eas27-signed-aab-manual.yml'), [
+  [OLD_SHA, sha, 2], [OLD_SHA.slice(0, 12), sha.slice(0, 12), 1], [OLD_TREE, tree, 1],
+  ["'1.0.0-m17-sdk58-play2'", "'1.0.0-m17-sdk58-play3'", 1], ["'~58.0.22'", "'~58.0.26'", 1],
+  ['27.2.0', '27.11.0', 4], ['PR128', 'PR' + pr, 3], ['pulls/128', 'pulls/' + pr, 1],
+  [PR_GUARD_OLD, PR_GUARD_NEW, 1], [ids, '[' + runs.join(',') + ']', 1],
+  ['remote versionCode 28 gate', 'remote versionCode 29 gate', 1],
+  // The play2 AAB (versionCode 29) was built on this profile after the old cutoff, so it must move to the source merge time.
+  ["Date.parse('2026-11-02T10:40:00Z')", `Date.parse('${cutoff}')`, 1], ['REMOTE_CODE_28', 'REMOTE_CODE_29', 1],
+  ["grep -E '27\\.2\\.0'", "grep -E '27\\.11\\.0'", 1], ['pr128', 'pr' + pr, 2],
+  ['seven successful', runs.length + ' successful', 1], ['7_OF_7', `${runs.length}_OF_${runs.length}`, 1],
+  ['Number(code)!==28 || !/^(28)$/', 'Number(code)!==29 || !/^(29)$/', 1], ['HOLD_REMOTE_VERSION_NOT_28_NO_BUILD', 'HOLD_REMOTE_VERSION_NOT_29_NO_BUILD', 1],
+], 'b1041'));
+files['.github/workflows/b1142-m17-play3-aab-postbuild-readonly.yml'] = renameAll(sub(read('.github/workflows/b1042-m17-aab-postbuild-readonly.yml'), [
+  [OLD_SHA, sha, 2], [OLD_TREE, tree, 1], ["'1.0.0-m17-sdk58-play2'", "'1.0.0-m17-sdk58-play3'", 1], ["'~58.0.22'", "'~58.0.26'", 1], ['27.2.0', '27.11.0', 3],
+  ["grep -E '27\\.2\\.0'", "grep -E '27\\.11\\.0'", 1],
+  // Manual only: the play3 AAB does not exist when this lands on main, so an auto-run could only HOLD.
+  ['# Auto-run once when this workflow is introduced on main; manual replay is read-only.', '# Manual only (workflow_dispatch on main), read-only. Run it after the play3 AAB build finished.', 1],
+  ["  push:\n    branches: [main]\n    paths:\n      - '.github/workflows/b1042-m17-aab-postbuild-readonly.yml'\n", '', 1],
+], 'b1042'));
+if (/^\s+push:/m.test(files['.github/workflows/b1142-m17-play3-aab-postbuild-readonly.yml'])) throw new Error('b1142: push trigger survived');
+// renameAll here too: the attest writes B1042_BUILD_ID/B1042_VERSION_CODE to GITHUB_ENV, which B1142 reads as B1142_*.
+files['.github/scripts/b1142-m17-play3-aab-attest.mjs'] = renameAll(sub(read('.github/scripts/b1042-m17-aab-attest.mjs'), [
+  [OLD_SHA, sha, 1], ["'1.0.0-m17-sdk58-play2'", "'1.0.0-m17-sdk58-play3'", 1],
+  ['<= 28', '<= 29', 1], ['VERSION_CODE_NOT_GREATER_THAN_28', 'VERSION_CODE_NOT_GREATER_THAN_29', 1],
+], 'attest'));
+files['.github/scripts/b1142-m17-play3-aab-attest.test.mjs'] = renameAll(sub(read('.github/scripts/b1042-m17-aab-attest.test.mjs'), [
+  ['./b1042-m17-aab-attest.mjs', './b1142-m17-play3-aab-attest.mjs', 1],
+  ["appBuildVersion:'29'", "appBuildVersion:'30'", 1], ['receipt.versionCode,29', 'receipt.versionCode,30', 1], ['versionCode:29,', 'versionCode:30,', 1],
+  ["appBuildVersion:'28'", "appBuildVersion:'29'", 1], ['VERSION_CODE_NOT_GREATER_THAN_28', 'VERSION_CODE_NOT_GREATER_THAN_29', 1],
+], 'attest test'));
+// The B1142 workflow must read exactly the env names the attest writes.
+for (const v of ['B1142_BUILD_ID', 'B1142_VERSION_CODE']) {
+  if (!files['.github/scripts/b1142-m17-play3-aab-attest.mjs'].includes(v + '=') || !files['.github/workflows/b1142-m17-play3-aab-postbuild-readonly.yml'].includes('$' + v))
+    throw new Error('attest/workflow env name mismatch: ' + v);
+}
+
+for (const [f, t] of Object.entries(files)) {
+  if (/6adb3b44|play2|27\\?\.2\\?\.0|pr128|PR128|2026-11-02T10:40/.test(t)) throw new Error(`${f}: a play2 literal survived`);
+}
+for (const [f, t] of Object.entries(files)) {
+  fs.mkdirSync(path.dirname(path.join(out, f)), { recursive: true });
+  fs.writeFileSync(path.join(out, f), t);
+  console.log('WROTE ' + f);
+}
+console.log('PLAY3_GATESET_DERIVED. Review the diff against b1041/b1042, then run: node --test .github/scripts/b1142-m17-play3-aab-attest.test.mjs');

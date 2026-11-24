@@ -12,11 +12,12 @@ Every entry is rule-scoped (`targetRules`). All entries except the handover repo
 | --- | --- | --- |
 | Handover reports | `docs/operations/*.md`, rule `generic-api-key` | Batch reports quote commit hashes, state ids and digests. Other rules (cloud keys, tokens, private keys) still fire in these files. |
 | Firebase client key | `apps/mobile/current/google-services.json`, `"current_key"` lines, rules `gcp-api-key` and `generic-api-key` | The Android client key is public by design and ships in every APK. It must be restricted (package name, SHA-1, API list) in Google Cloud console. |
-| CMS test fixtures | 5 files in `apps/cms/current/tests/Feature/`, lines with `'password'`, `'password_confirmation'`, `'password_hash'`, `'checkout_key'` array keys or `activate($plainToken,` | Fake values in test arrays. |
+| CMS test fixtures | 6 files in `apps/cms/current/tests/Feature/`, lines with `'password'`, `'password_confirmation'`, `'password_hash'`, `'checkout_key'` array keys or `activate($plainToken,` | Fake values in test arrays. |
 | Example Idempotency-Key | two CMS docs and `apps/mobile/current/docs/BACKEND-PREFLIGHT-20260807.txt`, `Idempotency-Key:` lines | Random example request ids. |
 | File hash | `apps/cms/current/config/release.php`, the `public/.htaccess` line | Integrity pin, not a credential. |
 | Disposable CI database | `.github/workflows/b1049-m13-independent-catalog-isolation.yml`, `MARIADB_ROOT_PASSWORD:` line | Password of a throwaway container that lives only inside that job. |
 | Identifier names | `apps/mobile/current/scripts/batch528-native-contract.mjs`, `CreateRestoreCredentialRequest` line | Android API class name, not a secret. |
+| CSS file digest | `tools/storefront/b1155/DashboardReportsInstallCoordinator.php`, `TOKENS_CSS_SHA256=` line, rule `generic-api-key` | SHA-256 of a public stylesheet, used as an integrity pin by the install coordinator. |
 
 The workflow proves the allowlist is not a blanket bypass: a synthetic secret in a non-allowlisted path (`apps/cms/current/app/`), a look-alike test-fixture line in a non-allowlisted path, and a synthetic token of a different rule inside each allowlisted file class (`google-services.json`, `docs/operations/`, a test fixture) must all still make gitleaks exit 10.
 

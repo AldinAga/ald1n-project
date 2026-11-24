@@ -11,7 +11,7 @@ const read=f=>readFileSync(path.join(mobile,f),'utf8');
 const eas=JSON.parse(read('eas.json'));
 const pkg=JSON.parse(read('package.json'));
 const PROFILE='m17-sdk58-play-rc';
-const RUNTIME='1.0.0-m17-sdk58-play2';
+const RUNTIME='1.0.0-m17-sdk58-play3';
 const profile=eas.build[PROFILE];
 const removeKeys=[
  'EXPO_PUBLIC_APP_ENV','EAS_BUILD_PROFILE',
@@ -44,10 +44,10 @@ function accepted(env, runtime, androidPackage) {
 }
 
 test('Expo58 Play candidate is a source-only AAB identity and never auto-submits',()=>{
- assert.equal(pkg.dependencies.expo,'~58.0.25');
+ assert.equal(pkg.dependencies.expo,'~58.0.26');
  assert.equal(pkg.dependencies['react-native'],'0.88.1');
  assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
- assert.equal(eas.cli.version,'27.2.0');
+ assert.equal(eas.cli.version,'27.11.0');
  assert.equal(eas.cli.appVersionSource,'remote');
  assert.equal(profile.extends,'production');
  assert.equal(profile.environment,'production');

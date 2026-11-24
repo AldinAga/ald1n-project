@@ -3,14 +3,100 @@
 @section('content')
 @php
     $statusLabels = ['healthy' => 'Zdravo', 'warning' => 'Upozorenje', 'critical' => 'Kritično'];
+    $statusTone = ['healthy' => 'ok', 'warning' => 'warning', 'critical' => 'danger'];
+    $jobTone = static fn (?string $status): string => $status === 'completed' || $status === 'success' ? 'ok' : ($status === 'failed' ? 'danger' : 'warning');
 @endphp
+<div class="a1-ops a1-set">
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Sistem i bezbednost'])
-<div class="page-heading"><div><span class="eyebrow">Produkcija i bezbednost</span><h1>System Health & Backup</h1><p>Centralni pregled baze, migracija, scheduler-a, backupa, storage-a, legacy read-only zaštite i poslednjih grešaka.</p></div><div class="header-button-row"><form method="post" action="{{ route('admin.settings.system-health.run') }}">@csrf<button class="button button-primary" type="submit">Pokreni proveru</button></form></div></div>
-<div class="health-overview status-{{ $report['status'] }}"><div><small>Ukupni status</small><strong>{{ $statusLabels[$report['status']] ?? $report['status'] }}</strong><span>Provereno {{ \Carbon\Carbon::parse($report['checked_at'])->format('d.m.Y H:i:s') }}</span></div><div class="health-version"><small>Aplikacija</small><strong>v{{ $report['metrics']['app_version'] }}</strong><span>PHP {{ $report['metrics']['php_version'] }} · Laravel {{ $report['metrics']['laravel_version'] }}</span></div></div>
-<div class="health-check-grid">@foreach($report['checks'] as $check)<article class="health-check status-{{ $check['status'] }}"><span class="health-dot"></span><div><strong>{{ $check['label'] }}</strong><p>{{ $check['message'] }}</p></div></article>@endforeach</div>
-<div class="settings-grid health-grid">
-<section class="panel form-section"><div class="card-header-row"><div><h2>Privatni backup</h2><p class="muted">MySQL dump i poslovni upload fajlovi. Lokacija mora ostati izvan public direktorijuma.</p></div></div><div class="header-button-row"><form method="post" action="{{ route('admin.settings.system-health.backup') }}">@csrf<button class="button button-primary" type="submit">Kreiraj kompletan backup</button></form><form method="post" action="{{ route('admin.settings.system-health.backup') }}">@csrf<input type="hidden" name="database_only" value="1"><button class="button button-ghost" type="submit">Samo baza</button></form><form method="post" action="{{ route('admin.settings.system-health.prune') }}">@csrf<button class="button button-ghost" type="submit">Primeni retention</button></form></div><div class="health-list">@forelse($backups as $backup)<article><div><strong>{{ $backup->backup_key }}</strong><small>{{ $backup->backup_type }} · {{ $backup->creator?->displayName() ?? 'Scheduler' }}</small></div><div><span class="status-badge status-{{ $backup->status === 'completed' ? 'active' : ($backup->status === 'failed' ? 'archived' : 'draft') }}">{{ $backup->status }}</span><small>{{ number_format(((int)$backup->size_bytes)/1048576,2,',','.') }} MB · {{ $backup->started_at?->format('d.m.Y H:i') }}</small></div></article>@empty<div class="empty-state"><p>Još nema evidentiranih backupa.</p></div>@endforelse</div></section>
-<section class="panel form-section"><h2>Poslednji security događaji</h2><div class="health-list">@forelse($securityEvents as $event)<article><div><strong>{{ $event->event_type }}</strong><small>{{ $event->user?->displayName() ?? 'Gost/Sistem' }} · {{ $event->route_name ?: $event->method }}</small></div><div><span class="status-badge status-{{ $event->severity === 'critical' ? 'archived' : 'draft' }}">{{ $event->severity }}</span><small>{{ $event->created_at?->format('d.m.Y H:i:s') }}</small></div></article>@empty<div class="empty-state"><p>Nema security događaja.</p></div>@endforelse</div><a class="button button-ghost" href="{{ route('admin.audit.index',['source'=>'security']) }}">Otvori security log</a></section>
+<header class="a1-pagehead">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Produkcija i bezbednost</span>
+        <h1 class="a1-title">System Health & Backup</h1>
+        <p class="a1-lead">Centralni pregled baze, migracija, scheduler-a, backupa, storage-a, legacy read-only zaštite i poslednjih grešaka.</p>
+    </div>
+    <div class="a1-pagehead__actions">
+        <form method="post" action="{{ route('admin.settings.system-health.run') }}">@csrf<button class="a1-btn a1-btn--primary" type="submit">Pokreni proveru</button></form>
+    </div>
+</header>
+
+<div class="a1-grid a1-grid--kpi">
+    <div class="a1-kpi">
+        <span class="a1-kpi__label">Ukupni status</span>
+        <span class="a1-kpi__value"><span class="a1-pill a1-pill--{{ $statusTone[$report['status']] ?? 'warning' }}">{{ $statusLabels[$report['status']] ?? $report['status'] }}</span></span>
+        <span class="a1-kpi__note">Provereno {{ \Carbon\Carbon::parse($report['checked_at'])->format('d.m.Y H:i:s') }}</span>
+    </div>
+    <div class="a1-kpi">
+        <span class="a1-kpi__label">Aplikacija</span>
+        <span class="a1-kpi__value a1-num">v{{ $report['metrics']['app_version'] }}</span>
+        <span class="a1-kpi__note">PHP {{ $report['metrics']['php_version'] }} · Laravel {{ $report['metrics']['laravel_version'] }}</span>
+    </div>
 </div>
-<section class="panel form-section"><h2>Istorija System Health provera</h2><div class="health-list health-snapshot-list">@forelse($snapshots as $snapshot)<article><div><strong>{{ $statusLabels[$snapshot->status] ?? $snapshot->status }}</strong><small>{{ $snapshot->checker?->displayName() ?? 'CLI/Scheduler' }}</small></div><div><span class="status-badge status-{{ $snapshot->status === 'healthy' ? 'active' : ($snapshot->status === 'critical' ? 'archived' : 'draft') }}">{{ $snapshot->status }}</span><small>{{ $snapshot->checked_at?->format('d.m.Y H:i:s') }}</small></div></article>@empty<div class="empty-state"><p>Pokreni prvu proveru da sačuvaš snapshot.</p></div>@endforelse</div></section>
+
+<ul class="a1-list a1-list--grid" aria-label="Pojedinačne provere">
+    @foreach($report['checks'] as $check)
+        <li class="a1-item a1-item--plain a1-item--static" data-check-status="{{ $check['status'] }}">
+            <div class="a1-item__main">
+                <span class="a1-item__title">{{ $check['label'] }}</span>
+                <span class="a1-item__sub">{{ $check['message'] }}</span>
+            </div>
+            <span class="a1-pill a1-pill--{{ $statusTone[$check['status']] ?? 'warning' }}">{{ $statusLabels[$check['status']] ?? $check['status'] }}</span>
+        </li>
+    @endforeach
+</ul>
+
+<div class="a1-grid a1-grid--2">
+    <section class="a1-card" aria-labelledby="sh-backup-title">
+        <div class="a1-card__title">
+            <h2 class="a1-h2" id="sh-backup-title">Privatni backup</h2>
+            <p class="a1-muted">MySQL dump i poslovni upload fajlovi. Lokacija mora ostati izvan public direktorijuma.</p>
+        </div>
+        @can('backups.manage')
+        <div class="a1-set-actions">
+            <form method="post" action="{{ route('admin.settings.system-health.backup') }}">@csrf<button class="a1-btn a1-btn--primary" type="submit">Kreiraj kompletan backup</button></form>
+            <form method="post" action="{{ route('admin.settings.system-health.backup') }}">@csrf<input type="hidden" name="database_only" value="1"><button class="a1-btn" type="submit">Samo baza</button></form>
+            <form method="post" action="{{ route('admin.settings.system-health.prune') }}">@csrf<button class="a1-btn" type="submit">Primeni retention</button></form>
+        </div>
+        @endcan
+        <ul class="a1-list">
+            @forelse($backups as $backup)
+                <li class="a1-item a1-item--plain a1-item--static">
+                    <div class="a1-item__main"><span class="a1-item__title">{{ $backup->backup_key }}</span><span class="a1-item__sub">{{ $backup->backup_type }} · {{ $backup->creator?->displayName() ?? 'Scheduler' }}</span></div>
+                    <div class="a1-item__end"><span class="a1-pill a1-pill--{{ $jobTone($backup->status) }}">{{ $backup->status }}</span><span class="a1-item__sub">{{ number_format(((int)$backup->size_bytes)/1048576,2,',','.') }} MB · {{ $backup->started_at?->format('d.m.Y H:i') }}</span></div>
+                </li>
+            @empty
+                <li class="a1-empty"><p>Još nema evidentiranih backupa.</p></li>
+            @endforelse
+        </ul>
+    </section>
+
+    <section class="a1-card" aria-labelledby="sh-sec-title">
+        <h2 class="a1-h2" id="sh-sec-title">Poslednji security događaji</h2>
+        <ul class="a1-list">
+            @forelse($securityEvents as $event)
+                <li class="a1-item a1-item--plain a1-item--static">
+                    <div class="a1-item__main"><span class="a1-item__title">{{ $event->event_type }}</span><span class="a1-item__sub">{{ $event->user?->displayName() ?? 'Gost/Sistem' }} · {{ $event->route_name ?: $event->method }}</span></div>
+                    <div class="a1-item__end"><span class="a1-pill a1-pill--{{ $event->severity === 'critical' ? 'danger' : 'warning' }}">{{ $event->severity }}</span><span class="a1-item__sub">{{ $event->created_at?->format('d.m.Y H:i:s') }}</span></div>
+                </li>
+            @empty
+                <li class="a1-empty"><p>Nema security događaja.</p></li>
+            @endforelse
+        </ul>
+        <div><a class="a1-btn" href="{{ route('admin.audit.index',['source'=>'security']) }}">Otvori security log</a></div>
+    </section>
+</div>
+
+<section class="a1-card" aria-labelledby="sh-hist-title">
+    <h2 class="a1-h2" id="sh-hist-title">Istorija System Health provera</h2>
+    <ul class="a1-list a1-list--grid">
+        @forelse($snapshots as $snapshot)
+            <li class="a1-item a1-item--plain a1-item--static">
+                <div class="a1-item__main"><span class="a1-item__title">{{ $statusLabels[$snapshot->status] ?? $snapshot->status }}</span><span class="a1-item__sub">{{ $snapshot->checker?->displayName() ?? 'CLI/Scheduler' }}</span></div>
+                <div class="a1-item__end"><span class="a1-pill a1-pill--{{ $statusTone[$snapshot->status] ?? 'warning' }}">{{ $snapshot->status }}</span><span class="a1-item__sub">{{ $snapshot->checked_at?->format('d.m.Y H:i:s') }}</span></div>
+            </li>
+        @empty
+            <li class="a1-empty"><p>Pokreni prvu proveru da sačuvaš snapshot.</p></li>
+        @endforelse
+    </ul>
+</section>
+</div>
 @endsection

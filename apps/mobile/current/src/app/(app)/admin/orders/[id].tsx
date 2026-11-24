@@ -92,7 +92,7 @@ function displayScalar(value: AdminOrderDetailValue | undefined): string {
 
 // MOBILE_V1_0_ADMIN_ORDER_DETAIL_UX_REORGANIZATION_BATCH86
 type OrderWorkspace = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'documents' | 'activity';
-type OrderNextStepAction = 'accept' | 'shipment' | 'complete';
+type OrderNextStepAction = 'confirm' | 'shipment' | 'complete';
 
 const ORDER_WORKSPACE_OPTIONS: Array<{ value: OrderWorkspace; label: string; description: string; glyph: GlyphName }> = [
   { value: 'overview', label: 'Pregled', glyph: 'report', description: 'Status porudžbine, odgovorno lice i readiness upozorenja.' },
@@ -174,16 +174,16 @@ export default function AdminOrdersDetailScreen() {
   // MOBILE_BATCH518B_ADMIN_ORDER_NEXT_STEP
   // Server actions, not status guesses, decide which operation can be offered.
   const completed = boolValue(order, 'is_completed') || text(order, 'completed_at', '') !== '' || ['completed', 'cancelled'].includes(text(order, 'status', ''));
-  const canAcceptNext = response.capabilities.workflow_mutations && boolValue(actions, 'accept');
+  const canConfirmNext = response.capabilities.workflow_mutations && boolValue(actions, 'confirm');
   const canShipmentNext = response.capabilities.workflow_mutations && boolValue(actions, 'shipment');
   const canCompleteNext = response.capabilities.confirm_delivery && boolValue(actions, 'complete');
   const nextStep: { title: string; copy: string; label: string; workspace: OrderWorkspace; action?: OrderNextStepAction } =
-    !completed && canAcceptNext ? {
-      title: 'Preuzmi porudžbinu',
-      copy: 'Proveri kontakt kupca i stavke, pa preuzmi porudžbinu u obradu.',
-      label: 'Preuzmi porudžbinu',
+    !completed && canConfirmNext ? {
+      title: 'Potvrdi porudžbinu',
+      copy: 'Proveri kontakt kupca i stavke, pa potvrdi porudžbinu. Potvrda ujedno preuzima porudžbinu.',
+      label: 'Potvrdi porudžbinu',
       workspace: 'overview',
-      action: 'accept',
+      action: 'confirm',
     } : !completed && canShipmentNext ? {
       title: 'Evidentiraj slanje',
       copy: 'Proveri uslove plaćanja i evidentiraj samo stvarno slanje pošiljke.',

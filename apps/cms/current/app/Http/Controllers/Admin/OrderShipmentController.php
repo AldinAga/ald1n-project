@@ -46,6 +46,16 @@ final class OrderShipmentController extends Controller
         ]);
 
         $shipment = $shipments->record($order, $request->user(), $data, $request->file('shipment_proof'), (string) $data['order_version_token']);
-        return back()->with('status', 'Slanje pošiljke za '.$shipment->order?->order_number.' je evidentirano. Porudžbina je označena kao poslata, ali nije kompletirana.');
+        return back()->with('status', 'Slanje pošiljke za '.$shipment->order?->order_number.' je evidentirano. Sledeće: kada roba stigne kod kupca, potvrdi isporuku.');
+    }
+
+    /** "Pošiljka vraćena": razlog je obavezan; porudžbina je ponovo "Potvrđena", lager ostaje rezervisan. */
+    public function returned(Request $request, Order $order, OrderAccessService $access, OrderShipmentService $shipments): RedirectResponse
+    {
+        $access->authorizeManage($order, $request->user());
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:1000']]);
+        $shipment = $shipments->markReturned($order, $request->user(), (string) $data['reason']);
+
+        return back()->with('status', 'Pošiljka za '.$shipment->order?->order_number.' je evidentirana kao vraćena. Porudžbina je ponovo Potvrđena, a roba ostaje rezervisana. Sledeće: pošalji je ponovo ili je otkaži.');
     }
 }

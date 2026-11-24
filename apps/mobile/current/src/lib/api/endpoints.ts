@@ -185,6 +185,12 @@ export const api = {
         method: 'PUT',
         body: input
       }),
+    // Brisanje naloga (Google Play): lozinka ili Google ID token; rok mirovanja 14 dana.
+    requestDeletion: (input: { password?: string; id_token?: string }) =>
+      apiRequest<{ message: string; reauthenticate: boolean; data: { status: string; grace_until: string | null } }>('account/deletion', {
+        method: 'POST',
+        body: input
+      }),
     notificationPreferences: async (input: Partial<NotificationPreferences>) => {
       const response = await apiRequest<{ data: NotificationPreferences }> ('me/notification-preferences', {
         method: 'PUT',
@@ -255,10 +261,10 @@ export const api = {
       });
       return response.data;
     },
-    cancel: async (id: number, note?: string) => {
+    cancel: async (id: number, reason: string) => {
       const response = await apiRequest<{ data: Order }>(`orders/${id}/cancel`, {
         method: 'POST',
-        body: { note: note || null }
+        body: { reason }
       });
       return response.data;
     },

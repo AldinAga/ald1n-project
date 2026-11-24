@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
 
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icons.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icons.css')) ?: config('app.version') }}">
+
     @stack('styles')
 
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
@@ -50,9 +54,9 @@
 
     @stack('head')
 </head>
-<body class="auth-body">
+<body class="auth-body a1-body" id="a1-top">
     <button
-        class="icon-button floating-theme"
+        class="floating-theme"
         type="button"
         data-theme-toggle
         aria-label="Promeni režim teme"
@@ -85,13 +89,13 @@
 
         const themeIcons = {
             auto:
-                '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>',
+                '<svg class="a1-icon a1-icon--fit a1-icon--n17" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>',
 
             dark:
-                '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z"></path></svg>',
+                '<svg class="a1-icon a1-icon--fit a1-icon--n17" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z"></path></svg>',
 
             light:
-                '<svg class="ui-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>'
+                '<svg class="a1-icon a1-icon--fit a1-icon--n17" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>'
         };
 
         const resolveTheme =
@@ -237,5 +241,6 @@
     </script>
 
     @stack('scripts')
+    @include('layouts.partials.back-to-top')
 </body>
 </html>

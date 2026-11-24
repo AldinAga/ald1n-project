@@ -65,9 +65,19 @@ final class PaymentProofFreshStateB1121Test extends TestCase
             'cancelled during upload' => ['cancelled', 422],
             'owner changed during upload' => ['owner', 404],
             'payment method changed during upload' => ['method', 422],
-            'completed during upload remains forbidden' => ['completed', 422],
+            // Isporuka je odvojena od naplate: posle isporuke se dokaz uplate i dalje prima (vidi test ispod), pa "completed" više nije zabranjeno.
             'direct sale during upload remains forbidden' => ['direct-sale', 422],
         ];
+    }
+
+    public function test_a_delivered_order_still_accepts_a_payment_proof_for_its_open_debt(): void
+    {
+        Order::query()->whereKey($this->order->id)->update(['completed_at' => now()]);
+        $file = $this->watchedUpload(static function (): void {});
+
+        $payment = app(OrderPaymentService::class)->submitProof($this->order->fresh(), $file, $this->data(), $this->buyer);
+
+        self::assertSame(['submitted', 'payment', (int) $this->order->id], [$payment->status, $payment->entry_type, (int) $payment->order_id]);
     }
 
     #[DataProvider('changedStates')]

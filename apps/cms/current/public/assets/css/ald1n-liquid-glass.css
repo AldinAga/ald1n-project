@@ -14,9 +14,9 @@ html[data-theme="dark"] {
   --ald-muted: #B6C2C9;
   --ald-border: #36434C;
   --ald-outline: #748590;
-  --ald-primary: #BFA590;
-  --ald-primary-strong: #D2BCA9;
-  --ald-on-primary: #172027;
+  --ald-primary: #287CFF;
+  --ald-primary-strong: #63A2FF;
+  --ald-on-primary: #09142B;
   --ald-primary-container: #34302E;
   --ald-on-primary-container: #EADDD2;
   --ald-secondary-container: #293239;
@@ -38,8 +38,8 @@ html[data-theme="light"] {
   --ald-muted: #52606A;
   --ald-border: #CBD3D9;
   --ald-outline: #70818C;
-  --ald-primary: #68584D;
-  --ald-primary-strong: #54463D;
+  --ald-primary: #165DCB;
+  --ald-primary-strong: #104EAD;
   --ald-on-primary: #FFFFFF;
   --ald-primary-container: #E8E2DC;
   --ald-on-primary-container: #41372F;
@@ -254,7 +254,7 @@ body {
 
 @media (max-width: 390px) {
   .page-heading h1 {
-    overflow-wrap: anywhere;
+    overflow-wrap:break-word;
   }
 
   .page-shell {
@@ -553,7 +553,7 @@ body {
   color: var(--ald-muted);
   font-size: 13px;
   font-weight: 680;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .order-archive-purge-dismiss {
@@ -622,7 +622,7 @@ body {
   font-weight: 750;
   line-height: 1.48;
   color: var(--ald-text);
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .order-archive-purge-field input,
@@ -777,7 +777,7 @@ body {
   max-width: 58ch;
   line-height: 1.45;
   color: var(--ald-muted);
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .liquid-glass-product-editor-form .product-editor-action-buttons {
@@ -837,7 +837,7 @@ body {
 .liquid-glass-product-editor-form .product-direct-sale-note {
   max-width: 265px;
   text-align: right;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -947,7 +947,7 @@ body {
     width: 100%;
     min-width: 0;
     padding-inline: 8px;
-    overflow-wrap: anywhere;
+    overflow-wrap:break-word;
   }
 
   .liquid-glass-product-editor-form .product-editor-action-draft:only-child,
@@ -1850,7 +1850,7 @@ html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) {
 .build16-product-detail-shell .build16-product-summary h1 {
   margin: 0 0 12px;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .build16-product-detail-shell .build16-product-summary .sku {
   margin: 0;
@@ -1876,7 +1876,7 @@ html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) {
 .build16-product-detail-shell .build16-product-summary .build16-product-metrics strong {
   display: block;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .build16-product-detail-shell .build16-product-summary .category-list {
   gap: 8px;

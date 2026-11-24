@@ -35,7 +35,7 @@ final class AdminProductManagementTest extends TestCase
             'description'=>'Test opis','stock_quantity'=>5,'low_stock_threshold'=>1,'status'=>'active','category_ids'=>[$category->id],
         ]);
         $product = Product::query()->firstOrFail();
-        $response->assertRedirect('/admin/catalog/'.$product->id.'/edit');
+        $response->assertRedirect('/admin/catalog/create');
         self::assertMatchesRegularExpression('/^LENOVO-[0-9]{6}$/', $product->sku);
         self::assertTrue($product->categories()->whereKey($category->id)->exists());
         self::assertTrue(AuditLog::query()->where('action','product.created')->exists());

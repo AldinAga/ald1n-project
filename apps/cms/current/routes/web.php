@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderShipmentController as AdminOrderShipmentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductBulkController;
+use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\ProductPurchaseCostController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\PortalConversationController as AdminPortalConversationController;
@@ -120,6 +121,21 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
         ->defaults('page', $legalKey)
         ->middleware('throttle:public-shop-browse')->name('legal.'.$legalKey);
 }
+
+// Brisanje naloga (Google Play): javna stranica, potvrda e-poštom i poništavanje linkom.
+// Potvrda i poništavanje su POST, da skeneri linkova ne pokrenu radnju.
+Route::get('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'show'])
+    ->middleware('throttle:public-shop-browse')->name('account-deletion.show');
+Route::post('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'request'])
+    ->middleware('throttle:account-deletion-request')->name('account-deletion.request');
+Route::get('/brisanje-naloga/potvrda/{token}', [\App\Http\Controllers\AccountDeletionController::class, 'confirmShow'])
+    ->where('token', '[A-Za-z0-9]{80}')->middleware('throttle:password-reset')->name('account-deletion.confirm.show');
+Route::post('/brisanje-naloga/potvrda', [\App\Http\Controllers\AccountDeletionController::class, 'confirm'])
+    ->middleware('throttle:password-reset')->name('account-deletion.confirm');
+Route::get('/brisanje-naloga/ponisti/{token}', [\App\Http\Controllers\AccountDeletionController::class, 'cancelShow'])
+    ->where('token', '[A-Za-z0-9]{80}')->middleware('throttle:password-reset')->name('account-deletion.cancel.show');
+Route::post('/brisanje-naloga/ponisti', [\App\Http\Controllers\AccountDeletionController::class, 'cancel'])
+    ->middleware('throttle:password-reset')->name('account-deletion.cancel');
 
 // Site logos, favicon and login backgrounds (SiteLogoAssetService), served
 // without the /storage symlink. Public like the logo itself, throttled,
@@ -206,6 +222,8 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::get('/media/product/{image}', ProductMediaController::class)->whereNumber('image')->name('media.product');
     Route::get('/media/product/{image}/download', ProductMediaDownloadController::class)->whereNumber('image')->name('media.product.download');
+    Route::post('/account/deletion', [\App\Http\Controllers\AccountDeletionController::class, 'requestOwn'])
+        ->middleware('throttle:account-deletion-own')->name('account.deletion.request');
     Route::put('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
     Route::put('/account/password', [AccountController::class, 'password'])->name('account.password');
     Route::put('/account/notifications', [AccountController::class, 'notifications'])->name('account.notifications');
@@ -329,6 +347,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::get('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'index'])->name('products.purchase-costs');
             Route::post('/catalog/purchase-costs', [ProductPurchaseCostController::class, 'update'])->middleware('throttle:admin-write')->name('products.purchase-costs.update');
             Route::post('/catalog/name-preview', [AdminProductController::class, 'namePreview'])->name('products.name-preview');
+            Route::get('/catalog/import', [ProductImportController::class, 'index'])->name('products.import');
+            Route::post('/catalog/import/upload', [ProductImportController::class, 'upload'])->middleware('throttle:admin-write')->name('products.import.upload');
+            Route::post('/catalog/import', [ProductImportController::class, 'process'])->middleware('throttle:admin-write')->name('products.import.process');
+            Route::get('/catalog/duplicate-check', [AdminProductController::class, 'duplicateCheck'])->name('products.duplicate-check');
             Route::post('/catalog/{product}/direct-sale', DirectSaleController::class)
                 ->whereNumber('product')
                 ->middleware('throttle:admin-write')
@@ -386,17 +408,25 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/orders/{order}/archive', [AdminOrderController::class, 'archive'])->whereNumber('order')->name('orders.archive');
             Route::post('/orders/archived/{orderId}/restore', [AdminOrderController::class, 'restore'])->whereNumber('orderId')->name('orders.restore');
             Route::delete('/orders/archived/{orderId}/purge', [AdminOrderController::class, 'purge'])->whereNumber('orderId')->name('orders.purge');
-            Route::patch('/orders/{order}/status', [AdminOrderController::class, 'status'])->whereNumber('order')->name('orders.status');
+            Route::patch('/orders/{order}/status', [AdminOrderController::class, 'status'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.status');
+            Route::post('/orders/{order}/confirm', [AdminOrderController::class, 'confirm'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.confirm');
+            Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.cancel');
             Route::post('/orders/{order}/complete', [AdminOrderController::class, 'complete'])
                 ->whereNumber('order')->middleware('permission:orders.confirm_delivery')->name('orders.complete');
             Route::post('/orders/{order}/reopen', [AdminOrderController::class, 'reopen'])
                 ->whereNumber('order')->middleware('permission:orders.reopen')->name('orders.reopen');
             Route::patch('/orders/{order}/sale-price', [AdminOrderController::class, 'correctDirectSalePrice'])
                 ->whereNumber('order')->middleware(['permission:payments.manage', 'throttle:admin-write'])->name('orders.sale-price-correction');
-            Route::patch('/orders/{order}/tracking', [AdminOrderController::class, 'tracking'])->whereNumber('order')->name('orders.tracking');
             Route::post('/orders/{order}/shipment', [AdminOrderShipmentController::class, 'store'])
                 ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.store');
-            Route::post('/orders/{order}/accept', [AdminOrderController::class, 'accept'])->whereNumber('order')->name('orders.accept');
+            Route::post('/orders/{order}/shipment/return', [AdminOrderShipmentController::class, 'returned'])
+                ->whereNumber('order')->middleware('throttle:admin-write')->name('orders.shipment.return');
+            Route::middleware('permission:after_sales.manage')->group(function (): void {
+                Route::get('/orders/{order}/after-sales/create', [\App\Http\Controllers\Admin\OrderAfterSalesController::class, 'create'])
+                    ->whereNumber('order')->name('orders.after-sales.create');
+                Route::post('/orders/{order}/after-sales', [\App\Http\Controllers\Admin\OrderAfterSalesController::class, 'store'])
+                    ->whereNumber('order')->middleware('throttle:uploads')->name('orders.after-sales.store');
+            });
             Route::patch('/orders/{order}/deadlines', [AdminOrderController::class, 'deadlines'])->whereNumber('order')->name('orders.deadlines');
         });
         Route::middleware('permission:receivables.manage')->group(function (): void {
@@ -527,7 +557,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
         });
 
         Route::middleware('permission:payments.manage')->group(function (): void {
-            Route::post('/orders/{order}/payments', [AdminPaymentController::class, 'store'])->whereNumber('order')->name('orders.payments.store');
+            Route::post('/orders/{order}/payments', [AdminPaymentController::class, 'store'])->whereNumber('order')->middleware('throttle:admin-write')->name('orders.payments.store');
             Route::post('/orders/{order}/payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.verify');
             Route::post('/orders/{order}/payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.reject');
             Route::post('/orders/{order}/payments/{payment}/void', [AdminPaymentController::class, 'void'])->whereNumber('order')->whereNumber('payment')->name('orders.payments.void');

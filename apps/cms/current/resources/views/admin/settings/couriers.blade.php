@@ -3,45 +3,56 @@
 @section('title', 'Kurirske službe')
 
 @section('content')
-<div class="settings-page courier-settings-page">
+<div class="a1-ops a1-set">
     @include('admin.settings.partials.context-nav', ['settingsSection' => 'Poslovanje'])
-<div class="page-heading">
-        <div>
-            <span class="eyebrow">Podešavanja · Super Administrator</span>
-            <h1>Kurirske službe</h1>
-            <p>Centralni šifarnik kurira i zvaničnih stranica za praćenje. Promene važe za buduće evidencije slanja; istorijski shipment snapshot ostaje nepromenjen.</p>
+    <header class="a1-pagehead">
+        <div class="a1-pagehead__text">
+            <span class="a1-eyebrow">Podešavanja · Super Administrator</span>
+            <h1 class="a1-title">Kurirske službe</h1>
+            <p class="a1-lead">Centralni šifarnik kurira i zvaničnih stranica za praćenje. Promene važe za buduće evidencije slanja; istorijski shipment snapshot ostaje nepromenjen.</p>
         </div>
-    </div>
+    </header>
 
-    <section class="panel form-section courier-create-card">
-        <h2>Dodaj kurirsku službu</h2>
-        <form method="post" action="{{ route('admin.settings.couriers.store') }}" class="courier-form-grid">
+    <section class="a1-card" aria-labelledby="courier-add-title">
+        <h2 class="a1-h2" id="courier-add-title">Dodaj kurirsku službu</h2>
+        <form method="post" action="{{ route('admin.settings.couriers.store') }}" class="a1-form">
             @csrf
-            <label><span>Naziv</span><input name="name" maxlength="120" required></label>
-            <label class="courier-url-field"><span>Zvanični tracking URL</span><input name="tracking_url" type="url" maxlength="500" placeholder="https://..." required></label>
-            <label><span>Redosled</span><input name="sort_order" type="number" min="0" max="100000" value="100" required></label>
-            <label class="check-row"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" checked> Aktivna</label>
-            <label class="check-row"><input type="hidden" name="is_default" value="0"><input type="checkbox" name="is_default" value="1"> Podrazumevana</label>
-            <button class="button button-primary" type="submit">Dodaj kurira</button>
+            <div class="a1-set-fields">
+                <label class="a1-field"><span class="a1-label">Naziv</span><input class="a1-input" name="name" maxlength="120" required></label>
+                <label class="a1-field"><span class="a1-label">Zvanični tracking URL</span><input class="a1-input" name="tracking_url" type="url" maxlength="500" placeholder="https://..." required></label>
+                <label class="a1-field"><span class="a1-label">Redosled</span><input class="a1-input" name="sort_order" type="number" min="0" max="100000" value="100" required></label>
+            </div>
+            <div class="a1-set-checks a1-set-checks--cols">
+                <label class="a1-check"><input type="hidden" name="is_active" value="0"><input class="a1-check__input" type="checkbox" name="is_active" value="1" checked><span class="a1-check__box" aria-hidden="true"></span><span>Aktivna</span></label>
+                <label class="a1-check"><input type="hidden" name="is_default" value="0"><input class="a1-check__input" type="checkbox" name="is_default" value="1"><span class="a1-check__box" aria-hidden="true"></span><span>Podrazumevana</span></label>
+            </div>
+            <div><button class="a1-btn a1-btn--primary" type="submit">Dodaj kurira</button></div>
         </form>
     </section>
 
-    <section class="panel form-section">
-        <div class="section-heading-row"><div><h2>Postojeće kurirske službe</h2><p class="muted">Tačno jedna aktivna služba ostaje podrazumevana.</p></div></div>
-        <div class="courier-settings-list">
+    <section class="a1-card" aria-labelledby="courier-list-title">
+        <div class="a1-card__title">
+            <h2 class="a1-h2" id="courier-list-title">Postojeće kurirske službe</h2>
+            <p class="a1-muted">Tačno jedna aktivna služba ostaje podrazumevana.</p>
+        </div>
+        <div class="a1-stack">
             @foreach($couriers as $courier)
-                <form method="post" action="{{ route('admin.settings.couriers.update', $courier) }}" class="courier-row-card">
+                <form method="post" action="{{ route('admin.settings.couriers.update', $courier) }}" class="a1-set-asset a1-form">
                     @csrf
                     @method('PUT')
-                    <div class="courier-form-grid">
-                        <label><span>Naziv</span><input name="name" maxlength="120" value="{{ $courier->name }}" required></label>
-                        <label class="courier-url-field"><span>Zvanični tracking URL</span><input name="tracking_url" type="url" maxlength="500" value="{{ $courier->tracking_url }}" required></label>
-                        <label><span>Redosled</span><input name="sort_order" type="number" min="0" max="100000" value="{{ $courier->sort_order }}" required></label>
-                        <label class="check-row"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" @checked($courier->is_active)> Aktivna</label>
-                        <label class="check-row"><input type="hidden" name="is_default" value="0"><input type="checkbox" name="is_default" value="1" @checked($courier->is_default)> Podrazumevana</label>
-                        <button class="button button-ghost" type="submit">Sačuvaj</button>
+                    <div class="a1-set-fields">
+                        <label class="a1-field"><span class="a1-label">Naziv</span><input class="a1-input" name="name" maxlength="120" value="{{ $courier->name }}" required></label>
+                        <label class="a1-field"><span class="a1-label">Zvanični tracking URL</span><input class="a1-input" name="tracking_url" type="url" maxlength="500" value="{{ $courier->tracking_url }}" required></label>
+                        <label class="a1-field"><span class="a1-label">Redosled</span><input class="a1-input" name="sort_order" type="number" min="0" max="100000" value="{{ $courier->sort_order }}" required></label>
                     </div>
-                    <a href="{{ $courier->tracking_url }}" target="_blank" rel="noopener">Otvori zvaničnu tracking stranicu</a>
+                    <div class="a1-set-checks a1-set-checks--cols">
+                        <label class="a1-check"><input type="hidden" name="is_active" value="0"><input class="a1-check__input" type="checkbox" name="is_active" value="1" @checked($courier->is_active)><span class="a1-check__box" aria-hidden="true"></span><span>Aktivna</span></label>
+                        <label class="a1-check"><input type="hidden" name="is_default" value="0"><input class="a1-check__input" type="checkbox" name="is_default" value="1" @checked($courier->is_default)><span class="a1-check__box" aria-hidden="true"></span><span>Podrazumevana</span></label>
+                    </div>
+                    <div class="a1-set-actions">
+                        <button class="a1-btn" type="submit">Sačuvaj</button>
+                        <a class="a1-link" href="{{ $courier->tracking_url }}" target="_blank" rel="noopener">Otvori zvaničnu tracking stranicu</a>
+                    </div>
                 </form>
             @endforeach
         </div>

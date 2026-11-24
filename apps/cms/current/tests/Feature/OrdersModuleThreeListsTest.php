@@ -39,6 +39,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         $this->order($buyer, $super, 'M3L-CONF-003', ['status' => 'confirmed', 'accepted_at' => now(), 'payment_method' => 'cash_on_delivery', 'payment_status' => 'pending', 'expected_shipping_at' => now()->addDays(3)]);
         $this->order($buyer, $super, 'M3L-OLD-004', ['status' => 'new', 'source_system' => 'legacy']);
         $this->order($buyer, $super, 'M3L-SHIP-005', ['status' => 'shipped', 'accepted_at' => now(), 'payment_status' => 'paid']);
+        $this->order($buyer, $super, 'M3L-BANK-006', ['status' => 'confirmed', 'accepted_at' => now(), 'payment_method' => 'bank_transfer', 'payment_status' => 'pending']);
 
         $html = (string) $this->actingAs($super)->get('/admin/orders')->assertOk()->getContent();
         $page = $this->page($html);
@@ -46,17 +47,17 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-orders-page-ready="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Sve porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page), 'Old order list classes must be gone.');
         self::assertSame(1, substr_count($page, 'a1-btn--primary'), 'Exactly one primary action: the filter submit.');
-        self::assertStringContainsString('5 porudžbina</span>', $page);
+        self::assertStringContainsString('6 porudžbina</span>', $page);
 
         // Header links keep their targets; the reports link follows the reports.view gate.
         self::assertStringContainsString('href="'.route('admin.orders.archived').'"', $page);
         self::assertStringContainsString('href="'.route('admin.reports.index').'"', $page);
 
         // Attention tiles are links that set ?attention=, with the counts of the service (1 unaccepted modern order, 1 overdue).
-        self::assertMatchesRegularExpression('/href="[^"]*attention=unaccepted"[^>]*>.{0,900}a1-ol-tile__count">1<\/span>\s*<span class="a1-ol-tile__label">Čekaju preuzimanje/s', $page);
+        self::assertMatchesRegularExpression('/href="[^"]*attention=unaccepted"[^>]*>.{0,900}a1-ol-tile__count">1<\/span>\s*<span class="a1-ol-tile__label">Čekaju potvrdu/s', $page);
         self::assertMatchesRegularExpression('/href="[^"]*attention=overdue"[^>]*>.{0,900}a1-ol-tile__count">1<\/span>\s*<span class="a1-ol-tile__label">Prekoračen rok/s', $page);
         self::assertStringNotContainsString('aria-current="true"', $page);
 
@@ -73,12 +74,14 @@ final class OrdersModuleThreeListsTest extends TestCase
 
         // Table: five data rows, phone card labels, right aligned money, status as dot plus text.
         self::assertStringContainsString('<table class="a1-table a1-table--cards a1-ol-table" role="table">', $page);
-        self::assertSame(5, substr_count($page, 'data-label="Broj"'));
-        self::assertSame(5, substr_count($page, 'class="a1-table__num" data-label="Iznos"'));
+        self::assertSame(6, substr_count($page, 'data-label="Broj"'));
+        self::assertSame(6, substr_count($page, 'class="a1-table__num" data-label="Iznos"'));
         self::assertStringContainsString('15.000,00 RSD', $page);
         self::assertStringContainsString('2.500,50 RSD', $page);
-        self::assertStringContainsString('a1-pill a1-pill--warning">Nova<', $page);
-        self::assertStringContainsString('a1-pill a1-pill--warning">Obrada<', $page);
+        // Nova x3: nova, stari "processing" red i legacy red; "Obrada" / "U obradi" ne postoje u prikazu.
+        self::assertSame(3, substr_count($page, 'a1-pill a1-pill--warning">Nova<'));
+        self::assertStringNotContainsString('Obrada<', $page);
+        self::assertStringNotContainsString('U obradi', $page);
         self::assertStringContainsString('a1-pill a1-pill--warning">Potvrđena<', $page);
         self::assertStringContainsString('a1-pill a1-pill--info">Poslata<', $page);
         self::assertMatchesRegularExpression('~data-label="Plaćanje i rok">\s*<span class="a1-ol-cell">\s*Na čekanju\s*<span class="a1-ol-sub[^"]*">Rok: ~', $page);
@@ -92,24 +95,32 @@ final class OrdersModuleThreeListsTest extends TestCase
         foreach (['NEW-001', 'PROC-002', 'CONF-003', 'OLD-004', 'SHIP-005'] as $suffix) {
             self::assertStringContainsString('aria-label="Detalji: M3L-'.$suffix.'"', $page);
         }
-        self::assertStringContainsString('aria-label="Preuzmi: M3L-NEW-001"', $page);
-        self::assertStringNotContainsString('aria-label="Preuzmi: M3L-PROC-002"', $page);
-        self::assertStringNotContainsString('aria-label="Preuzmi: M3L-OLD-004"', $page);
-        self::assertStringContainsString('aria-label="U obradu: M3L-NEW-001"', $page);
-        self::assertStringNotContainsString('aria-label="U obradu: M3L-OLD-004"', $page);
-        self::assertStringContainsString('aria-label="Potvrdi: M3L-PROC-002"', $page);
-        self::assertStringNotContainsString('aria-label="Potvrdi: M3L-NEW-001"', $page);
-        self::assertStringContainsString('aria-label="Evidentiraj isporuku: M3L-CONF-003"', $page);
-        self::assertStringContainsString('aria-label="Evidentiraj isporuku: M3L-SHIP-005"', $page);
-        self::assertStringNotContainsString('aria-label="Evidentiraj isporuku: M3L-NEW-001"', $page);
-        self::assertStringNotContainsString('aria-label="Evidentiraj isporuku: M3L-PROC-002"', $page);
+        // Jedan korak: "Potvrdi porudžbinu" (link na panel potvrde na detalju) za nove i stare "processing" redove; nema Preuzmi / U obradu.
+        foreach (['NEW-001', 'PROC-002'] as $suffix) {
+            self::assertStringContainsString('aria-label="Potvrdi porudžbinu: M3L-'.$suffix.'"', $page);
+        }
+        $newOrder = Order::query()->where('order_number', 'M3L-NEW-001')->firstOrFail();
+        self::assertStringContainsString('href="'.route('admin.orders.show', $newOrder).'#order-confirm" aria-label="Potvrdi porudžbinu: M3L-NEW-001"', $page);
+        foreach (['OLD-004', 'CONF-003', 'SHIP-005'] as $suffix) {
+            self::assertStringNotContainsString('aria-label="Potvrdi porudžbinu: M3L-'.$suffix.'"', $page);
+        }
+        self::assertSame(2, substr_count($page, 'aria-label="Potvrdi porudžbinu: '));
+        self::assertStringNotContainsString('Preuzmi', $page);
+        self::assertStringNotContainsString('U obradu', $page);
+        // Jedna potvrda isporuke, ista reč svuda; naplata nije uslov (SHIP-005 je plaćena, CONF-003 pouzeće, BANK-006 neplaćena uplata na račun).
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-CONF-003"', $page);
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-SHIP-005"', $page);
+        self::assertStringContainsString('aria-label="Potvrdi isporuku: M3L-BANK-006"', $page);
+        self::assertStringContainsString('#order-workspace-logistics-actions" aria-label="Potvrdi isporuku: M3L-BANK-006"', $page);
+        self::assertStringNotContainsString('aria-label="Potvrdi isporuku: M3L-NEW-001"', $page);
+        self::assertStringNotContainsString('aria-label="Potvrdi isporuku: M3L-PROC-002"', $page);
+        self::assertStringNotContainsString('Evidentiraj isporuku', $page);
 
-        // Forms: accept and status changes only, each with CSRF; the status forms spoof PATCH and carry the target status.
-        self::assertSame(3, substr_count($page, '<form class="a1-ol-inline"'));
-        self::assertSame(3, substr_count($page, 'name="_token"'), 'One token per row form; the filter form is GET and has none.');
-        self::assertSame(2, substr_count($page, 'name="_method" value="PATCH"'));
-        self::assertSame(1, substr_count($page, '<input type="hidden" name="status" value="processing">'));
-        self::assertSame(1, substr_count($page, '<input type="hidden" name="status" value="confirmed">'));
+        // F1: lista više nema forme koje šalju status bez tokena svežine (to je padalo sa 409); potvrda ide kroz detalj.
+        self::assertSame(0, substr_count($page, '<form class="a1-ol-inline"'));
+        self::assertSame(0, substr_count($page, 'name="_token"'), 'No row forms; the filter form is GET and has none.');
+        self::assertSame(0, substr_count($page, 'name="_method" value="PATCH"'));
+        self::assertStringNotContainsString('name="status" value=', $page);
     }
 
     public function test_admin_list_phone_cards_label_every_cell_with_its_column_and_hide_nothing(): void
@@ -152,7 +163,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('Aktivan filter', $page);
         self::assertStringContainsString('<input type="hidden" name="attention" value="unaccepted">', $page);
         self::assertStringContainsString('Ukloni operativni filter', $page);
-        self::assertStringContainsString('Operativni filter: Čekaju preuzimanje', $page);
+        self::assertStringContainsString('Operativni filter: Čekaju potvrdu', $page);
         self::assertStringContainsString('Status: Nova', $page);
         self::assertStringContainsString('aria-label="Ukloni filter: Status: Nova"', $page);
         self::assertSame(2, substr_count($page, 'class="a1-chip"'));
@@ -232,7 +243,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-order-archive-center="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Arhivirane porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('href="'.route('admin.orders.index').'">Aktivne porudžbine</a>', $page);
         self::assertStringContainsString('1 arhiviranih</span>', $page);
@@ -303,7 +314,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-build16-orders-list="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Moje porudžbine</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('2 ukupno</span>', $page);
         self::assertStringContainsString('M3L-OWN-001', $page);
@@ -363,7 +374,7 @@ final class OrdersModuleThreeListsTest extends TestCase
         self::assertStringContainsString('class="a1-ops" data-user-cart-ready="1"', $page);
         self::assertSame(1, substr_count($page, '<h1 '));
         self::assertStringContainsString('<h1 class="a1-title">Korpa</h1>', $page);
-        self::assertStringNotContainsString('Nazad na vrh', $html);
+        self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(0, preg_match(self::OLD_CLASSES, $page));
         self::assertStringContainsString('2 kom.</span>', $page);
         self::assertStringContainsString('M3L-CART-1 name', $page);

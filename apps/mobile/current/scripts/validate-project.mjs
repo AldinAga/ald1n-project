@@ -160,14 +160,14 @@ assert(
     && productionSubmitHelper505R.includes("'--id', buildId")
     && productionSubmitHelper505R.includes("'--non-interactive'")
     && productionSubmitHelper505R.includes("'--wait'")
-    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '27.2.0'")
+    && productionSubmitHelper505R.includes("const EAS_CLI_VERSION = '27.11.0'")
     && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
   'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
 );
-assert(packageJson.dependencies?.expo === '~58.0.25' && packageLockJson.packages?.['']?.dependencies?.expo === '~58.0.25' && packageLockJson.packages?.['node_modules/expo']?.version === '58.0.25', 'Expo SDK 58 verzija prati aktuelni SDK 58 patch baseline.');
+assert(packageJson.dependencies?.expo === '~58.0.26' && packageLockJson.packages?.['']?.dependencies?.expo === '~58.0.26' && packageLockJson.packages?.['node_modules/expo']?.version === '58.0.26', 'Expo SDK 58 verzija prati aktuelni SDK 58 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.88.1' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.88.1' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.88.1', 'React Native verzija prati Expo SDK 58 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~58.0.31' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~58.0.31' && packageLockJson.packages?.['node_modules/expo-router']?.version === '58.0.31', 'Expo Router verzija je zaključana.');
-assert(packageJson.dependencies?.['expo-dev-client'] === '~58.0.20' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~58.0.20' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '58.0.20', 'Expo development client je uključen.');
+assert(packageJson.dependencies?.['expo-router'] === '~58.0.32' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~58.0.32' && packageLockJson.packages?.['node_modules/expo-router']?.version === '58.0.32', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-dev-client'] === '~58.0.21' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~58.0.21' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '58.0.21', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 58 zahtevu.');
@@ -208,7 +208,7 @@ assert(packageJson.dependencies?.['@tamagui/config'] === '2.6.0', 'Tamagui Confi
 assert(packageJson.dependencies?.['@tamagui/animations-reanimated'] === '2.6.0', 'Tamagui Reanimated driver je pinovan.');
 assert(packageJson.dependencies?.['expo-system-ui'] === '~58.0.7' && packageLockJson.packages?.['']?.dependencies?.['expo-system-ui'] === '~58.0.7' && packageLockJson.packages?.['node_modules/expo-system-ui']?.version === '58.0.7', 'Expo System UI prati SDK 58 preporucenu verziju.');
 assert(packageJson.dependencies?.['expo-status-bar'] === '~58.0.5', 'Expo Status Bar prati SDK 58 preporucenu verziju.');
-assert(packageJson.dependencies?.['expo-file-system'] === '~58.0.13' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~58.0.13' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '58.0.13', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
+assert(packageJson.dependencies?.['expo-file-system'] === '~58.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~58.0.14' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '58.0.14', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
 assert(packageJson.dependencies?.['expo-sharing'] === '~58.0.23' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~58.0.23' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '58.0.23', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
 
 // MOBILE_BUILD21_ANDROID_R8_DEX_OPTIMIZATION_BATCH494_VALIDATOR
@@ -348,15 +348,15 @@ assert(
 // MOBILE_BUILD22_SDK57_PATCH_ALIGNMENT_BATCH504R
 // MOBILE_BUILD23_SDK57_PATCH_ALIGNMENT_BATCH521R4
 const expoCompatibilityMatrixV08 = {
-  'expo': { spec: '~58.0.25', version: '58.0.25' },
+  'expo': { spec: '~58.0.26', version: '58.0.26' },
   'expo-constants': { spec: '~58.0.16', version: '58.0.16' },
   'expo-crypto': { spec: '~58.0.8', version: '58.0.8' },
-  'expo-dev-client': { spec: '~58.0.20', version: '58.0.20' },
-  'expo-file-system': { spec: '~58.0.13', version: '58.0.13' },
+  'expo-dev-client': { spec: '~58.0.21', version: '58.0.21' },
+  'expo-file-system': { spec: '~58.0.14', version: '58.0.14' },
   'expo-font': { spec: '~58.0.12', version: '58.0.12' },
   'expo-linking': { spec: '~58.0.17', version: '58.0.17' },
   'expo-notifications': { spec: '~58.1.9', version: '58.1.9' },
-  'expo-router': { spec: '~58.0.31', version: '58.0.31' },
+  'expo-router': { spec: '~58.0.32', version: '58.0.32' },
   'expo-sharing': { spec: '~58.0.23', version: '58.0.23' },
   'expo-secure-store': { spec: '~58.0.3', version: '58.0.3' },
   'expo-system-ui': { spec: '~58.0.7', version: '58.0.7' },
@@ -576,7 +576,7 @@ assert(
     && orderDetailDirectLinkCallCount === 1,
   'Order detalj privatne fajlove otvara kroz secure Bearer/cache/share helper; jedini direktan URL je javni HTTPS shipment tracking link.',
 );
-assert(orderDetailScreen.includes('api.orders.cancel(orderId)') && orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Post-create UI čuva postojeći customer cancel i After-sales create tok.');
+assert(orderDetailScreen.includes('api.orders.cancel(orderId, reason)') && orderDetailScreen.includes("can('after_sales.create')") && orderDetailScreen.includes("pathname: '/after-sales/create/[orderId]'"), 'Post-create UI čuva postojeći customer cancel i After-sales create tok.');
 assert(!/\b(?:verifyPayment|rejectPayment|voidPayment|completeOrder|reopenOrder|submitted_by|verified_by|rejected_by|voided_by|confirmed_by|issued_by|proof_path|proof_disk|admin\.)\b/.test(`${orderDetailScreen}\n${orderPostCreateFileHelper}`), 'Order customer post-create UI/helper ne izlažu admin akcije, actor ID-jeve ili storage putanje.');
 assert(endpoints.includes('afterSales:') && endpoints.includes('after-sales'), 'API klijent sadrži after-sales ugovor.');
 assert(afterSalesListScreen.includes('api.afterSales.list') && afterSalesListScreen.includes("can('after_sales.view_own')") && afterSalesListScreen.includes("pathname: '/after-sales/[id]'"), 'After-sales lista koristi API, dozvolu i detalj rutu.');
@@ -708,13 +708,14 @@ const bottomNavRolePolicy = fs.readFileSync(
   path.join(root, 'src/components/layout/app-bottom-nav-policy.ts'),
   'utf8'
 );
-const bottomNavSlotKeys = ['catalog', 'orders', 'home', 'secondary', 'account'];
-const bottomNavFiveStableSlots = bottomNavSlotKeys.every((key, index) => {
-  const position = bottomNavRolePolicy.indexOf(`key: '${key}'`);
-  return position >= 0 && (
-    index === 0 || position > bottomNavRolePolicy.indexOf(`key: '${bottomNavSlotKeys[index - 1]}'`)
-  );
-});
+// Owner decision 2026-11-16: per-role tabs, Home always raised in the middle (behaviour is covered by batch664 tests).
+const bottomNavFiveStableSlots = [
+  "label: 'Potraživanja', route: '/admin/receivables'",
+  "label: 'Administracija', route: '/admin'",
+  "label: 'Korpa', route: '/cart'",
+  "label: 'Provizije', route: '/commissions'",
+  "label: 'Početna', route: '/home'",
+].every((fragment) => bottomNavRolePolicy.includes(fragment));
 
 assert(
   appBottomNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
@@ -729,7 +730,8 @@ assert(
     && appBottomNav.includes('disabled={!item.enabled}')
     && appBottomNav.includes('activeBottomNavKey(pathname, roleSlug)')
     && appBottomNav.includes('buildBottomNavItems({')
-    && bottomNavRolePolicy.includes("route: admin ? '/admin/orders' : '/orders'")
+    && bottomNavRolePolicy.includes("route: '/admin/orders'")
+    && bottomNavRolePolicy.includes("route: '/orders'")
     && bottomNavRolePolicy.includes("label: 'Administracija'")
     && bottomNavRolePolicy.includes("label: 'Notifikacije'")
     && bottomNavFiveStableSlots,
@@ -775,7 +777,7 @@ assert(
 const operatorCard = fs.readFileSync(path.join(root, 'src/components/ui/card.tsx'), 'utf8');
 assert(
   operatorCard.includes('borderRadius={radii.lg}')
-    && operatorCard.includes("'0px 2px 6px $shadow1'")
+    && operatorCard.includes('shadowThemes[scheme].card')
     && !operatorCard.includes("'0px 10px 22px $shadow1'"),
   'Build16 globalni Card prati card-diet radius i suptilnu elevation hijerarhiju.'
 );
@@ -898,7 +900,7 @@ assert(
     && build16OrderDetailBatch129.includes('postCreate.capabilities.can_upload_payment_proof')
     && build16OrderDetailBatch129.includes('postCreate.capabilities.can_view_documents')
     && build16OrderDetailBatch129.includes('postCreate.delivery')
-    && build16OrderDetailBatch129.includes('api.orders.cancel(orderId)')
+    && build16OrderDetailBatch129.includes('api.orders.cancel(orderId, reason)')
     && build16OrderDetailBatch129.includes("pathname: '/after-sales/create/[orderId]'"),
   'Build16 Order detail koristi Operator section hierarchy i čuva post-create, payment proof, documents, delivery, cancel i after-sales authority.'
 );
@@ -991,7 +993,7 @@ const build16AdminHubBatch132 = fs.readFileSync(path.join(root, 'src/app/(app)/a
 const build16SharedStatesBatch132 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
 const build16PageHeaderBatch132 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
 const build16CmsCssBatch132 = fs.readFileSync(
-  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'),
+  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-admin.css'),
   'utf8'
 );
 
@@ -1035,12 +1037,12 @@ assert(
 );
 
 assert(
-  build16CmsCssBatch132.includes('MOBILE_BUILD16_ADMIN_SHARED_STATES_FINAL_POLISH_BATCH132')
-    && build16CmsCssBatch132.includes('BUILD16_FINAL_BODY_FLAT_SURFACE')
-    && build16CmsCssBatch132.includes(':focus-visible')
-    && build16CmsCssBatch132.includes('.empty-state')
-    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion: reduce)'),
-  'Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.'
+  // G7 PR B: the old ui-v2 markers (MOBILE_BUILD16_..., BUILD16_FINAL_BODY_FLAT_SURFACE, .empty-state) are gone; the
+  // same a11y contract (focus-visible, empty state, reduced motion) is asserted on the Cobalt shell stylesheet.
+  build16CmsCssBatch132.includes('.a1-app :focus-visible{')
+    && build16CmsCssBatch132.includes('.a1-empty{')
+    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion:no-preference)'),
+  'Build16 Laravel Cobalt shell zaključava focus-visible, empty-state i reduced-motion presentation contract.'
 );
 
 // MOBILE_BUILD16_NATIVE_RELEASE_GATE_BATCH133
@@ -1049,8 +1051,12 @@ const build16NativeEasBatch133 = JSON.parse(fs.readFileSync(path.join(root, 'eas
 assert(
   build16NativeAppConfigBatch133.includes('MOBILE_BUILD16_NATIVE_PALETTE_BATCH133')
     && build16NativeAppConfigBatch133.includes("backgroundColor: '#F6F7F8'")
-    && (build16NativeAppConfigBatch133.match(/backgroundColor: '#101214'/g) ?? []).length === 2
-    && build16NativeAppConfigBatch133.includes("color: '#C45116'")
+    && build16NativeAppConfigBatch133.includes("const KOBALT_SPLASH_BG = '#0d1216'")
+    && build16NativeAppConfigBatch133.includes("const KOBALT_ACCENT = '#3557c7'")
+    && (build16NativeAppConfigBatch133.match(/backgroundColor: KOBALT_SPLASH_BG/g) ?? []).length === 2
+    && build16NativeAppConfigBatch133.includes('color: KOBALT_ACCENT')
+    && !build16NativeAppConfigBatch133.includes("'#101214'")
+    && !build16NativeAppConfigBatch133.includes("'#C45116'")
     && !build16NativeAppConfigBatch133.includes('#6D45E5')
     && !build16NativeAppConfigBatch133.includes('#F8F6FC')
     && !build16NativeAppConfigBatch133.includes('#02141E')
@@ -1135,7 +1141,7 @@ assert(
 );
 assert(
   build17AppConfigBatch137.includes('MOBILE_BUILD17_RUNTIME_ISOLATION_BATCH137')
-    && build17AppConfigBatch137.includes("'1.0.0-m17-sdk58-play2'")
+    && build17AppConfigBatch137.includes("'1.0.0-m17-sdk58-play3'")
     && !build17AppConfigBatch137.includes('1.0.0-build17')
     && build17AppConfigBatch137.includes("ALD1N_V15_RELEASE_GATE === 'approved'")
     && !build17AppConfigBatch137.includes("runtimeVersion: {\n      policy: 'appVersion'"),
@@ -1285,13 +1291,14 @@ assert(
   'App theme resolver koristi React Native system color scheme.'
 );
 
+// Colours are produced by the Kobalt adapter (M1); theme.ts only assembles the themes.
 const rnThemeSource = fs.readFileSync(
-  path.join(root, 'src/constants/theme.ts'),
+  path.join(root, 'src/design/kobalt-app-colors.ts'),
   'utf8'
 );
 
 assert(
-  rnThemeSource.includes('onDanger: tokens.onDanger'),
+  /onDanger: dark \? k\.surface\.page : k\.button\.primary\.on/.test(rnThemeSource),
   'RN theme adapter koristi canonical onDanger semantic token.'
 );
 
@@ -2644,16 +2651,16 @@ assert(
     && batch50PageHeaderV2.includes("router.push('/notifications')")
     && batch50PageHeaderV2.includes('useNotificationUnread')
     && batch50PageHeaderV2.includes('function PageHeaderNotificationButton')
-    && !batch50PageHeaderV2.includes("router.push('/account')")
+    && batch50PageHeaderV2.includes("router.push('/account')")
     && !batch50PageHeaderV2.includes('styles.avatar')
     && batch50GlyphV2.includes("admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings'"),
-  'v1.0 Batch50 V2 header desno koristi notification bell+badge umesto profila, a Nalog ostaje u bottom nav-u.',
+  'v1.0 Batch50 V2 header desno koristi notification bell+badge pored kojeg stoji dugme Nalog (M2: SubAgent nema Nalog tab).',
 );
 assert(
   bottomNavRolePolicy.includes("matches(pathname, '/admin/catalog')")
     && bottomNavRolePolicy.includes("matches(pathname, '/admin/orders')")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) ? null : 'secondary';")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) || subAgent ? null : 'secondary';")
     && bottomNavRolePolicy.indexOf("matches(pathname, '/admin/orders')") < bottomNavRolePolicy.indexOf("if (matches(pathname, '/admin'))"),
   'Batch664 keeps admin/catalog in Catalog, admin/orders in Orders, and Admin in the role-aware secondary tab.',
 );
@@ -3633,15 +3640,12 @@ assert(
   'Batch513 Mobile prikazuje odvojene stacked potvrde slanja i isporuke sa COD-aware tekstom.',
 );
 assert(
-  shipmentDeliveryWebBatch513.includes('SHIPMENT_DELIVERY_DUAL_ACTION_BATCH513')
-    && shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="shipment"')
-    && shipmentDeliveryWebBatch513.includes('data-logistics-action="delivery"')
+  shipmentDeliveryWebBatch513.includes('id="order-workspace-logistics-actions"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="shipment"')
     && shipmentDeliveryWebBatch513.includes('data-logistics-panel="delivery"')
-    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka poslata')
-    && shipmentDeliveryWebBatch513.includes('Potvrdi da je pošiljka isporučena i da je naplaćen otkup'),
-  'Batch513 Laravel order detail koristi jedan Slanje i isporuka action hub i on-demand forme.',
+    && shipmentDeliveryWebBatch513.includes('aria-label="Pošiljka je poslata"')
+    && shipmentDeliveryWebBatch513.includes('aria-label="Potvrdi isporuku"'),
+  'Batch513 Laravel order detail koristi jednu karticu Isporuka sa on-demand formama (slanje samo za kurira, isporuka odvojena od naplate).',
 );
 
 // MOBILE_V1_0_ADMIN_COMMISSIONS_DETAIL_UX_REORGANIZATION_BATCH92_VALIDATOR
@@ -4362,15 +4366,16 @@ assert(
   'Batch179 price correction and display work does not restore Product Variants.',
 );
 const batch179LoginView = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/resources/views/auth/login.blade.php'), 'utf8');
-const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'), 'utf8');
+const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-auth.css'), 'utf8');
 assert(
   batch179LoginView.includes('data-login-glassmorphism')
     && batch179LoginView.includes('auth-login-submit')
     && batch179LoginView.includes("route('login.store')")
     && batch179LoginView.includes('cf-turnstile')
-    && batch179LoginCss.includes('BATCH179_V3_LOGIN_GLASS_MORPHISM')
-    && batch179LoginCss.includes('backdrop-filter: blur(30px) saturate(155%)')
-    && batch179LoginCss.includes('@media (prefers-reduced-motion: reduce)'),
+    // G7 PR B: the login glass now lives in ald1n-auth.css (a1-auth); the old BATCH179 marker and exact blur value are gone.
+    && batch179LoginCss.includes('.a1-auth')
+    && batch179LoginCss.includes('backdrop-filter')
+    && batch179LoginCss.includes('prefers-reduced-motion'),
   'Batch179 V3 Laravel login polish adds glassmorphism and motion while preserving auth, Turnstile and reduced-motion contracts.',
 );
 // MOBILE_BATCH515_CUSTOMER_ORDER_AMENDMENT_VALIDATOR
@@ -4482,7 +4487,7 @@ assert(
   ['/after-sales', '/warranties', '/commissions', '/portal/messages'].every(
     (route) => bottomNavRolePolicy.includes(`matches(pathname, '${route}')`)
   )
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
     && bottomNavRolePolicy.includes("return 'home';")
     && bottomNavFiveStableSlots,
   'Batch664 preserves Home context for personal activities and Admin context for authorized admin screens.',

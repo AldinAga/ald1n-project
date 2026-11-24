@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/ui/glyph';
-import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { controlHeight, radii, spacing, touchTarget, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
 export type SelectSheetOption = {
@@ -42,6 +42,7 @@ export function SelectSheet({
       <Text style={styles.label}>{label}</Text>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={label + ': ' + (selected?.label ?? placeholder)}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         onPress={() => setOpen(true)}
@@ -76,8 +77,13 @@ export function SelectSheet({
             <View style={styles.handle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{label}</Text>
-              <Pressable accessibilityRole="button" onPress={() => setOpen(false)}>
-                <Text style={styles.close}>Zatvori</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Zatvori"
+                onPress={() => setOpen(false)}
+                style={styles.closeTarget}
+              >
+                <Text style={styles.close} numberOfLines={1}>Zatvori</Text>
               </Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.options}>
@@ -121,10 +127,10 @@ function createStyles(theme: AppColors) {
     field: { gap: spacing.sm },
     label: { ...typography.label, color: theme.ink, paddingHorizontal: spacing.xs },
     trigger: {
-      minHeight: 52,
+      minHeight: controlHeight,
       borderWidth: 1,
       borderColor: theme.line,
-      borderRadius: radii.lg,
+      borderRadius: radii.md,
       backgroundColor: theme.surfaceContainer,
       paddingHorizontal: spacing.md,
       flexDirection: 'row',
@@ -141,7 +147,7 @@ function createStyles(theme: AppColors) {
     backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: {
       maxHeight: '78%',
-      backgroundColor: theme.surface,
+      backgroundColor: theme.glassStrong,
       borderTopLeftRadius: radii.xxl,
       borderTopRightRadius: radii.xxl,
       paddingHorizontal: spacing.lg,
@@ -164,7 +170,8 @@ function createStyles(theme: AppColors) {
       marginBottom: spacing.md,
     },
     sheetTitle: { ...typography.h2, color: theme.ink, flex: 1 },
-    close: { ...typography.label, color: theme.primary, paddingVertical: spacing.sm },
+    close: { ...typography.label, color: theme.primary },
+    closeTarget: { minHeight: touchTarget, minWidth: touchTarget, justifyContent: 'center', alignItems: 'flex-end', flexShrink: 0 },
     options: { gap: spacing.sm, paddingBottom: spacing.xl },
     option: {
       minHeight: 56,

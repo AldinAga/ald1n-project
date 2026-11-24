@@ -49,12 +49,7 @@
         'deferred_payment' => 'Odloženo plaćanje',
     ];
     $rawStatus = (string) ($order['status'] ?? '');
-    $statusTone = ($order['is_completed'] ?? false) ? 'ok' : match ($rawStatus) {
-        'cancelled' => 'danger',
-        'shipped' => 'info',
-        'new', 'processing', 'confirmed' => 'warning',
-        default => '',
-    };
+    $statusTone = \App\Support\OrderStatus::tone($rawStatus, (bool) ($order['is_completed'] ?? false));
     $canAmend = ($actions['amend'] ?? false) && !empty($urls['edit']);
 @endphp
 
@@ -111,7 +106,15 @@
                 @if($actions['amend'] ?? false)
                     <p class="a1-oc-note" data-order-amendment-available><strong>Porudžbinu još možeš izmeniti.</strong> Artikle, količine, adresu i napomenu možeš menjati sve dok pošiljka ne bude poslata.</p>
                 @elseif(in_array($order['status'] ?? '', ['shipped', 'cancelled'], true) || ($order['is_completed'] ?? false))
-                    <p class="a1-oc-note" data-order-amendment-locked><strong>Porudžbina je zaključana.</strong> Izmene više nisu dostupne nakon slanja, završetka ili otkazivanja.</p>
+                    <p class="a1-oc-note" data-order-amendment-locked><strong>Izmena nije moguća.</strong>
+                        @if(($order['is_completed'] ?? false))
+                            Porudžbina je isporučena, pa je zaključana.
+                        @elseif(($order['status'] ?? '') === 'cancelled')
+                            Porudžbina je otkazana, pa je zaključana.
+                        @else
+                            Pošiljka je već poslata, pa se porudžbina više ne može menjati. Za promenu pozovi odgovorno lice{{ !empty($order['supplier_name']) && $order['supplier_name'] !== 'Nije dodeljeno' ? ': '.$order['supplier_name'] : '' }}.
+                        @endif
+                    </p>
                 @endif
                 <div class="a1-card__title">
                     <h2 class="a1-h3" id="oc-items-title">Stavke porudžbine</h2>
@@ -259,12 +262,12 @@
                     <div class="a1-dl__row"><dt>Kupac</dt><dd>{{ $order['shipping_full_name'] ?? '—' }}</dd></div>
                     <div class="a1-dl__row"><dt>Adresa</dt><dd>{{ $order['shipping_address'] ?? '—' }}, {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}</dd></div>
                     <div class="a1-dl__row"><dt>Telefon</dt><dd>{{ $order['shipping_phone'] ?? '—' }}</dd></div>
-                    <div class="a1-dl__row"><dt>Tracking</dt><dd>{{ $order['tracking_number'] ?: '—' }}</dd></div>
+                    <div class="a1-dl__row"><dt>Tracking</dt><dd>{{ is_array($shipment) && ($shipment['is_returned'] ?? false) ? '—' : ($order['tracking_number'] ?: '—') }}</dd></div>
                     <div class="a1-dl__row"><dt>Očekivano slanje</dt><dd>{{ $order['expected_shipping_display'] ?? '—' }}</dd></div>
                 </dl>
             </section>
 
-            @if(is_array($shipment))
+            @if(is_array($shipment) && !($shipment['is_returned'] ?? false))
                 <section class="a1-card" aria-labelledby="oc-shipment-title">
                     <h2 class="a1-h3" id="oc-shipment-title">Evidencija slanja pošiljke</h2>
                     <dl class="a1-dl">
@@ -370,13 +373,13 @@
             @if(($actions['cancel'] ?? false) && !empty($urls['cancel']))
                 <section class="a1-card a1-oc-danger" aria-labelledby="oc-cancel-title">
                     <h2 class="a1-h3 a1-oc-danger__title" id="oc-cancel-title"><x-icon name="alert" :size="20" :shell="true" /> Otkazivanje</h2>
-                    <p class="a1-text">Otkazivanje vraća rezervisani lager tačno jednom.</p>
+                    <p class="a1-text">Možeš da otkažeš samo porudžbinu koju odgovorno lice još nije potvrdilo. Otkazivanje vraća rezervisani lager tačno jednom.</p>
                     <form class="a1-form" method="post" action="{{ $urls['cancel'] }}">
                         @csrf
                         <div class="a1-field">
-                            <label class="a1-label" for="oc-cancel-note">Napomena</label>
-                            <textarea class="a1-textarea" id="oc-cancel-note" name="note" rows="3" maxlength="1000"@error('note') aria-invalid="true" aria-describedby="oc-cancel-note-err"@enderror></textarea>
-                            @error('note')<p class="a1-error" id="oc-cancel-note-err">{{ $message }}</p>@enderror
+                            <label class="a1-label" for="oc-cancel-note">Razlog otkazivanja<span class="a1-req" aria-hidden="true">*</span></label>
+                            <textarea class="a1-textarea" id="oc-cancel-note" name="reason" rows="3" minlength="3" maxlength="1000" required @error('reason') aria-invalid="true" aria-describedby="oc-cancel-note-err" @enderror></textarea>
+                            @error('reason')<p class="a1-error" id="oc-cancel-note-err">{{ $message }}</p>@enderror
                         </div>
                         <div><button class="a1-btn a1-btn--danger" type="submit" data-confirm="Otkazati porudžbinu i vratiti lager?">Otkaži porudžbinu</button></div>
                     </form>

@@ -22,28 +22,75 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Prove exact reviewed lock with unchanged native and root declarations
+      - name: Prove reviewed lock policy against the PR base (security floors, frozen native pins, bounded Expo patch bumps)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/b1106-mobile"
           mkdir -p "$evidence"
           git rev-parse HEAD > "$evidence/source-head.txt"
-          node - <<'NODE'
+          EVIDENCE_DIR="$evidence" node - <<'NODE'
           const fs=require('node:fs'),cp=require('node:child_process'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-          // 2026-11-14: re-based onto the live SDK58 release line (versionCode 29).
-          const base='6adb3b440b8cfdc068b142a98c418d9d91487f64',p='apps/mobile/current/package-lock.json';
-          const old=JSON.parse(cp.execFileSync('git',['show',base+':'+p],{encoding:'utf8'})),bytes=fs.readFileSync(p),now=JSON.parse(bytes);
-          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098');
-          assert.deepEqual(now.packages[''],old.packages['']);
-          // xmldom 0.8.15 and 0.9.12 were already in the SDK58 lock; four of the six advisories remain to patch.
-          const expected={'node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
           const {isDeepStrictEqual}=require('node:util');
-          assert(isDeepStrictEqual({a:1,b:2},{b:2,a:1}));assert(!isDeepStrictEqual({version:'1'},{version:'2'}));
-          const keys=[...new Set([...Object.keys(old.packages),...Object.keys(now.packages)])],changed=[];
-          for(const k of keys){if(!isDeepStrictEqual(old.packages[k],now.packages[k])){assert(k in expected,'unexpected package object changed: '+k);assert.equal(now.packages[k].version,expected[k]);changed.push(k);}}
-          assert.deepEqual(changed.sort(),Object.keys(expected).sort());
-          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--','apps/mobile/current/package.json','apps/mobile/current/app.config.js','apps/mobile/current/eas.json']);
-          fs.writeFileSync(process.env.RUNNER_TEMP+'/b1106-mobile/lock-proof.json',JSON.stringify({baseline:base,changed,allOtherPackageObjectsUnchanged:true,noNativeConfigOrApplicationChange:true},null,2)+'\n');
+          const dir='apps/mobile/current/',lockPath=dir+'package-lock.json',pkgPath=dir+'package.json',base=process.env.BASE_SHA;
+          assert(base,'BASE_SHA missing');
+          const show=f=>cp.execFileSync('git',['show',base+':'+f],{encoding:'utf8',maxBuffer:1<<28});
+          const old=JSON.parse(show(lockPath)),oldPkg=JSON.parse(show(pkgPath)),bytes=fs.readFileSync(lockPath),now=JSON.parse(bytes),nowPkg=JSON.parse(fs.readFileSync(pkgPath));
+          const num=v=>v.split('-')[0].split('.').map(Number),major=v=>num(v)[0];
+          const cmp=(a,b)=>{const x=num(a),y=num(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]-y[i];return 0;};
+          // Reviewed security floors (the six advisories of B1106). A lock may move up within the major, never below.
+          const floors={'node_modules/brace-expansion':'5.0.12','node_modules/node-forge':'1.4.3','node_modules/shell-quote':'1.12.0','node_modules/zod':'4.6.7'};
+          const xmldomFloor={0.8:'0.8.15',0.9:'0.9.12'};
+          assert(cmp('1.4.3','1.4.2')>0&&cmp('4.6.7','4.6.7')===0&&cmp('0.9.12','0.9.9')>0&&major('5.0.12')===5);
+          // 1. Lock and package.json agree (npm ci proves it again after this step).
+          const root=now.packages[''];
+          assert.deepEqual(root.dependencies,nowPkg.dependencies,'lock root dependencies differ from package.json');
+          assert.deepEqual(root.devDependencies||{},nowPkg.devDependencies||{},'lock root devDependencies differ from package.json');
+          // 2. Security floors hold.
+          for(const [k,v] of Object.entries(floors)){const n=now.packages[k];assert(n,'missing '+k);assert(cmp(n.version,v)>=0&&major(n.version)===major(v),k+' below reviewed floor '+v+': '+n.version);}
+          for(const [k,n] of Object.entries(now.packages))if(k.endsWith('node_modules/@xmldom/xmldom')){const f=xmldomFloor[n.version.split('.').slice(0,2).join('.')];assert(f&&cmp(n.version,f)>=0,k+' not on a reviewed xmldom line: '+n.version);}
+          // 3. Declared dependency changes versus the PR base.
+          const {dependencies:od,...oldRest}=oldPkg,{dependencies:nd,...nowRest}=nowPkg;
+          assert.deepEqual(nowRest,oldRest,'package.json changed outside dependencies');
+          const expoFamily=n=>n==='expo'||n.startsWith('expo-')||n.startsWith('@expo/');
+          // Frozen native/runtime pins (also pinned exactly by the LG-03 wave1 gate): never moved by a security or SDK patch bump.
+          const frozen=n=>n==='react'||n==='react-dom'||n==='react-native'||n.startsWith('@react-native/')||/^react-native-(nitro|android-liquid-glass|reanimated|worklets)/.test(n)||n==='tamagui'||n.startsWith('@tamagui/');
+          const depNames=[...new Set([...Object.keys(od),...Object.keys(nd)])],declChanged=[];
+          for(const n of depNames)if(od[n]!==nd[n]){
+            assert(od[n]&&nd[n],'dependency added or removed: '+n);
+            assert(!frozen(n),'frozen native/runtime dependency changed: '+n);
+            assert(major(od[n].replace(/^[~^]/,''))===major(nd[n].replace(/^[~^]/,'')),'major jump in '+n);
+            declChanged.push(n);
+          }
+          const sdkBump=declChanged.length>0;
+          // 4. Lock node changes versus the PR base.
+          const changed=[],keys=[...new Set([...Object.keys(old.packages),...Object.keys(now.packages)])];
+          for(const k of keys){
+            const a=old.packages[k],b=now.packages[k];
+            if(k===''||isDeepStrictEqual(a,b))continue;
+            const name=k.split('node_modules/').at(-1);
+            assert(!frozen(name),'frozen node changed: '+k);
+            if(b){
+              assert(typeof b.resolved!=='string'||b.resolved.startsWith('https://registry.npmjs.org/'),'non-npm-registry source: '+k);
+              assert(!(b.hasInstallScript&&!(a&&a.hasInstallScript)),'new install script: '+k);
+            }
+            if(a&&b)assert(major(a.version)===major(b.version),'major jump: '+k);
+            if(!sdkBump)assert(k in floors||k.endsWith('node_modules/@xmldom/xmldom'),'package changed without a package.json change: '+k);
+            changed.push(k);
+          }
+          // 5. Native config: untouched. The only permitted app.config.js edits are Expo SDK 58 version literals of an SDK patch bump.
+          // GATE-PLAY3: eas.json stays frozen except the single reviewed eas-cli pin move 27.2.0 -> 27.11.0.
+          const easDiff=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'eas.json'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l)).map(l=>l.replace(/\s+/g,''));
+          assert(easDiff.length===0||(easDiff.length===2&&easDiff[0]==='-"version":"27.2.0",'&&easDiff[1]==='+"version":"27.11.0",'),'eas.json changed beyond the reviewed eas-cli pin: '+easDiff.join(' | '));
+          const cfg=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'app.config.js'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l));
+          // GATE-PLAY3 (camera-free): without an Expo bump, app.config.js may only carry the reviewed play3 runtime and Kobalt native colour lines (comments included).
+          const play3Line=/^[+-]\s*(\/\/.*|const M17_PLAY_RUNTIME = '1\.0\.0-m17-sdk58-play[23]';|const KOBALT_(SPLASH_BG|ACCENT) = '#[0-9a-f]{6}';.*|(backgroundColor|color): (KOBALT_SPLASH_BG|KOBALT_ACCENT|'#101214'|'#C45116'),)\s*$/;
+          if(!sdkBump&&cfg.length){for(const l of cfg)assert(play3Line.test(l),'app.config.js change beyond the reviewed play3 runtime/colour lines: '+l);}
+          else if(cfg.length){assert(sdkBump,'app.config.js changed without an Expo dependency bump');for(const l of cfg)assert(/~58\.\d+\.\d+/.test(l),'app.config.js change beyond the Expo SDK 58 version literal: '+l);}
+          const proof={base,mode:sdkBump?'EXPO_SDK_PATCH_BUMP':'LOCK_ONLY_SECURITY',lockSha256:crypto.createHash('sha256').update(bytes).digest('hex'),declaredChanges:declChanged,changedNodes:changed.length,appConfigLinesChanged:cfg.length};
+          const out=process.env.EVIDENCE_DIR;if(out)fs.writeFileSync(out+'/lock-proof.json',JSON.stringify(proof,null,2)+'\n');
+          console.log('B1106_LOCK_POLICY_PASS '+JSON.stringify(proof));
           NODE
       - name: Full existing Mobile regression and prospective audit evidence
         working-directory: apps/mobile/current
@@ -55,7 +102,16 @@ jobs:
           npm run validate > "$evidence/validator.log" 2>&1
           npm run test:release25 > "$evidence/release25.log" 2>&1
           tail -n 12 "$evidence/release25.log"
-          echo 'e2716c6d3af90e1e1a31031d69df8cd80554ec92800154dfa5c3a34c1ef73098  package-lock.json' | sha256sum --check
+          # The lock is no longer pinned to one hash (that failed every legitimate bump); it must be unchanged by npm ci, and its hash is recorded as evidence.
+          git diff --exit-code -- package.json package-lock.json
+          sha256sum package-lock.json | tee "$evidence/lock-sha256.txt"
+          # Declared Expo-family/native-module bumps must equal Expo's own SDK table, the same source `expo install --check` uses.
+          node - "$evidence" <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+          const proof=JSON.parse(fs.readFileSync(path.join(process.argv[2],'lock-proof.json'))),deps=require('./package.json').dependencies,table=require('./node_modules/expo/bundledNativeModules.json');
+          for(const n of proof.declaredChanges){if(n==='expo'){assert(/^~58\./.test(deps[n]),'expo left the SDK 58 line');continue;}assert.equal(deps[n],table[n],n+' is not the version Expo SDK ships for this release');}
+          console.log('B1106_DECLARED_BUMPS_MATCH_EXPO_SDK_TABLE '+JSON.stringify(proof.declaredChanges));
+          NODE
           rc=0
           npm exec --yes --package=npm@10.9.2 -- npm audit --package-lock-only --include=dev --ignore-scripts --audit=true --registry=https://registry.npmjs.org --json > "$evidence/audit.json" 2> "$evidence/audit.stderr" || rc=$?
           printf '%s\n' "$rc" > "$evidence/audit.exit"
@@ -65,7 +121,10 @@ jobs:
           const a=JSON.parse(fs.readFileSync(path.join(dir,'audit.json'))),v=a.metadata.vulnerabilities;
           assert.equal(v.critical,0);assert(v.total<=21);assert(v.high<=6);
           const log=fs.readFileSync(path.join(dir,'release25.log'),'utf8');
-          for(const line of ['# tests 309','# pass 309','# fail 0','# cancelled 0','# skipped 0'])assert(log.split('\n').includes(line),line);
+          // Floor of 309 (the reviewed count): the suite may grow, never shrink, and every test must pass.
+          const n=k=>Number((log.match(new RegExp('^# '+k+' (\\d+)$','m'))||[])[1]);
+          assert(n('tests')>=309,'release25 test count fell below 309: '+n('tests'));assert.equal(n('pass'),n('tests'));
+          for(const line of ['# fail 0','# cancelled 0','# skipped 0'])assert(log.split('\n').includes(line),line);
           fs.writeFileSync(path.join(dir,'scope.json'),JSON.stringify({status:'BOUNDED_COMPATIBILITY_PASS',remainingAffectedPackages:v,releaseApproved:false,scope:'Six reviewed JS security updates; remaining advisories require separate resolution. No native build or OTA.'},null,2)+'\n');
           console.log('B1106_JS_COMPATIBILITY_PASS_NOT_RELEASE_APPROVAL '+JSON.stringify(v));
           NODE

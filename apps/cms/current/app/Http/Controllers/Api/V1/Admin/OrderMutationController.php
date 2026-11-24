@@ -28,32 +28,38 @@ final class OrderMutationController extends Controller
         $actor = $this->actor($request);
         $access->authorizeManage($order, $actor);
         $data = $request->validate([
-            'status' => ['required', Rule::in(['new', 'processing', 'confirmed', 'cancelled'])],
+            'status' => ['required', Rule::in(['confirmed', 'cancelled'])],
             'note' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['nullable', 'string', 'max:1000'],
             'order_version_token' => ['nullable', 'string', 'size:64'],
         ]);
+        // Potvrda ujedno preuzima porudžbinu; otkazivanje traži razlog (polje reason ili note); "processing" odbija servis sa porukom (422).
+        $text = trim((string) ($data['reason'] ?? $data['note'] ?? ''));
         $updated = $workflow->changeStatus(
             $order,
             (string) $data['status'],
             $actor,
-            isset($data['note']) ? trim((string) $data['note']) : null,
+            $text !== '' ? $text : null,
             isset($data['order_version_token']) ? (string) $data['order_version_token'] : null,
         );
 
         return $this->ok($updated, 'status', ['status' => (string) $updated->status]);
     }
 
+    /** Korak "Preuzmi" više ne postoji; stara aplikacija dobija jasan 422 umesto greške. */
     public function accept(
         Request $request,
         Order $order,
         OrderAccessService $access,
-        OrderOperationalService $operations,
     ): JsonResponse {
         $actor = $this->actor($request);
         $access->authorizeManage($order, $actor);
-        $updated = $operations->accept($order, $actor);
 
-        return $this->ok($updated, 'accept', ['accepted_at' => $updated->accepted_at?->toISOString()]);
+        return response()->json([
+            'message' => 'Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu: potvrda je ujedno preuzima na tvoje ime.',
+            'code' => 'order_accept_removed',
+            'errors' => ['accept' => ['Korak „Preuzmi“ više ne postoji. Potvrdi porudžbinu.']],
+        ], 422, ['Cache-Control' => 'private, no-store, max-age=0']);
     }
 
     public function internalNote(
@@ -120,11 +126,14 @@ final class OrderMutationController extends Controller
         abort_unless($actor->can('orders.confirm_delivery'), 403);
         $access->authorizeManage($order, $actor);
 
+        // Isto kao web: bez zadatog načina isporuke uzima se način iz aktivne (nevraćene) pošiljke.
+        $shipment = \App\Models\OrderShipment::query()->where('order_id', $order->id)->first();
+        $shipment = $shipment instanceof \App\Models\OrderShipment && !$shipment->isReturned() ? $shipment : null;
         $request->merge([
-            'delivery_method' => $request->input('delivery_method', 'own_transport'),
+            'delivery_method' => $request->input('delivery_method', $shipment === null ? 'own_transport' : ($shipment->shipment_method === 'own_transport' ? 'own_transport' : ($shipment->shipment_method === 'courier' ? 'courier' : 'other'))),
             'delivered_at' => $request->input('delivered_at', now()->toISOString()),
-            'recipient_name' => $request->input('recipient_name', (string) $order->shipping_full_name),
-            'recipient_phone' => $request->input('recipient_phone', (string) $order->shipping_phone),
+            'recipient_name' => $request->input('recipient_name', trim((string) ($shipment?->recipient_name ?: $order->shipping_full_name)) ?: 'Kupac'),
+            'recipient_phone' => $request->input('recipient_phone', (string) ($shipment?->recipient_phone ?: $order->shipping_phone)),
             'completion_note' => $request->input('completion_note', $request->input('note')),
         ]);
 
@@ -195,14 +204,30 @@ final class OrderMutationController extends Controller
         $actor = $this->paymentActor($request);
         $access->authorizeManage($order, $actor);
         $data = $request->validate([
+            // Opcioni: starija aplikacija (versionCode 29) ga ne šalje; tada ga server izvodi iz sadržaja zahteva.
+            'idempotency_key' => ['nullable', 'string', 'max:200'],
             'entry_type' => ['required', Rule::in(['payment', 'refund'])],
-            'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
-            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'cash_on_delivery', 'card', 'other'])],
+            'amount_rsd' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'cash', 'cash_on_delivery', 'cod', 'card', 'other'])],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:190'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
-        $payment = $payments->record($order, $data, $actor);
+        $key = trim((string) ($data['idempotency_key'] ?? ''));
+        unset($data['idempotency_key']);
+        if ($key === '') {
+            // shortcut: dva istovetna unosa (isti iznos, način, datum) istog korisnika spajaju se u jedan; nova aplikacija šalje svoj ključ.
+            $key = 'derived:'.hash('sha256', json_encode([(int) $order->getKey(), (int) $actor->getKey(), $data['entry_type'], number_format((float) $data['amount_rsd'], 2, '.', ''), $data['payment_method'], (string) $data['paid_at']], JSON_THROW_ON_ERROR));
+        }
+        $payment = app(\App\Services\IdempotencyService::class)->run(
+            $actor,
+            'admin.orders.payment.record',
+            $key,
+            ['order_id' => (int) $order->getKey()] + $data,
+            OrderPayment::class,
+            fn (): OrderPayment => $payments->record($order, $data, $actor),
+            static fn (int $paymentId): OrderPayment => OrderPayment::query()->findOrFail($paymentId),
+        );
 
         return $this->ok($order, 'payment_store', [
             'payment_id' => (int) $payment->getKey(),

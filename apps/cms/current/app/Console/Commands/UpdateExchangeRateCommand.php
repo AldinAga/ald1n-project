@@ -15,6 +15,7 @@ final class UpdateExchangeRateCommand extends Command
 
     public function handle(ExchangeRateService $service): int
     {
+        $service->releaseCommissionsWaitingForRate(); // ponovni pokušaj ako je ranije oslobađanje palo
         if (!(bool) $this->option('force') && $service->configuration()['mode'] !== 'auto') {
             $this->line('SKIP Automatski režim kursa nije uključen.');
             return self::SUCCESS;
