@@ -777,7 +777,7 @@ assert(
 const operatorCard = fs.readFileSync(path.join(root, 'src/components/ui/card.tsx'), 'utf8');
 assert(
   operatorCard.includes('borderRadius={radii.lg}')
-    && operatorCard.includes("'0px 2px 6px $shadow1'")
+    && operatorCard.includes('shadowThemes[scheme].card')
     && !operatorCard.includes("'0px 10px 22px $shadow1'"),
   'Build16 globalni Card prati card-diet radius i suptilnu elevation hijerarhiju.'
 );

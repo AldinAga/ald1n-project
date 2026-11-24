@@ -44,6 +44,10 @@ export function createAppColors(k: typeof kobaltDark | typeof kobaltLight) {
     // Dark danger is light pink, so its label must be dark; light danger takes the white label.
     onDanger: dark ? k.surface.page : k.button.primary.on,
     dangerSoft: k.status.danger.bg,
+    // Solid red surface for danger buttons and badges: the red .dot with white (light, 4.9:1) or page-dark (dark, 6:1) label.
+    // `danger` stays the dark text tone, so it must not be used as a fill.
+    dangerFill: k.status.danger.dot,
+    onDangerFill: dark ? k.surface.page : k.button.primary.on,
 
     info: k.status.info.text,
     infoSoft: k.status.info.bg,

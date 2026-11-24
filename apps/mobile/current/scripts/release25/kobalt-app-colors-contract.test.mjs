@@ -28,6 +28,7 @@ const expectedKeys = [
   'secondaryContainer', 'accent', 'accentSoft',
   'success', 'successSoft', 'warning', 'warningSoft', 'danger', 'onDanger', 'dangerSoft',
   'info', 'infoSoft', 'white', 'black', 'hero', 'heroMuted',
+  'dangerFill', 'onDangerFill',
 ];
 
 function flatten(obj, out = new Set()) {
@@ -87,6 +88,7 @@ for (const mode of ['light', 'dark']) {
       'danger/dangerSoft': [c.danger, over(c.dangerSoft, surface)],
       'heroMuted/hero': [c.heroMuted, c.hero],
       'onDanger/danger': [c.onDanger, c.danger],
+      'onDangerFill/dangerFill': [c.onDangerFill, c.dangerFill],
     };
     for (const [name, [fg, bg]] of Object.entries(pairs)) {
       assert.ok(ratio(fg, bg) >= 4.5, `${mode} ${name} = ${ratio(fg, bg).toFixed(2)}`);
@@ -99,4 +101,54 @@ test('theme.ts builds colorThemes from the Kobalt adapter, not the legacy orange
   assert.match(themeSource, /createAppColors\(kobalt\.dark\)/);
   assert.doesNotMatch(themeSource, /ald1nDesignTokens\.(light|dark)/);
   assert.doesNotMatch(read('../../src/features/notifications/push-service.ts'), /#6D45E5/i);
+});
+
+test('dangerFill is a red fill (not the dark danger text tone) in both themes', () => {
+  for (const mode of ['light', 'dark']) {
+    const c = createAppColors(tokens.kobalt[mode]);
+    assert.notEqual(c.dangerFill, c.danger, mode + ': fill must differ from the text tone');
+    const [r, g, b] = parse(c.dangerFill);
+    assert.ok(r > g * 1.5 && r > b, mode + ' dangerFill must be red-dominant: ' + c.dangerFill);
+  }
+});
+
+const uiSource = (name) => read('../../src/components/ui/' + name);
+
+test('M3: danger Button and danger Pill use dangerFill keys and never wrap mid-word', () => {
+  const button = uiSource('button.tsx');
+  const pill = uiSource('pill.tsx');
+  assert.match(button, /background: '\$dangerFill'[\s\S]*text: '\$onDangerFill'/);
+  assert.match(pill, /dangerSolid: \{\s*background: '\$dangerFill',\s*text: '\$onDangerFill'/);
+  for (const [name, src] of [['button', button], ['pill', pill]]) {
+    const lines = Number(src.match(/numberOfLines=\{(\d)\}/)?.[1]);
+    assert.ok(lines >= 2 && lines <= 3, name + ' label is limited to 2-3 lines (wraps at spaces only)');
+    assert.match(src, /ellipsizeMode="tail"/, name + ' label must ellipsize');
+    assert.doesNotMatch(src, /textBreakStrategy|lineBreakMode="(char|clip)|wordBreak|break-all/i, name + ' must not break words by character');
+  }
+  assert.match(button, /adjustsFontSizeToFit/);
+  assert.match(button, /focusStyle=\{\{ borderColor: '\$focusRing' \}\}/, 'focus must not change the border width');
+  assert.match(pill, /flexShrink=\{0\}/);
+  assert.match(button, /minHeight=\{controlHeight\}/);
+});
+
+test('M3: Tamagui palettes are Kobalt hues with no orange left', () => {
+  const { kobaltLightPalette, kobaltDarkPalette } = load(read('../../src/design/kobalt-tamagui-palette.ts'), 'palette.ts');
+  const hue = ([r, g, b]) => {
+    const [R, G, B] = [r, g, b].map((x) => x / 255);
+    const max = Math.max(R, G, B); const min = Math.min(R, G, B); const d = max - min;
+    if (d < 0.08) return null;
+    const h = max === R ? ((G - B) / d) % 6 : max === G ? (B - R) / d + 2 : (R - G) / d + 4;
+    return (h * 60 + 360) % 360;
+  };
+  for (const palette of [kobaltLightPalette, kobaltDarkPalette]) {
+    assert.equal(palette.length, 12);
+    for (const hex of palette) {
+      const h = hue(parse(hex));
+      assert.ok(h === null || h < 15 || h > 60, hex + ' looks orange');
+    }
+  }
+  const config = read('../../tamagui.config.ts');
+  assert.match(config, /kobalt-tamagui-palette/);
+  assert.doesNotMatch(config, /ald1n-tokens\.generated/);
+  assert.match(config, /dangerFill: tokens\.dangerFill/);
 });
