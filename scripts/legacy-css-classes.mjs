@@ -80,7 +80,7 @@ const fixture = JSON.stringify({
   classes,
 }, null, 2) + '\n';
 
-const target = join(cms, 'tests', 'fixtures', 'removed-css-classes.json');
+const target = join(cms, 'tests', 'Fixtures', 'removed-css-classes.json');
 if (process.argv.includes('--check')) {
   const current = existsSync(target) ? readFileSync(target, 'utf8') : '';
   if (current !== fixture) {
