@@ -196,8 +196,8 @@ final class CommissionReversalService
     /**
      * Odluka vlasnika 24.11.2026: refundacija posle "Za isplatu" ili isplate automatski stornira proviziju srazmerno refundiranom
      * delu porudžbine. Poziva se UNUTAR transakcije refundacije (porudžbina zaključana), posle upisa refundacije, a PRE projekcije
-     * stanja (projekcija bi "Za isplatu" vratila na čekanje). Kumulativno: cilj = prvobitna provizija x min(1, verifikovane
-     * refundacije / subtotal_rsd); upisuje se samo razlika do svega već storniranog/zaduženog (svi izvori, bez odbijenih), pa
+     * stanja (projekcija bi "Za isplatu" vratila na čekanje). Kumulativno: cilj = prvobitna provizija x refundirani deo / subtotal_rsd,
+     * gde je refundirani deo = min(zbir refundacija, subtotal_rsd - neto uplaćeno), najviše 100 %; upisuje se samo razlika do svega već storniranog/zaduženog (svi izvori, bez odbijenih), pa
      * ponovljen poziv i kombinacija povrat robe + refundacija ne dupliraju storno. Neisplaćena: reversal (0 EUR => cancelled);
      * isplaćena: potvrđeno zaduženje koje se prebija pri sledećoj isplati. Obična provizija "Na čekanju" se ne dira; ona koja čeka
      * kurs se samo otkazuje i to samo pri punoj refundaciji (iznos joj nije poznat).
@@ -222,7 +222,11 @@ final class CommissionReversalService
         }
 
         $subtotal = round((float) $order->subtotal_rsd, 2);
-        $refunded = round((float) OrderPayment::query()->where('order_id', $order->id)->where('entry_type', 'refund')->where('status', 'verified')->sum('amount_rsd'), 2);
+        $verified = OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified');
+        $refundSum = (float) (clone $verified)->where('entry_type', 'refund')->sum('amount_rsd');
+        $netPaid = (float) (clone $verified)->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")->value('net_total');
+        // refundiran deo vrednosti porudžbine: povraćaj preplate ne umanjuje vrednost, ponovna uplata posle refundacije je vraća
+        $refunded = round(min($refundSum, max(0.0, $subtotal - $netPaid)), 2);
         if ($subtotal <= 0 || $refunded <= 0) {
             return null;
         }

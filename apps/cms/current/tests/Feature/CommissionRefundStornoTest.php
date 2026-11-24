@@ -159,6 +159,21 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame(0, CommissionAdjustment::query()->count());
     }
 
+    public function test_refunding_an_overpayment_or_after_repayment_does_not_reverse_twice(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 13000);
+        $this->refund($order, $admin, 1000); // samo preplata: porudžbina i dalje u potpunosti plaćena
+        self::assertSame(0, CommissionAdjustment::query()->count());
+        self::assertSame(['approved', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+
+        $this->refund($order, $admin, 6000); // pola vrednosti
+        $this->pay($order, $admin, 6000);    // kupac ponovo plati
+        $this->refund($order, $admin, 6000); // isti deo ponovo refundiran: cilj ostaje 50 %
+        self::assertSame('10.00', CommissionAdjustment::query()->sole()->amount_eur);
+        self::assertSame('10.00', $commission->fresh()->total_eur);
+    }
+
     public function test_commission_waiting_for_exchange_rate_is_only_cancelled_on_full_refund(): void
     {
         $sub = $this->user('sub-'.++$this->seq, 'user');

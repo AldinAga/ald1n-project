@@ -13,7 +13,7 @@ Oba mesta pozivaju storno u istoj transakciji, dok je porudžbina zaključana, p
 
 ## Pravilo
 
-Iznos se računa kumulativno: prvobitna provizija x min(1, zbir verifikovanih refundacija / `subtotal_rsd`). Prvobitna provizija je `total_eur` plus potvrđeni storno. Upisuje se samo razlika do svega što je već stornirano ili zaduženo, iz bilo kog izvora (povrat robe, ručni storno, otkazivanje), bez odbijenih predloga.
+Iznos se računa kumulativno: prvobitna provizija x refundirani deo / `subtotal_rsd`. Refundirani deo je min(zbir verifikovanih refundacija, `subtotal_rsd` minus neto uplaćeno). Povraćaj preplate zato ne stornira ništa, a ista vrednost refundirana pa ponovo uplaćena pa opet refundirana računa se jednom. Prvobitna provizija je `total_eur` plus potvrđeni storno. Upisuje se samo razlika do svega što je već stornirano ili zaduženo, iz bilo kog izvora (povrat robe, ručni storno, otkazivanje), bez odbijenih predloga.
 
 | Stanje provizije | Šta se dešava |
 |---|---|
@@ -33,6 +33,10 @@ Svaki storno upisuje `commission_status_history`, audit (`commission.reversed` i
 - Ponovljena radnja ili ponovni poziv daju razliku 0 i ne upisuju ništa.
 - Dve različite delimične refundacije zajedno daju tačno ceo iznos, bez greške zaokruživanja.
 - Povrat robe pa refundacija za isti komad: refundacija ne dodaje storno. Refundacija pa povrat: povrat se preskače, kao i do sada kada postoji storno bez artikla, uz audit `commission.auto_reversal_skipped`.
+
+## Šta nije okidač
+
+"Pošiljka vraćena" (`OrderShipmentService::markReturned`) ne pomera novac i ne menja proviziju. Isporuke nije bilo, pa provizija ostaje kakva je. Drugih mesta koja upisuju refundaciju nema.
 
 ## Ograničenja i otvorena pitanja
 
