@@ -24,15 +24,16 @@ final class CatalogNotesApiTest extends TestCase
         $this->seed(CoreAccessSeeder::class);
     }
 
-    public function test_subagent_with_notes_permission_receives_notes_in_list_and_detail(): void
+    public function test_subagent_with_notes_permission_receives_notes_on_detail_only(): void
     {
         $user = $this->user('user', ['catalog.view', 'catalog.view_notes']);
         $product = $this->product('Interna napomena');
 
         $this->actingAs($user, 'sanctum')->getJson('/api/v1/products/'.$product->slug)
             ->assertOk()->assertJsonPath('data.notes', 'Interna napomena');
-        $this->actingAs($user, 'sanctum')->getJson('/api/v1/products')
-            ->assertOk()->assertJsonPath('data.0.notes', 'Interna napomena');
+        // Lista je namjerno bez napomena (polje do 65000 znakova).
+        $list = $this->actingAs($user, 'sanctum')->getJson('/api/v1/products')->assertOk()->assertJsonMissingPath('data.0.notes');
+        $this->assertStringNotContainsString('Interna napomena', $list->getContent());
     }
 
     public function test_empty_notes_are_null_for_permitted_user(): void

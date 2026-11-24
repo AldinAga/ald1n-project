@@ -173,6 +173,7 @@ final class DeploymentCheckCommand extends Command
     private const REQUIRED_PERMISSIONS = [
         'catalog.view',
         'catalog.view_prices',
+        'catalog.view_notes',
         'orders.create',
         'orders.view_own',
         'orders.cancel_own',
