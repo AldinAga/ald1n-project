@@ -69,8 +69,8 @@ export default function TabsLayout() {
           fontWeight: '800',
         },
         tabBarBadgeStyle: {
-          backgroundColor: themeColors.danger,
-          color: themeColors.onDanger,
+          backgroundColor: themeColors.dangerFill,
+          color: themeColors.onDangerFill,
           fontSize: 10,
           fontWeight: '800',
         },

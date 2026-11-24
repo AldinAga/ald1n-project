@@ -28,9 +28,23 @@ export type AppColors = (typeof colorThemes)[AppColorScheme];
  */
 export const colors: AppColors = colorThemes.light;
 
+const kobaltScale = kobalt.scale;
+
 export const spacing = ald1nDesignTokens.spacing;
-export const radii = ald1nDesignTokens.radii;
+// Kobalt radii (12 / 16 / 22 / pill). The legacy keys are kept so existing screens pick up the new scale.
+export const radii = {
+  sm: kobaltScale.radius.sm,
+  md: kobaltScale.radius.md,
+  lg: kobaltScale.radius.lg,
+  xl: kobaltScale.radius.lg,
+  xxl: kobaltScale.radius.lg,
+  pill: kobaltScale.radius.pill,
+} as const;
 export const motion = ald1nDesignTokens.motion;
+// Kobalt control height (48) and the 44 dp minimum touch target.
+export const controlHeight = kobaltScale.size.control;
+export const touchTarget = kobaltScale.size.touchTarget;
+export const focusRing = kobaltScale.focus;
 
 /*
  * RN-specific shadow.
@@ -56,32 +70,34 @@ export const shadow = Platform.select({
   default: {},
 });
 
+// Kobalt type: weights snap to 100-steps (display 780 -> 800, label 620 -> 600, bold 700); tracking is em * size.
 export const typography = {
   hero: {
     fontSize: 36,
     lineHeight: 41,
-    fontWeight: '900' as const,
-    letterSpacing: -0.6,
+    fontWeight: '800' as const,
+    letterSpacing: -1,
   },
 
   h1: {
     fontSize: 30,
     lineHeight: 36,
-    fontWeight: '900' as const,
-    letterSpacing: -0.4,
+    fontWeight: '800' as const,
+    letterSpacing: -0.6,
   },
 
   h2: {
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: '800' as const,
-    letterSpacing: -0.2,
+    fontWeight: '700' as const,
+    letterSpacing: -0.3,
   },
 
   h3: {
     fontSize: 18,
     lineHeight: 23,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
+    letterSpacing: -0.2,
   },
 
   body: {
@@ -93,7 +109,8 @@ export const typography = {
   label: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800' as const,
+    fontWeight: '600' as const,
+    letterSpacing: 0.26,
   },
 
   small: {
