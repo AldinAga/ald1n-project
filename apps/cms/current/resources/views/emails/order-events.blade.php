@@ -23,7 +23,7 @@
         $productDescription = trim((string) ($metadata['product_description'] ?? ''));
         $productPrice = trim((string) ($metadata['product_price_formatted'] ?? ''));
         $productNotes = trim((string) ($metadata['product_notes'] ?? ''));
-        $productSku =trim((string) ($metadata['product_sku'] ?? ''));
+        $productSku = trim((string) ($metadata['product_sku'] ?? ''));
     @endphp
     <div style="border:1px solid #dce2ea;border-radius:12px;padding:18px;margin:16px 0;background:#f8fafc;overflow:hidden">
         <strong style="display:block;font-size:18px;margin-bottom:12px">{{ $event->subject }}</strong>
