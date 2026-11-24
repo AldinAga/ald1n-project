@@ -136,8 +136,9 @@ try{
                     $sample=['path'=>$parts['path'],'query'=>['v'=>$q['v'],'s'=>$q['s']]];
                     // The thumbnail URL of the same image, signed by the application's own signer (the rendition falls back to the original
                     // when no WebP file exists, so the smoke can read a body without ever depending on a large original).
-                    $tid=(int)$image->getKey();$ts=App\Support\ProductMediaUrl::signature($tid,'thumbnail',$q['v']);
-                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$q['v'],'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}
+                    $tid=(int)$image->getKey();// Since B1158 the media route compares the version in the URL with the CURRENT version of that rendition (a replaced photo is served `private, no-cache`): the thumbnail URL carries the thumbnail's own version when the model has one.
+                    $tv=method_exists($image,'mediaVersion')?((string)($image->mediaVersion('thumbnail')??$q['v'])):$q['v'];$ts=App\Support\ProductMediaUrl::signature($tid,'thumbnail',$tv);
+                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$tv,'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}
                 }
             }
         }
