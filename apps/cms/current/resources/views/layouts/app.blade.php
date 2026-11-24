@@ -79,6 +79,8 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icons.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icons.css')) ?: config('app.version') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icon-actions.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icon-actions.css')) ?: config('app.version') }}">
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
@@ -89,16 +91,6 @@
             document.documentElement.dataset.theme = resolved;
         })();
     </script>
-    <style>
-        /* EUR/RSD manual sync: content widgets (dashboard, exchange settings) share the sync runtime. */
-        .exchange-rate-settings-sync{appearance:none;-webkit-appearance:none;font:inherit;cursor:pointer}
-        .exchange-rate-settings-sync:disabled{cursor:wait;opacity:.72}
-        .dashboard-rate-widget.is-syncing,.exchange-rate-settings-sync.is-syncing{border-color:color-mix(in srgb,var(--primary) 55%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 12%,transparent)}
-        .dashboard-rate-widget[data-exchange-rate-sync]{cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
-        .dashboard-rate-widget[data-exchange-rate-sync]:hover{border-color:color-mix(in srgb,var(--primary) 42%,var(--line));transform:translateY(-1px)}
-        .dashboard-rate-widget[data-exchange-rate-sync]:focus-visible,.exchange-rate-settings-sync:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent)}
-        .exchange-rate-settings-sync{border:1px solid var(--line);color:inherit}
-    </style>
     {{-- JavaScript off: no toggle (it would do nothing); the sheet content stays in normal flow so navigation and logout remain reachable on phones. --}}
     <noscript><style>.a1-bell__btn{display:none}@media (max-width:1199px){.a1-menu-btn,.a1-header__theme{display:none}.a1-header__panel{display:grid}.a1-header{position:static}}</style></noscript>
     @stack('head')
@@ -1232,46 +1224,6 @@ const loadProductSearch = async (term) => {
         document.addEventListener('click', (event) => {
             if (!panel.hidden && event.target instanceof Node && !bell.contains(event.target)) setOpen(false);
         });
-    });
-
-    const filterForms = Array.from(document.querySelectorAll('form.filter-panel'));
-    filterForms.forEach((form, index) => {
-        if (form.dataset.filterCollapseReady === '1') return;
-        form.dataset.filterCollapseReady = '1';
-
-        const storageKey = `ald1n-filter:${form.dataset.filterKey || `${location.pathname}:${index}`}`;
-        const hasActiveFilters = Array.from(new URLSearchParams(location.search).entries())
-            .some(([key, value]) => key !== 'page' && String(value).trim() !== '');
-        let collapsed = !hasActiveFilters;
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (!hasActiveFilters && saved === 'collapsed') collapsed = true;
-            if (saved === 'expanded') collapsed = false;
-        } catch (_) {}
-
-        const bar = document.createElement('div');
-        bar.className = 'filter-collapse-bar';
-        const title = document.createElement('strong');
-        title.textContent = form.dataset.filterTitle || 'Filteri';
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'filter-collapse-toggle';
-        button.setAttribute('aria-controls', form.id || `filter-panel-${index}`);
-        if (!form.id) form.id = `filter-panel-${index}`;
-        bar.append(title, button);
-        form.prepend(bar);
-
-        const apply = (next, persist = true) => {
-            collapsed = Boolean(next);
-            form.classList.toggle('is-collapsed', collapsed);
-            button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-            button.textContent = collapsed ? 'Prikaži filtere' : 'Sakrij filtere';
-            if (persist) {
-                try { localStorage.setItem(storageKey, collapsed ? 'collapsed' : 'expanded'); } catch (_) {}
-            }
-        };
-        button.addEventListener('click', () => apply(!collapsed));
-        apply(collapsed, false);
     });
 
     document.querySelectorAll('[data-confirm]').forEach((button) => button.addEventListener('click', (event) => { if (!confirm(button.dataset.confirm || 'Potvrdi akciju?')) event.preventDefault(); }));

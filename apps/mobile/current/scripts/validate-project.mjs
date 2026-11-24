@@ -708,13 +708,14 @@ const bottomNavRolePolicy = fs.readFileSync(
   path.join(root, 'src/components/layout/app-bottom-nav-policy.ts'),
   'utf8'
 );
-const bottomNavSlotKeys = ['catalog', 'orders', 'home', 'secondary', 'account'];
-const bottomNavFiveStableSlots = bottomNavSlotKeys.every((key, index) => {
-  const position = bottomNavRolePolicy.indexOf(`key: '${key}'`);
-  return position >= 0 && (
-    index === 0 || position > bottomNavRolePolicy.indexOf(`key: '${bottomNavSlotKeys[index - 1]}'`)
-  );
-});
+// Owner decision 2026-11-16: per-role tabs, Home always raised in the middle (behaviour is covered by batch664 tests).
+const bottomNavFiveStableSlots = [
+  "label: 'Potraživanja', route: '/admin/receivables'",
+  "label: 'Administracija', route: '/admin'",
+  "label: 'Korpa', route: '/cart'",
+  "label: 'Provizije', route: '/commissions'",
+  "label: 'Početna', route: '/home'",
+].every((fragment) => bottomNavRolePolicy.includes(fragment));
 
 assert(
   appBottomNav.includes('MOBILE_BATCH664_FLOATING_BOTTOM_NAV')
@@ -729,7 +730,8 @@ assert(
     && appBottomNav.includes('disabled={!item.enabled}')
     && appBottomNav.includes('activeBottomNavKey(pathname, roleSlug)')
     && appBottomNav.includes('buildBottomNavItems({')
-    && bottomNavRolePolicy.includes("route: admin ? '/admin/orders' : '/orders'")
+    && bottomNavRolePolicy.includes("route: '/admin/orders'")
+    && bottomNavRolePolicy.includes("route: '/orders'")
     && bottomNavRolePolicy.includes("label: 'Administracija'")
     && bottomNavRolePolicy.includes("label: 'Notifikacije'")
     && bottomNavFiveStableSlots,
@@ -775,7 +777,7 @@ assert(
 const operatorCard = fs.readFileSync(path.join(root, 'src/components/ui/card.tsx'), 'utf8');
 assert(
   operatorCard.includes('borderRadius={radii.lg}')
-    && operatorCard.includes("'0px 2px 6px $shadow1'")
+    && operatorCard.includes('shadowThemes[scheme].card')
     && !operatorCard.includes("'0px 10px 22px $shadow1'"),
   'Build16 globalni Card prati card-diet radius i suptilnu elevation hijerarhiju.'
 );
@@ -991,7 +993,7 @@ const build16AdminHubBatch132 = fs.readFileSync(path.join(root, 'src/app/(app)/a
 const build16SharedStatesBatch132 = fs.readFileSync(path.join(root, 'src/components/ui/states.tsx'), 'utf8');
 const build16PageHeaderBatch132 = fs.readFileSync(path.join(root, 'src/components/layout/page-header.tsx'), 'utf8');
 const build16CmsCssBatch132 = fs.readFileSync(
-  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'),
+  path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-admin.css'),
   'utf8'
 );
 
@@ -1035,12 +1037,12 @@ assert(
 );
 
 assert(
-  build16CmsCssBatch132.includes('MOBILE_BUILD16_ADMIN_SHARED_STATES_FINAL_POLISH_BATCH132')
-    && build16CmsCssBatch132.includes('BUILD16_FINAL_BODY_FLAT_SURFACE')
-    && build16CmsCssBatch132.includes(':focus-visible')
-    && build16CmsCssBatch132.includes('.empty-state')
-    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion: reduce)'),
-  'Build16 Laravel final polish zaključava flat body, focus-visible, empty-state, control radius i reduced-motion presentation contract.'
+  // G7 PR B: the old ui-v2 markers (MOBILE_BUILD16_..., BUILD16_FINAL_BODY_FLAT_SURFACE, .empty-state) are gone; the
+  // same a11y contract (focus-visible, empty state, reduced motion) is asserted on the Cobalt shell stylesheet.
+  build16CmsCssBatch132.includes('.a1-app :focus-visible{')
+    && build16CmsCssBatch132.includes('.a1-empty{')
+    && build16CmsCssBatch132.includes('@media (prefers-reduced-motion:no-preference)'),
+  'Build16 Laravel Cobalt shell zaključava focus-visible, empty-state i reduced-motion presentation contract.'
 );
 
 // MOBILE_BUILD16_NATIVE_RELEASE_GATE_BATCH133
@@ -1285,13 +1287,14 @@ assert(
   'App theme resolver koristi React Native system color scheme.'
 );
 
+// Colours are produced by the Kobalt adapter (M1); theme.ts only assembles the themes.
 const rnThemeSource = fs.readFileSync(
-  path.join(root, 'src/constants/theme.ts'),
+  path.join(root, 'src/design/kobalt-app-colors.ts'),
   'utf8'
 );
 
 assert(
-  rnThemeSource.includes('onDanger: tokens.onDanger'),
+  /onDanger: dark \? k\.surface\.page : k\.button\.primary\.on/.test(rnThemeSource),
   'RN theme adapter koristi canonical onDanger semantic token.'
 );
 
@@ -2644,16 +2647,16 @@ assert(
     && batch50PageHeaderV2.includes("router.push('/notifications')")
     && batch50PageHeaderV2.includes('useNotificationUnread')
     && batch50PageHeaderV2.includes('function PageHeaderNotificationButton')
-    && !batch50PageHeaderV2.includes("router.push('/account')")
+    && batch50PageHeaderV2.includes("router.push('/account')")
     && !batch50PageHeaderV2.includes('styles.avatar')
     && batch50GlyphV2.includes("admin: { ios: 'shield.lefthalf.filled', android: 'admin_panel_settings'"),
-  'v1.0 Batch50 V2 header desno koristi notification bell+badge umesto profila, a Nalog ostaje u bottom nav-u.',
+  'v1.0 Batch50 V2 header desno koristi notification bell+badge pored kojeg stoji dugme Nalog (M2: SubAgent nema Nalog tab).',
 );
 assert(
   bottomNavRolePolicy.includes("matches(pathname, '/admin/catalog')")
     && bottomNavRolePolicy.includes("matches(pathname, '/admin/orders')")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) ? null : 'secondary';")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/notifications')) return hasBottomNavAdminRole(roleSlug) || subAgent ? null : 'secondary';")
     && bottomNavRolePolicy.indexOf("matches(pathname, '/admin/orders')") < bottomNavRolePolicy.indexOf("if (matches(pathname, '/admin'))"),
   'Batch664 keeps admin/catalog in Catalog, admin/orders in Orders, and Admin in the role-aware secondary tab.',
 );
@@ -4359,15 +4362,16 @@ assert(
   'Batch179 price correction and display work does not restore Product Variants.',
 );
 const batch179LoginView = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/resources/views/auth/login.blade.php'), 'utf8');
-const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-ui-v2.css'), 'utf8');
+const batch179LoginCss = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/public/assets/css/ald1n-auth.css'), 'utf8');
 assert(
   batch179LoginView.includes('data-login-glassmorphism')
     && batch179LoginView.includes('auth-login-submit')
     && batch179LoginView.includes("route('login.store')")
     && batch179LoginView.includes('cf-turnstile')
-    && batch179LoginCss.includes('BATCH179_V3_LOGIN_GLASS_MORPHISM')
-    && batch179LoginCss.includes('backdrop-filter: blur(30px) saturate(155%)')
-    && batch179LoginCss.includes('@media (prefers-reduced-motion: reduce)'),
+    // G7 PR B: the login glass now lives in ald1n-auth.css (a1-auth); the old BATCH179 marker and exact blur value are gone.
+    && batch179LoginCss.includes('.a1-auth')
+    && batch179LoginCss.includes('backdrop-filter')
+    && batch179LoginCss.includes('prefers-reduced-motion'),
   'Batch179 V3 Laravel login polish adds glassmorphism and motion while preserving auth, Turnstile and reduced-motion contracts.',
 );
 // MOBILE_BATCH515_CUSTOMER_ORDER_AMENDMENT_VALIDATOR
@@ -4479,7 +4483,7 @@ assert(
   ['/after-sales', '/warranties', '/commissions', '/portal/messages'].every(
     (route) => bottomNavRolePolicy.includes(`matches(pathname, '${route}')`)
   )
-    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return hasBottomNavAdminRole(roleSlug) ? 'secondary' : null;")
+    && bottomNavRolePolicy.includes("if (matches(pathname, '/admin')) return roleSlug === 'superadmin' ? 'secondary' : null;")
     && bottomNavRolePolicy.includes("return 'home';")
     && bottomNavFiveStableSlots,
   'Batch664 preserves Home context for personal activities and Admin context for authorized admin screens.',

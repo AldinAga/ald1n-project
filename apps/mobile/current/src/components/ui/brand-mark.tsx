@@ -1,91 +1,41 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+// Author: Ald1n <https://ald1n.com>
+import { Image } from 'expo-image';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
-import {
-  radii,
-  type AppColors,
-} from '@/constants/theme';
+import { type AppColors } from '@/constants/theme';
 import { useThemedStyles } from '@/theme/app-theme';
 
-export function BrandMark({
-  size = 46,
-  inverse = false,
-}: {
-  size?: number;
-  inverse?: boolean;
-}) {
-  const styles = useThemedStyles(createStyles);
+// SVG logo (same artwork as assets/brand/ald1n-v2-logo.svg, without the CorelDRAW DOCTYPE/CSS so Android's SVG decoder renders it reliably).
+const LOGO = require('../../../assets/brand/ald1n-mark.svg');
 
+// Decorative: every caller sits next to a visible title, so it is hidden from screen readers.
+// `inverse` adds a hairline ring so the dark tile stays visible on dark hero panels; if the SVG fails to load, an "A" tile in the logo colours stays.
+export function BrandMark({ size = 46, inverse = false }: { size?: number; inverse?: boolean }) {
+  const styles = useThemedStyles(createStyles);
+  const [failed, setFailed] = useState(false);
   return (
     <View
-      style={[
-        styles.mark,
-        {
-          width: size,
-          height: size,
-          borderRadius: Math.round(size * 0.3),
-        },
-        inverse && styles.inverse,
-      ]}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.frame, { width: size, height: size, borderRadius: Math.round(size * 0.19) }, inverse && styles.ring]}
     >
-      <Text
-        style={[
-          styles.letter,
-          {
-            fontSize: Math.round(size * 0.56),
-          },
-          inverse && styles.inverseLetter,
-        ]}
-      >
-        A
-      </Text>
-
-      <View
-        style={[
-          styles.dot,
-          {
-            width: Math.max(6, size * 0.16),
-            height: Math.max(6, size * 0.16),
-          },
-        ]}
-      />
+      {failed ? (
+        <View style={styles.fallback}>
+          <Text style={[styles.letter, { fontSize: Math.round(size * 0.56) }]} numberOfLines={1}>A</Text>
+        </View>
+      ) : (
+        <Image source={LOGO} contentFit="contain" style={{ width: size, height: size }} accessibilityIgnoresInvertColors onError={() => setFailed(true)} />
+      )}
     </View>
   );
 }
 
 function createStyles(theme: AppColors) {
   return StyleSheet.create({
-    mark: {
-      backgroundColor: theme.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-
-    inverse: {
-      backgroundColor: theme.white,
-    },
-
-    letter: {
-      color: theme.onPrimary,
-      fontWeight: '900',
-      lineHeight: 42,
-      letterSpacing: -2,
-    },
-
-    inverseLetter: {
-      color: theme.hero,
-    },
-
-    dot: {
-      position: 'absolute',
-      right: 5,
-      top: 5,
-      borderRadius: radii.pill,
-      backgroundColor: theme.accent,
-    },
+    frame: { overflow: 'hidden', flexShrink: 0 },
+    ring: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.heroMuted },
+    fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#02141E' },
+    letter: { color: '#FEA500', fontWeight: '900' },
   });
 }

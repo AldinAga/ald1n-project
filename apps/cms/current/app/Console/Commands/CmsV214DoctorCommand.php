@@ -74,7 +74,7 @@ final class CmsV214DoctorCommand extends Command
             app_path('Http/Requests/ProductRequest.php'),
             resource_path('views/admin/products/form.blade.php'),
             resource_path('views/components/icon.blade.php'),
-            public_path('assets/css/app.css'),
+            public_path('assets/css/ald1n-admin.css'),
             database_path('migrations/2026_08_04_000036_add_product_model_and_name_templates_v2_1_4.php'),
         ];
         foreach ($files as $path) {
@@ -85,12 +85,12 @@ final class CmsV214DoctorCommand extends Command
         }
 
         if (!$failed) {
-            $css = (string) file_get_contents(public_path('assets/css/app.css'));
+            $css = (string) file_get_contents(public_path('assets/css/ald1n-admin.css'));
             $form = (string) file_get_contents(resource_path('views/admin/products/form.blade.php'));
             $deletion = (string) file_get_contents(app_path('Services/ProductDeletionService.php'));
             $template = (string) file_get_contents(app_path('Services/ProductTemplateService.php'));
 
-            foreach (['.button-primary', '.button-secondary', '.button-success', '.button-warning', '.button-danger', '--button-height'] as $needle) {
+            foreach (['.a1-btn--primary{', '.a1-btn--quiet{', '.a1-btn--danger{', '.a1-btn--sm{', '.a1-app :focus-visible{'] as $needle) {
                 if (!str_contains($css, $needle)) {
                     $this->error('FAIL CSS sistem nema '.$needle.'.');
                     $failed = true;

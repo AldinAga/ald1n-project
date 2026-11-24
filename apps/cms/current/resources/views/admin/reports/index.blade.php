@@ -25,7 +25,7 @@
     </header>
 
     @if ($reportUnavailable)
-    <div class="a1-alert a1-alert--warning report-unavailable" role="status">
+    <div class="a1-alert a1-alert--warning" role="status">
         <div class="a1-alert__body">
             <p class="a1-alert__title">Izveštaji trenutno nisu spremni.</p>
             <p>{{ $reportUnavailable }}</p>

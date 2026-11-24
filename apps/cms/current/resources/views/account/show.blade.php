@@ -18,7 +18,7 @@
         ['daily_digest', 'Dnevni pregled', 'Sažetak upozorenja.', $notificationPreference->daily_digest],
     ];
 @endphp
-<div class="a1-ops build16-account-shell" data-build16-account="1">
+<div class="a1-ops" data-build16-account="1">
     <header class="a1-pagehead">
         <div class="a1-pagehead__text">
             <span class="a1-eyebrow">Korisnički nalog</span>

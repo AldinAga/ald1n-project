@@ -20,10 +20,11 @@ $index = $source('resources/views/admin/dictionary/index.blade.php');
 $typePage = $source('resources/views/admin/dictionary/product-type.blade.php');
 $fields = $source('resources/views/admin/dictionary/fields.blade.php');
 $sortJs = $source('public/assets/js/dictionary-sort-manager.js');
-$css = $source('public/assets/css/app.css');
+$css = $source('public/assets/css/ald1n-admin-products.css'); // G7: a1-pc-handle (drag handle) lives here, not in app.css
+$catalogCss = $source('public/assets/css/ald1n-admin-catalog.css');
 $productType = $source('app/Models/ProductType.php');
 $check('Svaki tip proizvoda ima posebnu slug stranicu', str_contains($routes, '/catalog-settings/product-type/{productType:slug}') && str_contains($controller, 'function productType(') && str_contains($productType, "getRouteKeyName(): string { return 'slug'; }") && str_contains($typePage, 'Specifikacije: {{ $item->name }}'));
-$check('Glavna stranica tipova prikazuje pregledne sažete kartice', str_contains($index, 'product-type-summary-card') && str_contains($index, 'Otvori specifikacije') && str_contains($index, "route('admin.dictionary.product-type',\$item)"));
+$check('Glavna stranica tipova prikazuje pregledne sažete kartice', str_contains($index, 'a1-pc-card') && str_contains($index, 'Otvori specifikacije') && str_contains($index, "route('admin.dictionary.product-type',\$item)"));
 $check('Kartice imaju režim Uredi i Završi uređivanje', str_contains($index, 'data-sort-edit-start') && str_contains($index, 'data-sort-edit-finish') && str_contains($typePage, 'data-sort-edit-start') && str_contains($typePage, 'data-sort-edit-finish'));
 $check('Drag & Drop radi pointer događajima na telefonu i računaru', str_contains($sortJs, "addEventListener('pointerdown'") && str_contains($sortJs, "addEventListener('pointermove'") && str_contains($sortJs, 'setPointerCapture') && str_contains($css, 'touch-action:none'));
 $check('Raspored se čuva kroz zaštićene PATCH rute', str_contains($routes, "name('dictionary.reorder')") && str_contains($routes, "name('dictionary.product-type.fields.reorder')") && str_contains($sortJs, "method: 'PATCH'") && str_contains($controller, 'function reorderTypeFields('));
@@ -48,7 +49,7 @@ $check('Strukturisani diskovi se čuvaju bez gubitka kompatibilnog teksta', str_
 $check('GB vrednosti su celobrojne', str_contains($specModel, 'requiresWholeGigabytes') && str_contains($productRequest, "preg_match('/^\\d+$/'") && str_contains($productForm, "step=\"1\"") && str_contains($productRequest, 'ceo broj bez decimala'));
 
 $catalogShow = $source('resources/views/catalog/show.blade.php');
-$check('Galerija prikazuje celu sliku bez cropovanja', str_contains($css, '.thumbnail-grid img{object-fit:contain!important') && str_contains($css, '.image-selection-card img,.product-gallery-thumbnail img{object-fit:contain!important') && !str_contains($catalogShow, '.product-variant-card>img{width:84px;height:84px;object-fit:cover'));
+$check('Galerija prikazuje celu sliku bez cropovanja', str_contains($catalogCss, '.a1-cat-gal__thumb img{width:100%;height:100%;border-radius:var(--a1-radius-photo);object-fit:contain}') && str_contains($catalogCss, '.a1-cat-gal__main img{width:100%;height:100%;padding:var(--a1-space-24);object-fit:contain') && !str_contains($catalogShow, '.product-variant-card>img{width:84px;height:84px;object-fit:cover'));
 
 $announcement = $source('app/Services/ProductAnnouncementService.php');
 $mail = $source('resources/views/emails/order-events.blade.php');

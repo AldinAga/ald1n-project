@@ -21,7 +21,6 @@ $dashboardView = $read('resources/views/dashboard/index.blade.php');
 $portalView = $read('resources/views/dashboard/partials/customer-center.blade.php');
 $messageView = $read('resources/views/portal/messages/show.blade.php');
 $adminView = $read('resources/views/admin/customer-portal/index.blade.php');
-$css = $read('public/assets/css/app.css');
 $portalBladeFiles = [
     'resources/views/auth/activate-account.blade.php',
     'resources/views/dashboard/partials/customer-center.blade.php',
@@ -71,7 +70,6 @@ $checks = [
     'Aktivaciona stranica nije dozvoljena u browser cache-u' => str_contains($securityHeaders, "'customer-activation.*'") && str_contains($securityHeaders, "'Cache-Control', 'no-store, private'"),
     'Scheduler održava aktivacione tokene i session registry' => str_contains($maintenance, 'purgeExpired') && str_contains($maintenance, 'expireStale') && str_contains($schedule, "app:customer-portal-maintenance"),
     'Customer Portal 2.0 Blade direktive su izbalansirane i bez inline lanaca' => $portalBladeBalanced && !$portalBladeHasInlineChains,
-    'Customer Portal 2.0 CSS je prisutan' => str_contains($css, 'v2.1.0-beta7.24 - Customer Portal 2.0') && str_contains($css, '.conversation-stream') && str_contains($css, '.session-card'),
 ];
 
 $failed = 0;

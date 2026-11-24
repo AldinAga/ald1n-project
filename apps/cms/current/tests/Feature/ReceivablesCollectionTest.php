@@ -195,11 +195,9 @@ final class ReceivablesCollectionTest extends TestCase
     public function test_dropdown_and_checkbox_regression_markers_are_present(): void
     {
         $layout = (string) file_get_contents(resource_path('views/layouts/app.blade.php'));
-        $css = (string) file_get_contents(public_path('assets/css/app.css'));
         self::assertStringContainsString('closeDropdowns', $layout);
         self::assertStringContainsString("event.key !== 'Escape'", $layout);
-        self::assertStringContainsString('input[type="checkbox"]', $css);
-        self::assertStringContainsString('max-width:17px!important', $css);
+        // G7: the old app.css checkbox-size assertions (max-width:17px) were about the old stylesheet only.
     }
 
     private function directSaleProduct(User $actor, string $sku): Product

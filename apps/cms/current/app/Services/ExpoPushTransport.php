@@ -39,6 +39,9 @@ final class ExpoPushTransport
         }
         // The hash stays in the database only; it is not customer/device payload.
         unset($payloadData[self::DEVICE_TOKEN_HASH_KEY]);
+        // Slika ide u richContent, ne u data (štedi limit poruke od 4 KiB).
+        $imageUrl = $payloadData['image_url'] ?? null;
+        unset($payloadData['image_url']);
 
         if (!preg_match('/^(Expo|Exponent)PushToken\[[^\]]+\]$/', $token)) {
             return ['status' => 'error', 'error' => 'Sačuvani Expo push token nema očekivani format.', 'error_code' => 'DeviceNotRegistered'];
@@ -53,6 +56,9 @@ final class ExpoPushTransport
             'priority' => 'high',
             'data' => $payloadData,
         ];
+        if (is_string($imageUrl) && $imageUrl !== '') {
+            $payload['richContent'] = ['image' => $imageUrl];
+        }
 
         try {
             $response = $this->request()->post((string) config('mobile.push.expo.send_url'), $payload);

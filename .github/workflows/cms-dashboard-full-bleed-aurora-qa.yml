@@ -5,8 +5,9 @@ on:
       - fix/cms-dashboard-full-bleed-aurora-20261021
   pull_request:
     paths:
-      - 'apps/cms/current/public/assets/css/ald1n-liquid-glass.css'
-      - 'apps/cms/current/tests/Unit/DashboardFullBleedAuroraTest.php'
+      - 'apps/cms/current/public/assets/css/ald1n-admin.css'
+      - 'apps/cms/current/public/assets/css/ald1n-admin-catalog.css'
+      - 'apps/cms/current/tests/Unit/CmsVisualSpacingRegressionTest.php'
       - '.github/workflows/cms-dashboard-full-bleed-aurora-qa.yml'
 permissions:
   contents: read
@@ -29,7 +30,9 @@ jobs:
       - working-directory: apps/cms/current
         run: |
           set -euo pipefail
-          php artisan test tests/Unit/DashboardFullBleedAuroraTest.php tests/Unit/CmsVisualSpacingRegressionTest.php --no-ansi
+          # G7 PR B: DashboardFullBleedAuroraTest only asserted ald1n-liquid-glass.css rules for the removed dashboard-kpi-card
+          # markup and was deleted; the spacing regression test now covers the Cobalt catalog layout.
+          php artisan test tests/Unit/CmsVisualSpacingRegressionTest.php --no-ansi
           # DashboardD1-D3 integration uses MariaDB metadata and is covered by the existing MariaDB integration workflow.
           php bin/static-check.php
       - if: always()

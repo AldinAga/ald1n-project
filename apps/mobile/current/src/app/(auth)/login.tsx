@@ -5,11 +5,12 @@ import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { z } from 'zod';
+import { AuthNotice } from '@/components/auth/auth-shell';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { Button } from '@/components/ui/button';
 import { Glyph } from '@/components/ui/glyph';
 import { TextField } from '@/components/ui/text-field';
-import { radii, shadow, spacing, typography, type AppColors } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { API_URL, ApiError } from '@/lib/api/client';
@@ -90,7 +91,7 @@ export default function LoginScreen() {
         <View style={styles.hero}>
           <View style={styles.orbOne} /><View style={styles.orbTwo} />
           <BrandMark size={58} inverse />
-          <Text style={styles.kicker}>ALD1N MOBILE</Text>
+          <Text style={styles.kicker} numberOfLines={1}>ALD1N MOBILE</Text>
           <Text style={styles.heroTitle}>Sve što ti treba, odmah pri ruci.</Text>
           <Text style={styles.heroCopy}>Katalog, porudžbine i obaveštenja u brzom mobilnom interfejsu.</Text>
         </View>
@@ -114,7 +115,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>ILI</Text><View style={styles.dividerLine} /></View>
+          <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText} numberOfLines={1}>ILI</Text><View style={styles.dividerLine} /></View>
 
           <Controller control={control} name="login" render={({ field: { value, onBlur, onChange } }) => (
             <TextField label="Korisničko ime ili e-mail" autoCapitalize="none" autoCorrect={false} value={value} onBlur={onBlur} onFocus={keepFormVisible} onChangeText={onChange} error={errors.login?.message} returnKeyType="next" />
@@ -122,7 +123,7 @@ export default function LoginScreen() {
           <Controller control={control} name="password" render={({ field: { value, onBlur, onChange } }) => (
             <TextField label="Lozinka" secureTextEntry value={value} onBlur={onBlur} onFocus={keepFormVisible} onChangeText={onChange} error={errors.password?.message} returnKeyType="done" onSubmitEditing={() => void submit()} />
           )} />
-          {errors.root?.message ? <Text style={styles.rootError}>{errors.root.message}</Text> : null}
+          {errors.root?.message ? <AuthNotice tone="danger">{errors.root.message}</AuthNotice> : null}
           <Button onPress={() => void submit()} loading={isSubmitting}>Prijavi se</Button>
           <Button variant="ghost" onPress={() => router.push('/forgot-password' as Href)}>Zaboravljena lozinka?</Button>
           <Button variant="ghost" onPress={() => router.push('/activate-account' as Href)}>Imam aktivacioni link</Button>
@@ -139,13 +140,13 @@ function createStyles(theme: AppColors) {
   page: { flex: 1, backgroundColor: theme.background },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
   scrollKeyboard: { justifyContent: 'flex-start', paddingBottom: spacing.xxxl },
-  hero: { minHeight: 292, overflow: 'hidden', borderRadius: radii.xxl, backgroundColor: theme.hero, padding: spacing.xxl, justifyContent: 'flex-end', ...shadow },
-  orbOne: { position: 'absolute', width: 230, height: 230, borderRadius: 115, right: -85, top: -75, backgroundColor: theme.primary, opacity: 0.62 },
-  orbTwo: { position: 'absolute', width: 138, height: 138, borderRadius: 69, right: 52, top: 72, backgroundColor: theme.accent, opacity: 0.24 },
-  kicker: { ...typography.small, color: theme.accent, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
-  heroTitle: { ...typography.hero, color: theme.white, marginTop: spacing.sm, maxWidth: 340 },
-  heroCopy: { ...typography.body, color: theme.heroMuted, marginTop: spacing.md, maxWidth: 350 },
-  formCard: { backgroundColor: theme.surface, borderRadius: radii.xxl, padding: spacing.xl, gap: spacing.lg, ...shadow },
+  hero: { minHeight: 272, overflow: 'hidden', borderRadius: radii.xl, borderWidth: 1, borderColor: theme.heroMuted + '33', backgroundColor: theme.hero, padding: spacing.xl, justifyContent: 'flex-end' },
+  orbOne: { position: 'absolute', width: 230, height: 230, borderRadius: 115, right: -85, top: -75, backgroundColor: theme.primary, opacity: 0.32 },
+  orbTwo: { position: 'absolute', width: 138, height: 138, borderRadius: 69, right: 52, top: 72, backgroundColor: theme.accent, opacity: 0.16 },
+  kicker: { ...typography.small, color: theme.heroMuted, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
+  heroTitle: { ...typography.h1, color: theme.white, marginTop: spacing.sm },
+  heroCopy: { ...typography.body, color: theme.heroMuted, marginTop: spacing.md },
+  formCard: { backgroundColor: theme.surface, borderRadius: radii.xl, borderWidth: 1, borderColor: theme.line, padding: spacing.xl, gap: spacing.lg },
   formHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md },
   headingCopy: { flex: 1 },
   title: { ...typography.h1, color: theme.ink },
@@ -155,8 +156,7 @@ function createStyles(theme: AppColors) {
   googleButton: { width: '100%', height: 48 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.line },
-  dividerText: { ...typography.small, color: theme.muted, letterSpacing: 1.2 },
-  rootError: { ...typography.small, color: theme.danger, backgroundColor: theme.dangerSoft, padding: spacing.md, borderRadius: radii.lg },
+  dividerText: { ...typography.small, color: theme.muted, letterSpacing: 1.2, flexShrink: 0 },
   registrationNote: { ...typography.small, color: theme.muted, textAlign: 'center', paddingHorizontal: spacing.md },
   apiLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.success },

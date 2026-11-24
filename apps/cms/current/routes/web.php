@@ -126,7 +126,7 @@ foreach (\App\Support\PublicLegalTemplates::PAGES as $legalKey => $legalPage) {
 Route::get('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'show'])
     ->middleware('throttle:public-shop-browse')->name('account-deletion.show');
 Route::post('/brisanje-naloga', [\App\Http\Controllers\AccountDeletionController::class, 'request'])
-    ->middleware('throttle:password-reset-link')->name('account-deletion.request');
+    ->middleware('throttle:account-deletion-request')->name('account-deletion.request');
 Route::get('/brisanje-naloga/potvrda/{token}', [\App\Http\Controllers\AccountDeletionController::class, 'confirmShow'])
     ->where('token', '[A-Za-z0-9]{80}')->middleware('throttle:password-reset')->name('account-deletion.confirm.show');
 Route::post('/brisanje-naloga/potvrda', [\App\Http\Controllers\AccountDeletionController::class, 'confirm'])
@@ -222,7 +222,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::get('/media/product/{image}', ProductMediaController::class)->whereNumber('image')->name('media.product');
     Route::get('/media/product/{image}/download', ProductMediaDownloadController::class)->whereNumber('image')->name('media.product.download');
     Route::post('/account/deletion', [\App\Http\Controllers\AccountDeletionController::class, 'requestOwn'])
-        ->middleware('throttle:password-reset-link')->name('account.deletion.request');
+        ->middleware('throttle:account-deletion-own')->name('account.deletion.request');
     Route::put('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
     Route::put('/account/password', [AccountController::class, 'password'])->name('account.password');
     Route::put('/account/notifications', [AccountController::class, 'notifications'])->name('account.notifications');

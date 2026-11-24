@@ -65,6 +65,22 @@ export function PageHeader({
         ) : null}
 
         {notificationsVisible ? <PageHeaderNotificationButton pathname={pathname} /> : null}
+
+        <Pressable
+          accessibilityLabel="Nalog"
+          accessibilityRole="button"
+          accessibilityState={{ selected: pathname.startsWith('/account') }}
+          onPress={() => {
+            if (pathname !== '/account') router.push('/account');
+          }}
+          style={({ pressed }) => [
+            styles.notificationButton,
+            pathname.startsWith('/account') ? styles.notificationButtonActive : null,
+            pressed ? styles.pressed : null,
+          ]}
+        >
+          <Glyph name="account" size={23} color={pathname.startsWith('/account') ? theme.onPrimaryContainer : theme.ink} />
+        </Pressable>
       </View>
     </View>
   );

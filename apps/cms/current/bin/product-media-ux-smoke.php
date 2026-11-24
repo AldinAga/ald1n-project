@@ -38,12 +38,12 @@ $gallery = $source('resources/views/admin/products/images.blade.php');
 $imageCard = $source('resources/views/admin/products/partials/image-card.blade.php');
 $upload = $source('resources/views/admin/products/partials/image-upload.blade.php');
 $js = $source('public/assets/js/product-media-manager.js');
-$css = $source('public/assets/css/app.css');
+$css = $source('public/assets/css/ald1n-admin-products.css'); // G7: image drag handle is a1-pc-* now
 $check('Forma ima redosled naziv slike specifikacije', strpos($form, '<h2>Naziv artikla</h2>') < strpos($form, '<h2>Dodavanje slika</h2>') && strpos($form, '<h2>Dodavanje slika</h2>') < strpos($form, '<h2>Specifikacije</h2>'));
 $check('Upload prikazuje izbor fotografija', str_contains($upload, 'data-image-selection-grid') && str_contains($upload, 'data-image-selection-count') && str_contains($js, 'renderSelection'));
 $check('Upload ima procenat i progress bar', str_contains($upload, 'data-image-upload-percent') && str_contains($upload, 'data-image-upload-bar') && str_contains($js, 'xhr.upload.addEventListener'));
 $check('Upload vraća JSON redirect za product formu', str_contains($form, 'data-image-upload-mode="redirect"') && str_contains($js, 'payload.redirect_url'));
-$check('Glavna slika se bira zvezdicom preko slike', str_contains($imageCard, 'image-primary-control') && str_contains($imageCard, 'form="primary-') && str_contains($imageCard, 'name="star"'));
+$check('Glavna slika se bira zvezdicom preko slike', str_contains($imageCard, 'a1-pc-img__star') && str_contains($imageCard, 'form="primary-') && str_contains($imageCard, 'name="star"'));
 $check('Drag and drop radi pointer događajima za touch i desktop', str_contains($imageCard, 'data-image-drag-handle') && str_contains($js, "addEventListener('pointerdown'") && str_contains($js, "addEventListener('pointermove'") && str_contains($css, 'touch-action:none'));
 $check('Raspored se automatski čuva', str_contains($gallery, 'data-reorder-url') && str_contains($js, "data.append('image_ids[]'") && str_contains($controller, "\$request->has('image_ids')"));
 $check('Rotacija je dostupna ulevo i udesno', str_contains($imageCard, '↶ 90°') && str_contains($imageCard, '↷ 90°') && str_contains($form, 'rotate-left-') && str_contains($gallery, 'rotate-right-'));

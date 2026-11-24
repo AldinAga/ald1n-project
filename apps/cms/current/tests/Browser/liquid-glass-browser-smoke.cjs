@@ -132,7 +132,7 @@ async function headerGeometry(page, persona, mode, width) {
       htmlWidth: document.documentElement.scrollWidth,
       docTheme: document.documentElement.dataset.theme,
       themeMode: document.documentElement.dataset.themeMode,
-      themeBackground: getComputedStyle(document.documentElement).getPropertyValue('--ald-background').trim(),
+      themeBackground: getComputedStyle(document.documentElement).getPropertyValue('--a1-surface-page').trim(),
       exchangeText: (node.rate?.textContent || '').trim().slice(0, 80),
       elements: all,
       domOrder,
@@ -143,8 +143,10 @@ async function headerGeometry(page, persona, mode, width) {
         const st = getComputedStyle(document.documentElement);
         const shell = document.querySelector('.page-shell');
         const aurora = shell ? getComputedStyle(shell, '::before') : null;
-        const palette = Object.fromEntries(['blue','violet','cyan','teal','amber','rose'].map(k =>
-          [k, st.getPropertyValue('--lg5-'+k).trim().toUpperCase()]
+        // G7 PR B: read the Kobalt tokens the old --lg5-* aliases pointed at (same resolved values), so deleting the compat layer cannot break this check.
+        const paletteTokens = {blue:'--a1-button-primary-bg',violet:'--a1-accent-link',cyan:'--a1-status-info-dot',teal:'--a1-status-ok-dot',amber:'--a1-status-warning-dot',rose:'--a1-status-danger-dot'};
+        const palette = Object.fromEntries(Object.entries(paletteTokens).map(([k, token]) =>
+          [k, st.getPropertyValue(token).trim().toUpperCase()]
         ));
         const color = (name) => st.getPropertyValue(name).trim().toUpperCase();
         function luminosity(hex) {
@@ -162,12 +164,9 @@ async function headerGeometry(page, persona, mode, width) {
           palette,
           bloomOpacity: aurora?.opacity || null,
           bloomImage: aurora?.backgroundImage || 'none',
-          textContrast: contrast(color('--ald-text'),color('--ald-surface')),
-          primaryContrast: contrast(color('--ald-on-primary'),color('--ald-primary')),
-          selectedAccent: document.querySelector('.dashboard-kpi-card:has(.tone-primary)')
-            ? getComputedStyle(document.querySelector('.dashboard-kpi-card:has(.tone-primary)'))
-              .getPropertyValue('--lg5-card-accent').trim().toUpperCase()
-            : null,
+          // --ald-text/--ald-surface and --ald-on-primary/--ald-primary resolve to these tokens; the WCAG AA gates are unchanged.
+          textContrast: contrast(color('--a1-text-primary'),color('--a1-surface-solid')),
+          primaryContrast: contrast(color('--a1-surface-page'),color('--a1-accent-link')),
         };
       })(),
     };
@@ -227,7 +226,7 @@ async function headerGeometry(page, persona, mode, width) {
     tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
   if (mode !== 'auto') check(state.docTheme === mode, 'THEME_RESOLVED', tag + ': ' + state.docTheme);
-  // Kobalt G0 (23.11.2026): the legacy --ald-* / --lg5-* palette is an alias layer over the --a1-* tokens (ald1n-admin.css).
+  // Kobalt G0 (23.11.2026) / G7 PR B: this reads the --a1-* tokens directly; the --ald-* / --lg5-* alias layer is no longer needed here.
   const dark = state.docTheme === 'dark';
   const bg = dark ? '#0D1216' : '#EDF0F4';
   check(state.themeBackground.toUpperCase() === bg, 'R5_THEME_BACKGROUND',
@@ -406,7 +405,7 @@ async function archiveSmoke(page, mode, width) {
 async function editorSmoke(page, mode, width, screen) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await navigate(page, fixture.paths[screen], 'EDITOR_' + screen.toUpperCase());
-  const form = page.locator('form.liquid-glass-product-editor-form');
+  const form = page.locator('form[data-product-editor-form]');
   check(await form.count() === 1, 'EDITOR_FORM_EXISTS', mode+'/'+width+'/'+screen);
   if (await form.count() === 0) return;
   const bar = form.locator('[data-product-editor-action-bar]');
@@ -423,11 +422,11 @@ async function editorSmoke(page, mode, width, screen) {
   check(b && b.x >= -1 && b.x+b.width <= width + 1, 'EDITOR_BAR_FITS_VIEWPORT', mode+'/'+width+'/'+screen+': '+JSON.stringify(b));
   check(p && p.x>=-1 && p.x+p.width<=width+1 && p.height>=40, 'EDITOR_PRIMARY_FITS', mode+'/'+width+'/'+screen);
   if (screen==='product_edit') {
-    const sale = bar.locator('a.product-editor-action-direct');
+    const sale = bar.locator('a[data-product-direct-sale]');
     check(await sale.count() === 1 && (await sale.getAttribute('href')).includes('#direct-sale-title'),
       'EDITOR_DIRECT_SALE_REMAINS_LINK', mode+'/'+width);
   } else {
-    check(await bar.locator('.product-editor-action-direct').count() === 0, 'EDITOR_CREATE_NO_DIRECT_SALE', mode+'/'+width);
+    check(await bar.locator('[data-product-direct-sale]').count() === 0, 'EDITOR_CREATE_NO_DIRECT_SALE', mode+'/'+width);
   }
   if (mode !== 'auto' && (width===1440 || width===320)) await snapshot(page, mode+'-'+width+'-'+screen+'-sticky-actions');
 }

@@ -1,53 +1,58 @@
 @extends('layouts.app')
 @section('title','Specifikacije: '.$item->name)
 @section('content')
+@include('admin.products.partials.styles')
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Pravila i šifarnici'])
-<div class="page-heading dictionary-page-heading">
-    <div>
-        <span class="eyebrow">Tip proizvoda</span>
-        <h1>Podešavanje tipa: {{ $item->name }}</h1>
+<div class="a1-ops">
+<header class="a1-pagehead">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Tip proizvoda</span>
+        <h1 class="a1-title">Podešavanje tipa: {{ $item->name }}</h1>
 {{-- legacy-v2.1.3-smoke: <h1>Specifikacije: {{ $item->name }}</h1> --}}
-        <p>Na jednom mestu odredi koja polja pripadaju ovom tipu, šta je obavezno i kojim redosledom se prikazuju. Napredne veze između opcija uređuju se odvojeno u Biblioteci specifikacija.</p>
+        <p class="a1-lead">Na jednom mestu odredi koja polja pripadaju ovom tipu, šta je obavezno i kojim redosledom se prikazuju. Napredne veze između opcija uređuju se odvojeno u Biblioteci specifikacija.</p>
     </div>
-    <div class="page-heading-actions">
-        <a class="button button-ghost" href="{{ route('admin.dictionary.index','product-types') }}"><x-icon name="chevron-left" size="17" /> Svi tipovi</a>
-        <button class="button button-ghost" type="button" data-sort-edit-start><x-icon name="grip" size="17" /> Uredi raspored</button>
+    <div class="a1-pagehead__actions">
+        <a class="a1-btn" href="{{ route('admin.dictionary.index','product-types') }}"><x-icon name="chevron-left" size="17" /> Svi tipovi</a>
+        <button class="a1-btn" type="button" data-sort-edit-start><x-icon name="grip" size="17" /> Uredi raspored</button>
     </div>
-</div>
+</header>
 
-<nav class="subnav">@foreach($definitions as $key=>$def)<a class="{{ $key==='product-types'?'active':'' }}" href="{{ route('admin.dictionary.index',$key) }}">{{ $def['label'] }}</a>@endforeach</nav>
+<nav aria-label="Šifarnici"><ul class="a1-tabs">@foreach($definitions as $key=>$def)<li><a class="a1-tabs__link" href="{{ route('admin.dictionary.index',$key) }}" @if($key==='product-types') aria-current="page" @endif>{{ $def['label'] }}</a></li>@endforeach</ul></nav>
 
-<section class="panel product-type-overview">
-    <div><span class="status-badge status-{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><strong>{{ $item->products_count }} artikala koristi ovaj tip</strong></div>
-    <div><span>Automatska kategorija</span><strong>{{ $item->category?->name ?? 'Nije povezana' }}</strong></div>
-    <div><span>Aktivne specifikacije</span><strong>{{ $item->fields->count() }}</strong></div>
+<section class="a1-card" aria-label="Pregled tipa">
+    <div class="a1-pc-facts">
+        <div><span class="{{ $item->status === 'active' ? 'a1-pill a1-pill--ok' : 'a1-pill a1-pill--off' }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><strong>{{ $item->products_count }} artikala koristi ovaj tip</strong></div>
+        <div><span>Automatska kategorija</span><strong>{{ $item->category?->name ?? 'Nije povezana' }}</strong></div>
+        <div><span>Aktivne specifikacije</span><strong>{{ $item->fields->count() }}</strong></div>
+    </div>
 </section>
 
 
 {{-- product-type-workspace-batch2 --}}
-<section class="panel product-type-workspace-shell" data-product-type-workspace>
-    <div class="product-type-workspace-heading">
-        <div>
-            <span class="eyebrow">Radni prostor tipa</span>
-            <h2>Od tipa proizvoda do forme artikla</h2>
-            <p class="muted">Radi redom: proveri osnovna pravila, izaberi polja, po potrebi otvori napredne veze i na kraju proveri pregled forme.</p>
+<section class="a1-card" data-product-type-workspace aria-labelledby="pt-work">
+    <div class="a1-pc-fieldhead">
+        <div class="a1-card__title">
+            <span class="a1-eyebrow">Radni prostor tipa</span>
+            <h2 class="a1-h2" id="pt-work">Od tipa proizvoda do forme artikla</h2>
+            <p class="a1-text">Radi redom: proveri osnovna pravila, izaberi polja, po potrebi otvori napredne veze i na kraju proveri pregled forme.</p>
         </div>
-        <a class="button button-ghost button-small" href="{{ route('admin.dictionary.index','specification-fields') }}">
+        <a class="a1-btn a1-btn--sm" href="{{ route('admin.dictionary.index','specification-fields') }}">
             <x-icon name="sliders" size="16" /> Biblioteka specifikacija
         </a>
     </div>
 
-    <nav class="product-type-workflow" aria-label="Koraci podešavanja tipa">
-        <a href="#product-type-basic"><span>1</span><strong>Osnovno</strong><small>naziv, kategorija i pravila</small></a>
-        <a href="#product-type-fields"><span>2</span><strong>Polja tipa</strong><small>uključi, zahtevaj i rasporedi</small></a>
-        <a href="{{ route('admin.dictionary.index','specification-fields') }}"><span>3</span><strong>Napredna pravila</strong><small>opcije i zavisnosti</small></a>
-        <a href="#product-type-preview"><span>4</span><strong>Pregled forme</strong><small>šta će korisnik popunjavati</small></a>
+    <nav class="a1-pc-flow" aria-label="Koraci podešavanja tipa">
+        <a href="#product-type-basic"><span class="a1-pc-flow__idx">1</span><strong>Osnovno</strong><small>naziv, kategorija i pravila</small></a>
+        <a href="#product-type-fields"><span class="a1-pc-flow__idx">2</span><strong>Polja tipa</strong><small>uključi, zahtevaj i rasporedi</small></a>
+        <a href="{{ route('admin.dictionary.index','specification-fields') }}"><span class="a1-pc-flow__idx">3</span><strong>Napredna pravila</strong><small>opcije i zavisnosti</small></a>
+        <a href="#product-type-preview"><span class="a1-pc-flow__idx">4</span><strong>Pregled forme</strong><small>šta će korisnik popunjavati</small></a>
     </nav>
 
-    <div class="product-type-workspace-tools" id="product-type-fields">
-        <label class="product-type-field-search">
-            <span>Pronađi polje</span>
+    <div class="a1-pc-tools" id="product-type-fields">
+        <label class="a1-field">
+            <span class="a1-label">Pronađi polje</span>
             <input
+                class="a1-input"
                 type="search"
                 data-product-type-field-search
                 placeholder="Npr. procesor, RAM, boja..."
@@ -56,18 +61,18 @@
             >
         </label>
 
-        <div class="product-type-filter-group" role="group" aria-label="Prikaži polja">
-            <button class="button button-small is-active" type="button" data-product-type-field-filter="all" aria-pressed="true">Sva</button>
-            <button class="button button-small button-ghost" type="button" data-product-type-field-filter="enabled" aria-pressed="false">Uključena</button>
-            <button class="button button-small button-ghost" type="button" data-product-type-field-filter="disabled" aria-pressed="false">Isključena</button>
+        <div class="a1-pc-seg" role="group" aria-label="Prikaži polja">
+            <button class="a1-btn a1-btn--sm is-active" type="button" data-product-type-field-filter="all" aria-pressed="true">Sva</button>
+            <button class="a1-btn a1-btn--sm" type="button" data-product-type-field-filter="enabled" aria-pressed="false">Uključena</button>
+            <button class="a1-btn a1-btn--sm" type="button" data-product-type-field-filter="disabled" aria-pressed="false">Isključena</button>
         </div>
 
-        <button class="button button-small button-ghost" type="button" data-product-type-advanced-toggle aria-pressed="false">
+        <button class="a1-btn a1-btn--sm" type="button" data-product-type-advanced-toggle aria-pressed="false">
             Prikaži napredna podešavanja
         </button>
     </div>
 
-    <div class="product-type-workspace-status" id="product-type-field-status" aria-live="polite">
+    <div class="a1-pc-status" id="product-type-field-status" aria-live="polite">
         <strong data-product-type-enabled-count>0</strong>
         <span>uključenih polja</span>
         <span aria-hidden="true">·</span>
@@ -75,27 +80,33 @@
         <span>trenutno prikazano</span>
     </div>
 
-    <section class="product-type-form-preview" id="product-type-preview" aria-labelledby="product-type-preview-title">
-        <div class="product-type-preview-head">
+    <section class="a1-stack" id="product-type-preview" aria-labelledby="product-type-preview-title">
+        <div class="a1-pc-fieldhead">
             <div>
-                <span class="eyebrow">Pregled forme</span>
-                <h3 id="product-type-preview-title">Kako će izgledati specifikacije artikla</h3>
+                <span class="a1-eyebrow">Pregled forme</span>
+                <h3 class="a1-h3" id="product-type-preview-title">Kako će izgledati specifikacije artikla</h3>
             </div>
-            <span class="status-badge status-active" data-product-type-preview-count>0 polja</span>
+            <span class="a1-pill a1-pill--ok" data-product-type-preview-count>0 polja</span>
         </div>
-        <div class="product-type-preview-grid" data-product-type-preview-list></div>
-        <p class="muted product-type-preview-empty" data-product-type-preview-empty hidden>Uključi bar jedno specifikaciono polje da bi se prikazao pregled.</p>
+        <div class="a1-pc-preview" data-product-type-preview-list></div>
+        <p class="a1-muted" data-product-type-preview-empty hidden>Uključi bar jedno specifikaciono polje da bi se prikazao pregled.</p>
     </section>
 </section>
-<form class="panel form-section product-type-settings-form" id="product-type-basic" method="post" action="{{ route('admin.dictionary.update',['product-types',$item->id]) }}">
+<form class="a1-form" data-product-type-settings-form id="product-type-basic" method="post" action="{{ route('admin.dictionary.update',['product-types',$item->id]) }}">
     @csrf @method('PUT')
+    <section class="a1-card" aria-label="Podešavanja tipa">
     @include('admin.dictionary.fields',['resource'=>'product-types','item'=>$item,'productTypeCompact'=>false])
-    <div class="sticky-save-bar product-type-save-bar"><div><strong>Sačuvaj podešavanja tipa</strong><span class="muted">Promene polja mogu pokrenuti ponovni obračun kompletnosti artikala.</span></div><button class="button button-primary"><x-icon name="check-circle" size="17" /> Sačuvaj sve izmene</button></div>
+    </section>
+    <div class="a1-actionbar">
+        <p class="a1-actionbar__status"><strong>Sačuvaj podešavanja tipa.</strong> Promene polja mogu pokrenuti ponovni obračun kompletnosti artikala.</p>
+        <div class="a1-actionbar__buttons"><button class="a1-btn a1-btn--primary"><x-icon name="check-circle" size="17" /> Sačuvaj sve izmene</button></div>
+    </div>
 </form>
 
-<div class="dictionary-sort-finish" data-sort-finish-bar hidden>
-    <span data-sort-status>Prevuci kartice specifikacija u željeni redosled.</span>
-    <button class="button button-primary" type="button" data-sort-edit-finish><x-icon name="check-circle" size="17" /> Završi uređivanje</button>
+<div class="a1-actionbar" data-sort-finish-bar hidden>
+    <p class="a1-actionbar__status" data-sort-status>Prevuci kartice specifikacija u željeni redosled.</p>
+    <div class="a1-actionbar__buttons"><button class="a1-btn a1-btn--primary" type="button" data-sort-edit-finish><x-icon name="check-circle" size="17" /> Završi uređivanje</button></div>
+</div>
 </div>
 
 
@@ -104,7 +115,7 @@
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
 (() => {
     const workspace = document.querySelector('[data-product-type-workspace]');
-    const form = document.querySelector('.product-type-settings-form');
+    const form = document.querySelector('[data-product-type-settings-form]');
     if (!workspace || !form) return;
 
     const search = workspace.querySelector('[data-product-type-field-search]');
@@ -115,14 +126,14 @@
     const previewList = workspace.querySelector('[data-product-type-preview-list]');
     const previewCount = workspace.querySelector('[data-product-type-preview-count]');
     const previewEmpty = workspace.querySelector('[data-product-type-preview-empty]');
-    const fieldContainer = form.querySelector('.template-field-table');
+    const fieldContainer = form.querySelector('[data-template-field-table]');
 
     if (!fieldContainer) return;
 
     let activeFilter = 'all';
     let advanced = false;
 
-    const rows = () => Array.from(fieldContainer.querySelectorAll('.template-field-row'));
+    const rows = () => Array.from(fieldContainer.querySelectorAll('[data-template-field-row]'));
 
     const enabledInput = (row) =>
         Array.from(row.querySelectorAll('input[type="checkbox"]'))
@@ -273,7 +284,6 @@
                 const active = candidate === button;
                 candidate.setAttribute('aria-pressed', active ? 'true' : 'false');
                 candidate.classList.toggle('is-active', active);
-                candidate.classList.toggle('button-ghost', !active);
             });
 
             applyFilter();
@@ -303,7 +313,6 @@
                 const active = candidate.dataset.productTypeFieldFilter === 'all';
                 candidate.setAttribute('aria-pressed', active ? 'true' : 'false');
                 candidate.classList.toggle('is-active', active);
-                candidate.classList.toggle('button-ghost', !active);
             });
             applyFilter();
         });

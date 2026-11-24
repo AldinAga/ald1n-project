@@ -43,7 +43,9 @@ const playwright = require(path.resolve(nodeRoot, 'node_modules/playwright'));
 const axeSource = fs.readFileSync(path.resolve(nodeRoot, 'node_modules/axe-core/axe.min.js'), 'utf8');
 
 const inPageContrast = require('./lib-inpage-contrast.cjs');
-const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '375,430,768,1280').split(',').map(Number);
+const inPageWords = require('./lib-inpage-words.cjs');
+// Default matrix for pages without their own width list: 360 (smallest phone) and 1920 (wide desktop) join the old four, so the word gate sees the extremes.
+const WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS || '360,375,430,768,1280,1920').split(',').map(Number);
 // Shell pages: 360 (smallest phone), 768 (sheet menu), 1200 (first desktop width) and 1280 are added to the matrix.
 const SHELL_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 375, 430, 768, 1200, 1280]);
 const SHELL_EXTRA_WIDTHS = (process.env.ADMIN_VISUAL_WIDTHS ? WIDTHS : [360, 768, 1280]);
@@ -318,6 +320,8 @@ const PAGES = [
   { module: 'products', key: 'products-form', path: (i) => `/admin/catalog/${i.product}/edit` },
   { module: 'products', key: 'inventory', path: '/admin/inventory' },
   { module: 'products', key: 'dictionary', path: '/admin/catalog-settings/categories' },
+  // Brands: status badge "Aktivan" and the type badges in the table (owner report 2026-11-24: the word broke into letters). Seeded in seed-admin-visual-qa.php.
+  { module: 'products', key: 'brands-index', path: '/admin/catalog-settings/brands' },
   { module: 'warranties', key: 'warranties-index', path: '/admin/warranties' },
   { module: 'warranties', key: 'warranties-show', path: (i) => `/admin/warranties/${i.warranty}` },
   { module: 'customers', key: 'users-index', path: '/admin/users' },
@@ -1001,6 +1005,17 @@ async function runCell(ctx, pg, width, theme) {
         selectors: overflow.offenders });
     }
     for (const v of await runAxe(page, pg.module === 'shell', pg.module === 'orders' ? ORDERS_AXE_RULES : AXE_RULES)) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, ...v });
+    // Word-integrity gate (all modules, all cells; the report fails on these in every module regardless of strict mode).
+    for (const v of await page.evaluate(inPageWords)) {
+      findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: v.rule, count: 1,
+        detail: `${target} :: ${v.s} :: "${v.t}" (${v.w}px)`, selectors: [`${v.s} "${v.t}"`] });
+    }
+    // The brands page must really render the "Aktivan" status pill (owner report); an empty page must never pass the gate.
+    if (pg.key === 'brands-index') {
+      const n = await page.evaluate(() => [...document.querySelectorAll('.a1-pill')].filter((e) => e.textContent.trim() === 'Aktivan').length);
+      if (n < 1) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'word-gate-control-missing', count: 1,
+        detail: `${target} :: .a1-pill :: "Aktivan" missing (brand seed or markup changed)`, selectors: ['.a1-pill "Aktivan" missing'] });
+    }
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
     if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
     if (pg.module === 'orders') findings.push(...await ordersChecks(page, pg, width, theme));
@@ -1032,6 +1047,21 @@ async function runCell(ctx, pg, width, theme) {
       await page.evaluate(() => document.getElementById('vqa-selftest').remove());
       selfTests.push({ overflowDetector: probe.offenders.length > 0, probe });
       if (!probe.offenders.length) fail('SELFTEST', 'overflow detector did not see a 3000px element: ' + JSON.stringify(probe));
+      // Positive control of the word gate: "Aktivan" in a 20px box must be caught both as a broken word and as short text that overflows.
+      await page.evaluate(() => {
+        const a = document.createElement('span');
+        a.id = 'vqa-word-a'; a.style.cssText = 'display:inline-block;width:20px;overflow-wrap:anywhere;word-break:break-all;white-space:normal;font:16px/1.4 sans-serif';
+        a.textContent = 'Aktivan';
+        const b = document.createElement('span');
+        b.id = 'vqa-word-b'; b.className = 'a1-pill'; b.style.cssText = 'display:inline-block;width:20px;overflow:visible;white-space:nowrap';
+        b.textContent = 'Aktivan';
+        document.body.append(a, b);
+      });
+      const wordProbe = await page.evaluate(inPageWords);
+      await page.evaluate(() => { document.getElementById('vqa-word-a')?.remove(); document.getElementById('vqa-word-b')?.remove(); });
+      const wordOk = wordProbe.some((v) => v.rule === 'word-broken' && v.t === 'Aktivan') && wordProbe.some((v) => v.rule === 'short-text-overflow' && v.t === 'Aktivan');
+      selfTests.push({ wordDetector: wordOk, probe: wordProbe.slice(0, 6) });
+      if (!wordOk) fail('SELFTEST', 'word gate did not catch "Aktivan" in a 20px box: ' + JSON.stringify(wordProbe.slice(0, 6)));
     }
   } catch (e) {
     cell.status = 'infra-failure';

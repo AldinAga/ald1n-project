@@ -122,4 +122,23 @@ final class CatalogCobaltContractTest extends TestCase
         self::assertStringContainsString('prefers-reduced-motion', $css);
         self::assertStringContainsString('forced-colors', $css);
     }
+
+    /** G7 PR B: replaces bin/catalog-grid-responsive-smoke.php, which asserted the old 4-3-2-1 grid in ald1n-ui-v2.css. */
+    public function test_catalog_grid_is_auto_fill_260_and_one_column_on_phones(): void
+    {
+        $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
+
+        self::assertStringContainsString('.a1-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))', $css);
+        self::assertMatchesRegularExpression('/@media \(max-width:520px\)\{[^@]*\.a1-cat-grid\{grid-template-columns:minmax\(0,1fr\)\}/', $css);
+        self::assertStringContainsString('.a1-cat-grid>.a1-empty{grid-column:1/-1}', $css);
+    }
+
+    public function test_lightbox_is_fullscreen_on_phones_and_never_taller_than_the_viewport(): void
+    {
+        $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
+
+        self::assertStringContainsString('.a1-cat-lb{position:fixed;inset:0;', $css);
+        self::assertStringContainsString('height:min(940px,calc(100dvh - 32px))', $css);
+        self::assertMatchesRegularExpression('/@media \(max-width:820px\)\{[^@]*\.a1-cat-lb__dialog\{width:100%;height:100dvh;border:0;border-radius:0\}/', $css);
+    }
 }
