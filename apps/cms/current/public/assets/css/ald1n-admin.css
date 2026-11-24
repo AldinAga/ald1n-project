@@ -1829,38 +1829,38 @@ button.a1-drawer-rate{cursor:pointer}
    Gate: tests/Browser/admin-visual-qa.cjs (word-broken / short-text-clipped, all modules, all cells). */
 body{overflow-wrap:break-word;word-break:normal}
 .a1-pill,.a1-badge,.a1-chip,.a1-count,.a1-item__count,.a1-ol-count,.a1-ol-tile__count,.a1-ol-danger-tag,.a1-cmd__badge,.a1-results__count,
-.a1-g5-user__badges>*,.status-badge,.status-tag,.count-pill,.priority-badge,.direct-sale-badge,.direct-sale-deferred-badge,
-.access-control-badge,.access-control-user-badges>*,.version-badge,.rate-badge,.image-primary-badge,.product-spec-priority-badge,
-.catalog-filter-chip,.catalog-filter-count,.dashboard-d1-period-chip,.dashboard-priority-count,.data-quality-issue-count,
-.nav-count,.notification-count,.header-cart-count,.ald-inbox-ux-unread-count,
-.after-sales-status-open,.after-sales-status-under_review,.after-sales-status-awaiting_customer,.after-sales-status-approved,.after-sales-status-in_service,.after-sales-status-resolved,.after-sales-status-rejected,.after-sales-status-closed,
-.commission-status-pending,.commission-status-approved,.commission-status-paid,.commission-status-cancelled,
-.field-status-planned,.field-status-en_route,.field-status-on_site,.field-status-completed,.field-status-cancelled,
-.installment-status-pending,.installment-status-paid,.installment-status-overdue,
-.receivable-status-closed,.receivable-status-contacted,.receivable-status-disputed,.receivable-status-escalated,.receivable-status-installment_plan,.receivable-status-monitoring,.receivable-status-promised,
-.action-status-cancelled,.action-status-completed,.action-status-in_progress,.action-badge-cancelled,.action-badge-completed,.action-badge-in_progress,.action-badge-planned,
-.payment-record-submitted,.payment-record-verified,.payment-record-rejected,.payment-record-voided,.payment-state-paid,.payment-state-overpaid,.payment-state-cancelled,.payment-state-partial,.payment-state-unpaid,.payment-state-refunded{white-space:nowrap;overflow-wrap:normal;word-break:normal;hyphens:none;flex-shrink:0}
+.a1-g5-user__badges>*,[class~="status-badge"],[class~="status-tag"],[class~="count-pill"],[class~="priority-badge"],[class~="direct-sale-badge"],[class~="direct-sale-deferred-badge"],
+[class~="access-control-badge"],[class~="access-control-user-badges"]>*,[class~="version-badge"],[class~="rate-badge"],[class~="image-primary-badge"],[class~="product-spec-priority-badge"],
+[class~="catalog-filter-chip"],[class~="catalog-filter-count"],[class~="dashboard-d1-period-chip"],[class~="dashboard-priority-count"],[class~="data-quality-issue-count"],
+[class~="nav-count"],[class~="notification-count"],[class~="header-cart-count"],[class~="ald-inbox-ux-unread-count"],
+[class~="after-sales-status-open"],[class~="after-sales-status-under_review"],[class~="after-sales-status-awaiting_customer"],[class~="after-sales-status-approved"],[class~="after-sales-status-in_service"],[class~="after-sales-status-resolved"],[class~="after-sales-status-rejected"],[class~="after-sales-status-closed"],
+[class~="commission-status-pending"],[class~="commission-status-approved"],[class~="commission-status-paid"],[class~="commission-status-cancelled"],
+[class~="field-status-planned"],[class~="field-status-en_route"],[class~="field-status-on_site"],[class~="field-status-completed"],[class~="field-status-cancelled"],
+[class~="installment-status-pending"],[class~="installment-status-paid"],[class~="installment-status-overdue"],
+[class~="receivable-status-closed"],[class~="receivable-status-contacted"],[class~="receivable-status-disputed"],[class~="receivable-status-escalated"],[class~="receivable-status-installment_plan"],[class~="receivable-status-monitoring"],[class~="receivable-status-promised"],
+[class~="action-status-cancelled"],[class~="action-status-completed"],[class~="action-status-in_progress"],[class~="action-badge-cancelled"],[class~="action-badge-completed"],[class~="action-badge-in_progress"],[class~="action-badge-planned"],
+[class~="payment-record-submitted"],[class~="payment-record-verified"],[class~="payment-record-rejected"],[class~="payment-record-voided"],[class~="payment-state-paid"],[class~="payment-state-overpaid"],[class~="payment-state-cancelled"],[class~="payment-state-partial"],[class~="payment-state-unpaid"],[class~="payment-state-refunded"]{white-space:nowrap;overflow-wrap:normal;word-break:normal;hyphens:none;flex-shrink:0}
 /* A pill that holds a whole sentence wraps at the spaces and stays inside its card. */
 .a1-pill.a1-pill--wrap{white-space:normal;max-width:100%;width:auto}
 /* Buttons, tabs, table heads and nav labels: no mid-word break; a label of several words may still wrap at the spaces. */
-.a1-btn,.button,.icon-button,.theme-mode-button,.access-control-mini-button,.a1-searchbtn,.logout-button,.delivery-complete-button,.notification-card-button,
-.a1-tabs__link,.access-control-tab,.inventory-operation-tabs>*,.a1-nav-dd__item,.a1-menu-btn__text,.a1-table th,.admin-table th,.table-wrap th,.flat-table th,
+.a1-btn,[class~="button"],[class~="icon-button"],[class~="theme-mode-button"],[class~="access-control-mini-button"],.a1-searchbtn,[class~="logout-button"],[class~="delivery-complete-button"],[class~="notification-card-button"],
+.a1-tabs__link,[class~="access-control-tab"],[class~="inventory-operation-tabs"]>*,.a1-nav-dd__item,.a1-menu-btn__text,.a1-table th,[class~="admin-table"] th,[class~="table-wrap"] th,[class~="flat-table"] th,
 button,input[type=submit],input[type=button],input[type=reset],summary{overflow-wrap:normal;word-break:normal;hyphens:none}
-.a1-tabs__link,.access-control-tab,.inventory-operation-tabs>*,.a1-table th,.admin-table th,.table-wrap th,.flat-table th{white-space:nowrap;flex-shrink:0}
+.a1-tabs__link,[class~="access-control-tab"],[class~="inventory-operation-tabs"]>*,.a1-table th,[class~="admin-table"] th,[class~="table-wrap"] th,[class~="flat-table"] th{white-space:nowrap;flex-shrink:0}
 /* Row actions in tables stay on one line per button; the cell grows instead of squeezing the button to a letter. */
-.a1-table td .a1-btn,.admin-table td .button,.table-wrap td .button,.row-actions .button,.a1-table__actions .a1-btn{white-space:nowrap;flex-shrink:0}
+.a1-table td .a1-btn,[class~="admin-table"] td [class~="button"],[class~="table-wrap"] td [class~="button"],[class~="row-actions"] [class~="button"],.a1-table__actions .a1-btn{white-space:nowrap;flex-shrink:0}
 /* Tab bars scroll sideways instead of cutting the last tab; a long tab list never wraps its labels. */
-.access-control-tabs,.inventory-operation-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+[class~="access-control-tabs"],[class~="inventory-operation-tabs"]{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
 /* ald1n-ui-v2.css is a frozen generated asset (CI refuses edits), so its overflow-wrap:anywhere rules on table cells and short values are overridden here. */
-.admin-table th,.admin-table td,.ald-ops-index .operational-orders-table tbody td,.unified-product-card .product-footer .price,.unified-product-card .product-meta>*,.order-workspace-snapshot strong,.order-workspace-snapshot small,.order-buyer-detail-list dd,.ux-product-workspace-meta strong,.ux-product-review-grid strong,.access-control-user-meta strong,.product-type-preview-field strong{overflow-wrap:break-word}
+[class~="admin-table"] th,[class~="admin-table"] td,[class~="ald-ops-index"] [class~="operational-orders-table"] tbody td,[class~="unified-product-card"] [class~="product-footer"] [class~="price"],[class~="unified-product-card"] [class~="product-meta"]>*,[class~="order-workspace-snapshot"] strong,[class~="order-workspace-snapshot"] small,[class~="order-buyer-detail-list"] dd,[class~="ux-product-workspace-meta"] strong,[class~="ux-product-review-grid"] strong,[class~="access-control-user-meta"] strong,[class~="product-type-preview-field"] strong{overflow-wrap:break-word}
 /* Findings of the first gate run (PR 235): a number with its sign, a task tile and the stale rate chip never break or clip. */
-.completeness-heading strong{white-space:nowrap;flex-shrink:0}
-.ux-product-task-map{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
-.ux-product-task-map>button{grid-template-columns:34px minmax(min-content,1fr) auto}
-.a1-header .a1-header__end>.a1-rate.is-stale{max-width:12rem}
+[class~="completeness-heading"] strong{white-space:nowrap;flex-shrink:0}
+[class~="ux-product-task-map"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+[class~="ux-product-task-map"]>button{grid-template-columns:34px minmax(min-content,1fr) auto}
+.a1-header .a1-header__end>.a1-rate[class~="is-stale"]{max-width:12rem}
 .a1-header .a1-header__end>.a1-rate>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Wide tables: columns never get narrower than their longest word (min-content), the wrapper scrolls sideways
    (keyboard reachable) instead of clipping the overflow, which is what cut off the last column. */
 @media (min-width:901px){
-  .admin-table-wrap,.table-wrap,.commission-table-wrap,.build16-orders-table-wrap{overflow-x:auto;overflow-y:visible}
+  [class~="admin-table-wrap"],[class~="table-wrap"],[class~="commission-table-wrap"],[class~="build16-orders-table-wrap"]{overflow-x:auto;overflow-y:visible}
 }
