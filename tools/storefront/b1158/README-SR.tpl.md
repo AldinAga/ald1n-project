@@ -72,13 +72,13 @@ Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija s
 1. Između fajlova i migracije novi kod radi nad starom šemom. Generator ne može da dokaže koje staze to podnose; CI pokreće stranice oba korisnika u svakoj tački. Pokrenite instalaciju u satu sa malo saobraćaja.
 2. Alat nikad ne prijavljuje korisnika, pa strane iza prijave proverava vlasnik (kontrolna tabla, lista porudžbina i jedna porudžbina, forma uplate, potraživanja, forma proizvoda).
 3. Aplikacija čuva samo 2 najnovije provjerene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izvještaju, `DB_BACKUP`) sačuvajte van servera prije sljedeće noćne.
-4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave. Akcije „Preuzmi porudžbinu“ i „Ažuriraj tracking“ daju grešku od instalacije prvog kontrolera u grupi C do `route:clear` u grupi E (procjena 3 do 6 minuta, nije mjereno). Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta (npr. `row-action.blade.php`).
+4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave. Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta (npr. `row-action.blade.php`).
 5. Redoslijed grupa je izveden pravilom (nove datoteke, biblioteke, kontroleri, provider, rute, prikazi; unutar grupe pozvani prije pozivaoca). Pravilo ne vidi da li stari prikaz pada na novu promjenljivu kontrolera; CI to hvata tek kad stranica ima podatke.
 6. Cloudflare se ne dira i nije potrebno čišćenje keša.
 
 ## Šta se mijenja za korisnike
 
-Obični Administratori gube `backups.manage` i `automation.manage` (samo SuperAdministrator ih ima, od grupe B). Nove cron komande `app:product-import-cleanup` (03:40) i `app:account-deletions-process` (04:20) rade samo ako cron poziva `schedule:run`.
+Nove komponente administracije (CSS i prikazi), jedna migracija podataka (`catalog.view_notes`, bez promjene šeme) i izmjena `CoreAccessSeeder.php` koji se ne pokreće. `composer.lock` je izuzet: `vendor/web-auth/webauthn-lib` na hostu ostaje 5.3.9 dok se posebno ne ažurira. Obrisani fajlovi iz main-a ostaju na serveru.
 
 ## Šta NIJE provjeravano ovim alatom
 

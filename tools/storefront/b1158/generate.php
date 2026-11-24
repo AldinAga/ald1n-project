@@ -37,7 +37,7 @@ foreach($diff as $p=>$k){
     // composer.lock is NOT installed (the vendor tree stays as it is on the host): excluded and reported, never shipped. Any other composer, config or .env change stops the build.
     if($p==='composer.lock'){$excludedFiles[$p]=[hash('sha256',$blob($base,$p)),hash('sha256',$blob($src,$p))];fwrite(STDERR,'WARNING composer.lock differs between the base and the target: it is EXCLUDED from the payload, the vendor tree on the host is NOT updated; check that the code does not need the newer vendor versions'.PHP_EOL);continue;}
     if(preg_match('~^(config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('GENERATE_FORBIDDEN_PATH_'.$p);
-    if(str_starts_with($p,'database/')&&!preg_match('~^database/migrations/\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_DATABASE_PATH_'.$p);
+    if(str_starts_with($p,'database/')&&!preg_match('~^database/migrations/\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$~D',$p)&&!($k==='M'&&preg_match('~^database/seeders/[A-Za-z0-9_/]+\.php$~D',$p)))throw new RuntimeException('GENERATE_FORBIDDEN_DATABASE_PATH_'.$p);
     if(str_starts_with($p,'routes/')&&!in_array($p,['routes/web.php','routes/api.php','routes/console.php'],true))throw new RuntimeException('GENERATE_FORBIDDEN_ROUTES_PATH_'.$p);
     if(str_starts_with($p,'bin/')&&!preg_match('~^bin/[A-Za-z0-9._-]+\.php$~D',$p))throw new RuntimeException('GENERATE_FORBIDDEN_BIN_PATH_'.$p);
     if($k==='D'){$orph[$p]=hash('sha256',$blob($base,$p));continue;}

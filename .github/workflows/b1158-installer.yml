@@ -217,7 +217,8 @@ jobs:
           git merge-base --is-ancestor "$B1149_SOURCE" "$B1150_SOURCE"
           # No config, composer.json or .env change (the tests included); composer.lock may differ (generate.php excludes it from the payload and records it in EXCLUDED_FILES). Under database/ only the new migration files of Payload.php, under routes/ only web.php and api.php.
           test -z "$(git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/config apps/cms/current/composer.json apps/cms/current/.env apps/cms/current/.env.example)"
-          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/database | sort > "$RUNNER_TEMP/database-diff.txt"
+          test -z "$(git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/database | grep -vE 'apps/cms/current/database/(migrations|seeders)/' || true)"
+          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/database/migrations | sort > "$RUNNER_TEMP/database-diff.txt"
           php -r 'require "tools/storefront/b1158/Payload.php";$l=[];foreach(B1158Payload::NEW_MIGRATIONS as $m)$l[]="A\tapps/cms/current/database/migrations/".$m.".php";sort($l);if($l!==[])echo implode("\n",$l),"\n";' | cmp - "$RUNNER_TEMP/database-diff.txt"
           git diff --name-only "$B1158_BASE" "$B1158_SRC" -- apps/cms/current/routes | sort > "$RUNNER_TEMP/routes-diff.txt"
           if test -s "$RUNNER_TEMP/routes-diff.txt"; then grep -vxE 'apps/cms/current/routes/(api|web|console)\.php' "$RUNNER_TEMP/routes-diff.txt" && exit 2 || true; fi

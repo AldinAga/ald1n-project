@@ -1,18 +1,18 @@
-# B1158: 41 fajlova (4 novih, 37 izmijenjenih), migracije: nema
+# B1158: 114 fajlova (10 novih, 104 izmijenjenih), migracije: `2026_11_24_000001_add_catalog_view_notes_permission`
 
 Autor: Ald1n <https://ald1n.com>
 
 Ovaj README se generiše iz `README-SR.tpl.md` komandom `php tools/storefront/b1158/generate.php <SHA>`. Ne uređuje se ručno.
 
-Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 ruta, `origin/main` 2ed96694) na `origin/main` b24cf8a1 (`b24cf8a15317074546fde19e262e079a850dc741`).
+Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 ruta, `origin/main` 2ed96694) na `origin/main` 03410366 (`03410366666becb3a6f84a793b3a70fd59976473`).
 
 ## Šta se mijenja
 
-- 41 fajlova u `apps/cms/current`: 4 novih, 37 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A4 C1 F36.
-- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: `public/assets/css/ald1n-user-retirement-action.css`, `resources/views/admin/access-control/partials/workspace-style.blade.php` (broj: 2).
-- Stablo posle instalacije ima 8624 fajlova (8620 + 4 novih).
+- 114 fajlova u `apps/cms/current`: 10 novih, 104 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A10 B13 C25 D1 E1 F64.
+- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: `bin/catalog-grid-responsive-smoke.php`, `public/assets/css/ald1n-dashboard-d1.css`, `public/assets/css/ald1n-user-retirement-action.css`, `resources/views/admin/access-control/partials/workspace-style.blade.php` (broj: 4).
+- Stablo posle instalacije ima 8630 fajlova (8620 + 10 novih).
 - Rute: 597 postaje 597 (razlika 0). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
-- Migracije: nema. Izvršene posle migracije: 76 postaje 76.
+- Migracije: `2026_11_24_000001_add_catalog_view_notes_permission`. Izvršene posle migracije: 76 postaje 77.
 - Nema izmjena `composer`, `.env` ni `config`.
 
 ## Redoslijed
@@ -21,8 +21,8 @@ Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 r
 2. Kopija svakog izmijenjenog fajla u privatni prostor B1158.
 3. Fajlovi po grupama, sa pauzom i provjerom da sajt radi poslije svake: A novi fajlovi (neaktivni), B biblioteke, C kontroleri i bin alati, D `AppServiceProvider`, E rute, F prikazi.
 4. Tek kad je svaki fajl na mjestu: svježa rezervna kopija baze (`app:backup-create` pa `app:backup-verify`), ponovna provjera te kopije, tačno nove migracije na čekanju, pa jedan poziv `artisan migrate --force --realpath --path=…`. Nikad `fresh`, `refresh`, `rollback` ni `reset`, nikad `down()`, nikad brisanje tabele.
-5. Provjera poslije migracije: 76 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
-6. Prijem: kompajliranje svih 37 prikaza, stilovi, rute, ponovno stablo od 8624 fajlova.
+5. Provjera poslije migracije: 77 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
+6. Prijem: kompajliranje svih 67 prikaza, stilovi, rute, ponovno stablo od 8630 fajlova.
 
 Ako payload nema migracija (migracije: nema), koraci 4 i 5 se preskaču: nema rezervne kopije baze ni migracije, a vraćanje je običan povratak fajlova (`PASS_ROLLED_BACK_BY_OWNER`).
 
@@ -72,13 +72,13 @@ Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija s
 1. Između fajlova i migracije novi kod radi nad starom šemom. Generator ne može da dokaže koje staze to podnose; CI pokreće stranice oba korisnika u svakoj tački. Pokrenite instalaciju u satu sa malo saobraćaja.
 2. Alat nikad ne prijavljuje korisnika, pa strane iza prijave proverava vlasnik (kontrolna tabla, lista porudžbina i jedna porudžbina, forma uplate, potraživanja, forma proizvoda).
 3. Aplikacija čuva samo 2 najnovije provjerene rezervne kopije. Kopiju koju je napravio ovaj alat (ključ u izvještaju, `DB_BACKUP`) sačuvajte van servera prije sljedeće noćne.
-4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave. Akcije „Preuzmi porudžbinu“ i „Ažuriraj tracking“ daju grešku od instalacije prvog kontrolera u grupi C do `route:clear` u grupi E (procjena 3 do 6 minuta, nije mjereno). Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta (npr. `row-action.blade.php`).
+4. Kratke prolazne greške 500 do oko 2 minuta poslije svake grupe nisu isključene (`realpath_cache_ttl`); alat provjerava samo stranice bez prijave. Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta (npr. `row-action.blade.php`).
 5. Redoslijed grupa je izveden pravilom (nove datoteke, biblioteke, kontroleri, provider, rute, prikazi; unutar grupe pozvani prije pozivaoca). Pravilo ne vidi da li stari prikaz pada na novu promjenljivu kontrolera; CI to hvata tek kad stranica ima podatke.
 6. Cloudflare se ne dira i nije potrebno čišćenje keša.
 
 ## Šta se mijenja za korisnike
 
-Obični Administratori gube `backups.manage` i `automation.manage` (samo SuperAdministrator ih ima, od grupe B). Nove cron komande `app:product-import-cleanup` (03:40) i `app:account-deletions-process` (04:20) rade samo ako cron poziva `schedule:run`.
+Nove komponente administracije (CSS i prikazi), jedna migracija podataka (`catalog.view_notes`, bez promjene šeme) i izmjena `CoreAccessSeeder.php` koji se ne pokreće. `composer.lock` je izuzet: `vendor/web-auth/webauthn-lib` na hostu ostaje 5.3.9 dok se posebno ne ažurira. Obrisani fajlovi iz main-a ostaju na serveru.
 
 ## Šta NIJE provjeravano ovim alatom
 
