@@ -35,7 +35,7 @@ final class CatalogDetailPageTest extends TestCase
             ->assertSee('Dell Latitude 5440')
             ->assertSee('SKU: DETAIL-1')
             ->assertSee('data-build16-product-detail-redesign="1"', false)
-            ->assertSee('build16-product-detail-shell', false)
+            ->assertSee('a1-cat-shell', false)
             ->assertDontSee('Poruči artikal');
     }
 
@@ -139,7 +139,7 @@ final class CatalogDetailPageTest extends TestCase
             ->assertSee('data-gallery-open', false)
             ->assertSee('data-product-lightbox', false)
             ->assertSee('1 / 1')
-            ->assertDontSee('class="product-gallery-arrow product-gallery-arrow-next"', false);
+            ->assertDontSee('a1-cat-gal__arrow--next', false);
     }
 
     public function test_product_detail_is_product_only_after_variant_decommission(): void
