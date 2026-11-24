@@ -158,6 +158,38 @@ final class ProductAnnouncementMailImageTest extends TestCase
         self::assertStringNotContainsString('Samo za SubAgente', $html);
     }
 
+    public function test_admin_recipient_never_gets_notes(): void
+    {
+        $product = $this->product(['notes' => 'Samo za SubAgente']);
+        $this->outbox($this->user('admin'), $product);
+
+        $html = $this->dispatchAndCapture();
+
+        self::assertStringNotContainsString('Napomena', $html);
+        self::assertStringNotContainsString('Samo za SubAgente', $html);
+    }
+
+    public function test_suspended_or_retired_subagent_gets_no_notes(): void
+    {
+        foreach ([['status' => 'blocked'], ['retired_at' => now()->subDay()]] as $i => $change) {
+            $product = $this->product(['notes' => 'Interna napomena '.$i]);
+            $recipient = $this->user('user');
+            $recipient->forceFill($change)->save();
+            $this->outbox($recipient, $product);
+        }
+
+        // Dva reda za različite primaoce se šalju kao dva maila.
+        app(OrderEmailDispatcher::class)->dispatch();
+        $messages = app('mail.manager')->mailer('array')->getSymfonyTransport()->messages();
+
+        self::assertCount(2, $messages);
+        foreach ($messages as $message) {
+            $html = (string) $message->getOriginalMessage()->getHtmlBody();
+            self::assertStringNotContainsString('Napomena', $html);
+            self::assertStringNotContainsString('Interna napomena', $html);
+        }
+    }
+
     private function dispatchAndCapture(): string
     {
         $result = app(OrderEmailDispatcher::class)->dispatch();

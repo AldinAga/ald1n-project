@@ -151,7 +151,10 @@ final class OrderEmailDispatcher
                     $extra['product_image_url'] = $url;
                 }
                 $notes = trim((string) $product->notes);
-                if ($notes !== '' && (bool) $users->get((int) $row->recipient_user_id)?->hasRole('user')) {
+                $recipient = $users->get((int) $row->recipient_user_id);
+                // Interna napomena: samo aktivan SubAgent (suspendovan ili penzionisan je ne dobija).
+                if ($notes !== '' && $recipient !== null && $recipient->hasRole('user')
+                    && $recipient->status === 'active' && $recipient->retired_at === null) {
                     $extra['product_notes'] = $notes;
                 }
                 if ($extra !== []) $row->metadata_json = $extra + $meta;
