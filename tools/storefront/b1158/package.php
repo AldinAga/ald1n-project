@@ -219,7 +219,7 @@ foreach(array_keys($whole) as $p){
     if(str_starts_with($r,'database/')&&!str_starts_with($r,'database/migrations/')&&!preg_match('~^database/seeders/[A-Za-z0-9_/]+\.php$~D',$r))throw new RuntimeException('PACKAGE_DATABASE_CHANGE_OTHER_THAN_A_MIGRATION_STOP_AND_REPORT_'.$p);
     if(str_starts_with($r,'database/migrations/')&&!in_array($r,DR::migrationFiles(),true))throw new RuntimeException('PACKAGE_UNEXPECTED_MIGRATION_STOP_AND_REPORT_'.$p);
     if(str_starts_with($r,'routes/')&&!in_array($r,['routes/web.php','routes/api.php','routes/console.php'],true))throw new RuntimeException('PACKAGE_ROUTE_FILE_OTHER_THAN_WEB_OR_API_CHANGE_STOP_AND_REPORT_'.$p);
-    if(str_starts_with($r,'bin/')&&!in_array($r,DR::NEW_BIN,true))throw new RuntimeException('PACKAGE_BIN_FILE_OTHER_THAN_THE_THREE_TOOLS_STOP_AND_REPORT_'.$p);
+    if(str_starts_with($r,'bin/')&&!in_array($r,DR::NEW_BIN,true)&&!isset(DR::ORPHANS[$r]))throw new RuntimeException('PACKAGE_BIN_FILE_OTHER_THAN_THE_THREE_TOOLS_STOP_AND_REPORT_'.$p);
     if(str_starts_with($r,'tests/')||str_starts_with($r,'docs/')){$excluded[]=$p;unset($whole[$p]);continue;}
     if($whole[$p]==='D'){$deleted[$r]=true;unset($whole[$p]);}
 }
