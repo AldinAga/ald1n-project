@@ -543,10 +543,10 @@ final class B1158Payload
     0 => 'database/migrations/2026_11_24_000001_add_catalog_view_notes_permission.php',
     1 => 'declare(strict_types=1);',
   ),
-  'm11' => 
+  'm10' => 
   array (
-    0 => 'app/Console/Commands/DeploymentCheckCommand.php',
-    1 => '\'catalog.view_notes\',',
+    0 => 'app/Console/Commands/CmsV215DoctorCommand.php',
+    1 => 'public_path(\'assets/css/ald1n-admin.css\'),',
   ),
   'm13' => 
   array (
@@ -563,10 +563,10 @@ final class B1158Payload
     0 => 'app/Services/OrderEmailDispatcher.php',
     1 => 'private function enrichProductRows(Collection $rows): void',
   ),
-  'm20' => 
+  'm19' => 
   array (
-    0 => 'app/Http/Controllers/AccountDeletionController.php',
-    1 => 'use function Illuminate\\Support\\defer;',
+    0 => 'app/Services/UserDeletionService.php',
+    1 => 'use Illuminate\\Support\\Facades\\RateLimiter;',
   ),
   'm22' => 
   array (
@@ -578,147 +578,147 @@ final class B1158Payload
     0 => 'bin/static-check.php',
     1 => '$check(\'CSS ima pouzdan cache busting\', str_contains($layout, "filemtime(public_path(\'assets/css/ald1n-admin.css\'))"));',
   ),
-  'm27' => 
+  'm26' => 
   array (
-    0 => 'public/assets/css/ald1n-liquid-glass.css',
-    1 => '/* Ald1n Liquid Glass -- manually maintained CMS presentation overlay.',
+    0 => 'public/assets/css/ald1n-ui-refinement.css',
+    1 => '.build16-home-shell .dashboard-command-row .dashboard-priority-item > div { min-width: 0; overflow-wrap:break-word; }',
   ),
-  'm29' => 
+  'm28' => 
   array (
-    0 => 'public/assets/css/app.css',
-    1 => '/* Alpha 2 catalog administration */',
+    0 => 'app/Providers/AppServiceProvider.php',
+    1 => 'Gate::define(\'catalog.view_notes\', static fn (User $user): bool => $user->hasPermission(\'catalog.view_notes\'));',
   ),
-  'm31' => 
+  'm30' => 
   array (
-    0 => 'routes/web.php',
-    1 => '->middleware(\'throttle:account-deletion-request\')->name(\'account-deletion.request\');',
+    0 => 'resources/views/layouts/partials/back-to-top.blade.php',
+    1 => 'const bars = \'.a1-actionbar,.product-editor-action-bar,.dictionary-sort-finish,.a1-dock,.ux-mobile-action-dock\';',
   ),
   'm33' => 
   array (
-    0 => 'resources/views/layouts/guest.blade.php',
-    1 => 'class="floating-theme"',
+    0 => 'resources/views/admin/products/partials/image-card.blade.php',
+    1 => 'class="a1-pc-img {{ $image->is_primary ? \'is-primary\' : \'\' }}"',
   ),
-  'm36' => 
+  'm35' => 
   array (
-    0 => 'resources/views/admin/products/partials/image-upload.blade.php',
-    1 => '<div class="a1-pc-upload" data-image-upload-widget>',
+    0 => 'resources/views/admin/settings/partials/context-nav.blade.php',
+    1 => '@push(\'styles\')',
   ),
-  'm38' => 
+  'm37' => 
   array (
-    0 => 'resources/views/admin/settings/partials/svg-logo-panel.blade.php',
-    1 => '<div class="a1-set-svgprev" data-svg-logo-preview>',
+    0 => 'resources/views/partials/cart-add-control.blade.php',
+    1 => '$cartButtonSize = $cartCompact ? \'a1-btn--sm\' : \'\';',
   ),
-  'm40' => 
+  'm39' => 
   array (
-    0 => 'resources/views/account/show.blade.php',
-    1 => '<div class="a1-ops" data-build16-account="1">',
+    0 => 'resources/views/admin/audit/index.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
   ),
   'm42' => 
   array (
-    0 => 'resources/views/admin/brands/index.blade.php',
-    1 => '@include(\'admin.products.partials.styles\')',
-  ),
-  'm45' => 
-  array (
-    0 => 'resources/views/admin/customer-portal/index.blade.php',
+    0 => 'resources/views/admin/customer-portal/conversation.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm47' => 
+  'm44' => 
   array (
-    0 => 'resources/views/admin/data-quality/index.blade.php',
-    1 => '$severityPill = [\'critical\' => \'danger\', \'warning\' => \'warning\', \'info\' => \'info\'];',
+    0 => 'resources/views/admin/customer-portal/show.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm49' => 
+  'm46' => 
   array (
-    0 => 'resources/views/admin/dictionary/index.blade.php',
+    0 => 'resources/views/admin/dictionary/fields.blade.php',
+    1 => '<div class="a1-pc-note a1-pc-span2">',
+  ),
+  'm48' => 
+  array (
+    0 => 'resources/views/admin/dictionary/product-type.blade.php',
     1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm52' => 
+  'm50' => 
   array (
     0 => 'resources/views/admin/inventory/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm54' => 
+  'm53' => 
   array (
-    0 => 'resources/views/admin/products/bulk.blade.php',
+    0 => 'resources/views/admin/products/clone.blade.php',
     1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm56' => 
+  'm55' => 
   array (
-    0 => 'resources/views/admin/products/form.blade.php',
+    0 => 'resources/views/admin/products/images.blade.php',
     1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm58' => 
+  'm57' => 
   array (
-    0 => 'resources/views/admin/products/import.blade.php',
+    0 => 'resources/views/admin/products/index.blade.php',
     1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm61' => 
+  'm59' => 
   array (
     0 => 'resources/views/admin/reports/index.blade.php',
     1 => '<div class="a1-alert a1-alert--warning" role="status">',
   ),
-  'm63' => 
+  'm62' => 
   array (
-    0 => 'resources/views/admin/settings/appearance.blade.php',
+    0 => 'resources/views/admin/settings/automation.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm65' => 
+  'm64' => 
   array (
-    0 => 'resources/views/admin/settings/bank-accounts.blade.php',
+    0 => 'resources/views/admin/settings/couriers.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm67' => 
+  'm66' => 
   array (
-    0 => 'resources/views/admin/settings/documents.blade.php',
+    0 => 'resources/views/admin/settings/exchange-rate.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm70' => 
+  'm68' => 
   array (
     0 => 'resources/views/admin/settings/modules.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm72' => 
+  'm70' => 
   array (
     0 => 'resources/views/admin/settings/public-storefront-legal.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm74' => 
+  'm73' => 
   array (
-    0 => 'resources/views/admin/settings/smtp.blade.php',
-    1 => '<div class="a1-ops a1-set">',
+    0 => 'resources/views/admin/settings/system-health.blade.php',
+    1 => '$statusTone = [\'healthy\' => \'ok\', \'warning\' => \'warning\', \'critical\' => \'danger\'];',
   ),
-  'm77' => 
+  'm75' => 
   array (
     0 => 'resources/views/admin/stock/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm79' => 
+  'm77' => 
   array (
     0 => 'resources/views/admin/users/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm81' => 
+  'm79' => 
   array (
     0 => 'resources/views/admin/warranties/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm83' => 
+  'm82' => 
   array (
-    0 => 'resources/views/catalog/index.blade.php',
+    0 => 'resources/views/catalog/show.blade.php',
     1 => '@pushOnce(\'head\', \'a1-admin-catalog-css\')',
   ),
-  'm86' => 
+  'm84' => 
   array (
     0 => 'resources/views/emails/order-events.blade.php',
     1 => '$productNotes = trim((string) ($metadata[\'product_notes\'] ?? \'\'));',
   ),
-  'm88' => 
+  'm86' => 
   array (
     0 => 'resources/views/portal/messages/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm90' => 
+  'm88' => 
   array (
     0 => 'resources/views/warranties/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',

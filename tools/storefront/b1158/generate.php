@@ -135,7 +135,7 @@ $routesAfter=$routesAfterArg??$B_ROUTES+$delta;
 // Source markers: one needle per step (max 40): a class declaration of a new PHP class, else an added line that is absent from the pre-state bytes.
 $markers=[];$i=0;
 foreach($steps as [$p,$k]){
-    $after=$blob($src,$p);$needle=null;$before=$k==='modified'?(str_ends_with($p,'.php')?($mod[$p]!==null?$blob($base,$p):''):''):'';
+    $after=$blob($src,$p);$needle=null;$before=$k==='modified'?$blob($base,$p):'';
     if($k==='new'&&preg_match('~^((?:final |abstract )?(?:class|trait|interface|enum) \w+)~m',$after,$m))$needle=$m[1];
     else foreach(explode("\n",$after) as $line){$t=trim($line);if(strlen($t)<14||strlen($t)>120||str_contains($before,$t)||substr_count($after,$t)!==1||str_starts_with($t,'//')||str_starts_with($t,'*')||str_starts_with($t,'#')||str_starts_with($t,'{{--'))continue;$needle=$t;break;}
     if($needle===null)continue;
