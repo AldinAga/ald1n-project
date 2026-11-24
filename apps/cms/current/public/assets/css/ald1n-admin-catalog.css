@@ -89,6 +89,8 @@ body.catalog-filter-drawer-open{overflow:hidden}
 .a1-cat-specs dd strong{margin-left:var(--a1-space-4);color:var(--a1-text-secondary)}
 @media (max-width:520px){.a1-cat-specs .a1-dl__row{grid-template-columns:minmax(0,1fr)}}
 .a1-cat-desc{margin:0;color:var(--a1-text-secondary);line-height:var(--a1-typography-line-height-lead);overflow-wrap:break-word}
+.a1-cat-notes{border-left:4px solid var(--a1-status-warning-dot)}
+.a1-cat-notes .a1-pill,.a1-cat-notes-flag{white-space:nowrap}
 .a1-cat-descbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8)}
 .a1-cat-copy-status{min-height:1.2em;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-cat-manage{display:flex;flex-wrap:wrap;gap:var(--a1-space-8)}
