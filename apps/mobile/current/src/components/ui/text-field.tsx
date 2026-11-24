@@ -8,7 +8,7 @@ import { Input, Text, YStack } from 'tamagui';
 
 import { KeyboardScrollContext } from '@/components/layout/keyboard-scroll-context';
 
-import { radii, spacing, typography } from '@/constants/theme';
+import { controlHeight, radii, spacing, typography } from '@/constants/theme';
 
 type TamaguiInputProps = ComponentProps<typeof Input>;
 
@@ -26,7 +26,7 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
       error,
       style,
       onFocus,
-      placeholderTextColor = '$placeholderColor',
+      placeholderTextColor = '$textMuted',
       selectionColor = '$brand',
       ...inputProps
     },
@@ -36,10 +36,14 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
     return (
       <YStack gap={spacing.sm}>
         <Text
+          // The input carries the label; hide this copy so TalkBack does not read it twice.
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
           paddingHorizontal={spacing.xs}
           fontSize={typography.label.fontSize}
           lineHeight={typography.label.lineHeight}
-          fontWeight="800"
+          fontWeight="600"
+          letterSpacing={0.26}
           color="$color"
         >
           {label}
@@ -48,17 +52,18 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
         <Input
           unstyled
           ref={ref}
-          minHeight={56}
+          accessibilityLabel={label}
+          minHeight={controlHeight}
           borderWidth={1}
           borderColor={error ? '$danger' : '$line'}
-          borderRadius={radii.xl}
+          borderRadius={radii.md}
           backgroundColor="$surfaceContainer"
           color="$color"
           paddingHorizontal={spacing.lg}
           fontSize={16}
           transition="100ms"
           focusStyle={{
-            borderColor: error ? '$danger' : '$brand',
+            borderColor: error ? '$danger' : '$focusRing',
             backgroundColor: '$surface',
           }}
           style={style}

@@ -85,7 +85,7 @@
                 <div class="a1-dl__row"><dt>Pokriven promet</dt><dd>{{ $fmt($s['known_revenue_rsd']) }} RSD</dd></div>
                 <div class="a1-dl__row"><dt>Promet bez nabavne cene</dt><dd>{{ $fmt($s['revenue_missing_cost_rsd']) }} RSD</dd></div>
                 <div class="a1-dl__row"><dt>Stavke bez troška</dt><dd>{{ $s['missing_cost_lines'] }}</dd></div>
-                <div class="a1-dl__row"><dt>Preporuka</dt><dd>@if($s['cost_coverage_percent']<95)<span class="a1-pill a1-pill--warning">Dopuniti nabavne cene proizvoda.</span>@else<span class="a1-pill a1-pill--ok">Podaci su dovoljno pokriveni.</span>@endif</dd></div>
+                <div class="a1-dl__row"><dt>Preporuka</dt><dd>@if($s['cost_coverage_percent']<95)<span class="a1-pill a1-pill--warning a1-pill--wrap">Dopuniti nabavne cene proizvoda.</span>@else<span class="a1-pill a1-pill--ok a1-pill--wrap">Podaci su dovoljno pokriveni.</span>@endif</dd></div>
             </dl>
         </section>
     </div>

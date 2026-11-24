@@ -9,9 +9,12 @@
 .a1-cat{display:grid;gap:var(--a1-space-16);min-width:0}
 
 /* ---- Index: search and filter bar ------------------------------------------------------------------- */
-.a1-cat-filters{gap:var(--a1-space-16)}
+/* No backdrop-filter here: it would make the form the containing block of the fixed drawer (it then sat 460 px past the right edge: scrollWidth 1715 at 1280). */
+.a1-cat-filters{gap:var(--a1-space-16);-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--a1-glass-fill-strong)}
 .a1-cat-bar{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr)) auto auto;gap:var(--a1-space-12);align-items:end}
 .a1-cat-bar>.a1-btn{align-self:end}
+@media (min-width:1101px){.a1-cat-bar--lean{grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto auto}}
+.a1-pager-wrap{margin-top:var(--a1-space-16)}
 .a1-cat-box{position:relative;display:flex;align-items:center}
 .a1-cat-box>.a1-icon{position:absolute;left:var(--a1-space-12);color:var(--a1-text-tertiary);pointer-events:none}
 .a1-cat-box .a1-input{padding-left:calc(var(--a1-space-12) + 28px);padding-right:calc(var(--a1-size-touch-target) + var(--a1-space-4))}
@@ -54,9 +57,9 @@ body.catalog-filter-drawer-open{overflow:hidden}
 .a1-cat-card__body{display:grid;align-content:start;gap:var(--a1-space-12);padding:var(--a1-space-16)}
 .a1-cat-tags{display:flex;flex-wrap:wrap;gap:var(--a1-space-4) var(--a1-space-8);margin:0;padding:0;list-style:none}
 .a1-cat-card__title{margin:0;font-size:var(--a1-typography-font-size-md-plus);line-height:var(--a1-typography-line-height-title)}
-.a1-cat-card__title a{color:var(--a1-text-primary);text-decoration:none;overflow-wrap:anywhere}
+.a1-cat-card__title a{color:var(--a1-text-primary);text-decoration:none;overflow-wrap:break-word}
 .a1-cat-card__title a:hover{color:var(--a1-accent-link);text-decoration:underline;text-underline-offset:.18em}
-.a1-cat-card__sku{margin:0;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:anywhere}
+.a1-cat-card__sku{margin:0;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:break-word}
 .a1-cat-card__meta{display:flex;flex-wrap:wrap;gap:var(--a1-space-4) var(--a1-space-16);margin:0;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-cat-card__meta strong{color:var(--a1-text-primary);font-variant-numeric:tabular-nums}
 .a1-cat-card__foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8);margin-top:auto}
@@ -77,7 +80,7 @@ body.catalog-filter-drawer-open{overflow:hidden}
 
 /* ---- Show: detail ------------------------------------------------------------------------------------ */
 .a1-cat-detail{display:grid;gap:var(--a1-space-16);align-content:start;min-width:0}
-.a1-cat-detail__title{margin:0;font-size:clamp(var(--a1-typography-font-size-xl-3),3vw,32px);line-height:var(--a1-typography-line-height-heading);color:var(--a1-text-primary);overflow-wrap:anywhere}
+.a1-cat-detail__title{margin:0;font-size:clamp(var(--a1-typography-font-size-xl-3),3vw,32px);line-height:var(--a1-typography-line-height-heading);color:var(--a1-text-primary);overflow-wrap:break-word}
 .a1-cat-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--a1-space-12);margin:0}
 .a1-cat-metric{display:grid;gap:var(--a1-space-4);padding:var(--a1-space-12) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-button-ghost-bg)}
 .a1-cat-metric span{color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
@@ -85,7 +88,7 @@ body.catalog-filter-drawer-open{overflow:hidden}
 .a1-cat-specs .a1-dl__row{grid-template-columns:minmax(120px,1fr) minmax(0,2fr)}
 .a1-cat-specs dd strong{margin-left:var(--a1-space-4);color:var(--a1-text-secondary)}
 @media (max-width:520px){.a1-cat-specs .a1-dl__row{grid-template-columns:minmax(0,1fr)}}
-.a1-cat-desc{margin:0;color:var(--a1-text-secondary);line-height:var(--a1-typography-line-height-lead);overflow-wrap:anywhere}
+.a1-cat-desc{margin:0;color:var(--a1-text-secondary);line-height:var(--a1-typography-line-height-lead);overflow-wrap:break-word}
 .a1-cat-descbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--a1-space-8)}
 .a1-cat-copy-status{min-height:1.2em;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-cat-manage{display:flex;flex-wrap:wrap;gap:var(--a1-space-8)}

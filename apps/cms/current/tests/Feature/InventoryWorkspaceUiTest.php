@@ -29,6 +29,6 @@ final class InventoryWorkspaceUiTest extends TestCase
         $this->assertStringContainsString('max-height:none!important', $css);
         $this->assertStringContainsString('overflow-y:visible!important', $css);
         $this->assertStringContainsString('.inventory-meta-grid', $css);
-        $this->assertStringContainsString('.inventory-data-table td{display:grid!important', $css);
+        $this->assertStringContainsString('.a1-table--cards td::before{content:attr(data-label)', (string) file_get_contents(public_path('assets/css/ald1n-admin.css')));
     }
 }

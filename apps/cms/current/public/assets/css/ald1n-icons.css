@@ -1,0 +1,28 @@
+/*
+ * Phosphor icons rendered by <x-icon> without the :shell flag (headers, buttons,
+ * empty states, tables). They replace the old .ui-icon rules of app.css and
+ * ald1n-ui-v2.css, so those can be deleted. Loaded by layouts.app and layouts.guest
+ * right after ald1n-admin.css, which supplies the base .a1-icon and .a1-icon--ph.
+ *
+ * ald1n-admin.css sets .a1-icon width/height from --a1x-icon, which would override
+ * the size passed to the component. The component adds .a1-icon--n{size}; the sizes
+ * below are the ones used in the views (a unit test keeps the two in step).
+ * Author: Ald1n <https://ald1n.com>
+ */
+.a1-icon--fit{display:block;flex:0 0 auto;overflow:visible;color:inherit;vertical-align:baseline}
+.a1-icon.a1-icon--n15{width:15px;height:15px}
+.a1-icon.a1-icon--n16{width:16px;height:16px}
+.a1-icon.a1-icon--n17{width:17px;height:17px}
+.a1-icon.a1-icon--n18{width:18px;height:18px}
+.a1-icon.a1-icon--n20{width:20px;height:20px}
+.a1-icon.a1-icon--n22{width:22px;height:22px}
+.a1-icon.a1-icon--n24{width:24px;height:24px}
+.a1-icon.a1-icon--n26{width:26px;height:26px}
+.a1-icon.a1-icon--n28{width:28px;height:28px}
+.a1-icon.a1-icon--n30{width:30px;height:30px}
+.a1-icon.a1-icon--n38{width:38px;height:38px}
+
+/* An icon placed directly in a .button is always 20px, whatever size was passed. */
+.button>.a1-icon--fit{width:20px;height:20px}
+
+.empty-state .a1-icon--fit{color:var(--a1-accent-link)}

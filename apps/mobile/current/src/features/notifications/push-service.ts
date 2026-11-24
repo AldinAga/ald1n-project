@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import { getCalendars, getLocales } from 'expo-localization';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { kobalt } from '@/design/ald1n-tokens.kobalt.generated';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
 import { getInstallationId, getPushConsentChoice, getServerDeviceId, setPushConsentChoice, setServerDeviceId } from '@/lib/storage';
@@ -26,7 +27,7 @@ export async function ensureBusinessNotificationChannel(): Promise<void> {
     importance: Notifications.AndroidImportance.HIGH,
     sound: 'default',
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#6D45E5'
+    lightColor: kobalt.light.button.primary.bg
   });
 }
 

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
-import { spacing, typography, type AppColors } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
 export type QuickAction = {
@@ -35,7 +35,7 @@ export function QuickActionHub({ actions, title = 'Brze akcije', maxVisible = 4 
     <Card style={styles.card}>
       <View style={styles.heading}>
         <Glyph name="admin" size={20} color={theme.primary} />
-        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
       </View>
       {actions.length === 0 ? (
         <Text style={styles.empty}>Nema trenutno dostupnih operativnih akcija.</Text>
@@ -60,7 +60,15 @@ export function QuickActionHub({ actions, title = 'Brze akcije', maxVisible = 4 
                 ]}
               >
                 <Glyph name={action.glyph} size={17} color={danger ? theme.danger : theme.primary} />
-                <Text style={[styles.actionLabel, danger && styles.dangerLabel]}>{action.label}</Text>
+                <Text
+                  style={[styles.actionLabel, danger && styles.dangerLabel]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {action.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -74,7 +82,7 @@ export function QuickActionHub({ actions, title = 'Brze akcije', maxVisible = 4 
           style={styles.disclosure}
           onPress={() => setExpanded((value) => !value)}
         >
-          <Text style={styles.disclosureLabel}>
+          <Text style={styles.disclosureLabel} numberOfLines={1} ellipsizeMode="tail">
             {expanded ? 'Manje akcija' : 'Sve akcije (' + hiddenCount + ' dodatnih)'}
           </Text>
           <Glyph name="arrow" size={17} color={theme.primary} />
@@ -88,14 +96,14 @@ function createStyles(theme: AppColors) {
   return StyleSheet.create({
     card: { gap: spacing.md },
     heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    title: { ...typography.h3, color: theme.ink },
+    title: { ...typography.h3, color: theme.ink, flexShrink: 1 },
     empty: { ...typography.small, color: theme.muted },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     action: {
       flexBasis: '47%', flexGrow: 1, minWidth: 0, minHeight: 58,
       alignItems: 'center', flexDirection: 'row', gap: spacing.sm,
       paddingVertical: 10, paddingHorizontal: 11, borderWidth: 1,
-      borderRadius: 13, borderColor: theme.line, backgroundColor: theme.surfaceContainer,
+      borderRadius: radii.lg, borderColor: theme.line, backgroundColor: theme.surfaceContainer,
     },
     primaryAction: { borderColor: theme.primary, backgroundColor: theme.primarySoft },
     dangerAction: { borderColor: theme.danger },

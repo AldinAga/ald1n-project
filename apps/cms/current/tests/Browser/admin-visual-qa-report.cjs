@@ -55,6 +55,7 @@ for (const s of present) {
   if (expected === 0) problems.push(`${s.browser}: empty selection (0 pages, ${(s.widths || []).length} widths, ${(s.themes || []).length} themes), nothing was checked`);
   else if (got !== expected) problems.push(`${s.browser}: ${got} cells recorded, expected ${expected} (pages x widths x themes)`);
   if (!merged.selfTests.some((t) => t.browser === s.browser && t.overflowDetector === true)) problems.push(`${s.browser}: overflow detector self-test missing or failed`);
+  if (!merged.selfTests.some((t) => t.browser === s.browser && t.wordDetector === true)) problems.push(`${s.browser}: word gate positive-control self-test missing or failed`);
   if (strictAll || strictList.length) {
     const unexpected = s.cells.filter((c) => c.status.startsWith('skip') && !isExpectedSkip(c));
     if (unexpected.length) problems.push(`${s.browser}: ${unexpected.length} unexpected skipped cell(s), e.g. ${unexpected[0].page} at ${unexpected[0].width}px`);
@@ -110,6 +111,17 @@ const skipped = merged.cells.filter((c) => c.status.startsWith('skip'));
 if (skipped.length) L.push('', `Skipped cells (not applicable): ${skipped.length}, e.g. ${skipped[0].page} at ${skipped[0].width}px.`);
 if (merged.infra_failures.length) L.push('', '### Infrastructure failures', '', ...merged.infra_failures.slice(0, 40).map((x) => '- ' + x));
 if (problems.length) L.push('', '### Gate problems', '', ...problems.map((x) => '- ' + x));
+// Word-integrity gate (owner rule 2026-11-24): a word is never broken mid-word and short-text components never overflow.
+// Fails in EVERY module, strict or not, on every page, width and theme; no page is excluded.
+const WORD_RULES = ['word-broken', 'short-text-overflow', 'word-gate-control-missing'];
+const wordFindings = merged.findings.filter((f) => WORD_RULES.includes(f.rule));
+const wordViolations = sum(wordFindings);
+L.push('', '### Word integrity gate (all modules, fails the job)', '', `Violations: ${wordViolations} in ${new Set(wordFindings.map((f) => `${f.browser}/${f.page}/${f.width}/${f.theme}`)).size} cells.`);
+if (wordFindings.length) {
+  L.push('', '| Page (url) | Viewport | Theme | Browser | Rule | Selector and text |', '|---|---:|---|---|---|---|');
+  for (const f of wordFindings.slice(0, 120)) L.push(`| ${f.page} (${(f.detail || '').split(' :: ')[0]}) | ${f.width} | ${f.theme} | ${f.browser} | ${f.rule} | ${(f.detail || f.selectors?.[0] || '').split(' :: ').slice(1).join(' :: ').replace(/\|/g, '/')} |`);
+  if (wordFindings.length > 120) L.push('', `... and ${wordFindings.length - 120} more in admin-visual-baseline.json`);
+}
 L.push('', strictAll || strictList.length
   ? `Strict mode: ${strictAll ? 'ALL modules' : strictList.join(', ')}; violations in strict modules: ${strictViolations}.`
   : 'Strict mode: off (baseline run, violations are recorded, not failed).');
@@ -118,5 +130,5 @@ fs.writeFileSync(path.join(dir, 'admin-visual-summary.md'), md);
 console.log(md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
 
-const bad = missing.length > 0 || merged.infra_failures.length > 0 || problems.length > 0 || strictViolations > 0;
+const bad = missing.length > 0 || merged.infra_failures.length > 0 || problems.length > 0 || strictViolations > 0 || wordViolations > 0;
 process.exit(bad ? 1 : 0);

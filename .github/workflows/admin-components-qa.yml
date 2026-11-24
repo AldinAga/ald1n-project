@@ -23,7 +23,7 @@ concurrency:
 jobs:
   gallery:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 70
     env:
       PLAYWRIGHT_NODE_ROOT: /tmp/admin-components-playwright
       ADMIN_COMPONENTS_ARTIFACT_DIR: /tmp/admin-components-screenshots
