@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { Glyph, type GlyphName } from '@/components/ui/glyph';
-import { spacing, typography, type AppColors } from '@/constants/theme';
+import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
 export type WorkspaceOption<T extends string> = {
@@ -46,7 +46,15 @@ export function WorkspaceGrid<T extends string>({ options, selected, onSelect }:
             ]}
           >
             <Glyph name={option.glyph} size={21} color={active ? theme.primary : theme.muted} />
-            <Text style={[styles.label, active && styles.activeLabel]}>{option.label}</Text>
+            <Text
+              style={[styles.label, active && styles.activeLabel]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {option.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -68,9 +76,9 @@ function createStyles(theme: AppColors) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: 6,
       gap: 7,
-      borderRadius: 14,
+      borderRadius: radii.lg,
       borderWidth: 1,
       borderColor: theme.line,
       backgroundColor: theme.surfaceContainer,
@@ -88,6 +96,5 @@ function createStyles(theme: AppColors) {
       textAlign: 'center',
       flexShrink: 1,
     },
-    activeLabel: { color: theme.primary, fontWeight: '900' },
-  });
+    activeLabel: { color: theme.primary, fontWeight: '900' },  });
 }
