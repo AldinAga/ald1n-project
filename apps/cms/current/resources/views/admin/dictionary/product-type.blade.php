@@ -284,7 +284,6 @@
                 const active = candidate === button;
                 candidate.setAttribute('aria-pressed', active ? 'true' : 'false');
                 candidate.classList.toggle('is-active', active);
-                candidate.classList.toggle('button-ghost', !active);
             });
 
             applyFilter();
@@ -314,7 +313,6 @@
                 const active = candidate.dataset.productTypeFieldFilter === 'all';
                 candidate.setAttribute('aria-pressed', active ? 'true' : 'false');
                 candidate.classList.toggle('is-active', active);
-                candidate.classList.toggle('button-ghost', !active);
             });
             applyFilter();
         });

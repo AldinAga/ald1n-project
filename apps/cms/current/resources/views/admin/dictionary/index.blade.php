@@ -178,7 +178,6 @@
                 const selected = candidate === button;
                 candidate.setAttribute('aria-pressed', selected ? 'true' : 'false');
                 candidate.classList.toggle('is-active', selected);
-                candidate.classList.toggle('button-ghost', !selected);
             });
 
             apply();
@@ -193,7 +192,6 @@
                 const selected = candidate.dataset.specLibraryFilter === 'all';
                 candidate.setAttribute('aria-pressed', selected ? 'true' : 'false');
                 candidate.classList.toggle('is-active', selected);
-                candidate.classList.toggle('button-ghost', !selected);
             });
             apply();
         });
