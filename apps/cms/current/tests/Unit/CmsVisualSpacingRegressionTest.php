@@ -28,23 +28,18 @@ final class CmsVisualSpacingRegressionTest extends TestCase
 
     public function test_build16_product_info_starts_with_gallery_and_has_readable_spacing(): void
     {
-        $css = file_get_contents(__DIR__.'/../../public/assets/css/ald1n-liquid-glass.css');
-        $refinement = file_get_contents(__DIR__.'/../../public/assets/css/ald1n-ui-refinement.css');
+        // Kobalt G7: the detail layout lives in ald1n-admin-catalog.css under a1-cat-* names.
+        $css = file_get_contents(__DIR__.'/../../public/assets/css/ald1n-admin-catalog.css');
         $blade = file_get_contents(__DIR__.'/../../resources/views/catalog/show.blade.php');
         self::assertIsString($css);
-        self::assertIsString($refinement);
         self::assertIsString($blade);
-        self::assertStringContainsString('product-detail build16-product-detail-layout', $blade);
-        self::assertStringContainsString('detail-panel build16-product-summary', $blade);
-        self::assertMatchesRegularExpression(
-            '/@media\s*\(min-width:\s*821px\)[\s\S]*?\.build16-product-detail-shell\s+\.product-detail\.build16-product-detail-layout\s*>\s*\.detail-panel\.build16-product-summary\s*\{[^}]*position:\s*static;[^}]*top:\s*auto;/',
-            substr($css, strpos($css, 'CMS_VISUAL_SPACING_V1')),
-        );
-        self::assertMatchesRegularExpression('/@media\s*\(min-width:\s*821px\)[\s\S]*?\.product-detail\.build16-product-detail-layout\s*>\s*\.detail-panel\.build16-product-summary,[^{]+\{\s*align-self:\s*stretch;/', $refinement);
-        self::assertStringContainsString('.build16-product-detail-shell .build16-product-summary .tags', $css);
-        self::assertStringContainsString('.build16-product-detail-shell .build16-product-summary .build16-product-metrics small', $css);
-        self::assertStringContainsString('.build16-product-detail-shell .build16-product-summary .build16-product-specifications :is(dt,dd)', $css);
-        self::assertStringContainsString('@media (max-width: 580px)', $css);
+        self::assertStringContainsString('class="a1-cat-layout ', $blade);
+        self::assertStringContainsString('class="a1-card a1-cat-detail"', $blade);
+        // Gallery and summary start in the same grid row and the summary is not sticky-offset on desktop.
+        self::assertMatchesRegularExpression('/\.a1-cat-layout\{[^}]*align-items:start;/', $css);
+        self::assertDoesNotMatchRegularExpression('/\.a1-cat-detail\{[^}]*position:\s*(sticky|fixed)/', $css);
+        self::assertMatchesRegularExpression('/@media \(min-width:821px\)\{[^@]*\.a1-cat-layout\{align-items:stretch\}/', $css);
+        self::assertStringContainsString('@media (max-width:580px)', $css);
     }
 
     public function test_only_d1_kpis_are_equal_height_and_single_priority_spans_full_row(): void

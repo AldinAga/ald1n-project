@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Throwable;
 
+use function Illuminate\Support\defer;
+
 /**
  * Javna stranica za brisanje naloga (Google Play zahteva javni URL) i potvrda e-poštom.
  * Odgovor na zahtev je isti bez obzira da li nalog postoji. Potvrda i poništavanje
@@ -42,12 +44,12 @@ final class AccountDeletionController extends Controller
             'cf-turnstile-response' => ['nullable', 'string', 'max:4096'],
         ], ['email.required' => 'Unesite e-mail adresu.', 'email.email' => 'Unesite ispravnu e-mail adresu.']);
         if ($validator->fails()) {
-            return AppUrlOrigin::redirect($request, 'account-deletion.show')->withErrors($validator)->withInput($request->only('email'));
+            return AppUrlOrigin::redirect($request, 'account-deletion.show')->withErrors($validator)->withInput($this->oldEmail($request));
         }
 
         if (!UserDeletionService::available()) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
-                ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($request->only('email'));
+                ->withErrors(['email' => 'Brisanje naloga je trenutno nedostupno. Pišite nam na e-poštu podrške.'])->withInput($this->oldEmail($request));
         }
 
         try {
@@ -58,10 +60,11 @@ final class AccountDeletionController extends Controller
         }
         if (!$verified['success']) {
             return AppUrlOrigin::redirect($request, 'account-deletion.show')
-                ->withErrors(['turnstile' => $verified['message']])->withInput($request->only('email'));
+                ->withErrors(['turnstile' => $verified['message']])->withInput($this->oldEmail($request));
         }
 
-        $this->start($deletions, (string) $request->input('email'));
+        $email = (string) $request->input('email');
+        $this->afterResponse(static fn () => $deletions->requestByEmail($email));
 
         return AppUrlOrigin::redirect($request, 'account-deletion.show')->with('status', $this->neutralMessage());
     }
@@ -77,9 +80,21 @@ final class AccountDeletionController extends Controller
         if ($problem !== null) {
             return redirect()->route('account.show')->withErrors(['deletion' => $problem]);
         }
-        $this->start($deletions, (string) $request->user()->email);
+        // Sinhrono: prijavljenom korisniku vrijeme odgovora ne odaje ništa novo, a poruka mora odgovarati onome što se desilo.
+        try {
+            $outcome = $deletions->requestForUser($request->user());
+        } catch (Throwable $exception) {
+            Log::error('Account deletion request failed.', ['exception' => $exception::class]);
+            $outcome = 'failed';
+        }
+        if ($outcome === 'failed') {
+            return redirect()->route('account.show')->withErrors(['deletion' => 'Nismo uspeli da pošaljemo e-poruku sa linkom. Pokušajte ponovo kasnije.']);
+        }
 
-        return redirect()->route('account.show')->with('status', 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.');
+        return redirect()->route('account.show')->with('status', $outcome === 'sent'
+            ? 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.'
+            // Pauza i dnevni limit dobijaju isti tekst: korisnik zna samo da link treba da potraži u pošti, ne koje ograničenje važi.
+            : 'Ako je potrebno, link je već poslat u poslednjih '.UserDeletionService::RESEND_PAUSE_MINUTES.' minuta; proverite poštu.');
     }
 
     public function confirmShow(string $token, UserDeletionService $deletions): View
@@ -150,13 +165,25 @@ final class AccountDeletionController extends Controller
         return $validator->fails() ? null : (string) $request->input('token');
     }
 
-    private function start(UserDeletionService $deletions, string $email): void
+    /** email[]=x ne smije u old('email'): forma ga ispisuje kao string. @return array{email:string} */
+    private function oldEmail(Request $request): array
     {
-        try {
-            $deletions->requestByEmail($email);
-        } catch (Throwable $exception) {
-            Log::error('Account deletion request failed.', ['exception' => $exception::class]);
-        }
+        $email = $request->input('email');
+
+        return ['email' => is_string($email) ? $email : ''];
+    }
+
+    private function afterResponse(\Closure $work): void
+    {
+        // Posle odgovora: vrijeme odgovora ne smije odavati da nalog postoji (SMTP traje stotine ms).
+        // defer() se izvrši jednom i ispražnjava listu (app()->terminating bi se ponavljao u istom procesu).
+        defer(static function () use ($work): void {
+            try {
+                $work();
+            } catch (Throwable $exception) {
+                Log::error('Account deletion request failed.', ['exception' => $exception::class]);
+            }
+        }, always: true);
     }
 
     private function neutralMessage(): string

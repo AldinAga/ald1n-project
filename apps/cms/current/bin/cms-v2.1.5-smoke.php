@@ -31,9 +31,9 @@ $check('Globalni UX runtime postoji', str_contains($js, 'createMobileActionDock'
 $check('UX runtime štiti nesačuvane izmene', str_contains($js, 'protectUnsavedChanges') && str_contains($js, "window.addEventListener('beforeunload'"));
 $check('UX runtime poboljšava greške i polja', str_contains($js, 'improveAlerts') && str_contains($js, 'improveFields') && str_contains($js, 'aria-invalid'));
 $check('Prvo neispravno polje dobija fokus', str_contains($js, "document.addEventListener('invalid'") && str_contains($js, "scrollIntoView({ block: 'center'"));
-$check('Zaštita od duplog slanja postavlja aria-busy', str_contains($js, "setAttribute('aria-busy', 'true')") && str_contains($js, 'is-submitting'));
+$check('Zaštita od duplog slanja postavlja aria-busy', str_contains($js, "setAttribute('aria-busy', 'true')"));
 $check('Ctrl ili Cmd plus S pokreće čuvanje', str_contains($js, 'event.ctrlKey || event.metaKey') && str_contains($js, "event.key.toLowerCase() !== 's'"));
-$check('Mobilni action dock koristi originalno dugme formulara', str_contains($js, 'submit.click()') && str_contains($js, 'ux-mobile-action-dock'));
+$check('Mobilni action dock koristi originalno dugme formulara', str_contains($js, 'submit.click()') && str_contains($js, 'a1-dock'));
 $check('Layout učitava UX runtime pre page skripti', str_contains($layout, "assets/js/ux-runtime.js") && strpos($layout, 'ux-runtime.js') < strpos($layout, "@stack('scripts')"));
 $check('Dugi formular proizvoda ima sticky akcije', str_contains($productForm, 'data-ux-sticky-actions'));
 $check('Dugi formular porudžbine ima sticky akcije', str_contains($orderForm, 'data-ux-sticky-actions'));

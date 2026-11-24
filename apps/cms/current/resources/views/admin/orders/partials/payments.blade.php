@@ -84,26 +84,24 @@
                         </td>
                         <td role="cell" class="a1-table__actions">
                             @if($canManagePayments)
-                                <div class="a1-od-rowactions">
+                                <div class="a1-rowact">
                                     @if(($payment['status'] ?? '') === 'submitted')
                                         @if(!empty($payment['verify_url']))
-                                            <form method="post" action="{{ $payment['verify_url'] }}">
+                                            <form method="post" action="{{ $payment['verify_url'] }}" class="a1-rowact__form">
                                                 @csrf
-                                                <button class="a1-btn a1-btn--sm" type="submit" aria-label="Potvrdi uplatu {{ $paymentRef }}">Potvrdi</button>
+                                                <x-icon-action-pill tone="ok" :label="'Potvrdi uplatu '.$paymentRef" />
                                             </form>
                                         @endif
                                         @if(!empty($payment['reject_url']))
-                                            <form method="post" action="{{ $payment['reject_url'] }}">
+                                            <form method="post" action="{{ $payment['reject_url'] }}" class="a1-rowact__form">
                                                 @csrf
-                                                <div class="a1-field">
-                                                    <label class="a1-sr" for="od-reject-{{ $paymentKey }}">Razlog odbijanja uplate {{ $paymentRef }}</label>
-                                                    <input class="a1-input" id="od-reject-{{ $paymentKey }}" name="reason" required maxlength="1000" placeholder="Razlog odbijanja">
-                                                </div>
-                                                <button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" aria-label="Odbij uplatu {{ $paymentRef }}">Odbij</button>
+                                                <label class="a1-sr" for="od-reject-{{ $paymentKey }}">Razlog odbijanja uplate {{ $paymentRef }}</label>
+                                                <input class="a1-input a1-rowact__reason" id="od-reject-{{ $paymentKey }}" name="reason" required maxlength="1000" placeholder="Razlog" title="Razlog odbijanja (obavezan)">
+                                                <x-icon-action-pill tone="danger" :label="'Odbij uplatu '.$paymentRef" />
                                             </form>
                                         @endif
                                     @elseif(($payment['status'] ?? '') === 'verified' && !empty($payment['void_url']))
-                                        <form method="post" action="{{ $payment['void_url'] }}">
+                                        <form method="post" action="{{ $payment['void_url'] }}" class="a1-rowact__form">
                                             @csrf
                                             <button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" aria-label="Storniraj stavku {{ $paymentRef }}" data-confirm="Stornirati ovu stavku?">Storniraj</button>
                                         </form>

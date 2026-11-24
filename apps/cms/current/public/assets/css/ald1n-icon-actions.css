@@ -1,0 +1,24 @@
+/* Ikonična dugmad Potvrdi/Odbij (✓ / ✕) u jednom redu. Author: Ald1n <https://ald1n.com>
+   Samo nove klase (.a1-iconpill, .a1-rowact); ne dira ald1n-admin.css. Boje iz ald1n-tokens.css.
+   Specifičnost je namjerno podignuta (.a1-rowact .a1-rowact__form, .a1-table .a1-rowact) da pravila iz
+   ald1n-admin.css (.a1-od-rowactions form, .a1-ops .a1-table .a1-table__actions ...) ne prelome red.
+   Na uskom ekranu red ostaje jedan; kontejner tabele (.a1-tablewrap) dobija horizontalni skrol. */
+.a1-rowact,.a1-table .a1-table__actions .a1-rowact,.a1-ops .a1-table .a1-table__actions .a1-rowact{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;gap:.5rem;white-space:nowrap}
+.a1-rowact .a1-rowact__form,.a1-table .a1-rowact .a1-rowact__form{display:flex;flex-wrap:nowrap;align-items:center;flex:0 1 auto;gap:.5rem;margin:0;white-space:nowrap}
+.a1-rowact .a1-rowact__form .a1-rowact__reason{flex:1 1 9rem;min-width:8rem;width:auto;max-width:14rem;min-height:44px;white-space:normal}
+.a1-iconpill{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;box-sizing:border-box;min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:999px;border:2px solid currentColor;background:transparent;cursor:pointer;font:inherit;line-height:1;white-space:nowrap;transition:background-color .15s ease,transform .15s ease,opacity .15s ease}
+.a1-iconpill .a1-icon{display:block;flex:none;width:20px;height:20px;pointer-events:none}
+.a1-iconpill--ok{color:var(--a1-status-ok-text);background:var(--a1-status-ok-bg);border-color:var(--a1-status-ok-dot)}
+.a1-iconpill--danger{color:var(--a1-status-danger-text);background:var(--a1-status-danger-bg);border-color:var(--a1-status-danger-dot)}
+.a1-iconpill:hover{filter:brightness(.96)}
+.a1-iconpill:active{transform:scale(.96)}
+.a1-iconpill:focus-visible{outline:3px solid var(--a1-status-ok-dot);outline-offset:2px}
+.a1-iconpill--danger:focus-visible{outline-color:var(--a1-status-danger-dot)}
+.a1-iconpill:disabled{opacity:.55;cursor:not-allowed}
+.a1-iconpill.is-loading{opacity:.6;cursor:progress;pointer-events:none}
+.a1-iconpill.is-loading .a1-icon{opacity:0}
+.a1-iconpill.is-loading::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:a1-iconpill-spin .7s linear infinite}
+.a1-iconpill{position:relative}
+@keyframes a1-iconpill-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.a1-iconpill{transition:none}.a1-iconpill:active{transform:none}.a1-iconpill.is-loading::after{animation:none;border-right-color:currentColor}}
+@media (max-width:640px){.a1-rowact,.a1-table .a1-table__actions .a1-rowact,.a1-ops .a1-table .a1-table__actions .a1-rowact{justify-content:flex-start}}

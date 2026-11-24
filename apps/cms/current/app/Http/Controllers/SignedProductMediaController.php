@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use App\Models\ProductImage;
 use App\Support\ProductMediaUrl;
 use App\Support\PublicProductImageFiles;
@@ -26,6 +27,9 @@ use Throwable;
  * a session or a cookie, and may be cached by the client for a week. Every
  * failure (missing or bad signature, unknown image, no file, wrong type)
  * answers the same 404, so nothing tells a guesser which part was wrong.
+ * A retired product (archived or soft-deleted) answers the same 404; a URL
+ * whose version is no longer the file's current one is served with
+ * `no-cache`, so a replaced photo is never kept as immutable.
  * Files are resolved only through PublicProductImageFiles from the image row
  * (the id is the only input), which keeps the legacy root and per-product
  * directory boundaries. A WebP rendition that is missing falls back to the
@@ -37,6 +41,10 @@ final class SignedProductMediaController extends Controller
 {
     /** The version in the URL changes with the file, so the bytes never change under one URL. */
     public const CACHE_CONTROL = 'private, max-age=604800, immutable';
+
+    public const STALE_CACHE_CONTROL = 'private, no-cache';
+
+    private const SERVED_STATUSES = ['active', 'draft', 'inactive'];
 
     private const BAD_REQUESTS_PER_MINUTE = 120;
 
@@ -58,6 +66,14 @@ final class SignedProductMediaController extends Controller
                 return $this->notFound();
             }
             $productId = (int) $model->product_id;
+            // A retired product (archived or deleted) has no photo address any
+            // more. Draft and inactive stay: the admin catalog and the app show
+            // them through this same URL, which has no session to tell staff apart.
+            if (!Product::query()->whereKey($productId)->whereNull('deleted_at')
+                ->whereIn('status', self::SERVED_STATUSES)->exists()) {
+                return $this->notFound();
+            }
+            $current = $model->mediaVersion($rendition);
             $file = null;
             $mime = null;
             if ($rendition !== 'original') {
@@ -85,7 +101,9 @@ final class SignedProductMediaController extends Controller
         $headers = [
             'Content-Type' => $mime,
             'Content-Disposition' => 'inline',
-            'Cache-Control' => self::CACHE_CONTROL,
+            // An old version (photo replaced since the mail or push went out)
+            // still shows today's photo, but no client may keep it as immutable.
+            'Cache-Control' => $current !== null && hash_equals($current, $version) ? self::CACHE_CONTROL : self::STALE_CACHE_CONTROL,
             'ETag' => '"'.substr(hash('sha256', implode('|', [$id, $rendition, $version, $mime, $modified, $size])), 0, 32).'"',
             'Last-Modified' => gmdate('D, d M Y H:i:s', $modified).' GMT',
         ];
