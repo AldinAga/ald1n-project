@@ -113,7 +113,7 @@ if (merged.infra_failures.length) L.push('', '### Infrastructure failures', '', 
 if (problems.length) L.push('', '### Gate problems', '', ...problems.map((x) => '- ' + x));
 // Word-integrity gate (owner rule 2026-11-24): a word is never broken mid-word and short-text components never overflow.
 // Fails in EVERY module, strict or not, on every page, width and theme; no page is excluded.
-const WORD_RULES = ['word-broken', 'short-text-overflow'];
+const WORD_RULES = ['word-broken', 'short-text-overflow', 'word-gate-control-missing'];
 const wordFindings = merged.findings.filter((f) => WORD_RULES.includes(f.rule));
 const wordViolations = sum(wordFindings);
 L.push('', '### Word integrity gate (all modules, fails the job)', '', `Violations: ${wordViolations} in ${new Set(wordFindings.map((f) => `${f.browser}/${f.page}/${f.width}/${f.theme}`)).size} cells.`);

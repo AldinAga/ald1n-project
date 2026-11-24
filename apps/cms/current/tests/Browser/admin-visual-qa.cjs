@@ -1010,6 +1010,12 @@ async function runCell(ctx, pg, width, theme) {
       findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: v.rule, count: 1,
         detail: `${target} :: ${v.s} :: "${v.t}" (${v.w}px)`, selectors: [`${v.s} "${v.t}"`] });
     }
+    // The brands page must really render the "Aktivan" status pill (owner report); an empty page must never pass the gate.
+    if (pg.key === 'brands-index') {
+      const n = await page.evaluate(() => [...document.querySelectorAll('.a1-pill')].filter((e) => e.textContent.trim() === 'Aktivan').length);
+      if (n < 1) findings.push({ module: pg.module, page: pg.key, browser: browserName, width, theme, rule: 'word-gate-control-missing', count: 1,
+        detail: `${target} :: .a1-pill :: "Aktivan" missing (brand seed or markup changed)`, selectors: ['.a1-pill "Aktivan" missing'] });
+    }
     if (pg.module === 'shell') findings.push(...await shellChecks(page, pg, width, theme));
     if (pg.module === 'dashboard') findings.push(...await dashboardChecks(page, pg, width, theme));
     if (pg.module === 'orders') findings.push(...await ordersChecks(page, pg, width, theme));
