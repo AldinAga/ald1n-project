@@ -607,7 +607,7 @@ $orphanOk=static function()use($active):bool{foreach(array_merge(CommissionsInst
 check($orphanOk(),'THE_TWO_ORPHAN_VIEWS_ARE_ON_THE_HOST_WITH_THEIR_B1155_BYTES_BEFORE');
 
 // 9c. Guard groups without their proof are refused, each rolled back to the exact old tree (D: the provider needs the class proof, E: the routes need it, F: the views need the asset proof).
-foreach(array_values(array_filter([['D',($stepProvider['n']??0),'clearClassProof:D','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['E',($stepRoutesApi['n']??0),'clearClassProof:E','GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],['F',(array_values(array_filter($plan,static fn($s)=>$s['group']==='F'))[0]['n']??0),'clearAssetProof','GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF']],static fn($x)=>isset(B1158InstallCoordinator::GUARDS[$x[0]]))) as [$g,$n,$act,$code]){
+foreach(array_map(static fn($g)=>[$g,$groupSteps($g)[0]['n'],$g==='F'?'clearAssetProof':'clearClassProof:'.$g,$g==='F'?'GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF':'GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF'],array_keys(B1158InstallCoordinator::GUARDS)) as [$g,$n,$act,$code]){
     [$rc,$o]=$run(['BEFORE_STEP_'.$n=>[$act]]);
     check($rc===2&&lastRaw($o,'INSTALL_OR_ACCEPTANCE_FAILED')===json_encode($code)&&lastRaw($o,'B1158_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld(),'GUARD_GROUP_'.$g.'_REFUSED_WITHOUT_ITS_PROOF_AND_ROLLED_BACK');$reset();
 }
