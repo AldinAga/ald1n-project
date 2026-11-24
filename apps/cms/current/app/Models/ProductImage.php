@@ -34,9 +34,10 @@ final class ProductImage extends Model
     }
 
     /**
-     * The version a URL of this rendition carries today (null when the row
-     * or the rendition file does not exist). The signed route compares it
-     * with the version in the request to tell a current URL from an old one.
+     * The version a URL of this rendition carries today: that of the file the
+     * route really serves, so the original's when the rendition file does not
+     * exist (null when the row itself is unusable). URL generation and the
+     * signed route both use it, to tell a current URL from an old one.
      */
     public function mediaVersion(string $rendition): ?string
     {
@@ -56,8 +57,11 @@ final class ProductImage extends Model
             }
 
             $path = ProductImageDerivativeService::relativePaths($this)[$rendition] ?? null;
-            if (!is_string($path) || !Storage::disk('public')->exists($path) || (int) $this->getKey() < 1) {
+            if ((int) $this->getKey() < 1) {
                 return null;
+            }
+            if (!is_string($path) || !Storage::disk('public')->exists($path)) {
+                return $this->mediaVersion('original'); // the route serves the original
             }
 
             return ProductMediaUrl::version($this->optimizedCacheVersion($path).'|'.$rendition);
