@@ -4,7 +4,7 @@ import type {
 } from 'react';
 import { Button as TamaguiButton } from 'tamagui';
 
-import { radii } from '@/constants/theme';
+import { radii, touchTarget } from '@/constants/theme';
 
 type TamaguiButtonProps =
   ComponentProps<typeof TamaguiButton>;
@@ -28,8 +28,8 @@ export function IconButton({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      width={44}
-      height={44}
+      width={touchTarget}
+      height={touchTarget}
       borderRadius={radii.lg}
       backgroundColor="$surface"
       borderWidth={1}
@@ -38,6 +38,7 @@ export function IconButton({
       justifyContent="center"
       opacity={disabled ? 0.48 : 1}
       transition="quickLessBouncy"
+      focusStyle={{ borderColor: '$focusRing', borderWidth: 3 }}
       pressStyle={{
         scale: 0.94,
         backgroundColor: '$brandContainer',

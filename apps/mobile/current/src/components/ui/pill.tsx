@@ -13,6 +13,7 @@ export type PillTone =
   | 'success'
   | 'warning'
   | 'danger'
+  | 'dangerSolid'
   | 'info';
 
 const palettes = {
@@ -41,6 +42,12 @@ const palettes = {
     text: '$danger',
   },
 
+  // Red background badge: dedicated fill and label keys (white / page-dark, >= 4.5:1).
+  dangerSolid: {
+    background: '$dangerFill',
+    text: '$onDangerFill',
+  },
+
   info: {
     background: '$infoContainer',
     text: '$info',
@@ -59,6 +66,9 @@ export function Pill({
   return (
     <XStack
       alignSelf="flex-start"
+      // Never narrower than its word and never wider than the row: the label ellipsizes instead of breaking.
+      flexShrink={0}
+      maxWidth="100%"
       paddingHorizontal={spacing.md}
       paddingVertical={6}
       borderRadius={radii.pill}
@@ -67,9 +77,13 @@ export function Pill({
       transition="100ms"
     >
       <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        flexShrink={1}
         fontSize={typography.small.fontSize}
         lineHeight={typography.small.lineHeight}
         fontWeight="700"
+        letterSpacing={0.24}
         color={palette.text}
       >
         {children}

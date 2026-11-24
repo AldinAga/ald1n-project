@@ -163,8 +163,8 @@ function createStyles(theme: AppColors) {
       gap: spacing.md,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.line,
-      borderRadius: radii.xl,
-      backgroundColor: theme.surface,
+      borderRadius: radii.lg,
+      backgroundColor: theme.glass,
     },
     icon: {
       width: 56,

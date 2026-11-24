@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { spacing, typography, type AppColors } from '@/constants/theme';
+import { spacing, touchTarget, typography, type AppColors } from '@/constants/theme';
 import { useAppTheme } from '@/theme/app-theme';
 
 type FilterBarProps = PropsWithChildren<{ activeCount?: number; clearLabel?: string; onClear?: () => void }>;
@@ -12,6 +12,6 @@ export function FilterBar({ activeCount = 0, children, clearLabel = 'Očisti', o
 }
 export function FilterChip({ label, active = false, disabled = false, onPress }: FilterChipProps) {
   const { colors: theme } = useAppTheme(); const styles = createStyles(theme);
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }: { pressed: boolean }) => [styles.chip, active ? styles.active : null, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}><Text style={[styles.chipText, active ? styles.activeText : null]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }: { pressed: boolean }) => [styles.chip, active ? styles.active : null, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.chipText, active ? styles.activeText : null]}>{label}</Text></Pressable>;
 }
-function createStyles(theme: AppColors) { return StyleSheet.create({ wrap:{gap:spacing.sm}, chips:{flexDirection:'row',flexWrap:'wrap',gap:spacing.sm}, chip:{minHeight:38,justifyContent:'center',paddingHorizontal:spacing.md,paddingVertical:spacing.sm,borderRadius:999,borderWidth:1,borderColor:theme.line,backgroundColor:theme.surface}, active:{borderColor:theme.primary,backgroundColor:theme.primarySoft}, chipText:{...typography.small,color:theme.ink,fontWeight:'700'}, activeText:{color:theme.primary}, clear:{alignSelf:'flex-start',minHeight:36,justifyContent:'center'}, clearText:{...typography.small,color:theme.primary,fontWeight:'700'}, disabled:{opacity:.45}, pressed:{opacity:.72} }); }
+function createStyles(theme: AppColors) { return StyleSheet.create({ wrap:{gap:spacing.sm}, chips:{flexDirection:'row',flexWrap:'wrap',gap:spacing.sm}, chip:{minHeight:touchTarget,maxWidth:'100%',flexShrink:0,justifyContent:'center',paddingHorizontal:spacing.md,paddingVertical:spacing.sm,borderRadius:999,borderWidth:1,borderColor:theme.line,backgroundColor:theme.surface}, active:{borderColor:theme.primary,backgroundColor:theme.primarySoft}, chipText:{...typography.small,color:theme.ink,fontWeight:'700'}, activeText:{color:theme.primary}, clear:{alignSelf:'flex-start',minHeight:touchTarget,justifyContent:'center'}, clearText:{...typography.small,color:theme.primary,fontWeight:'700'}, disabled:{opacity:.45}, pressed:{opacity:.72} }); }

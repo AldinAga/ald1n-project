@@ -4,10 +4,14 @@ import type {
 } from 'react';
 import { Button as TamaguiButton, Spinner, Text } from 'tamagui';
 import {
+  controlHeight,
+  focusRing,
   radii,
+  shadowThemes,
   spacing,
   typography,
 } from '@/constants/theme';
+import { useAppTheme } from '@/theme/app-theme';
 
 type TamaguiButtonProps =
   ComponentProps<typeof TamaguiButton>;
@@ -27,13 +31,14 @@ const palettes = {
   },
   ghost: {
     background: '$surfaceContainer',
-    border: '$surfaceContainer',
+    border: '$line',
     text: '$text',
   },
+  // Solid red with its own label colour; `$danger` is a dark text tone and is not a fill.
   danger: {
-    background: '$dangerContainer',
-    border: '$dangerContainer',
-    text: '$danger',
+    background: '$dangerFill',
+    border: '$dangerFill',
+    text: '$onDangerFill',
   },
 } as const;
 
@@ -44,14 +49,17 @@ export function Button({
   disabled = false,
   variant = 'primary',
   style,
+  accessibilityLabel,
 }: PropsWithChildren<{
   onPress?: TamaguiButtonProps['onPress'];
   loading?: boolean;
   disabled?: TamaguiButtonProps['disabled'];
   variant?: Variant;
   style?: TamaguiButtonProps['style'];
+  accessibilityLabel?: string;
 }>) {
   const palette = palettes[variant];
+  const { scheme } = useAppTheme();
   // MOBILE_GLOBAL_REPEATABLE_ACTIONS_V07
   // Loading is a transient busy indicator. Native disabled state is reserved for true structural unavailability.
   const isDisabled = Boolean(disabled);
@@ -63,10 +71,11 @@ export function Button({
     <TamaguiButton
       unstyled
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={pressHandler}
-      minHeight={56}
+      minHeight={controlHeight}
       paddingHorizontal={spacing.xl}
       borderRadius={radii.md}
       borderWidth={1}
@@ -80,15 +89,23 @@ export function Button({
         scale: 0.975,
         opacity: 0.94,
       }}
-      style={style}
+      focusStyle={{
+        borderColor: '$focusRing',
+        borderWidth: focusRing.width,
+      }}
+      style={[variant === 'primary' && !isDisabled ? { boxShadow: shadowThemes[scheme].button } : null, style]}
     >
       {loading ? (
         <Spinner color={palette.text} />
       ) : (
         <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          flexShrink={1}
           fontSize={typography.label.fontSize}
           lineHeight={typography.label.lineHeight}
           fontWeight="700"
+          letterSpacing={0.07}
           color={palette.text}
           textAlign="center"
         >
