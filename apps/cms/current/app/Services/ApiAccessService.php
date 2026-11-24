@@ -34,6 +34,7 @@ final class ApiAccessService
         return [
             'catalog' => $has('catalog.view'),
             'catalog_prices' => $has('catalog.view_prices'),
+            'catalog_notes' => $has('catalog.view_notes'),
             'orders' => $has('orders.view_own'),
             'order_create' => $has('orders.create'),
             'order_cancel' => $has('orders.cancel_own'),
