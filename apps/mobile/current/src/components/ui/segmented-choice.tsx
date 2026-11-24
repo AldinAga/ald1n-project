@@ -46,13 +46,17 @@ export function SegmentedChoice({
             alignItems="center"
             justifyContent="center"
             transition="quickLessBouncy"
+            focusStyle={{ borderColor: '$focusRing' }}
             pressStyle={{ scale: 0.97, opacity: 0.9 }}
           >
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
+              textAlign="center"
+              ellipsizeMode="tail"
+              flexShrink={1}
               fontSize={typography.small.fontSize}
               lineHeight={typography.small.lineHeight}
-              fontWeight={selected ? '900' : '700'}
+              fontWeight={selected ? '800' : '700'}
               color={selected ? '$onBrandContainer' : '$textMuted'}
             >
               {option.label}

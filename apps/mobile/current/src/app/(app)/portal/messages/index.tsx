@@ -116,8 +116,8 @@ function createStyles(theme: AppColors) {
     rowTitle: { ...typography.h3, color: theme.ink },
     meta: { ...typography.small, color: theme.primary },
     preview: { ...typography.body, color: theme.muted },
-    badge: { minWidth: 30, height: 30, borderRadius: radii.pill, backgroundColor: theme.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
-    badgeText: { ...typography.label, color: theme.onDanger },
+    badge: { minWidth: 30, height: 30, borderRadius: radii.pill, backgroundColor: theme.dangerFill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
+    badgeText: { ...typography.label, color: theme.onDangerFill },
     error: { ...typography.small, color: theme.danger },
   });
 }

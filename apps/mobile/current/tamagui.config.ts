@@ -6,9 +6,9 @@ import { animations } from '@tamagui/config/v5-reanimated';
 import { createTamagui } from 'tamagui';
 
 import {
-  ald1nDarkPalette,
-  ald1nLightPalette,
-} from './src/design/ald1n-tokens.generated';
+  kobaltDarkPalette as ald1nDarkPalette,
+  kobaltLightPalette as ald1nLightPalette,
+} from './src/design/kobalt-tamagui-palette';
 import { kobalt } from './src/design/ald1n-tokens.kobalt.generated';
 import { createAppColors } from './src/design/kobalt-app-colors';
 
@@ -49,6 +49,13 @@ const themes = createV5Theme({
       danger: tokens.danger,
       onDanger: tokens.onDanger,
       dangerContainer: tokens.dangerSoft,
+      dangerFill: tokens.dangerFill,
+      onDangerFill: tokens.onDangerFill,
+      focusRing: tokens.focusRing,
+      glassSoft: tokens.glassSoft,
+      glass: tokens.glass,
+      glassDense: tokens.glassDense,
+      glassStrong: tokens.glassStrong,
       info: tokens.info,
       infoContainer: tokens.infoSoft,
     };
