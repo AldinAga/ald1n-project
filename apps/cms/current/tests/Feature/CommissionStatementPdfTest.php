@@ -144,26 +144,94 @@ final class CommissionStatementPdfTest extends TestCase
         $pending = $this->approvedCommission($this->bravo);
         $pending->forceFill(['status' => 'pending'])->save();
 
+        $this->approvedCommission($this->bravo); // Za isplatu: bez kursa isplate, zato indikativno
+
         $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
         self::assertStringContainsString('2.344,00 RSD', $pdf);
-        self::assertSame(2, substr_count($pdf, '2.344,00 RSD *'), 'zvezdica samo na isplati bez serije i na neisplaćenoj proviziji');
+        self::assertSame(2, substr_count($pdf, '2.344,00 RSD *'), 'zvezdica samo na isplati bez serije i na proviziji za isplatu');
         self::assertStringContainsString('indikativni', $pdf);
     }
 
-    public function test_other_month_and_cancelled_commissions(): void
+    public function test_statement_lists_only_payable_and_paid_commissions_with_their_status(): void
     {
-        $cancelled = $this->approvedCommission($this->alfa);
-        $cancelled->forceFill(['status' => 'cancelled'])->save();
+        $pending = $this->approvedCommission($this->bravo);
+        $pending->forceFill(['status' => 'pending', 'total_eur' => '11.11'])->save();
+        $cancelled = $this->approvedCommission($this->bravo);
+        $cancelled->forceFill(['status' => 'cancelled', 'total_eur' => '12.12'])->save();
+        $this->approvedCommission($this->bravo);
 
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        self::assertStringContainsString('(Za isplatu) Tj', $pdf);
+        self::assertStringContainsString('('.$this->pdfText('Isplaćena').') Tj', $pdf);
+        foreach (['11,11 EUR', '12,12 EUR', $this->pdfText('Na čekanju'), 'Stornirana', $pending->order->order_number, $cancelled->order->order_number] as $absent) {
+            self::assertStringNotContainsString($absent, $pdf);
+        }
+        self::assertStringContainsString('40,00 EUR', $pdf); // ukupno: isplaćena 20,00 + za isplatu 20,00
+    }
+
+    public function test_net_payable_is_gross_minus_storno_and_open_debit_in_three_rows(): void
+    {
+        // Bravo: za isplatu 30,00 EUR, storno 3,00 (total_eur postaje 27,00), otvoreno zaduženje 4,00 na isplaćenoj proviziji.
+        $due = $this->approvedCommission($this->bravo);
+        $due->forceFill(['total_eur' => '30.00'])->save();
+        app(\App\Services\CommissionReversalService::class)->reverse($due->fresh(), $this->super, 'Delimičan storno', '3.00');
+        self::assertSame('27.00', (string) $due->fresh()->total_eur);
+        $paid = OrderCommission::query()->where('user_id', $this->bravo->id)->where('status', 'paid')->firstOrFail();
+        CommissionAdjustment::query()->create([
+            'commission_id' => $paid->id, 'order_id' => $paid->order_id, 'kind' => 'debit', 'status' => 'confirmed',
+            'amount_eur' => '4.00', 'reason' => 'Povrat posle isplate', 'source' => 'manual', 'created_by' => $this->super->id,
+        ]);
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        $bruto = strpos($pdf, '('.$this->pdfText('Bruto za isplatu (pre storna)').') Tj');
+        $korekcije = strpos($pdf, '('.$this->pdfText('Korekcije za isplatu (storno i zaduženja)').') Tj');
+        $neto = strpos($pdf, '(Neto za isplatu) Tj');
+        self::assertNotFalse($bruto);
+        self::assertNotFalse($korekcije);
+        self::assertNotFalse($neto);
+        self::assertTrue($bruto < $korekcije && $korekcije < $neto, 'redosled: bruto, korekcije, neto zadnji');
+        self::assertStringContainsString('(30,00 EUR) Tj', substr($pdf, $bruto, $korekcije - $bruto));
+        self::assertStringContainsString('(-7,00 EUR) Tj', substr($pdf, $korekcije, $neto - $korekcije));
+        self::assertStringContainsString('(23,00 EUR) Tj', substr($pdf, $neto, 400));
+        self::assertStringContainsString('(27,00 EUR) Tj', $pdf); // stavka u tabeli posle storna, kao na stranici provizija
+    }
+
+    public function test_open_debit_larger_than_payable_is_capped_and_net_is_zero(): void
+    {
+        $this->approvedCommission($this->bravo); // 20,00 za isplatu
+        $paid = OrderCommission::query()->where('user_id', $this->bravo->id)->where('status', 'paid')->firstOrFail();
+        CommissionAdjustment::query()->create([
+            'commission_id' => $paid->id, 'order_id' => $paid->order_id, 'kind' => 'debit', 'status' => 'confirmed',
+            'amount_eur' => '25.00', 'reason' => 'Veliki povrat', 'source' => 'manual', 'created_by' => $this->super->id,
+        ]);
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        $neto = strpos($pdf, '(Neto za isplatu) Tj');
+        self::assertNotFalse($neto);
+        self::assertStringContainsString('(-20,00 EUR) Tj', $pdf);
+        self::assertStringContainsString('(0,00 EUR) Tj', substr($pdf, $neto, 400));
+        self::assertStringContainsString('25,00 EUR', $pdf); // otvoreno zaduženje u celosti, ostatak ide u narednu isplatu
+    }
+
+    public function test_large_amounts_and_statuses_stay_on_one_line(): void
+    {
+        $big = $this->approvedCommission($this->bravo);
+        $big->forceFill(['total_eur' => '12345.67'])->save();
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        self::assertStringContainsString('(12.345,67 EUR) Tj', $pdf);
+        self::assertStringContainsString('(1.446.912,52 RSD *) Tj', $pdf); // 1.234.567 centi x 117,2
+        foreach (['(EUR) Tj', '(RSD) Tj', '(RSD *) Tj', '(*) Tj', '(isplatu) Tj', '(0) Tj'] as $fragment) {
+            self::assertStringNotContainsString($fragment, $pdf, 'iznos ili status prelomljen u dva reda');
+        }
+    }
+
+    public function test_other_month_is_empty(): void
+    {
         $empty = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->subMonthsNoOverflow(3)->format('Y-m').'&user_id='.$this->alfa->id)->assertOk()->getContent();
         self::assertStringContainsString('Nema stavki', $empty);
         self::assertStringNotContainsString('2.344,00 RSD', $empty);
         self::assertStringNotContainsString($this->pdfText(self::REASON), $empty);
-
-        $current = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->alfa->id)->assertOk()->getContent();
-        self::assertStringContainsString('Stornirana', $current);
-        self::assertStringContainsString('40,00 EUR', $current); // 2 isplaćene po 20,00; stornirana se ne računa
-        self::assertStringNotContainsString('60,00 EUR', $current);
     }
 
     public function test_payout_pdf_fails_loudly_when_it_disagrees_with_the_batch(): void

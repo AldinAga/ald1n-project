@@ -22,21 +22,26 @@ final class CommissionStatementPdfService
         $layout->cards([
             $this->card('UKUPNO PROVIZIJA', $d['total_eur']),
             $this->card('ISPLAĆENO', $d['paid_eur']),
-            $this->card('ZA ISPLATU', $d['due_eur']),
-            $this->card('UKUPNO ZA ISPLATU (NETO)', $d['net_due_eur']),
+            $this->card('NETO ZA ISPLATU', $d['net_due_eur']),
         ]);
-        $layout->paragraph('Prebijeni debiti u ovom mesecu: '.$d['settled_eur'].'. Otvoreni debiti na dan generisanja: '.$d['open_debt_eur'].' (prebijaju se u narednoj isplati). Neto za isplatu u RSD: '.$d['net_due_rsd'].'.', 9);
+        $layout->paragraph('Prebijena zaduženja u ovom mesecu: '.$d['settled_eur'].'. Otvorena zaduženja na dan generisanja: '.$d['open_debt_eur'].'; od isplate se oduzima najviše iznos za isplatu, ostatak se prenosi na narednu isplatu. Neto za isplatu u RSD: '.$d['net_due_rsd'].'.', 9);
         $layout->section('Porudžbine');
+        // Širine su izabrane da iznosi do 99.999,99 EUR i statusi stanu u jedan red (bez prelamanja).
         $layout->table([
-            ['label' => 'Porudžbina', 'width' => 135, 'bold' => true],
-            ['label' => 'Osnovica EUR', 'width' => 75, 'align' => 'right'],
-            ['label' => '%', 'width' => 38, 'align' => 'right'],
-            ['label' => 'Provizija EUR', 'width' => 78, 'align' => 'right', 'bold' => true],
-            ['label' => 'Provizija RSD', 'width' => 100, 'align' => 'right'],
-            ['label' => 'Status', 'width' => 97],
+            ['label' => 'Porudžbina', 'width' => 115, 'bold' => true],
+            ['label' => 'Osnovica EUR', 'width' => 80, 'align' => 'right'],
+            ['label' => '%', 'width' => 46, 'align' => 'right'],
+            ['label' => 'Provizija EUR', 'width' => 86, 'align' => 'right', 'bold' => true],
+            ['label' => 'Provizija RSD', 'width' => 112, 'align' => 'right'],
+            ['label' => 'Status', 'width' => 84],
         ], $d['rows'], 8);
+        $layout->totals([
+            ['Bruto za isplatu (pre storna)', $d['gross_due_eur']],
+            ['Korekcije za isplatu (storno i zaduženja)', $d['corrections_eur']],
+            ['Neto za isplatu', $d['net_due_eur']],
+        ]);
         if ($d['debits'] !== []) {
-            $layout->section('Prebijeni debiti');
+            $layout->section('Prebijena zaduženja');
             $layout->table([
                 ['label' => 'Datum', 'width' => 80],
                 ['label' => 'Razlog', 'width' => 343],
@@ -59,7 +64,7 @@ final class CommissionStatementPdfService
         );
         $layout->cards([
             $this->card('BRUTO', $d['gross_eur']),
-            $this->card('PREBIJENI DEBITI', $d['debit_eur']),
+            $this->card('PREBIJENA ZADUŽENJA', $d['debit_eur']),
             $this->card('NETO EUR', $d['net_eur']),
             $this->card('NETO RSD', $d['net_rsd']),
         ]);
@@ -68,7 +73,7 @@ final class CommissionStatementPdfService
         $layout->table([
             ['label' => 'SubAgent', 'width' => 163, 'bold' => true],
             ['label' => 'Bruto EUR', 'width' => 80, 'align' => 'right'],
-            ['label' => 'Debiti EUR', 'width' => 80, 'align' => 'right'],
+            ['label' => 'Zaduženja EUR', 'width' => 80, 'align' => 'right'],
             ['label' => 'Neto EUR', 'width' => 90, 'align' => 'right', 'bold' => true],
             ['label' => 'Neto RSD', 'width' => 110, 'align' => 'right', 'bold' => true],
         ], $d['recipients'], 8.5);
@@ -80,7 +85,7 @@ final class CommissionStatementPdfService
             ['label' => 'Iznos RSD', 'width' => 90, 'align' => 'right'],
         ], $d['rows'], 8);
         if ($d['debits'] !== []) {
-            $layout->section('Prebijeni debiti');
+            $layout->section('Prebijena zaduženja');
             $layout->table([
                 ['label' => 'SubAgent', 'width' => 143],
                 ['label' => 'Razlog', 'width' => 290],

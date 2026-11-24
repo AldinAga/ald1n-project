@@ -29,13 +29,18 @@ final class CommissionStatementService
         private readonly CommissionStatementPdfService $pdf,
     ) {}
 
-    /** Obračun SubAgenta za mesec (Y-m): provizije nastale ili isplaćene u tom mesecu. */
+    /**
+     * Obračun SubAgenta za mesec (Y-m): samo provizije „Za isplatu“ i „Isplaćena“ nastale ili isplaćene u tom mesecu.
+     * Iznos provizije je total_eur (storno ga već umanjuje, isto kao stranica provizija i izveštaji);
+     * neto za isplatu = Za isplatu minus otvorena zaduženja (najviše do iznosa za isplatu), isto kao masovna isplata.
+     */
     public function monthly(User $agent, string $month): string
     {
         $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
         $to = $from->endOfMonth();
-        $commissions = OrderCommission::query()->with(['order.items'])
+        $commissions = OrderCommission::query()->with(M::hasAdjustments() ? ['order.items', 'adjustments'] : ['order.items'])
             ->where('user_id', $agent->id)
+            ->whereIn('status', ['approved', 'paid'])
             ->where(static fn ($q) => $q->whereBetween('created_at', [$from, $to])->orWhereBetween('paid_at', [$from, $to]))
             ->orderBy('id')->get();
 
@@ -43,11 +48,12 @@ final class CommissionStatementService
         $batchRates = [];
         $sources = [];
         $rows = [];
-        $total = $paid = $due = $dueRsd = 0;
+        $total = $paid = $due = $dueRsd = $dueStorno = 0;
         foreach ($commissions as $c) {
             $cents = M::cents($c->total_eur);
-            if ($c->status !== 'cancelled') {
-                $total += $cents;
+            $total += $cents;
+            if ($c->status === 'approved') {
+                $dueStorno += M::cents($c->adjustmentSumEur('reversal'));
             }
             if ($c->status === 'paid') {
                 $paid += $cents;
@@ -79,13 +85,14 @@ final class CommissionStatementService
                 $percent,
                 $this->eur($cents),
                 $rsd === null ? '-' : $this->rsdFormat($rsd).($estimate ? ' *' : ''),
-                ['pending' => 'Na čekanju', 'approved' => 'Za isplatu', 'paid' => 'Isplaćena', 'cancelled' => 'Stornirana'][$c->status] ?? (string) $c->status,
+                $c->status === 'paid' ? 'Isplaćena' : 'Za isplatu',
             ];
         }
 
         [$openDebt, $settledMonth, $debitRows] = $this->debits((int) $agent->id, $from, $to);
-        $netDue = max(0, $due - $openDebt);
-        $netDueRsd = $current === null ? null : max(0, $dueRsd - $this->rsdCents(min($openDebt, $due), $current));
+        $appliedDebt = min($openDebt, $due);
+        $netDue = $due - $appliedDebt;
+        $netDueRsd = $current === null ? null : max(0, $dueRsd - $this->rsdCents($appliedDebt, $current));
         $s = $this->settings->all();
         $note = 'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. RSD je zaokružen po stavci; zbir je zbir stavki.';
         if ($sources !== []) {
@@ -99,7 +106,8 @@ final class CommissionStatementService
             'generated_at' => now()->format('d.m.Y H:i'),
             'total_eur' => $this->eur($total),
             'paid_eur' => $this->eur($paid),
-            'due_eur' => $this->eur($due),
+            'gross_due_eur' => $this->eur($due + $dueStorno),
+            'corrections_eur' => ($dueStorno + $appliedDebt > 0 ? '-' : '').$this->eur($dueStorno + $appliedDebt),
             'net_due_eur' => $this->eur($netDue),
             'net_due_rsd' => $netDueRsd === null ? '-' : $this->rsdFormat($netDueRsd).' (po važećem kursu '.$this->rateLabel($current).')',
             'settled_eur' => $this->eur($settledMonth),
@@ -164,7 +172,7 @@ final class CommissionStatementService
         }
         $this->assertConsistent($batch, $userId, $sumGross, $sumDebit, array_sum($debit));
         $payer = $batch->payer;
-        $note = 'Provizija je obračunata u EUR i isplaćena u RSD po kursu na dan isplate. Prebijeni debiti umanjuju isplatu. RSD je zaokružen po stavci; zbir je zbir stavki.';
+        $note = 'Provizija je obračunata u EUR i isplaćena u RSD po kursu na dan isplate. Prebijena zaduženja umanjuju isplatu. RSD je zaokružen po stavci; zbir je zbir stavki.';
         if (!$recorded && $rate !== null) {
             $note .= ' Iznosi sa * u RSD su indikativni: kurs isplate nije zabeležen ('.$source.').';
         }
