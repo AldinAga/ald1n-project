@@ -19,7 +19,8 @@ final class CatalogSettingsProductDataContractTest extends TestCase
 
         self::assertStringContainsString('/catalog-settings/product-type/{productType:slug}', $routes);
         self::assertStringContainsString("getRouteKeyName(): string { return 'slug'; }", $productType);
-        self::assertStringContainsString('product-type-summary-card', $index);
+        self::assertStringContainsString("route('admin.dictionary.product-type',\$item)", $index);
+        self::assertStringContainsString('data-sort-item', $index);
         self::assertStringContainsString('data-sort-edit-start', $page);
         self::assertStringContainsString('data-sort-edit-finish', $page);
         self::assertStringContainsString("addEventListener('pointerdown'", $script);

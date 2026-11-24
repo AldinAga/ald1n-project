@@ -1,88 +1,95 @@
 @extends('layouts.app')
 @section('title', $product->exists ? 'Izmeni artikal' : 'Dodaj artikal')
 @section('content')
-<div data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-product-id="{{ $product->exists ? $product->id : '' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}" data-duplicate-url="{{ route('admin.products.duplicate-check') }}">
-    <a class="back-link" href="{{ route('catalog.index') }}">← Nazad na artikle</a>
+@include('admin.products.partials.styles')
+<div class="a1-ops" data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-product-id="{{ $product->exists ? $product->id : '' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}" data-duplicate-url="{{ route('admin.products.duplicate-check') }}">
+    <nav aria-label="Putanja">
+        <ol class="a1-crumbs">
+            <li><a class="back-link" href="{{ route('catalog.index') }}">Nazad na artikle</a></li>
+            <li aria-current="page">{{ $product->exists ? 'Izmena artikla' : 'Novi artikal' }}</li>
+        </ol>
+    </nav>
     @if(!$product->exists && session('created_product'))
-        <div class="alert alert-success" role="status" data-created-product-banner>
-            Snimljeno: <strong>{{ session('created_product.name') }}</strong> ({{ session('created_product.sku') }}). Formular je spreman za sledeći unos; tip, brend, linija i valuta su zapamćeni.
-            <a class="button button-ghost button-small" href="{{ route('admin.products.edit', session('created_product.id')) }}">Otvori snimljeni artikal</a>
+        <div class="a1-alert a1-alert--ok" role="status" data-created-product-banner>
+            <div class="a1-alert__body">
+                <p>Snimljeno: <strong>{{ session('created_product.name') }}</strong> ({{ session('created_product.sku') }}). Formular je spreman za sledeći unos; tip, brend, linija i valuta su zapamćeni.</p>
+                <p><a class="a1-btn a1-btn--sm" href="{{ route('admin.products.edit', session('created_product.id')) }}">Otvori snimljeni artikal</a></p>
+            </div>
         </div>
     @endif
-    <div class="page-heading">
-        <div>
-            <span class="eyebrow">Administracija kataloga</span>
-            <h1>{{ $product->exists ? 'Izmeni artikal' : 'Dodaj novi artikal' }}</h1>
-            <p>{{ $product->exists ? $product->name.' · '.$product->sku : 'Počni od tipa, brenda i modela — ostatak forme se prilagođava izboru.' }}</p>
+    <header class="a1-pagehead">
+        <div class="a1-pagehead__text">
+            <span class="a1-eyebrow">Administracija kataloga</span>
+            <h1 class="a1-title">{{ $product->exists ? 'Izmeni artikal' : 'Dodaj novi artikal' }}</h1>
+            <p class="a1-lead">{{ $product->exists ? $product->name.' · '.$product->sku : 'Počni od tipa, brenda i modela — ostatak forme se prilagođava izboru.' }}</p>
         </div>
         @if($product->exists)
-            <div class="page-heading-actions">
-
-                <a class="button button-ghost" href="{{ route('admin.products.clone',$product) }}">Kloniraj artikal</a>
-                @if($product->type?->auto_name_enabled || $product->type?->name_template)<button class="button button-ghost" type="submit" form="regenerate-name-form">Regeneriši naziv</button>@endif
-                @can('catalog.manage_images')<a class="button button-ghost" href="{{ route('admin.products.images.index',$product) }}">Uredi slike</a>@endcan
+            <div class="a1-pagehead__actions">
+                <a class="a1-btn" href="{{ route('admin.products.clone',$product) }}">Kloniraj artikal</a>
+                @if($product->type?->auto_name_enabled || $product->type?->name_template)<button class="a1-btn" type="submit" form="regenerate-name-form">Regeneriši naziv</button>@endif
+                @can('catalog.manage_images')<a class="a1-btn" href="{{ route('admin.products.images.index',$product) }}">Uredi slike</a>@endcan
             </div>
         @endif
-    </div>
+    </header>
 
     {{-- ux-maximal-product-editor-phase1-v2 --}}
-<section class="panel ux-product-workspace" data-ux-product-workspace>
-    <div class="ux-product-workspace-head">
-        <div>
-            <span class="eyebrow">Brzi unos artikla</span>
-            <h2>{{ $product->exists ? 'Uredi artikal kroz jasne radne celine' : 'Od identiteta do objave bez nepotrebnog lutanja' }}</h2>
-            <p class="muted">Kao na modernim marketplace platformama, prvo definiši šta dodaješ. Tip artikla zatim sužava brendove, linije, specifikacije i automatsku kategoriju.</p>
+<section class="a1-card" data-ux-product-workspace aria-labelledby="pe-workspace">
+    <div class="a1-pc-fieldhead">
+        <div class="a1-card__title">
+            <span class="a1-eyebrow">Brzi unos artikla</span>
+            <h2 class="a1-h2" id="pe-workspace">{{ $product->exists ? 'Uredi artikal kroz jasne radne celine' : 'Od identiteta do objave bez nepotrebnog lutanja' }}</h2>
+            <p class="a1-text">Kao na modernim marketplace platformama, prvo definiši šta dodaješ. Tip artikla zatim sužava brendove, linije, specifikacije i automatsku kategoriju.</p>
         </div>
-        <div class="ux-product-workspace-status">
-            <span>Kompletnost artikla</span>
-            <strong data-ux-product-completeness-mirror>—</strong>
-            <small data-ux-product-completeness-copy>Postojeći backend indikator</small>
+        <div class="a1-pc-note">
+            <span class="a1-label">Kompletnost artikla</span>
+            <strong class="a1-h2" data-ux-product-completeness-mirror>—</strong>
+            <small class="a1-help" data-ux-product-completeness-copy>Postojeći backend indikator</small>
         </div>
     </div>
 
-    <nav class="ux-product-task-map" aria-label="Radne celine Product Editor-a">
-        <button type="button" data-ux-product-task="identity">
-            <span class="ux-product-task-index">1</span>
-            <span class="ux-product-task-copy"><strong>Osnovno</strong><small>tip, brend, linija, model i naziv</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+    <nav class="a1-pc-tasks" aria-label="Radne celine Product Editor-a">
+        <button class="a1-pc-task" type="button" data-ux-product-task="identity">
+            <span class="a1-pc-task__idx">1</span>
+            <span class="a1-pc-task__copy"><strong>Osnovno</strong><small>tip, brend, linija, model i naziv</small></span>
+            <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
-        <button type="button" data-ux-product-task="specifications">
-            <span class="ux-product-task-index">2</span>
-            <span class="ux-product-task-copy"><strong>Specifikacije</strong><small>ključna polja prvo, ostala na zahtev</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        <button class="a1-pc-task" type="button" data-ux-product-task="specifications">
+            <span class="a1-pc-task__idx">2</span>
+            <span class="a1-pc-task__copy"><strong>Specifikacije</strong><small>ključna polja prvo, ostala na zahtev</small></span>
+            <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
-        <button type="button" data-ux-product-task="commercial">
-            <span class="ux-product-task-index">3</span>
-            <span class="ux-product-task-copy"><strong>Prodaja</strong><small>status, cena i lager</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        <button class="a1-pc-task" type="button" data-ux-product-task="commercial">
+            <span class="a1-pc-task__idx">3</span>
+            <span class="a1-pc-task__copy"><strong>Prodaja</strong><small>status, cena i lager</small></span>
+            <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
-        <button type="button" data-ux-product-task="media">
-            <span class="ux-product-task-index">4</span>
-            <span class="ux-product-task-copy"><strong>Fotografije</strong><small>slike, glavna slika i raspored</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        <button class="a1-pc-task" type="button" data-ux-product-task="media">
+            <span class="a1-pc-task__idx">4</span>
+            <span class="a1-pc-task__copy"><strong>Fotografije</strong><small>slike, glavna slika i raspored</small></span>
+            <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
-        <button type="button" data-ux-product-task="description">
-            <span class="ux-product-task-index">5</span>
-            <span class="ux-product-task-copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
-            <span class="ux-product-task-state" data-ux-product-task-state>—</span>
+        <button class="a1-pc-task" type="button" data-ux-product-task="description">
+            <span class="a1-pc-task__idx">5</span>
+            <span class="a1-pc-task__copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
+            <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
     </nav>
 
-    <div class="ux-product-command-row">
-        <div class="ux-product-search-shell">
-            <label>
-                <span>Pronađi polje u ovoj formi</span>
-                <input type="search" data-ux-product-field-search placeholder="Npr. RAM, cena, SKU, lager..." autocomplete="off">
+    <div class="a1-pc-command">
+        <div class="a1-pc-search">
+            <label class="a1-field">
+                <span class="a1-label">Pronađi polje u ovoj formi</span>
+                <input class="a1-input" type="search" data-ux-product-field-search placeholder="Npr. RAM, cena, SKU, lager..." autocomplete="off">
             </label>
-            <div class="ux-product-search-results" data-ux-product-search-results hidden aria-live="polite"></div>
+            <div class="a1-pc-results" data-ux-product-search-results hidden aria-live="polite"></div>
         </div>
 
-        <button class="button button-ghost" type="button" data-ux-product-next-missing>
+        <button class="a1-btn" type="button" data-ux-product-next-missing>
             Idi na sledeće obavezno polje
         </button>
     </div>
 
-    <div class="ux-product-workspace-meta">
+    <div class="a1-pc-facts">
         <div>
             <span>Obavezna polja</span>
             <strong data-ux-product-required-state>Provera...</strong>
@@ -97,9 +104,9 @@
         </div>
     </div>
 
-    <details class="ux-product-review" data-ux-product-review>
+    <details class="a1-acc" data-ux-product-review>
         <summary>Pregled pre čuvanja</summary>
-        <div class="ux-product-review-grid">
+        <div class="a1-acc__body a1-pc-facts">
             <div><span>Tip</span><strong data-ux-product-review-value="product_type_id">—</strong></div>
             <div><span>Brend</span><strong data-ux-product-review-value="brand_id">—</strong></div>
             <div><span>Model</span><strong data-ux-product-review-value="model_name">—</strong></div>
@@ -113,25 +120,25 @@
 </section>
 
 @if($errors->any())
-    <section class="alert alert-error ux-product-error-summary" role="alert" tabindex="-1" data-ux-product-error-summary>
-        <div>
-            <strong>Proveri podatke pre čuvanja</strong>
+    <section class="a1-alert a1-alert--danger a1-pc-errsummary" role="alert" tabindex="-1" data-ux-product-error-summary>
+        <div class="a1-alert__body">
+            <p class="a1-alert__title">Proveri podatke pre čuvanja</p>
             <p>Sačuvan je tvoj unos. Izaberi grešku da odmah pređeš na odgovarajuće polje.</p>
-        </div>
-        <ul>
-            @foreach($errors->getMessages() as $field => $messages)
-                @foreach($messages as $message)
-                    <li>
-                        <button type="button" data-ux-product-error-target="{{ $field }}">{{ $message }}</button>
-                    </li>
+            <ul class="a1-pc-errlist">
+                @foreach($errors->getMessages() as $field => $messages)
+                    @foreach($messages as $message)
+                        <li>
+                            <button type="button" data-ux-product-error-target="{{ $field }}">{{ $message }}</button>
+                        </li>
+                    @endforeach
                 @endforeach
-            @endforeach
-        </ul>
+            </ul>
+        </div>
     </section>
 @endif
 <form
         id="product-editor-form"
-        class="liquid-glass-product-editor-form"
+        class="a1-form liquid-glass-product-editor-form"
         method="post"
         enctype="multipart/form-data" data-ux-sticky-actions
         action="{{ $product->exists ? route('admin.products.update',$product) : route('admin.products.store') }}"
@@ -140,49 +147,53 @@
     >
         @csrf
         @if($product->exists)@method('PUT')<input type="hidden" name="autosave_version" value="{{ $product->updated_at?->getTimestamp() }}" data-autosave-version>@endif
-        <div class="admin-form-grid">
-            <div class="form-main">
-                <section class="panel form-section form-section-priority product-fast-start" data-product-fast-start>
-                    <div class="form-section-number">1</div>
-                    <div class="section-heading-row">
-                        <div>
-                            <span class="eyebrow">Brzi početak</span>
-                            <h2>Šta dodaješ?</h2>
-                            <p class="muted">Izaberi tip, zatim brend, liniju i model. Kategorija i dostupne specifikacije prilagođavaju se automatski.</p>
+        <div class="a1-split">
+            <div class="a1-stack">
+                <section class="a1-card product-fast-start" data-form-section data-product-fast-start aria-labelledby="pe-start">
+                    <div class="a1-pc-sechead">
+                        <span class="a1-pc-secnum" aria-hidden="true">1</span>
+                        <div class="a1-card__title">
+                            <span class="a1-eyebrow">Brzi početak</span>
+                            <h2 class="a1-h2" id="pe-start">Šta dodaješ?</h2>
+                            <p class="a1-text">Izaberi tip, zatim brend, liniju i model. Kategorija i dostupne specifikacije prilagođavaju se automatski.</p>
                         </div>
                     </div>
-                    <div class="field-grid product-fast-start-grid">
-                        <label class="specification-type-selector field-span-2"><span>Tip artikla</span><select name="product_type_id" data-product-type><option value="">Bez tipa / ručni unos</option>@foreach($types as $type)<option value="{{ $type->id }}" data-auto-name="{{ $type->auto_name_enabled ? '1' : '0' }}" data-name-template="{{ $type->name_template }}" data-min-completeness="{{ $type->minimum_completeness_percent ?? 0 }}" data-default-status="{{ $type->default_product_status ?? 'draft' }}" data-required-core="{{ implode(',',(array)($type->required_core_fields_json??[])) }}" data-category-id="{{ $type->category_id }}" data-category-name="{{ $type->category?->name }}" @selected((int)old('product_type_id',$product->product_type_id)===$type->id)>{{ $type->name }}</option>@endforeach</select><small class="muted" data-type-category-help>Kategorija će biti dodeljena automatski prema tipu artikla.</small></label>
-                        <label><span>Brend</span><select name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
-                        <label><span>Linija proizvoda</span><select name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="muted" data-line-help>Prvo izaberi brend.</small></label>
-                        <label class="field-span-2 product-model-field"><span>Model proizvoda</span><input name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="muted">Tačna oznaka modela ulazi u automatski naziv artikla.</small></label>
+                    <div class="a1-pc-grid">
+                        <label class="a1-field a1-pc-span2"><span class="a1-label">Tip artikla</span><select class="a1-select" name="product_type_id" data-product-type><option value="">Bez tipa / ručni unos</option>@foreach($types as $type)<option value="{{ $type->id }}" data-auto-name="{{ $type->auto_name_enabled ? '1' : '0' }}" data-name-template="{{ $type->name_template }}" data-min-completeness="{{ $type->minimum_completeness_percent ?? 0 }}" data-default-status="{{ $type->default_product_status ?? 'draft' }}" data-required-core="{{ implode(',',(array)($type->required_core_fields_json??[])) }}" data-category-id="{{ $type->category_id }}" data-category-name="{{ $type->category?->name }}" @selected((int)old('product_type_id',$product->product_type_id)===$type->id)>{{ $type->name }}</option>@endforeach</select><small class="a1-help" data-type-category-help>Kategorija će biti dodeljena automatski prema tipu artikla.</small></label>
+                        <label class="a1-field"><span class="a1-label">Brend</span><select class="a1-select" name="brand_id" data-brand-select><option value="">Bez brenda</option>{{-- CATALOG_TYPE_SCOPED_TAXONOMY_V07 --}}@foreach($brands as $brand)<option value="{{ $brand->id }}" data-product-type-ids="{{ implode(',', $brandTypeIds[$brand->id] ?? []) }}" @selected((int)old('brand_id',$product->brand_id)===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
+                        <label class="a1-field"><span class="a1-label">Linija proizvoda</span><select class="a1-select" name="product_line_id" data-line-select><option value="">Bez linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" data-product-type-ids="{{ implode(',', $lineTypeIds[$line->id] ?? []) }}" @selected((int)old('product_line_id',$product->product_line_id)===$line->id)>{{ $line->name }}</option>@endforeach</select><small class="a1-help" data-line-help>Prvo izaberi brend.</small></label>
+                        <label class="a1-field a1-pc-span2 product-model-field"><span class="a1-label">Model proizvoda</span><input class="a1-input" name="model_name" maxlength="190" value="{{ old('model_name',$product->model_name) }}" placeholder="npr. 830 G8" data-product-model><small class="a1-help">Tačna oznaka modela ulazi u automatski naziv artikla.</small></label>
                         @if(\App\Models\Product::hasIdentifierColumns())
-                        <label><span>Šifra dobavljača</span><input name="supplier_code" maxlength="100" value="{{ old('supplier_code',$product->supplier_code) }}" autocomplete="off" data-product-supplier-code></label>
-                        <label><span>EAN (bar-kod)</span><input name="ean" maxlength="20" inputmode="numeric" value="{{ old('ean',$product->ean) }}" autocomplete="off" data-product-ean><small class="muted">8 do 14 cifara.</small></label>
+                        <label class="a1-field"><span class="a1-label">Šifra dobavljača</span><input class="a1-input" name="supplier_code" maxlength="100" value="{{ old('supplier_code',$product->supplier_code) }}" autocomplete="off" data-product-supplier-code></label>
+                        <label class="a1-field"><span class="a1-label">EAN (bar-kod)</span><input class="a1-input" name="ean" maxlength="20" inputmode="numeric" value="{{ old('ean',$product->ean) }}" autocomplete="off" data-product-ean><small class="a1-help">8 do 14 cifara.</small></label>
                         @endif
-                        <div class="field-span-2 alert alert-warning" role="status" hidden data-duplicate-warning></div>
-                        <div class="field-span-2 auto-category-card"><span>Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="muted">Kategorija se ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
-                        <div class="field-span-2 product-name-editor product-fast-name">
-                            <label><span>Naziv artikla</span><input name="name" maxlength="190" value="{{ old('name',$product->name) }}" data-product-name></label>
-                            <div class="inline-actions">
-                                <button class="button button-ghost button-small" type="button" data-name-preview>Predloži naziv</button>
-                                <label class="check-card compact"><input type="checkbox" name="regenerate_name" value="1" @checked(old('regenerate_name'))><span>Generiši pri čuvanju</span></label>
+                        <div class="a1-pc-span2 a1-alert a1-alert--warning a1-pc-dup" role="status" hidden data-duplicate-warning></div>
+                        <div class="a1-pc-span2 a1-pc-note auto-category-card"><span class="a1-label">Automatska kategorija</span><strong data-auto-category-name>Biće određena prema izabranom tipu artikla</strong><small class="a1-help">Kategorija se ne bira ručno. Menja se u podešavanjima konkretnog tipa artikla.</small></div>
+                        <div class="a1-pc-span2 a1-stack product-name-editor product-fast-name">
+                            <label class="a1-field"><span class="a1-label">Naziv artikla</span><input class="a1-input" name="name" maxlength="190" value="{{ old('name',$product->name) }}" data-product-name></label>
+                            <div class="a1-pc-inline">
+                                <button class="a1-btn a1-btn--sm" type="button" data-name-preview>Predloži naziv</button>
+                                <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_name" value="1" @checked(old('regenerate_name'))><i class="a1-check__box" aria-hidden="true"></i><span>Generiši pri čuvanju</span></label>
                             </div>
-                            <small class="muted" data-name-template-help>Izaberi tip artikla da vidiš šablon naziva.</small>
+                            <small class="a1-help" data-name-template-help>Izaberi tip artikla da vidiš šablon naziva.</small>
                         </div>
                         @if($product->exists)
-                            <label><span>SKU *</span><input name="sku" required maxlength="100" value="{{ old('sku',$product->sku) }}"></label>
-                            <label class="check-card"><input type="checkbox" name="regenerate_sku" value="1" @checked(old('regenerate_sku'))><span>Automatski generiši novi SKU</span></label>
+                            <label class="a1-field"><span class="a1-label">SKU *</span><input class="a1-input" name="sku" required maxlength="100" value="{{ old('sku',$product->sku) }}"></label>
+                            <label class="a1-check"><input class="a1-check__input" type="checkbox" name="regenerate_sku" value="1" @checked(old('regenerate_sku'))><i class="a1-check__box" aria-hidden="true"></i><span>Automatski generiši novi SKU</span></label>
                         @endif
                     </div>
                 </section>
-                <section class="panel form-section form-section-priority product-specifications-section">
-                    <div class="form-section-number">2</div>
-                    <h2>Specifikacije</h2>
-                    <p class="muted">Obavezna i najvažnija polja prikazana su odmah. Dodatne specifikacije ostaju dostupne jednim klikom, bez gubitka unetih vrednosti.</p>
+                <section class="a1-card product-specifications-section" data-form-section aria-labelledby="pe-specs">
+                    <div class="a1-pc-sechead">
+                        <span class="a1-pc-secnum" aria-hidden="true">2</span>
+                        <div class="a1-card__title">
+                            <h2 class="a1-h2" id="pe-specs">Specifikacije</h2>
+                            <p class="a1-text">Obavezna i najvažnija polja prikazana su odmah. Dodatne specifikacije ostaju dostupne jednim klikom, bez gubitka unetih vrednosti.</p>
+                        </div>
+                    </div>
 
                     @foreach($types as $type)
-                        <div class="spec-panel" data-spec-panel="{{ $type->id }}" data-spec-priority-panel @if((int)old('product_type_id',$product->product_type_id)!==$type->id) hidden @endif>
+                        <div class="a1-stack" data-spec-panel="{{ $type->id }}" data-spec-priority-panel @if((int)old('product_type_id',$product->product_type_id)!==$type->id) hidden @endif>
                             @php
                                 $renderableSpecFields = $type->fields->reject(fn ($candidate) => $candidate->isDerivedStorageTotalField());
                                 $specFieldMap = $type->fields->keyBy(fn ($candidate) => (int) $candidate->id);
@@ -215,22 +226,22 @@
                                     ->count();
                                 $optionalSpecCount = max(0, $renderableSpecFields->count() - $prioritySpecCount);
                             @endphp
-                            <div class="product-spec-priority-bar">
-                                <div class="product-spec-priority-copy">
+                            <div class="a1-pc-specbar">
+                                <div class="a1-pc-specbar__copy">
                                     <strong>Ključne specifikacije</strong>
                                     <small>Obavezna polja, važnija polja i njihove zavisnosti ostaju odmah vidljivi.</small>
                                 </div>
-                                <div class="product-spec-priority-actions">
-                                    <span class="product-spec-priority-badge">{{ $prioritySpecCount }} odmah</span>
+                                <div class="a1-pc-specbar__actions">
+                                    <span class="a1-pill a1-pill--info">{{ $prioritySpecCount }} odmah</span>
                                     @if($optionalSpecCount > 0)
-                                        <button class="button button-ghost button-small product-spec-optional-toggle" type="button" data-spec-optional-toggle aria-expanded="false">
+                                        <button class="a1-btn a1-btn--sm" type="button" data-spec-optional-toggle aria-expanded="false">
                                             <span data-spec-optional-toggle-label>Još specifikacija</span>
-                                            <span class="product-spec-optional-count" data-spec-optional-count>{{ $optionalSpecCount }}</span>
+                                            <span class="a1-count" data-spec-optional-count>{{ $optionalSpecCount }}</span>
                                         </button>
                                     @endif
                                 </div>
                             </div>
-                            <div class="field-grid" data-spec-field-grid>
+                            <div class="a1-pc-grid" data-spec-field-grid>
                                 @forelse($type->fields as $field)
                                     @continue($field->isDerivedStorageTotalField())
                                     @php
@@ -256,22 +267,22 @@
                                         $storageTotalValue = $hasStorageCapacity ? $storageCalculatedTotal : max(0, (int) $storageStoredTotal);
                                         $fieldIsPriority = isset($prioritySpecIds[(int) $field->id]);
                                     @endphp
-                                    <div class="spec-field-group {{ $isRepeatableStorage ? 'field-span-2' : '' }} {{ $fieldIsPriority ? 'spec-field-priority' : 'spec-field-optional' }}" data-spec-field-wrapper data-spec-priority="{{ $fieldIsPriority ? '1' : '0' }}" @if(!$fieldIsPriority) data-spec-optional="1" hidden @endif data-parent-field-id="{{ $field->parent_field_id }}" data-completeness-weight="{{ $field->pivot?->completeness_weight ?? 1 }}" data-required-field="{{ $field->pivot?->is_required ? '1' : '0' }}">
+                                    <div class="a1-pc-specfield {{ $isRepeatableStorage ? 'a1-pc-wide' : '' }} {{ $fieldIsPriority ? 'spec-field-priority' : 'spec-field-optional' }}" data-spec-field-wrapper data-spec-priority="{{ $fieldIsPriority ? '1' : '0' }}" @if(!$fieldIsPriority) data-spec-optional="1" hidden @endif data-parent-field-id="{{ $field->parent_field_id }}" data-completeness-weight="{{ $field->pivot?->completeness_weight ?? 1 }}" data-required-field="{{ $field->pivot?->is_required ? '1' : '0' }}">
                                         @if($isRepeatableStorage)
-                                            <div class="repeatable-storage-field" data-repeatable-storage data-storage-initial-total="{{ $storageTotalValue }}">
-                                                <div class="repeatable-storage-heading">
-                                                    <span>{{ $field->name }} @if($field->unit)({{ $field->unit }})@endif @if($field->pivot?->is_required)<b class="required-mark">*</b>@endif</span>
-                                                    <button class="button button-small button-ghost" type="button" data-repeatable-add><x-icon name="plus-circle" size="16" /> Dodaj još jedan disk</button>
+                                            <div class="a1-pc-storage" data-repeatable-storage data-storage-initial-total="{{ $storageTotalValue }}">
+                                                <div class="a1-pc-storage__head">
+                                                    <span>{{ $field->name }} @if($field->unit)({{ $field->unit }})@endif @if($field->pivot?->is_required)<b class="a1-req">*</b>@endif</span>
+                                                    <button class="a1-btn a1-btn--sm" type="button" data-repeatable-add><x-icon name="plus-circle" size="16" /> Dodaj još jedan disk</button>
                                                 </div>
                                                 <input type="hidden" name="specs[{{ $field->id }}]" value="{{ $currentValue }}" data-repeatable-value data-spec-field-id="{{ $field->id }}" data-default-value="{{ $field->pivot?->default_value }}">
-                                                <div class="repeatable-storage-list" data-repeatable-list>
+                                                <div class="a1-pc-storage__list" data-repeatable-list>
                                                     @foreach($storageRows as $storageRow)
                                                         @php($storageType = trim((string) ($storageRow['type'] ?? '')))
                                                         @php($storageCapacity = ($storageRow['capacity_gb'] ?? '') === null ? '' : (string) ($storageRow['capacity_gb'] ?? ''))
-                                                        <div class="repeatable-storage-row" data-repeatable-row>
-                                                            <label class="repeatable-storage-type"><span>Tip diska</span>
+                                                        <div class="a1-pc-storage__row" data-repeatable-row>
+                                                            <label class="a1-field"><span class="a1-label">Tip diska</span>
                                                                 @if($field->data_type === 'select')
-                                                                    <select name="spec_lists[{{ $field->id }}][]" data-repeatable-input>
+                                                                    <select class="a1-select" name="spec_lists[{{ $field->id }}][]" data-repeatable-input>
                                                                         <option value="">Izaberi disk</option>
                                                                         @if($structuredOptions->isNotEmpty())
                                                                             @foreach($structuredOptions as $option)<option value="{{ $option->value }}" @selected($storageType === (string)$option->value)>{{ $option->label }}</option>@endforeach
@@ -280,19 +291,19 @@
                                                                         @endif
                                                                     </select>
                                                                 @else
-                                                                    <input name="spec_lists[{{ $field->id }}][]" maxlength="255" value="{{ $storageType }}" placeholder="Npr. NVMe SSD" data-repeatable-input>
+                                                                    <input class="a1-input" name="spec_lists[{{ $field->id }}][]" maxlength="255" value="{{ $storageType }}" placeholder="Npr. NVMe SSD" data-repeatable-input>
                                                                 @endif
                                                             </label>
-                                                            <label class="repeatable-storage-capacity"><span>Kapacitet (GB)</span><input name="spec_capacities[{{ $field->id }}][]" type="number" min="0" max="10000000" step="1" inputmode="numeric" value="{{ $storageCapacity }}" placeholder="512" data-repeatable-capacity></label>
-                                                            <button class="repeatable-remove" type="button" data-repeatable-remove aria-label="Ukloni disk"><x-icon name="x" size="17" /></button>
+                                                            <label class="a1-field"><span class="a1-label">Kapacitet (GB)</span><input class="a1-input" name="spec_capacities[{{ $field->id }}][]" type="number" min="0" max="10000000" step="1" inputmode="numeric" value="{{ $storageCapacity }}" placeholder="512" data-repeatable-capacity></label>
+                                                            <button class="a1-btn a1-btn--icon" type="button" data-repeatable-remove aria-label="Ukloni disk"><x-icon name="x" size="17" /></button>
                                                         </div>
                                                     @endforeach
                                                 </div>
                                                 <template data-repeatable-template>
-                                                    <div class="repeatable-storage-row" data-repeatable-row>
-                                                        <label class="repeatable-storage-type"><span>Tip diska</span>
+                                                    <div class="a1-pc-storage__row" data-repeatable-row>
+                                                        <label class="a1-field"><span class="a1-label">Tip diska</span>
                                                             @if($field->data_type === 'select')
-                                                                <select name="spec_lists[{{ $field->id }}][]" data-repeatable-input>
+                                                                <select class="a1-select" name="spec_lists[{{ $field->id }}][]" data-repeatable-input>
                                                                     <option value="">Izaberi disk</option>
                                                                     @if($structuredOptions->isNotEmpty())
                                                                         @foreach($structuredOptions as $option)<option value="{{ $option->value }}">{{ $option->label }}</option>@endforeach
@@ -301,32 +312,32 @@
                                                                     @endif
                                                                 </select>
                                                             @else
-                                                                <input name="spec_lists[{{ $field->id }}][]" maxlength="255" placeholder="Npr. NVMe SSD" data-repeatable-input>
+                                                                <input class="a1-input" name="spec_lists[{{ $field->id }}][]" maxlength="255" placeholder="Npr. NVMe SSD" data-repeatable-input>
                                                             @endif
                                                         </label>
-                                                        <label class="repeatable-storage-capacity"><span>Kapacitet (GB)</span><input name="spec_capacities[{{ $field->id }}][]" type="number" min="0" max="10000000" step="1" inputmode="numeric" placeholder="512" data-repeatable-capacity></label>
-                                                        <button class="repeatable-remove" type="button" data-repeatable-remove aria-label="Ukloni disk"><x-icon name="x" size="17" /></button>
+                                                        <label class="a1-field"><span class="a1-label">Kapacitet (GB)</span><input class="a1-input" name="spec_capacities[{{ $field->id }}][]" type="number" min="0" max="10000000" step="1" inputmode="numeric" placeholder="512" data-repeatable-capacity></label>
+                                                        <button class="a1-btn a1-btn--icon" type="button" data-repeatable-remove aria-label="Ukloni disk"><x-icon name="x" size="17" /></button>
                                                     </div>
                                                 </template>
-                                                <small class="muted">Do 8 diskova. Redosled unosa je redosled prikaza.</small>
+                                                <small class="a1-help">Do 8 diskova. Redosled unosa je redosled prikaza.</small>
                                                 @if($storageTotalField)
-                                                    <div class="storage-total-card" data-storage-total-card>
-                                                        <label>
-                                                            <span>Ukupan kapacitet diskova (GB)</span>
-                                                            <input type="number" min="0" step="1" inputmode="numeric" value="{{ $storageTotalValue }}" readonly aria-readonly="true" data-storage-total-display>
+                                                    <div class="a1-pc-total" data-storage-total-card>
+                                                        <label class="a1-field">
+                                                            <span class="a1-label">Ukupan kapacitet diskova (GB)</span>
+                                                            <input class="a1-input" type="number" min="0" step="1" inputmode="numeric" value="{{ $storageTotalValue }}" readonly aria-readonly="true" data-storage-total-display>
                                                         </label>
                                                         <input type="hidden" name="specs[{{ $storageTotalField->id }}]" value="{{ $storageTotalValue }}" data-storage-total-value data-spec-field-id="{{ $storageTotalField->id }}">
-                                                        <small class="muted">Automatski zbir kapaciteta svih diskova iznad. Ovo polje se ne unosi ručno.</small>
+                                                        <small class="a1-help">Automatski zbir kapaciteta svih diskova iznad. Ovo polje se ne unosi ručno.</small>
                                                     </div>
                                                 @endif
                                             </div>
                                         @else
-                                            <label>
-                                                <span>{{ $field->name }} @if($field->unit)({{ $field->unit }})@endif @if($field->pivot?->is_required)<b class="required-mark">*</b>@endif</span>
+                                            <label class="a1-field">
+                                                <span class="a1-label">{{ $field->name }} @if($field->unit)({{ $field->unit }})@endif @if($field->pivot?->is_required)<b class="a1-req">*</b>@endif</span>
                                                 @if($field->data_type==='boolean')
-                                                    <select name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-default-value="{{ $field->pivot?->default_value }}"><option value="">Izaberi</option><option value="1" @selected((string)$currentValue==='1')>Da</option><option value="0" @selected((string)$currentValue==='0')>Ne</option></select>
+                                                    <select class="a1-select" name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-default-value="{{ $field->pivot?->default_value }}"><option value="">Izaberi</option><option value="1" @selected((string)$currentValue==='1')>Da</option><option value="0" @selected((string)$currentValue==='0')>Ne</option></select>
                                                 @elseif($field->data_type==='select')
-                                                    <select name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-parent-field-id="{{ $field->parent_field_id }}" data-default-value="{{ $field->pivot?->default_value }}">
+                                                    <select class="a1-select" name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-parent-field-id="{{ $field->parent_field_id }}" data-default-value="{{ $field->pivot?->default_value }}">
                                                         <option value="">Izaberi</option>
                                                         @if($structuredOptions->isNotEmpty())
                                                             @foreach($structuredOptions as $option)<option value="{{ $option->value }}" data-option-id="{{ $option->id }}" data-parent-option-ids="{{ $option->parentOptions->pluck('id')->implode(',') }}" @selected((string)$currentValue===(string)$option->value)>{{ $option->label }}</option>@endforeach
@@ -335,44 +346,44 @@
                                                         @endif
                                                     </select>
                                                 @else
-                                                    <input name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-default-value="{{ $field->pivot?->default_value }}" type="{{ in_array($field->data_type,['integer','decimal'])?'number':'text' }}" step="{{ $wholeGigabytes || $field->data_type==='integer' ? '1' : '0.0001' }}" @if($wholeGigabytes) inputmode="numeric" min="0" @endif value="{{ $displayCurrentValue }}" placeholder="{{ $field->placeholder }}">
+                                                    <input class="a1-input" name="specs[{{ $field->id }}]" data-spec-field-id="{{ $field->id }}" data-default-value="{{ $field->pivot?->default_value }}" type="{{ in_array($field->data_type,['integer','decimal'])?'number':'text' }}" step="{{ $wholeGigabytes || $field->data_type==='integer' ? '1' : '0.0001' }}" @if($wholeGigabytes) inputmode="numeric" min="0" @endif value="{{ $displayCurrentValue }}" placeholder="{{ $field->placeholder }}">
                                                 @endif
-                                                @if($field->help_text)<small class="muted">{{ $field->help_text }}</small>@endif
-                                                @if($field->parent_field_id)<small class="muted" data-dependency-help>Prvo izaberi povezanu roditeljsku opciju.</small>@endif
+                                                @if($field->help_text)<small class="a1-help">{{ $field->help_text }}</small>@endif
+                                                @if($field->parent_field_id)<small class="a1-help" data-dependency-help>Prvo izaberi povezanu roditeljsku opciju.</small>@endif
                                             </label>
                                             @if($field->data_type==='select' && $field->detail_input_enabled)
-                                                <label class="spec-detail-field"><span>{{ $field->detail_label ?: 'Tačan model / detalj' }}</span><input name="spec_details[{{ $field->id }}]" maxlength="500" value="{{ $currentDetail }}" placeholder="{{ $field->detail_placeholder }}" data-spec-detail-for="{{ $field->id }}" data-default-detail="{{ $field->pivot?->default_detail }}"></label>
+                                                <label class="a1-field spec-detail-field"><span class="a1-label">{{ $field->detail_label ?: 'Tačan model / detalj' }}</span><input class="a1-input" name="spec_details[{{ $field->id }}]" maxlength="500" value="{{ $currentDetail }}" placeholder="{{ $field->detail_placeholder }}" data-spec-detail-for="{{ $field->id }}" data-default-detail="{{ $field->pivot?->default_detail }}"></label>
                                             @endif
                                         @endif
                                     </div>
                                 @empty
-                                    <div class="empty-inline">Tip nema dodeljena polja.</div>
+                                    <p class="a1-muted">Tip nema dodeljena polja.</p>
                                 @endforelse
                             </div>
                         </div>
                     @endforeach
-                    <div class="empty-inline" data-no-spec @if(old('product_type_id',$product->product_type_id)) hidden @endif>Izaberi tip artikla.</div>
+                    <p class="a1-muted" data-no-spec @if(old('product_type_id',$product->product_type_id)) hidden @endif>Izaberi tip artikla.</p>
                 </section>
 
-                <section class="panel form-section form-section-priority product-media-section">
-                    <div class="form-section-number">3</div>
-                    <div class="section-heading-row">
-                        <div>
-                            <h2>Dodavanje slika</h2>
-                            <p class="muted">Odmah nakon izbora videćeš fotografije, broj fajlova i procenat slanja.</p>
+                <section class="a1-card product-media-section" data-form-section aria-labelledby="pe-media">
+                    <div class="a1-pc-sechead">
+                        <span class="a1-pc-secnum" aria-hidden="true">3</span>
+                        <div class="a1-card__title">
+                            <h2 class="a1-h2" id="pe-media">Dodavanje slika</h2>
+                            <p class="a1-text">Odmah nakon izbora videćeš fotografije, broj fajlova i procenat slanja.</p>
                         </div>
                         @if($product->exists)
-                            @can('catalog.manage_images')<a class="button button-ghost button-small" href="{{ route('admin.products.images.index',$product) }}">Otvori galeriju</a>@endcan
+                            @can('catalog.manage_images')<a class="a1-btn a1-btn--sm" href="{{ route('admin.products.images.index',$product) }}">Otvori galeriju</a>@endcan
                         @endif
                     </div>
                     @include('admin.products.partials.image-upload', ['inputId' => 'product-editor-images'])
 
                     @if($product->exists && $product->images->isNotEmpty())
-                        <div class="image-sort-heading">
+                        <div class="a1-pc-sorthead">
                             <div><strong>Postojeće slike</strong><small>Glavnu sliku biraš zvezdicom. Ostale prevuci za promenu rasporeda.</small></div>
-                            <span class="image-sort-status" data-image-sort-status>Raspored je sačuvan</span>
+                            <span class="a1-pc-sortstatus" data-image-sort-status>Raspored je sačuvan</span>
                         </div>
-                        <div class="product-edit-image-grid image-sortable-grid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder',$product) }}">
+                        <div class="a1-pc-imggrid" data-image-sortable data-reorder-url="{{ route('admin.products.images.reorder',$product) }}">
                             @foreach($product->images as $image)
                                 @include('admin.products.partials.image-card', ['product' => $product, 'image' => $image, 'iteration' => $loop->iteration, 'allowDelete' => false])
                             @endforeach
@@ -380,114 +391,117 @@
                     @endif
                 </section>
 
-                <section class="panel form-section product-description-section">
-                    <div class="form-section-number">4</div>
-                    <h2>Opis i napomene</h2>
-                    <label><span>Opis / specifikacije *</span><textarea name="description" rows="10" required>{{ old('description',$product->description) }}</textarea></label>
-                    <label><span>Interne napomene</span><textarea name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
+                <section class="a1-card product-description-section" data-form-section aria-labelledby="pe-desc">
+                    <div class="a1-pc-sechead">
+                        <span class="a1-pc-secnum" aria-hidden="true">4</span>
+                        <div class="a1-card__title"><h2 class="a1-h2" id="pe-desc">Opis i napomene</h2></div>
+                    </div>
+                    <label class="a1-field"><span class="a1-label">Opis / specifikacije *</span><textarea class="a1-textarea" name="description" rows="10" required>{{ old('description',$product->description) }}</textarea></label>
+                    <label class="a1-field"><span class="a1-label">Interne napomene</span><textarea class="a1-textarea" name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
                 </section>
             </div>
 
-            <aside class="form-side">
-                <section class="panel form-section completeness-card" data-completeness-card>
-                    <div class="completeness-heading"><h2>Kompletnost artikla</h2><strong data-completeness-percent>{{ $currentCompleteness }}%</strong></div>
-                    <div class="completeness-track"><span data-completeness-bar style="width:{{ $currentCompleteness }}%"></span></div>
-                    <p class="muted" data-completeness-message>Popuni podatke šablona kako bi artikal bio spreman za objavu.</p>
+            <aside class="a1-stack">
+                <section class="a1-card" data-form-section data-completeness-card aria-labelledby="pe-complete">
+                    <div class="a1-pc-complete-head"><h2 class="a1-h3" id="pe-complete">Kompletnost artikla</h2><strong data-completeness-percent>{{ $currentCompleteness }}%</strong></div>
+                    <div class="a1-pc-track"><span data-completeness-bar></span></div>
+                    <p class="a1-muted" data-completeness-message>Popuni podatke šablona kako bi artikal bio spreman za objavu.</p>
                 </section>
-                <section class="panel form-section sticky-card product-sale-panel" data-product-sale-panel>
-                    <h2>Prodaja</h2>
-                    <p class="muted">Najvažniji komercijalni podaci su na jednom mestu. Status je prvi da uvek znaš da li je artikal nacrt, aktivan ili neaktivan.</p>
-                    <div class="product-publication-guidance" data-product-publication-guidance>Za nepotpun unos koristi dugme za čuvanje nacrta. Aktivacija i dalje zahteva kompletne podatke i pozitivnu cenu.</div>
-                    <label class="product-status-field"><span>Status artikla</span><select name="status" data-product-status>@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select><small class="muted">Nacrt = u pripremi · Aktivan = vidljiv u katalogu · Neaktivan = privremeno skriven.</small></label>
-                    <label><span>Cena *</span><input name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}" data-publication-price></label>
-                    <label><span>Valuta</span><select name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
-                    <label><span>Nabavna cena RSD</span><input name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small>Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
+                <section class="a1-card product-sale-panel" data-form-section data-product-sale-panel aria-labelledby="pe-sale">
+                    <h2 class="a1-h2" id="pe-sale">Prodaja</h2>
+                    <p class="a1-text">Najvažniji komercijalni podaci su na jednom mestu. Status je prvi da uvek znaš da li je artikal nacrt, aktivan ili neaktivan.</p>
+                    <div class="a1-alert" data-product-publication-guidance>Za nepotpun unos koristi dugme za čuvanje nacrta. Aktivacija i dalje zahteva kompletne podatke i pozitivnu cenu.</div>
+                    <label class="a1-field product-status-field"><span class="a1-label">Status artikla</span><select class="a1-select" name="status" data-product-status>@foreach(['draft'=>'Nacrt','active'=>'Aktivan','inactive'=>'Neaktivan'] as $value=>$label)<option value="{{ $value }}" @selected(old('status',$product->status)===$value)>{{ $label }}</option>@endforeach</select><small class="a1-help">Nacrt = u pripremi · Aktivan = vidljiv u katalogu · Neaktivan = privremeno skriven.</small></label>
+                    <label class="a1-field"><span class="a1-label">Cena *</span><input class="a1-input" name="price_amount" type="number" step="0.01" min="0" required value="{{ old('price_amount',$product->price_amount) }}" data-publication-price></label>
+                    <label class="a1-field"><span class="a1-label">Valuta</span><select class="a1-select" name="price_currency"><option @selected(old('price_currency',$product->price_currency)==='EUR')>EUR</option><option @selected(old('price_currency',$product->price_currency)==='RSD')>RSD</option></select></label>
+                    <label class="a1-field"><span class="a1-label">Nabavna cena RSD</span><input class="a1-input" name="purchase_price_rsd" type="number" step="0.01" min="0" value="{{ old('purchase_price_rsd',$product->purchase_price_rsd) }}"><small class="a1-help">Koristi se za obračun marže i snapshotuje se pri prodaji.</small></label>
                     @if(auth()->user()?->hasRole('superadmin'))
-                    <label><span>Ručna provizija EUR</span><input name="manual_commission_eur" type="number" step="0.01" min="0.01" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
+                    <label class="a1-field"><span class="a1-label">Ručna provizija EUR</span><input class="a1-input" name="manual_commission_eur" type="number" step="0.01" min="0.01" value="{{ old('manual_commission_eur',$product->manual_commission_eur) }}"></label>
                     @endif
                     @if(!$product->exists || auth()->user()->can('stock.adjust'))
-                        <label><span>Količina</span><input name="stock_quantity" type="number" min="0" required value="{{ old('stock_quantity',$product->stock_quantity??0) }}"></label>
-                        <label><span>Prag niskog lagera</span><input name="low_stock_threshold" type="number" min="0" required value="{{ old('low_stock_threshold',$product->low_stock_threshold??1) }}"></label>
+                        <label class="a1-field"><span class="a1-label">Količina</span><input class="a1-input" name="stock_quantity" type="number" min="0" required value="{{ old('stock_quantity',$product->stock_quantity??0) }}"></label>
+                        <label class="a1-field"><span class="a1-label">Prag niskog lagera</span><input class="a1-input" name="low_stock_threshold" type="number" min="0" required value="{{ old('low_stock_threshold',$product->low_stock_threshold??1) }}"></label>
                     @else
                         <input type="hidden" name="stock_quantity" value="{{ $product->stock_quantity }}"><input type="hidden" name="low_stock_threshold" value="{{ $product->low_stock_threshold }}">
-                        <label><span>Količina</span><input type="number" value="{{ $product->stock_quantity }}" disabled><small class="muted">Za promenu je potrebna dozvola Korekcija lagera.</small></label>
-                        <label><span>Prag niskog lagera</span><input type="number" value="{{ $product->low_stock_threshold }}" disabled></label>
+                        <label class="a1-field"><span class="a1-label">Količina</span><input class="a1-input" type="number" value="{{ $product->stock_quantity }}" disabled><small class="a1-help">Za promenu je potrebna dozvola Korekcija lagera.</small></label>
+                        <label class="a1-field"><span class="a1-label">Prag niskog lagera</span><input class="a1-input" type="number" value="{{ $product->low_stock_threshold }}" disabled></label>
                     @endif
 
-                    <small class="muted" role="status" aria-live="polite" data-autosave-status></small>
-                    <div class="product-save-actions product-save-actions-sidebar">
-                        <button class="button button-secondary" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
-                        <button class="button button-primary button-large" type="submit" data-product-save-context>{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
+                    <small class="a1-muted-line" role="status" aria-live="polite" data-autosave-status></small>
+                    <div class="a1-cluster product-save-actions product-save-actions-sidebar">
+                        <button class="a1-btn" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
+                        <button class="a1-btn a1-btn--primary" type="submit" data-product-save-context>{{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}</button>
                     </div>
                 </section>
                 @if($product->exists)
-                    <section class="panel danger-zone product-danger-zone">
-                        <h2>Arhiva i trajno brisanje</h2>
-                        <p class="muted">Arhiviranje skriva artikal, ali čuva sve podatke i poslovnu istoriju.</p>
+                    <section class="a1-card a1-pc-danger product-danger-zone" aria-labelledby="pe-archive">
+                        <h2 class="a1-h3" id="pe-archive">Arhiva i trajno brisanje</h2>
+                        <p class="a1-text">Arhiviranje skriva artikal, ali čuva sve podatke i poslovnu istoriju.</p>
                         @if($product->deleted_at)
-                            <button form="restore-product" class="button button-secondary" type="submit"><x-icon name="refresh" size="18" /> Opozovi Arhiviranje</button>
+                            <button form="restore-product" class="a1-btn" type="submit"><x-icon name="refresh" size="18" /> Opozovi Arhiviranje</button>
                         @else
-                            <button form="archive-product" class="button button-warning" type="submit" data-confirm="Arhivirati artikal {{ $product->sku }}?"><x-icon name="archive" size="18" /> Arhiviraj artikal</button>
+                            <button form="archive-product" class="a1-btn" type="submit" data-confirm="Arhivirati artikal {{ $product->sku }}?"><x-icon name="archive" size="18" /> Arhiviraj artikal</button>
                         @endif
 
-                        <details class="product-purge-details">
+                        <details class="a1-acc product-purge-details">
                             <summary>Trajno obriši artikal</summary>
-                            <div class="product-purge-content">
-                                <p>Trajno brisanje uklanja artikal, specifikacije i zapise galerije. Ovu radnju nije moguće poništiti.</p>
+                            <div class="a1-acc__body a1-pc-purge__body">
+                                <p class="a1-text">Trajno brisanje uklanja artikal, specifikacije i zapise galerije. Ovu radnju nije moguće poništiti.</p>
                                 @if($deletionBlockers !== [])
-                                    <div class="product-delete-blockers">
+                                    <div class="a1-pc-blockers">
                                         <strong>Trajno brisanje trenutno nije dozvoljeno zbog poslovne istorije:</strong>
                                         <ul>@foreach($deletionBlockers as $label => $count)<li>{{ $label }}: {{ $count }}</li>@endforeach</ul>
                                         <small>Koristi arhiviranje da porudžbine, lager i izveštaji ostanu ispravni.</small>
                                     </div>
                                 @else
-                                    <label><span>Za potvrdu upiši SKU: {{ $product->sku }}</span><input form="purge-product" name="confirmation" maxlength="100" autocomplete="off" placeholder="{{ $product->sku }}" value="{{ old('confirmation') }}"></label>
-                                    @error('confirmation')<div class="field-error">{{ $message }}</div>@enderror
-                                    <label class="check-card product-delete-images"><input form="purge-product" type="checkbox" name="delete_images" value="1" checked><span>Obriši i sve lokalne slike artikla sa servera</span></label>
-                                    <small class="muted">Legacy read-only slike ne mogu fizički da se brišu sa izvornog servera, ali njihovi CMS zapisi biće uklonjeni.</small>
-                                    <button form="purge-product" class="button button-danger button-large" type="submit" data-confirm="Trajno obrisati artikal {{ $product->sku }}? Ovu radnju nije moguće poništiti."><x-icon name="trash" size="18" /> Trajno obriši artikal</button>
+                                    <label class="a1-field"><span class="a1-label">Za potvrdu upiši SKU: {{ $product->sku }}</span><input class="a1-input" form="purge-product" name="confirmation" maxlength="100" autocomplete="off" placeholder="{{ $product->sku }}" value="{{ old('confirmation') }}" @error('confirmation') aria-invalid="true" aria-describedby="pe-err-confirmation" @enderror></label>
+                                    @error('confirmation')<p class="a1-error" id="pe-err-confirmation">{{ $message }}</p>@enderror
+                                    <label class="a1-check product-delete-images"><input class="a1-check__input" form="purge-product" type="checkbox" name="delete_images" value="1" checked><i class="a1-check__box" aria-hidden="true"></i><span>Obriši i sve lokalne slike artikla sa servera</span></label>
+                                    <small class="a1-help">Legacy read-only slike ne mogu fizički da se brišu sa izvornog servera, ali njihovi CMS zapisi biće uklonjeni.</small>
+                                    <button form="purge-product" class="a1-btn a1-btn--danger" type="submit" data-confirm="Trajno obrisati artikal {{ $product->sku }}? Ovu radnju nije moguće poništiti."><x-icon name="trash" size="18" /> Trajno obriši artikal</button>
                                 @endif
                             </div>
                         </details>
                         @if($product->deleted_at && auth()->user()?->hasRole('superadmin'))
-                            <details class="product-purge-details product-total-purge-details" data-total-product-purge-workspace>
+                            <details class="a1-acc product-purge-details product-total-purge-details" data-total-product-purge-workspace>
                                 <summary>Trajno obriši SVE tragove artikla</summary>
-                                <div class="product-purge-content">
-                                    <p><strong>Izuzetno destruktivna SuperAdmin akcija.</strong> Ovaj tok je odvojen od običnog trajnog brisanja i namenjen je arhiviranim artiklima sa poslovnom istorijom.</p>
-                                    <p class="muted">Live CMS će ukloniti sam artikal, slike i specifikacije; istorijske porudžbine, lager i garancije ostaju kao poslovni događaji, ali bez veze ka obrisanom artiklu, SKU-a i naziva izabranog artikla.</p>
-                                    <p class="muted">Audit/notification/async/data-quality tragovi biće obrisani ili redigovani. Live PDF i filesystem ZERO TRACE verifier se izvršava nakon commita.</p>
-                                    <div class="product-delete-blockers">
+                                <div class="a1-acc__body a1-pc-purge__body">
+                                    <p class="a1-text"><strong>Izuzetno destruktivna SuperAdmin akcija.</strong> Ovaj tok je odvojen od običnog trajnog brisanja i namenjen je arhiviranim artiklima sa poslovnom istorijom.</p>
+                                    <p class="a1-muted">Live CMS će ukloniti sam artikal, slike i specifikacije; istorijske porudžbine, lager i garancije ostaju kao poslovni događaji, ali bez veze ka obrisanom artiklu, SKU-a i naziva izabranog artikla.</p>
+                                    <p class="a1-muted">Audit/notification/async/data-quality tragovi biće obrisani ili redigovani. Live PDF i filesystem ZERO TRACE verifier se izvršava nakon commita.</p>
+                                    <div class="a1-pc-blockers">
                                         <strong>Retention granica:</strong>
                                         <small>Disaster-recovery backupi i eventualne off-host kopije se NE brišu ovom akcijom. Za njih važi zasebna retention odluka.</small>
                                     </div>
 
-                                    <label>
-                                        <span>Razlog Total Product Purge operacije</span>
-                                        <textarea form="total-purge-product" name="total_reason" rows="4" maxlength="1000" required placeholder="Zašto identitet ovog artikla mora biti uklonjen iz live sistema?">{{ old('total_reason') }}</textarea>
+                                    <label class="a1-field">
+                                        <span class="a1-label">Razlog Total Product Purge operacije</span>
+                                        <textarea class="a1-textarea" form="total-purge-product" name="total_reason" rows="4" maxlength="1000" required placeholder="Zašto identitet ovog artikla mora biti uklonjen iz live sistema?" @error('total_reason') aria-invalid="true" aria-describedby="pe-err-total-reason" @enderror>{{ old('total_reason') }}</textarea>
                                     </label>
-                                    @error('total_reason')<div class="field-error">{{ $message }}</div>@enderror
+                                    @error('total_reason')<p class="a1-error" id="pe-err-total-reason">{{ $message }}</p>@enderror
 
-                                    <label>
-                                        <span>1. potvrda — upiši tačan SKU: {{ $product->sku }}</span>
-                                        <input form="total-purge-product" name="total_confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $product->sku }}" value="{{ old('total_confirmation') }}">
+                                    <label class="a1-field">
+                                        <span class="a1-label">1. potvrda — upiši tačan SKU: {{ $product->sku }}</span>
+                                        <input class="a1-input" form="total-purge-product" name="total_confirmation" maxlength="100" autocomplete="off" required placeholder="{{ $product->sku }}" value="{{ old('total_confirmation') }}" @error('total_confirmation') aria-invalid="true" aria-describedby="pe-err-total-confirmation" @enderror>
                                     </label>
-                                    @error('total_confirmation')<div class="field-error">{{ $message }}</div>@enderror
+                                    @error('total_confirmation')<p class="a1-error" id="pe-err-total-confirmation">{{ $message }}</p>@enderror
 
-                                    <label>
-                                        <span>2. nepovratna potvrda — upiši tačno: TRAJNO OBRIŠI SVE TRAGOVE</span>
-                                        <input form="total-purge-product" name="total_irreversible_confirmation" maxlength="100" autocomplete="off" required placeholder="TRAJNO OBRIŠI SVE TRAGOVE" value="{{ old('total_irreversible_confirmation') }}">
+                                    <label class="a1-field">
+                                        <span class="a1-label">2. nepovratna potvrda — upiši tačno: TRAJNO OBRIŠI SVE TRAGOVE</span>
+                                        <input class="a1-input" form="total-purge-product" name="total_irreversible_confirmation" maxlength="100" autocomplete="off" required placeholder="TRAJNO OBRIŠI SVE TRAGOVE" value="{{ old('total_irreversible_confirmation') }}" @error('total_irreversible_confirmation') aria-invalid="true" aria-describedby="pe-err-total-irreversible" @enderror>
                                     </label>
-                                    @error('total_irreversible_confirmation')<div class="field-error">{{ $message }}</div>@enderror
+                                    @error('total_irreversible_confirmation')<p class="a1-error" id="pe-err-total-irreversible">{{ $message }}</p>@enderror
 
-                                    <label class="check-card">
-                                        <input form="total-purge-product" type="checkbox" name="total_retention_acknowledged" value="1" required @checked(old('total_retention_acknowledged'))>
+                                    <label class="a1-check">
+                                        <input class="a1-check__input" form="total-purge-product" type="checkbox" name="total_retention_acknowledged" value="1" required @checked(old('total_retention_acknowledged')) @error('total_retention_acknowledged') aria-invalid="true" aria-describedby="pe-err-total-retention" @enderror>
+                                        <i class="a1-check__box" aria-hidden="true"></i>
                                         <span>Razumem da se live CMS čisti do ZERO TRACE nivoa, ali disaster-recovery backupi i off-host kopije ostaju zasebna retention granica.</span>
                                     </label>
-                                    @error('total_retention_acknowledged')<div class="field-error">{{ $message }}</div>@enderror
+                                    @error('total_retention_acknowledged')<p class="a1-error" id="pe-err-total-retention">{{ $message }}</p>@enderror
 
                                     <button
                                         form="total-purge-product"
-                                        class="button button-danger button-large"
+                                        class="a1-btn a1-btn--danger"
                                         type="submit"
                                         data-confirm="POZOR: Total Product Purge za {{ $product->sku }} nema normalan restore. Nastaviti samo ako želiš uklanjanje svih live tragova artikla."
                                     >
@@ -501,29 +515,25 @@
             </aside>
         </div>
 
-        <div class="product-editor-action-bar" data-product-editor-action-bar>
-            <div class="product-editor-action-copy">
-                <strong>{{ $product->exists ? 'Sačuvaj izmene artikla' : 'Kreiraj artikal' }}</strong>
-                <span>{{ $product->exists ? 'Sve izmene na ovoj stranici čuvaju se jednim klikom.' : 'Sačuvaj novi artikal kada završiš unos.' }}</span>
-            </div>
-            <div class="product-editor-action-buttons">
-                <div class="product-editor-action-secondary">
-                    @if($product->exists && auth()->user()?->hasRole('superadmin'))
-                        @if($product->deleted_at === null && in_array((string) $product->status, ['active', 'inactive'], true))
-                            <a class="button button-ghost product-editor-action-direct" href="{{ route('catalog.show', ['slug' => $product->slug]) }}#direct-sale-title">Direktna prodaja</a>
-                        @else
-                            <span class="product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
-                        @endif
+        <div class="a1-actionbar" data-product-editor-action-bar>
+            <p class="a1-actionbar__status"><strong>{{ $product->exists ? 'Sačuvaj izmene artikla.' : 'Kreiraj artikal.' }}</strong> {{ $product->exists ? 'Sve izmene na ovoj stranici čuvaju se jednim klikom.' : 'Sačuvaj novi artikal kada završiš unos.' }}</p>
+            <div class="a1-actionbar__buttons">
+                @if($product->exists && auth()->user()?->hasRole('superadmin'))
+                    @if($product->deleted_at === null && in_array((string) $product->status, ['active', 'inactive'], true))
+                        <a class="a1-btn a1-btn--quiet product-editor-action-direct" href="{{ route('catalog.show', ['slug' => $product->slug]) }}#direct-sale-title">Direktna prodaja</a>
+                    @else
+                        <span class="a1-actionbar__status product-direct-sale-note">Direktna prodaja je dostupna za aktivan ili neaktivan artikal koji nije arhiviran.</span>
                     @endif
-                    <button class="button button-secondary product-editor-action-draft" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
-                </div>
-                <button class="button button-primary product-editor-action-primary" type="submit" data-product-save-primary>
+                @endif
+                <button class="a1-btn product-editor-action-draft" type="submit" name="save_draft" value="1" formnovalidate data-product-save-draft>Sačuvaj kao nacrt</button>
+                <button class="a1-btn a1-btn--primary product-editor-action-primary" type="submit" data-product-save-primary>
                     {{ $product->exists ? 'Sačuvaj izmene' : 'Kreiraj artikal' }}
                 </button>
             </div>
         </div>
     </form>
 
+    <div hidden data-product-aux-forms>
     @if($product->exists)
         @if($product->deleted_at)<form id="restore-product" method="post" action="{{ route('admin.products.restore',$product) }}">@csrf</form>@else<form id="archive-product" method="post" action="{{ route('admin.products.archive',$product) }}">@csrf @method('DELETE')</form>@endif
         <form id="purge-product" method="post" action="{{ route('admin.products.purge',$product) }}">@csrf @method('DELETE')</form>
@@ -539,6 +549,7 @@
         @endcan
     @endif
     @if($product->exists)<form id="regenerate-name-form" method="post" action="{{ route('admin.products.regenerate-name',$product) }}">@csrf</form>@endif
+    </div>
 </div>
 @endsection
 
@@ -600,7 +611,7 @@
                 && hiddenAncestor.closest('[data-spec-panel]') === panel;
         };
 
-        const sectionFor = (control) => control?.closest('.form-section') || null;
+        const sectionFor = (control) => control?.closest('[data-form-section]') || null;
 
         const firstNamed = (names) => {
             for (const name of names) {
@@ -1328,7 +1339,7 @@
                 link.textContent = match.name + ' (' + match.sku + ')';
                 const clone = document.createElement('button');
                 clone.type = 'button';
-                clone.className = 'button button-ghost button-small';
+                clone.className = 'a1-btn a1-btn--sm';
                 clone.textContent = 'Kloniraj';
                 clone.addEventListener('click', () => {
                     if (!window.confirm('Kloniranje otvara novi nacrt i napušta ovaj formular. Nastaviti?')) return;
