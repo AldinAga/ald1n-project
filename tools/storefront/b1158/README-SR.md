@@ -4,7 +4,7 @@ Autor: Ald1n <https://ald1n.com>
 
 Ovaj README se generiše iz `README-SR.tpl.md` komandom `php tools/storefront/b1158/generate.php <SHA>`. Ne uređuje se ručno.
 
-Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 ruta, `origin/main` 2ed96694) na `origin/main` 03410366 (`03410366666becb3a6f84a793b3a70fd59976473`).
+Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 ruta, `origin/main` 2ed96694) na `origin/main` 8fc5a4c7 (`8fc5a4c7744d97683dfae825b9e25c0d7c2b8f0f`).
 
 ## Šta se mijenja
 
