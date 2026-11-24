@@ -156,7 +156,8 @@
 .a1-btn:active{transform:translateY(1px)}
 /* Native file inputs: the "choose file" button follows the Kobalt button (the label text itself is set by the browser language). */
 .a1-body input[type=file]{color:var(--a1-text-secondary);font:inherit;font-size:var(--a1-typography-font-size-sm-plus)}
-.a1-body input[type=file]::file-selector-button{margin-right:var(--a1-space-12);padding:var(--a1-space-8) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-sm);background:var(--a1-button-ghost-bg);color:var(--a1-text-primary);font:var(--a1-typography-font-weight-button) var(--a1-typography-font-size-sm-plus)/1.2 var(--a1-typography-font-family-sans);cursor:pointer}
+.a1-body input[type=file]::file-selector-button{margin-right:var(--a1-space-12);padding:var(--a1-space-8) var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-sm);background:var(--a1-button-ghost-bg);color:var(--a1-text-primary);font:var(--a1-typography-font-weight-button) var(--a1-typography-font-size-sm-plus)/var(--a1-typography-line-height-button) var(--a1-typography-font-family-sans);cursor:pointer}
+.a1-body input[type=file]:disabled::file-selector-button{cursor:not-allowed;opacity:var(--a1x-disabled-opacity)}
 .a1-body input[type=file]:hover::file-selector-button{background:var(--a1-button-ghost-hover);border-color:var(--a1-accent-link)}
 .a1-btn--primary{border-color:transparent;background-color:var(--a1-button-primary-bg);background-image:var(--a1-gradient-button-gloss);color:var(--a1-button-primary-on);box-shadow:var(--a1-shadow-button)}
 .a1-btn--primary:hover{background-color:var(--a1-button-primary-hover);border-color:transparent}
@@ -257,7 +258,7 @@
 .a1-dl__row:last-child{border-bottom:0}
 .a1-dl dt{color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-dl dd{margin:0;color:var(--a1-text-primary)}
-.a1-dl dd>.a1-pill{max-width:100%;white-space:normal}
+.a1-dl dd>.a1-pill{max-width:100%;white-space:normal;overflow-wrap:normal;word-break:normal;hyphens:none}
 @media (min-width:560px){.a1-dl__row{grid-template-columns:minmax(120px,1fr) minmax(0,1.6fr)}}
 .a1-empty{display:grid;justify-items:center;gap:var(--a1-space-8);padding:var(--a1-space-48) var(--a1-space-20);border:var(--a1x-border-width) dashed var(--a1-border-strong);border-radius:var(--a1-radius-lg);text-align:center;box-shadow:inset 0 1px 0 var(--a1-edge-rim)}
 .a1-empty__icon{display:grid;place-items:center;width:64px;height:64px;margin-bottom:var(--a1-space-8);border-radius:50%;background:var(--a1-accent-soft);color:var(--a1-accent-link)}
@@ -964,7 +965,11 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
   .a1-ops .a1-ol-table td::before{flex:none}
   .a1-ops .a1-ol-table td.a1-table__primary,.a1-ops .a1-ol-table td.a1-table__actions,.a1-ops .a1-ol-table td[colspan]{grid-column:1/-1}
   .a1-ops .a1-ol-table .a1-ol-cell,.a1-ops .a1-ol-table td.a1-table__num{justify-items:start;text-align:left}
+  .a1-ops .a1-ol-table td.a1-table__primary{padding-bottom:var(--a1-space-8)}
+  .a1-ops .a1-ol-table td.a1-table__actions{padding-top:var(--a1-space-12)}
 }
+/* Narrow phones: one column, so a long amount or status never spills into the neighbouring cell. */
+@media (max-width:380px){.a1-ops .a1-ol-table tbody tr{grid-template-columns:minmax(0,1fr)}}
 
 /* Desktop compaction (M3 layout gates): no inner vertical scroll, one-line number/amount cells, compact row actions. */
 .a1-ops .a1-tablewrap--sticky{max-height:none;overflow-y:visible}
