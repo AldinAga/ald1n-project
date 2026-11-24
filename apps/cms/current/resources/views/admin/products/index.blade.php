@@ -8,6 +8,7 @@
 <label><span>Tip</span><select name="product_type_id" data-filter-product-type><option value="">Svi tipovi</option>@foreach($types as $type)<option value="{{ $type->id }}" @selected((int)request('product_type_id')===$type->id)>{{ $type->name }}</option>@endforeach</select></label>
 <label><span>Brend</span><select name="brand_id" data-filter-brand><option value="">Svi</option>@foreach($brands as $brand)<option value="{{ $brand->id }}" @selected((int)request('brand_id')===$brand->id)>{{ $brand->name }}</option>@endforeach</select></label>
 <label><span>Linija</span><select name="product_line_id" data-filter-line><option value="">Sve linije</option>@foreach($lines as $line)<option value="{{ $line->id }}" data-brand-id="{{ $line->brand_id }}" @selected((int)request('product_line_id')===$line->id)>{{ $line->name }}</option>@endforeach</select></label>
+{{-- Partial koristi a1 polja unutar stare .filter-panel stranice; G1 (PR 228) prebacuje ovu stranicu na Kobalt, tada proveriti raspored polja. --}}
 @include('partials.correlated-specification-filters', ['filterFields' => $filterFields])
 <div class="filter-actions"><button class="button button-primary">Primeni</button><a class="button button-ghost" href="{{ route('admin.products.index') }}">Reset</a></div>
 </form>

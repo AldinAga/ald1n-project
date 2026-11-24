@@ -37,7 +37,7 @@
 @endif
 <div class="a1-grid a1-grid--kpi">
     <div class="a1-kpi"><span class="a1-kpi__label">Otvorena upozorenja</span><span class="a1-kpi__value a1-num">{{ $stats['open'] }}</span></div>
-    <div class="a1-kpi"><span class="a1-kpi__label">Kritična</span><span class="a1-kpi__value a1-num">{{ $stats['danger'] }}</span></div>
+    <div class="a1-kpi"><span class="a1-kpi__label">Kritična</span><span class="a1-kpi__value a1-num a1-set-danger">{{ $stats['danger'] }}</span></div>
     <div class="a1-kpi"><span class="a1-kpi__label">Upozorenja</span><span class="a1-kpi__value a1-num">{{ $stats['warning'] }}</span></div>
     <div class="a1-kpi"><span class="a1-kpi__label">Neuspela pokretanja / 7 dana</span><span class="a1-kpi__value a1-num">{{ $stats['failed_runs'] }}</span></div>
 </div>
@@ -70,7 +70,7 @@
             <code>* * * * * php /home/icaffeco/ald1n-project/apps/cms/current/artisan schedule:run</code>
             <dl class="a1-dl">
                 <div class="a1-dl__row"><dt>Poslednji uspeh</dt><dd>{{ $settings['automation_last_success_at'] ?: 'Nije pokretano' }}</dd></div>
-                <div class="a1-dl__row"><dt>Poslednja greška</dt><dd>{{ $settings['automation_last_error'] ?: 'Nema' }}</dd></div>
+                <div class="a1-dl__row"><dt>Poslednja greška</dt><dd @class(['a1-set-danger' => !empty($settings['automation_last_error'])])>{{ $settings['automation_last_error'] ?: 'Nema' }}</dd></div>
             </dl>
             <button class="a1-btn a1-btn--primary" type="submit">Sačuvaj automatizaciju</button>
         </section>

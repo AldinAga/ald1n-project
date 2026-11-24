@@ -38,7 +38,9 @@
                             <div class="a1-os-msg__head">
                                 <span class="a1-os-msg__who">
                                     {{ $message->sender?->displayName() ?? 'Sistem' }}
-                                    @if($internal)<span class="a1-pill a1-pill--warning">Interna beleška</span>@endif
+                                    @if($internal)
+                                        <span class="a1-pill a1-pill--warning">Interna beleška</span>
+                                    @endif
                                 </span>
                                 <time class="a1-os-msg__time">{{ $message->sent_at?->format('d.m.Y H:i') }}</time>
                             </div>
