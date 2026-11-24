@@ -89,15 +89,15 @@ final class CatalogOwnershipDoctorCommand extends Command
                 $this->line('<fg=red>FAIL</> Administrator može da uređuje tuđi artikal #'.$foreign->id.'.');
                 return self::FAILURE;
             }
-            if ($foreign instanceof Product && $access->canViewInUnifiedCatalog($foreign, $admin)) {
-                $this->line('<fg=red>FAIL</> Administrator vidi tuđi artikal #'.$foreign->id.' u jedinstvenom katalogu.');
+            if ($foreign instanceof Product && $foreign->deleted_at === null && !$access->canViewInUnifiedCatalog($foreign, $admin)) {
+                $this->line('<fg=red>FAIL</> Administrator ne vidi tuđi artikal #'.$foreign->id.' u jedinstvenom katalogu.');
                 return self::FAILURE;
             }
             if ($own instanceof Product && !$access->canViewInUnifiedCatalog($own, $admin)) {
                 $this->line('<fg=red>FAIL</> Administrator ne vidi svoj artikal #'.$own->id.' u jedinstvenom katalogu.');
                 return self::FAILURE;
             }
-            $this->line('<fg=green>PASS</> Administrator vidi i uređuje isključivo artikle čiji je created_by njegov ID.');
+            $this->line('<fg=green>PASS</> Administrator vidi sve artikle, a uređuje isključivo artikle čiji je created_by njegov ID.');
         } else {
             $this->line('<fg=green>PASS</> Ownership pravilo je aktivno; trenutno nema aktivnog Administratora za data primer.');
         }

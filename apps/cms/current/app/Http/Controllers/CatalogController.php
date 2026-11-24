@@ -146,6 +146,7 @@ final class CatalogController extends Controller
             'commissionEur' => $commissionEur,
             'canViewPrices' => $user->can('catalog.view_prices'),
             'canManageProduct' => $access->canManage($product, $user),
+            'canViewNotes' => $access->canCreateProducts($user),
             'canManageImages' => $access->canManageImages($product, $user),
             'canRecordDirectSale' => $canRecordDirectSale,
             'directSaleIdempotencyKey' => $canRecordDirectSale ? (string) Str::uuid() : null,

@@ -70,7 +70,7 @@
         </button>
         <button class="a1-pc-task" type="button" data-ux-product-task="description">
             <span class="a1-pc-task__idx">5</span>
-            <span class="a1-pc-task__copy"><strong>Opis</strong><small>opis i interne napomene</small></span>
+            <span class="a1-pc-task__copy"><strong>Opis</strong><small>opis i napomene</small></span>
             <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
     </nav>
@@ -397,7 +397,7 @@
                         <div class="a1-card__title"><h2 class="a1-h2" id="pe-desc">Opis i napomene</h2></div>
                     </div>
                     <label class="a1-field"><span class="a1-label">Opis / specifikacije *</span><textarea class="a1-textarea" name="description" rows="10" required>{{ old('description',$product->description) }}</textarea></label>
-                    <label class="a1-field"><span class="a1-label">Interne napomene</span><textarea class="a1-textarea" name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
+                    <label class="a1-field"><span class="a1-label">Napomene</span><textarea class="a1-textarea" name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
                 </section>
             </div>
 

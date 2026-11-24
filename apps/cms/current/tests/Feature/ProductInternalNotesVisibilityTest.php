@@ -43,6 +43,23 @@ final class ProductInternalNotesVisibilityTest extends TestCase
             ->assertSee('data-product-has-notes', false);
     }
 
+    public function test_admin_who_is_not_author_sees_notes_on_detail_and_in_list(): void
+    {
+        $author = $this->user('admin', 'notes-author');
+        $product = $this->product($author->id);
+        $other = $this->user('admin', 'notes-other-admin');
+
+        $this->actingAs($other)->get('/catalog/'.$product->slug)
+            ->assertOk()
+            ->assertSee('data-product-internal-notes', false)
+            ->assertSee('Prvi red napomene<br />', false)
+            ->assertDontSee('Interno');
+
+        $this->actingAs($other)->get('/catalog')
+            ->assertOk()
+            ->assertSee('data-product-has-notes', false);
+    }
+
     public function test_notes_are_hidden_from_non_managers(): void
     {
         $admin = $this->user('superadmin', 'notes-owner');
