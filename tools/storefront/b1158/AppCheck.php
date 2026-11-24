@@ -137,9 +137,9 @@ try{
                     // The thumbnail URL of the same image, signed by the application's own signer (the rendition falls back to the original
                     // when no WebP file exists, so the smoke can read a body without ever depending on a large original).
                     $tid=(int)$image->getKey();// Since B1158 the media route compares the version in the URL with the CURRENT version of that rendition (a replaced photo is served `private, no-cache`): the thumbnail URL carries the thumbnail's own version when the model has one.
-                    // A rendition that has no file of its own has no version either: the route then serves the original without the immutable header, so there is no thumbnail sample to judge (the original sample above still is).
+                    // A rendition that has no file of its own has no version either: the route then serves the original without the immutable header, so the original sample is used for the body checks (its version is current, the header is immutable).
                     $hasMv=method_exists($image,'mediaVersion');$tvRaw=$hasMv?$image->mediaVersion('thumbnail'):$q['v'];$tv=$tvRaw===null?null:(string)$tvRaw;$ts=$tv===null?null:App\Support\ProductMediaUrl::signature($tid,'thumbnail',$tv);
-                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$tv,'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}
+                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$tv,'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}else{$thumbnail=$sample;}
                 }
             }
         }
