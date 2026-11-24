@@ -14,7 +14,7 @@ const eas=JSON.parse(fs.readFileSync(path.join(mobile,'eas.json'),'utf8'));
 const pkg=JSON.parse(fs.readFileSync(path.join(mobile,'package.json'),'utf8'));
 // Fake `expo config`: reports build17 unless the helper supplied the SDK58 play identity markers.
 const fakeCli=`const ok=process.env.ALD1N_M17_SDK58_PLAY_PROFILE==='m17-sdk58-play-rc'&&process.env.ALD1N_M17_SDK58_PLAY_RC==='source-only';
-console.log(JSON.stringify({version:'1.0.0',runtimeVersion:process.env.FAKE_RUNTIME||(ok?'1.0.0-m17-sdk58-play2':'1.0.0-build17'),
+console.log(JSON.stringify({version:'1.0.0',runtimeVersion:process.env.FAKE_RUNTIME||(ok?'1.0.0-m17-sdk58-play3':'1.0.0-build17'),
 android:{package:'com.ald1n.mobile'},extra:{appEnv:process.env.EXPO_PUBLIC_APP_ENV,apiUrl:process.env.EXPO_PUBLIC_API_URL}}));`;
 
 function run(args,{fakeRuntime,easPatch}={}){
@@ -35,7 +35,7 @@ function run(args,{fakeRuntime,easPatch}={}){
 test('--check accepts only the SDK58 play identity and never would run a submit',()=>{
  const r=run(['--check',BID]);
  assert.equal(r.status,0,r.stderr);
- assert.match(r.stdout,/RUNTIME_VERSION=1\.0\.0-m17-sdk58-play2/);
+ assert.match(r.stdout,/RUNTIME_VERSION=1\.0\.0-m17-sdk58-play3/);
  assert.match(r.stdout,/SUBMIT_WOULD_RUN=NO/);
  assert.doesNotMatch(r.stdout,/SUBMIT_WOULD_RUN=YES/);
 });

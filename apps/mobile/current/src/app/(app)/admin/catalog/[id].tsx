@@ -21,6 +21,7 @@ import { CatalogAdvancedProductActions } from '@/features/admin/catalog-advanced
 import { ProductDeletionAdmin } from '@/features/admin/product-deletion-admin';
 import { lineSelectorLabels } from '@/features/admin/catalog-line-labels';
 import { useAuth } from '@/features/auth/auth-provider';
+import { EanScanButton } from '@/features/catalog/ean-scanner';
 import { RemoteProductImageManager } from '@/features/catalog/product-image-manager';
 import { ApiError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
@@ -588,6 +589,7 @@ export default function AdminCatalogEditScreen() {
         <TextField label="Model" value={modelName} onChangeText={setModelName} disabled={product.is_archived} />
         <TextField label="Šifra dobavljača" value={supplierCode} onChangeText={setSupplierCode} error={errors.supplier_code} disabled={product.is_archived} />
         <TextField label="EAN (bar-kod)" value={ean} onChangeText={setEan} error={errors.ean} keyboardType="number-pad" disabled={product.is_archived} />
+        <EanScanButton onScanned={setEan} disabled={product.is_archived} />
         <TextField label="Naziv" value={name} onChangeText={setName} error={errors.name} disabled={product.is_archived} />
       </View>
 

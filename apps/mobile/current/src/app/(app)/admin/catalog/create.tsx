@@ -15,6 +15,7 @@ import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { apiAdminCatalog } from '@/features/admin/catalog-admin-api';
 import { lineSelectorLabels } from '@/features/admin/catalog-line-labels';
+import { EanScanButton } from '@/features/catalog/ean-scanner';
 import {
   DraftProductImageManager,
   type DraftProductImage,
@@ -692,6 +693,7 @@ export default function AdminCatalogCreateScreen() {
           keyboardType="number-pad"
           placeholder="8 do 14 cifara"
         />
+        <EanScanButton onScanned={setEan} />
         <TextField
           label="Naziv"
           value={name}

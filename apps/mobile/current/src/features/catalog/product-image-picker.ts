@@ -1,4 +1,5 @@
 import { File } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 
 import type {
   AdminProductImageLimits,
@@ -67,6 +68,58 @@ export async function pickProductImages(
     selected = result.result;
   }
 
+  return validatePickedFiles(selected, current, limits, remaining);
+}
+
+export type ProductCameraPermission = 'granted' | 'ask' | 'blocked';
+
+// Rationale is shown by the caller only for 'ask'; 'blocked' means Android will not show the dialog again.
+export async function getProductCameraPermission(): Promise<ProductCameraPermission> {
+  const state = await ImagePicker.getCameraPermissionsAsync();
+  if (state.granted) return 'granted';
+  return state.canAskAgain ? 'ask' : 'blocked';
+}
+
+// One photo per call (owner decision 2026-11-24). Same validation and draft flow as the file picker.
+export async function captureProductImage(
+  current: AdminProductImageUploadFile[],
+  limits: AdminProductImageLimits,
+): Promise<ProductImagePickResult> {
+  if (limits.max_files - current.length <= 0) {
+    return {
+      files: [],
+      rejected: [`Možeš dodati najviše ${limits.max_files} fotografija.`],
+      canceled: false,
+    };
+  }
+
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    return {
+      files: [],
+      rejected: ['Kamera nije dozvoljena. Dozvoli kameru u podešavanjima telefona za Ald1n CMS.'],
+      canceled: false,
+    };
+  }
+
+  const shot = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    // Server limit is 10 MB per image; 0.8 keeps 50+ MP phone JPEGs under it.
+    quality: 0.8,
+  });
+  const asset = shot.assets?.[0];
+  if (shot.canceled || !asset) return { files: [], rejected: [], canceled: true };
+
+  return validatePickedFiles([new File(asset.uri)], current, limits, 1);
+}
+
+function validatePickedFiles(
+  selected: File[],
+  current: AdminProductImageUploadFile[],
+  limits: AdminProductImageLimits,
+  remaining: number,
+): ProductImagePickResult {
   const existing = new Set(current.map(imageKey));
   const accepted: AdminProductImageUploadFile[] = [];
   const rejected: string[] = [];

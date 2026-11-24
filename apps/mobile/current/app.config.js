@@ -37,7 +37,14 @@ const v15ReleaseProfile = 'production-v15-16kb';
 const M17_UAT_PROFILE = 'm17-sdk58-uat';
 const M17_UAT_RUNTIME = '1.0.0-m17-sdk58-uat2';
 const M17_PLAY_PROFILE = 'm17-sdk58-play-rc';
-const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play2';
+// play3 = native layer with expo-camera + expo-image-picker + Kobalt native colours (M5).
+// The live AAB (versionCode 29) is play2; OTA targeting play2 can never reach play3.
+const M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play3';
+// Kobalt native colours. CommonJS cannot import the generated .ts, so the values are
+// duplicated here and pinned to src/design/ald1n-tokens.kobalt.generated.ts by
+// scripts/release25/m5-camera-kobalt-native.test.mjs.
+const KOBALT_SPLASH_BG = '#0d1216'; // kobaltDark.surface.page
+const KOBALT_ACCENT = '#3557c7'; // kobaltDark.button.primary.bg
 // Explicit local/dev-client runtime; never shared with a store or OTA identity.
 const DEV_RUNTIME = '1.0.0-dev-client';
 const m17Deps = require('./package.json').dependencies || {};
@@ -147,7 +154,7 @@ module.exports = ({ config }) => {
 
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#101214',
+        backgroundColor: KOBALT_SPLASH_BG,
       },
 
       predictiveBackGestureEnabled: true,
@@ -194,7 +201,7 @@ module.exports = ({ config }) => {
       [
         'expo-splash-screen',
         {
-          backgroundColor: '#101214',
+          backgroundColor: KOBALT_SPLASH_BG,
           image: './assets/splash-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
@@ -212,10 +219,32 @@ module.exports = ({ config }) => {
 
       'expo-localization',
 
+      // M5: barcode scanner (Google code scanner) + system camera for product photos.
+      // No microphone: RECORD_AUDIO must never reach the manifest.
+      [
+        'expo-camera',
+        {
+          cameraPermission:
+            'Ald1n CMS koristi kameru za skeniranje EAN bar-koda i fotografisanje artikala.',
+          recordAudioAndroid: false,
+        },
+      ],
+      './plugins/with-optional-camera-feature',
+      [
+        'expo-image-picker',
+        {
+          cameraPermission:
+            'Ald1n CMS koristi kameru za fotografisanje artikala.',
+          photosPermission:
+            'Ald1n CMS koristi fotografije samo za slike artikala koje izaberete.',
+          microphonePermission: false,
+        },
+      ],
+
       [
         'expo-notifications',
         {
-          color: '#C45116',
+          color: KOBALT_ACCENT,
           defaultChannel: 'business-updates',
         },
       ],

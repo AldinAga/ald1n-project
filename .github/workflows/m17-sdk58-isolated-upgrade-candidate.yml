@@ -50,8 +50,8 @@ jobs:
           if (p.dependencies.expo!=='~58.0.26' || p.dependencies['react-native']!=='0.88.1' ||
               p.dependencies.react!=='19.3.0' || p.devDependencies['@types/react']!=='~19.3.0' ||
               p.packageManager!=='npm@12.2.1' ||
-              e.cli.version!=='27.2.0' || e.cli.appVersionSource!=='remote' ||
-              !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-m17-sdk58-play2'") || c.includes('1.0.0-build17')) {
+              e.cli.version!=='27.11.0' || e.cli.appVersionSource!=='remote' ||
+              !c.includes("'1.5.0-native2'") || !c.includes("'1.0.0-m17-sdk58-play3'") || c.includes('1.0.0-build17')) {
             throw Error('HOLD_M17_UNEXPECTED_REPO_BASELINE');
           }
           console.log('M17_SOURCE_BASELINE_LOCK=PASS Expo58/RN0.88/React19.3/npm12/EAS27 SDK58 migration isolated');
@@ -137,7 +137,7 @@ jobs:
           const fs=require('node:fs');
           const p=JSON.parse(fs.readFileSync('apps/mobile/current/package.json'));
           const e=JSON.parse(fs.readFileSync('apps/mobile/current/eas.json'));
-          if (p.version!=='1.0.0'||p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote')throw Error('HOLD_M17_RELEASE_PIN_MUTATION');
+          if (p.version!=='1.0.0'||p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.11.0'||e.cli.appVersionSource!=='remote')throw Error('HOLD_M17_RELEASE_PIN_MUTATION');
           console.log('M17_RELEASE_CONFIG_UNCHANGED=PASS');
           NODE
           unexpected="$(git diff --name-only -- . ':!apps/mobile/current/package.json' ':!apps/mobile/current/package-lock.json')"

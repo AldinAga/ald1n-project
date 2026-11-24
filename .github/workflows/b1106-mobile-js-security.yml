@@ -56,8 +56,13 @@ jobs:
           const expoFamily=n=>n==='expo'||n.startsWith('expo-')||n.startsWith('@expo/');
           // Frozen native/runtime pins (also pinned exactly by the LG-03 wave1 gate): never moved by a security or SDK patch bump.
           const frozen=n=>n==='react'||n==='react-dom'||n==='react-native'||n.startsWith('@react-native/')||/^react-native-(nitro|android-liquid-glass|reanimated|worklets)/.test(n)||n==='tamagui'||n.startsWith('@tamagui/');
-          const depNames=[...new Set([...Object.keys(od),...Object.keys(nd)])],declChanged=[];
+          // GATE-PLAY3 (M5, reviewed by owner decision, exact names and ranges only): the two native Expo modules of the camera/EAN scanner layer.
+          // Adding anything else, removing anything, or changing these ranges still fails. The second step proves both equal Expo's own SDK table.
+          const reviewedAdds={'expo-camera':'~58.0.14','expo-image-picker':'~58.0.10'};
+          const reviewedAddedNodes=new Set(['node_modules/expo-camera','node_modules/expo-image-picker','node_modules/expo-image-loader','node_modules/barcode-detector','node_modules/zxing-wasm','node_modules/zxing-wasm/node_modules/type-fest','node_modules/@types/emscripten','node_modules/tagged-tag']);
+          const depNames=[...new Set([...Object.keys(od),...Object.keys(nd)])],declChanged=[],added=[];
           for(const n of depNames)if(od[n]!==nd[n]){
+            if(!od[n]&&nd[n]&&reviewedAdds[n]===nd[n]){added.push(n);declChanged.push(n);continue;}
             assert(od[n]&&nd[n],'dependency added or removed: '+n);
             assert(!frozen(n),'frozen native/runtime dependency changed: '+n);
             assert(major(od[n].replace(/^[~^]/,''))===major(nd[n].replace(/^[~^]/,'')),'major jump in '+n);
@@ -71,6 +76,7 @@ jobs:
             if(k===''||isDeepStrictEqual(a,b))continue;
             const name=k.split('node_modules/').at(-1);
             assert(!frozen(name),'frozen node changed: '+k);
+            if(added.length&&!a)assert(reviewedAddedNodes.has(k),'lock node added outside the reviewed M5 camera set: '+k);
             if(b){
               assert(typeof b.resolved!=='string'||b.resolved.startsWith('https://registry.npmjs.org/'),'non-npm-registry source: '+k);
               assert(!(b.hasInstallScript&&!(a&&a.hasInstallScript)),'new install script: '+k);
@@ -80,9 +86,15 @@ jobs:
             changed.push(k);
           }
           // 5. Native config: untouched. The only permitted app.config.js edits are Expo SDK 58 version literals of an SDK patch bump.
-          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--',dir+'eas.json']);
+          // GATE-PLAY3: eas.json stays frozen except the single reviewed eas-cli pin move 27.2.0 -> 27.11.0.
+          const easDiff=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'eas.json'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l)).map(l=>l.replace(/\s+/g,''));
+          assert(easDiff.length===0||(easDiff.length===2&&easDiff[0]==='-"version":"27.2.0",'&&easDiff[1]==='+"version":"27.11.0",'),'eas.json changed beyond the reviewed eas-cli pin: '+easDiff.join(' | '));
           const cfg=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'app.config.js'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l));
-          if(cfg.length){assert(sdkBump,'app.config.js changed without an Expo dependency bump');for(const l of cfg)assert(/~58\.\d+\.\d+/.test(l),'app.config.js change beyond the Expo SDK 58 version literal: '+l);}
+          if(added.length){
+            // M5 native layer: the config must carry the reviewed privacy and identity settings (full contract: scripts/release25/m5-camera-kobalt-native.test.mjs).
+            const nowCfg=fs.readFileSync(dir+'app.config.js','utf8');
+            for(const s of ['recordAudioAndroid: false','microphonePermission: false',"M17_PLAY_RUNTIME = '1.0.0-m17-sdk58-play3'",'./plugins/with-optional-camera-feature'])assert(nowCfg.includes(s),'app.config.js lacks reviewed M5 setting: '+s);
+          }else if(cfg.length){assert(sdkBump,'app.config.js changed without an Expo dependency bump');for(const l of cfg)assert(/~58\.\d+\.\d+/.test(l),'app.config.js change beyond the Expo SDK 58 version literal: '+l);}
           const proof={base,mode:sdkBump?'EXPO_SDK_PATCH_BUMP':'LOCK_ONLY_SECURITY',lockSha256:crypto.createHash('sha256').update(bytes).digest('hex'),declaredChanges:declChanged,changedNodes:changed.length,appConfigLinesChanged:cfg.length};
           const out=process.env.EVIDENCE_DIR;if(out)fs.writeFileSync(out+'/lock-proof.json',JSON.stringify(proof,null,2)+'\n');
           console.log('B1106_LOCK_POLICY_PASS '+JSON.stringify(proof));

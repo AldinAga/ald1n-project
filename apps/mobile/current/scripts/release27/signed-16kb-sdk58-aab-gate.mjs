@@ -14,7 +14,7 @@ import { auditApk } from '../release25/verify-android16kb-apk.mjs';
 
 const EXPECTED_PACKAGE = 'com.ald1n.mobile';
 const EXPECTED_VERSION = '1.0.0';
-const EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play2';
+const EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play3';
 const REJECTED_BUILD_ID = 'e3bf78a2-0410-4fe5-a279-e0af5624ca0d';
 const BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29';
 const REQUIRED = Object.freeze(['aab', 'aab-sha256', 'signer-sha256', 'bundletool', 'zipalign', 'apksigner', 'expected-version-code', 'eas-build-id', 'source-sha', 'runtime-version']);

@@ -22,6 +22,15 @@ Radni materijal za obrazac Data safety u Play Console. Nije pravni savet; mesta 
 | Identifikatori uređaja ili drugi ID-jevi: Expo push token, installation_id | Da | **Da, Expo (obrada obaveštenja)** | Funkcionalnost (obaveštenja) | Da, isključivanjem obaveštenja |
 | Naziv uređaja, verzija aplikacije, platforma | Da | Ne | Funkcionalnost, bezbednost | Ne |
 | Aktivnost u aplikaciji: audit log (radnje na nalogu) | Da | Ne | Bezbednost, sprečavanje prevara | Ne |
+| Fotografije: slike artikla koje administrator snimi kamerom ili izabere iz fajlova | Da (šalju se na naš server) | Ne | Funkcionalnost aplikacije (katalog) | Da, dodavanje fotografija nije obavezno |
+
+## Kamera (dozvola CAMERA, od runtime-a `1.0.0-m17-sdk58-play3`)
+
+- Dozvole u manifestu: `CAMERA`. Mikrofon nije tražen: `RECORD_AUDIO` se ne dodaje (`recordAudioAndroid: false` u expo-camera, `microphonePermission: false` u expo-image-picker). Odgovor u Data safety za audio: ne prikuplja se.
+- Fotografija artikla (Admin, Katalog, Slikaj): sistemska kamera, jedna fotografija po dodiru. Dozvola se traži tek pri prvom dodiru uz objašnjenje. Fotografija se šalje na server kao i fotografija izabrana iz fajlova (kategorija Fotografije, prikuplja se, ne deli se).
+- EAN skener (Admin, Katalog, polje EAN, Skeniraj): Google skener bar-kodova (ML Kit) radi na uređaju. Aplikacija ne dobija i ne čuva sliku, samo pročitan broj koji se upisuje u polje EAN. Ako skener nije dostupan, EAN se unosi ručno. Skener ne dodaje nikakav podatak u Data safety.
+- `android.hardware.camera` je u manifestu `required=false`: aplikacija ostaje dostupna uređajima bez kamere (tablet bez zadnje kamere i slično). [provera pri buildu: da li je dodato u spojeni manifest]
+- Pre izdanja treba ažurirati formular "Data safety" (dodati Fotografije) i izjavu o dozvolama; formular podnosi vlasnik.
 
 Napomene:
 - Expo push token se šalje Expo Push Service-u radi isporuke obaveštenja, pa se u Data safety označava kao "deli" (obrađivač usluge). [pravna provera: da li Expo ulazi u izuzetak za obrađivače usluga]

@@ -1,3 +1,5 @@
+// STALE (audit 2026-11-24): expected toolchain below (AGP 8.12.0, Gradle 9.3.1, Kotlin 2.1.20) predates RN 0.88.1 / SDK 58
+// (Kotlin 2.2.0, NDK 27.1). Only scripts/batch528-ci.sh calls it and no workflow runs that script. Do not use as a release gate.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
