@@ -258,12 +258,66 @@ final class SignedProductMediaRouteTest extends TestCase
         @unlink($this->legacyRoot.'/outside.jpg');
     }
 
-    public function test_photo_of_an_inactive_or_archived_product_is_served_with_the_signature(): void
+    public function test_draft_and_inactive_photos_stay_open_for_the_admin_catalog_but_retired_ones_are_404(): void
     {
-        foreach (['draft', 'inactive', 'archived'] as $status) {
+        foreach (['active', 'draft', 'inactive'] as $status) {
             [, $image] = $this->publicImage($status);
             $this->fetch($image->url)->assertOk();
         }
+
+        [, $archived] = $this->publicImage('archived');
+        $url = (string) $archived->url;
+        $response = $this->fetch($url);
+        $response->assertNotFound();
+        self::assertSame('Not found', $response->getContent(), 'same body as a bad signature');
+        self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+
+        [$product, $deleted] = $this->publicImage('active');
+        $deletedUrl = (string) $deleted->url;
+        $this->fetch($deletedUrl)->assertOk();
+        $product->forceFill(['deleted_at' => now()])->save();
+        $response = $this->fetch($deletedUrl);
+        $response->assertNotFound();
+        self::assertSame('Not found', $response->getContent());
+
+        $product->forceFill(['deleted_at' => null, 'status' => 'archived'])->save();
+        $this->fetch($deletedUrl)->assertNotFound();
+        $product->forceFill(['status' => 'active'])->save();
+        $this->fetch($deletedUrl)->assertOk();
+    }
+
+    public function test_url_from_the_new_product_mail_and_push_opens_and_stays_cacheable(): void
+    {
+        [$product, $image] = $this->publicImage('active');
+        $url = app(\App\Services\ProductAnnouncementService::class)->absoluteImageUrl($product->fresh());
+
+        self::assertSame($image->url, $url);
+        $response = $this->fetch((string) $url);
+        $response->assertOk();
+        self::assertStringContainsString('immutable', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_old_version_after_a_replaced_photo_is_served_without_immutable_caching(): void
+    {
+        [, $image, $old] = $this->publicImage();
+        $oldUrl = (string) $image->url;
+        $this->fetch($oldUrl)->assertOk();
+
+        $replacement = $this->png(40, 30, [200, 20, 20]);
+        Storage::disk('public')->put($image->file_path, $replacement);
+        $image->forceFill(['file_hash' => hash('sha256', $replacement), 'file_size' => strlen($replacement)])->save();
+
+        $stale = $this->fetch($oldUrl);
+        $stale->assertOk();
+        self::assertSame($replacement, $this->servedBytes($stale));
+        $cache = (string) $stale->headers->get('Cache-Control');
+        self::assertStringNotContainsString('immutable', $cache);
+        self::assertStringNotContainsString('max-age=604800', $cache);
+        self::assertStringContainsString('no-cache', $cache);
+
+        $fresh = $this->fetch((string) ProductImage::query()->findOrFail($image->id)->url);
+        self::assertStringContainsString('immutable', (string) $fresh->headers->get('Cache-Control'));
+        self::assertNotSame($old, $replacement);
     }
 
     public function test_product_resource_returns_signed_urls_that_open_without_a_login(): void
