@@ -189,6 +189,16 @@
         @if(filled($product->description))
             <div class="a1-cat-desc product-description-mobile">{!! nl2br(e((string) $product->description)) !!}</div>
         @endif
+        {{-- Interna napomena: samo SuperAdmin i autor artikla s catalog.manage_products; nikad kupci, portal ni javna vitrina. --}}
+        @if($canManageProduct && filled($product->notes))
+            <section class="a1-card a1-cat-notes" data-product-internal-notes aria-labelledby="product-notes-title">
+                <div class="a1-cat-descbar">
+                    <h2 class="a1-h2" id="product-notes-title">Napomene</h2>
+                    <span class="a1-pill a1-pill--warning">Interno</span>
+                </div>
+                <div class="a1-cat-desc">{!! nl2br(e((string) $product->notes)) !!}</div>
+            </section>
+        @endif
         @include('partials.cart-add-control', ['product' => $product, 'compact' => false])
         @can('orders.create')
             @if($product->stock_quantity > 0)
