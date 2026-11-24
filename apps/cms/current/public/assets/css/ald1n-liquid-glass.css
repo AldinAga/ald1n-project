@@ -254,7 +254,7 @@ body {
 
 @media (max-width: 390px) {
   .page-heading h1 {
-    overflow-wrap: anywhere;
+    overflow-wrap:break-word;
   }
 
   .page-shell {
@@ -553,7 +553,7 @@ body {
   color: var(--ald-muted);
   font-size: 13px;
   font-weight: 680;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .order-archive-purge-dismiss {
@@ -622,7 +622,7 @@ body {
   font-weight: 750;
   line-height: 1.48;
   color: var(--ald-text);
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .order-archive-purge-field input,
@@ -777,7 +777,7 @@ body {
   max-width: 58ch;
   line-height: 1.45;
   color: var(--ald-muted);
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 
 .liquid-glass-product-editor-form .product-editor-action-buttons {
@@ -837,7 +837,7 @@ body {
 .liquid-glass-product-editor-form .product-direct-sale-note {
   max-width: 265px;
   text-align: right;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -947,7 +947,7 @@ body {
     width: 100%;
     min-width: 0;
     padding-inline: 8px;
-    overflow-wrap: anywhere;
+    overflow-wrap:break-word;
   }
 
   .liquid-glass-product-editor-form .product-editor-action-draft:only-child,
@@ -1850,7 +1850,7 @@ html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) {
 .build16-product-detail-shell .build16-product-summary h1 {
   margin: 0 0 12px;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .build16-product-detail-shell .build16-product-summary .sku {
   margin: 0;
@@ -1876,7 +1876,7 @@ html[data-theme="light"] .page-shell:has(.dashboard-kpi-card) {
 .build16-product-detail-shell .build16-product-summary .build16-product-metrics strong {
   display: block;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap:break-word;
 }
 .build16-product-detail-shell .build16-product-summary .category-list {
   gap: 8px;

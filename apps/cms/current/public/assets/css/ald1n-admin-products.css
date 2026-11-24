@@ -55,7 +55,7 @@
 .a1-pc-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:var(--a1-space-12)}
 .a1-pc-facts>div{display:grid;gap:var(--a1-space-4);align-content:start}
 .a1-pc-facts span{color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm)}
-.a1-pc-facts strong{color:var(--a1-text-primary);overflow-wrap:anywhere}
+.a1-pc-facts strong{color:var(--a1-text-primary);overflow-wrap:break-word}
 .a1-pc-facts .a1-pill{color:var(--a1-status-off-text)}
 .a1-pc-facts .a1-pill--ok{color:var(--a1-status-ok-text)}
 .a1-pc-errlist{margin:var(--a1-space-8) 0 0;padding-left:var(--a1-space-20);display:grid;gap:var(--a1-space-4)}
@@ -117,7 +117,7 @@
 .a1-pc-sel__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr));gap:var(--a1-space-8)}
 .image-selection-card{display:grid;gap:var(--a1-space-4);min-width:0;font-size:var(--a1-typography-font-size-sm)}
 .image-selection-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--a1-radius-sm)}
-.image-selection-card strong{overflow-wrap:anywhere}
+.image-selection-card strong{overflow-wrap:break-word}
 .image-selection-card small{color:var(--a1-text-tertiary)}
 .a1-pc-prog{display:grid;gap:var(--a1-space-8)}
 .a1-pc-prog__track{display:block;height:10px;overflow:hidden;border:var(--a1x-border-width) solid var(--a1-border-strong);border-radius:var(--a1-radius-pill);background:var(--a1-button-ghost-bg)}
