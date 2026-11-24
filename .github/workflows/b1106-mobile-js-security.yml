@@ -80,9 +80,14 @@ jobs:
             changed.push(k);
           }
           // 5. Native config: untouched. The only permitted app.config.js edits are Expo SDK 58 version literals of an SDK patch bump.
-          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--',dir+'eas.json']);
+          // GATE-PLAY3: eas.json stays frozen except the single reviewed eas-cli pin move 27.2.0 -> 27.11.0.
+          const easDiff=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'eas.json'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l)).map(l=>l.replace(/\s+/g,''));
+          assert(easDiff.length===0||(easDiff.length===2&&easDiff[0]==='-"version":"27.2.0",'&&easDiff[1]==='+"version":"27.11.0",'),'eas.json changed beyond the reviewed eas-cli pin: '+easDiff.join(' | '));
           const cfg=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'app.config.js'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l));
-          if(cfg.length){assert(sdkBump,'app.config.js changed without an Expo dependency bump');for(const l of cfg)assert(/~58\.\d+\.\d+/.test(l),'app.config.js change beyond the Expo SDK 58 version literal: '+l);}
+          // GATE-PLAY3 (camera-free): without an Expo bump, app.config.js may only carry the reviewed play3 runtime and Kobalt native colour lines (comments included).
+          const play3Line=/^[+-]\s*(\/\/.*|const M17_PLAY_RUNTIME = '1\.0\.0-m17-sdk58-play[23]';|const KOBALT_(SPLASH_BG|ACCENT) = '#[0-9a-f]{6}';.*|(backgroundColor|color): (KOBALT_SPLASH_BG|KOBALT_ACCENT|'#101214'|'#C45116'),)\s*$/;
+          if(!sdkBump&&cfg.length){for(const l of cfg)assert(play3Line.test(l),'app.config.js change beyond the reviewed play3 runtime/colour lines: '+l);}
+          else if(cfg.length){assert(sdkBump,'app.config.js changed without an Expo dependency bump');for(const l of cfg)assert(/~58\.\d+\.\d+/.test(l),'app.config.js change beyond the Expo SDK 58 version literal: '+l);}
           const proof={base,mode:sdkBump?'EXPO_SDK_PATCH_BUMP':'LOCK_ONLY_SECURITY',lockSha256:crypto.createHash('sha256').update(bytes).digest('hex'),declaredChanges:declChanged,changedNodes:changed.length,appConfigLinesChanged:cfg.length};
           const out=process.env.EVIDENCE_DIR;if(out)fs.writeFileSync(out+'/lock-proof.json',JSON.stringify(proof,null,2)+'\n');
           console.log('B1106_LOCK_POLICY_PASS '+JSON.stringify(proof));

@@ -20,7 +20,7 @@ const scripts={
 };
 
 test('new SDK58 declared CLI27/npm12 authority cannot be overridden by six legacy build scripts',()=>{
-  assert.equal(eas.cli.version,'27.2.0');
+  assert.equal(eas.cli.version,'27.11.0');
   assert.equal(pkg.packageManager,'npm@12.2.1');
   for(const [name,[platform,profile]] of Object.entries(scripts)) {
     const cmd=pkg.scripts[name];
