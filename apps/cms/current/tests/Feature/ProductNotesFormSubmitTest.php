@@ -90,9 +90,10 @@ final class ProductNotesFormSubmitTest extends TestCase
         $author = $this->manager('notes-author');
         $product = $this->product($author->id, 'Tudja napomena');
 
-        $this->actingAs($this->superadmin())->get('/catalog/'.$product->slug)
+        $super = $this->superadmin();
+        $this->actingAs($super)->get('/catalog/'.$product->slug)
             ->assertOk()->assertSee('data-product-internal-notes', false)->assertSee('Tudja napomena');
-        $this->actingAs($this->superadmin())->get('/catalog')
+        $this->actingAs($super)->get('/catalog')
             ->assertOk()->assertSee('data-product-has-notes', false);
     }
 
@@ -102,10 +103,10 @@ final class ProductNotesFormSubmitTest extends TestCase
         $product = $this->product($author->id, 'Tudja napomena');
         $other = $this->manager('notes-other');
 
-        $this->actingAs($other)->get('/catalog/'.$product->slug)
-            ->assertOk()->assertDontSee('data-product-internal-notes', false)->assertDontSee('Tudja napomena');
+        // Admin vidi samo svoje artikle (applyVisibleCatalog): tuđi artikal i napomena nisu dostupni.
+        $this->actingAs($other)->get('/catalog/'.$product->slug)->assertNotFound();
         $this->actingAs($other)->get('/catalog')
-            ->assertOk()->assertDontSee('data-product-has-notes', false);
+            ->assertOk()->assertDontSee('data-product-has-notes', false)->assertDontSee('Tudja napomena');
     }
 
     public function test_non_superadmin_author_sees_own_notes(): void
