@@ -78,14 +78,18 @@ test('five destinations, keyboard dismissal, role access and home emphasis remai
   const { buildBottomNavItems } = compilePurePolicy(routePolicySource, 'app-bottom-nav-policy.ts');
   const context = {
     catalogEnabled: true, ordersEnabled: true, notificationsEnabled: true,
-    canManageOrders: true, unread: 2,
+    canManageOrders: true, cartEnabled: true, commissionsEnabled: true, receivablesEnabled: true, unread: 2,
+  };
+  const expectedKeys = {
+    superadmin: ['catalog', 'orders', 'home', 'secondary', 'account'],
+    admin: ['catalog', 'orders', 'home', 'receivables', 'account'],
+    user: ['catalog', 'cart', 'home', 'orders', 'commissions'],
   };
   for (const roleSlug of ['superadmin', 'admin', 'user']) {
     const items = buildBottomNavItems({ ...context, roleSlug });
-    assert.deepEqual(Array.from(items, item => item.key), ['catalog', 'orders', 'home', 'secondary', 'account']);
+    assert.deepEqual(Array.from(items, item => item.key), expectedKeys[roleSlug]);
     assert.equal(items[2].route, '/home');
     assert.equal(items[2].center, true);
-    assert.equal(items[1].route, roleSlug === 'user' ? '/orders' : '/admin/orders');
   }
   assert.match(navSource, /if \(keyboardVisible && !rail\) return null/);
   assert.match(navSource, /accessibilityState=\{\{ selected: focused, disabled: !item\.enabled \}\}/);

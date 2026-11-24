@@ -5,6 +5,7 @@
 // MOBILE_BATCH664_FLOATING_BOTTOM_NAV
 // MOBILE_BATCH678_COMPACT_TRANSLUCENT_BOTTOM_NAV
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
 import { AccessibilityInfo, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +14,8 @@ import { Glyph } from '@/components/ui/glyph';
 import { activeBottomNavKey, buildBottomNavItems } from './app-bottom-nav-policy';
 import { androidGlassChrome, resolveAndroidGlassMaterial } from './android-glass-material-policy';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
+import { apiAdmin } from '@/features/admin/admin-api';
+import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth, useNotificationUnread } from '@/features/auth/auth-provider';
 import { useAppTheme } from '@/theme/app-theme';
 
@@ -35,6 +38,12 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const roleSlug = bootstrap?.user.role?.slug;
   const active = activeBottomNavKey(pathname, roleSlug);
+  const foundationQuery = useQuery({
+    queryKey: adminQueryKeys.foundation(),
+    queryFn: apiAdmin.foundation,
+    enabled: roleSlug === 'admin',
+    staleTime: 60_000,
+  });
   const rail = variant === 'rail';
 
   useEffect(() => {
@@ -62,8 +71,13 @@ export function AppBottomNav({ variant = 'bottom' }: { variant?: 'bottom' | 'rai
     ordersEnabled: hasFeature('orders'),
     notificationsEnabled: hasFeature('notifications'),
     canManageOrders: can('orders.manage'),
+    cartEnabled: hasFeature('order_create'),
+    // features.commissions already combines the module switch and commissions.view_own.
+    commissionsEnabled: hasFeature('commissions'),
+    receivablesEnabled: can('receivables.manage')
+      && (foundationQuery.data?.modules.some((module) => module.key === 'receivables' && module.enabled) ?? false),
     unread,
-  }), [roleSlug, hasFeature, can, unread]);
+  }), [roleSlug, hasFeature, can, unread, foundationQuery.data]);
 
   if (keyboardVisible && !rail) return null;
 
