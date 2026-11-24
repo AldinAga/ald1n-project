@@ -19,7 +19,11 @@ import {
   typography,
   type AppColors,
 } from '@/constants/theme';
-import { downloadAndShareProductImage } from '@/features/catalog/product-image-download';
+import {
+  canSaveProductImagesToDevice,
+  downloadAndShareProductImage,
+  saveProductImagesToDevice,
+} from '@/features/catalog/product-image-download';
 import { api } from '@/lib/api/endpoints';
 import { useAppTheme, useThemedStyles } from '@/theme/app-theme';
 import type { ProductImage } from '@/types/api';
@@ -176,25 +180,64 @@ export function ProductImageGallery({
     if (stopParentPress) event.stopPropagation();
   };
 
-  const handleDownload = async (
+  const imageInput = (image: GalleryItem, index: number) => ({
+    originalUrl: image.originalUrl,
+    productName,
+    productSku,
+    imageNumber: index + 1,
+  });
+
+  const handleShare = async (
     image: GalleryItem,
     index: number,
     event: GestureResponderEvent,
   ) => {
     stopEvent(event);
     if (downloadingKey) return;
-    setDownloadingKey(image.key);
+    setDownloadingKey(`share:${image.key}`);
     try {
-      await downloadAndShareProductImage({
-        originalUrl: image.originalUrl,
-        productName,
-        productSku,
-        imageNumber: index + 1,
+      await downloadAndShareProductImage(imageInput(image, index));
+    } catch (error) {
+      feedback.notify({
+        tone: 'danger',
+        title: 'Deljenje slike nije uspelo',
+        message: error instanceof Error ? error.message : 'Pokušaj ponovo.',
+      });
+    } finally {
+      setDownloadingKey(null);
+    }
+  };
+
+  // One image, or all images (image null), straight into a folder on the phone.
+  const handleSave = async (image: GalleryItem | null, index: number, event: GestureResponderEvent) => {
+    stopEvent(event);
+    if (downloadingKey) return;
+    const targets = image === null
+      ? resolvedImages.map((item, i) => imageInput(item, i))
+      : [imageInput(image, index)];
+    setDownloadingKey(image === null ? 'save:all' : `save:${image.key}`);
+    try {
+      const result = await saveProductImagesToDevice(targets);
+      if (result.cancelled && result.saved === 0) return;
+      if (result.saved === result.total) {
+        feedback.notify({
+          tone: 'success',
+          title: result.total === 1 ? 'Slika je sačuvana' : 'Slike su sačuvane',
+          message: result.total === 1
+            ? 'Original je u izabranom folderu na telefonu.'
+            : `Sačuvano ${result.saved} od ${result.total} originala u izabranom folderu.`,
+        });
+        return;
+      }
+      feedback.notify({
+        tone: result.saved > 0 ? 'warning' : 'danger',
+        title: result.saved > 0 ? `Sačuvano ${result.saved} od ${result.total}` : 'Čuvanje slike nije uspelo',
+        message: result.firstError ?? 'Pokušaj ponovo.',
       });
     } catch (error) {
       feedback.notify({
         tone: 'danger',
-        title: 'Preuzimanje slike nije uspelo',
+        title: 'Čuvanje slike nije uspelo',
         message: error instanceof Error ? error.message : 'Pokušaj ponovo.',
       });
     } finally {
@@ -240,8 +283,28 @@ export function ProductImageGallery({
   return (
     <View style={styles.root} onTouchStart={stopEvent}>
       <View style={styles.header}>
-        <Text style={styles.title}>Fotografije</Text>
-        <Text style={styles.count}>{resolvedImages.length} ukupno</Text>
+        <View style={styles.labelWrap}>
+          <Text style={styles.title} numberOfLines={1}>Fotografije</Text>
+          <Text style={styles.count} numberOfLines={1}>{resolvedImages.length} ukupno</Text>
+        </View>
+        {canSaveProductImagesToDevice && resolvedImages.length > 1 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Sačuvaj svih ${resolvedImages.length} originalnih slika na telefon`}
+            accessibilityState={{ disabled: Boolean(downloadingKey), busy: downloadingKey === 'save:all' }}
+            disabled={Boolean(downloadingKey)}
+            onPress={(event) => void handleSave(null, 0, event)}
+            style={({ pressed }) => [
+              styles.downloadButton,
+              pressed && styles.pressed,
+              downloadingKey && downloadingKey !== 'save:all' ? styles.disabled : null,
+            ]}
+          >
+            <Text style={styles.downloadText} numberOfLines={1}>
+              {downloadingKey === 'save:all' ? 'Čuvanje...' : 'Sačuvaj sve'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <FlatList
@@ -256,7 +319,8 @@ export function ProductImageGallery({
         windowSize={3}
         removeClippedSubviews
         renderItem={({ item: image, index }) => {
-          const downloading = downloadingKey === image.key;
+          const saving = downloadingKey === `save:${image.key}`;
+          const sharing = downloadingKey === `share:${image.key}`;
           const tileWidth = mode === 'catalog' ? 172 : detailTileWidth;
           const aspectRatio = aspectRatios[image.key] ?? DEFAULT_GALLERY_ASPECT_RATIO;
           return (
@@ -276,25 +340,48 @@ export function ProductImageGallery({
               />
 
               <View style={styles.metaRow}>
-                <View style={styles.labelWrap}>
-                  <Text style={styles.imageLabel}>Slika {index + 1}</Text>
-                  {image.primary ? <Text style={styles.primaryLabel}>Glavna</Text> : null}
+                <View style={styles.labelRow}>
+                  <Text style={styles.imageLabel} numberOfLines={1}>Slika {index + 1}</Text>
+                  {image.primary ? <Text style={styles.primaryLabel} numberOfLines={1}>Glavna</Text> : null}
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Preuzmi originalnu sliku ${index + 1}`}
-                  disabled={Boolean(downloadingKey)}
-                  onPress={(event) => void handleDownload(image, index, event)}
-                  style={({ pressed }) => [
-                    styles.downloadButton,
-                    pressed && styles.pressed,
-                    downloadingKey && !downloading ? styles.disabled : null,
-                  ]}
-                >
-                  <Text style={styles.downloadText}>
-                    {downloading ? 'Priprema originala...' : 'Preuzmi original'}
-                  </Text>
-                </Pressable>
+                <View style={styles.actionRow}>
+                  {canSaveProductImagesToDevice ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Sačuvaj originalnu sliku ${index + 1} na telefon`}
+                      accessibilityState={{ disabled: Boolean(downloadingKey), busy: saving }}
+                      disabled={Boolean(downloadingKey)}
+                      onPress={(event) => void handleSave(image, index, event)}
+                      style={({ pressed }) => [
+                        styles.downloadButton,
+                        styles.actionButton,
+                        pressed && styles.pressed,
+                        downloadingKey && !saving ? styles.disabled : null,
+                      ]}
+                    >
+                      <Text style={styles.downloadText} numberOfLines={1}>
+                        {saving ? 'Čuvanje...' : 'Sačuvaj'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Podeli originalnu sliku ${index + 1}`}
+                    accessibilityState={{ disabled: Boolean(downloadingKey), busy: sharing }}
+                    disabled={Boolean(downloadingKey)}
+                    onPress={(event) => void handleShare(image, index, event)}
+                    style={({ pressed }) => [
+                      styles.shareButton,
+                      styles.actionButton,
+                      pressed && styles.pressed,
+                      downloadingKey && !sharing ? styles.disabled : null,
+                    ]}
+                  >
+                    <Text style={styles.shareText} numberOfLines={1}>
+                      {sharing ? 'Priprema...' : 'Podeli'}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           );
@@ -313,12 +400,18 @@ function createStyles(theme: AppColors) {
     scrollContent: { gap: spacing.md, paddingRight: spacing.sm },
     tile: { borderWidth: 1, borderColor: theme.line, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: theme.surface },
     image: { width: '100%', backgroundColor: theme.surfaceMuted },
-    metaRow: { minHeight: 52, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
+    // Label above, actions below: two pills never fit beside the label on the 172 px catalog tile.
+    metaRow: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, gap: spacing.sm, borderTopWidth: 1, borderTopColor: theme.line },
     labelWrap: { flex: 1, minWidth: 0 },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 0 },
+    actionRow: { flexDirection: 'row', gap: spacing.sm },
+    actionButton: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm },
     imageLabel: { ...typography.small, color: theme.ink },
-    primaryLabel: { ...typography.small, color: theme.primary, marginTop: 2 },
-    downloadButton: { minHeight: 36, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    primaryLabel: { ...typography.small, color: theme.primary },
+    downloadButton: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
     downloadText: { ...typography.label, color: theme.primaryDark },
+    shareButton: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radii.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
+    shareText: { ...typography.label, color: theme.primary },
     loading: { minHeight: 72, borderWidth: 1, borderColor: theme.line, borderRadius: radii.md, backgroundColor: theme.surfaceMuted, padding: spacing.md, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
     empty: { minHeight: 92, borderWidth: 1, borderColor: theme.line, borderRadius: radii.md, backgroundColor: theme.surfaceMuted, padding: spacing.md, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
     loadingText: { ...typography.small, color: theme.muted, textAlign: 'center' },

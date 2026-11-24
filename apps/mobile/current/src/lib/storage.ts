@@ -6,6 +6,7 @@ const INSTALLATION_KEY = 'ald1n.installation.id';
 const DEVICE_ID_KEY = 'ald1n.device.server-id';
 const PUSH_CHOICE_PREFIX = 'ald1n.push-choice.user.';
 const USER_PREFERENCES_PREFIX = 'ald1n.preferences.user.';
+const IMAGE_SAVE_FOLDER_KEY = 'ald1n.catalog.image-save-folder';
 
 export type StoredPriceDisplayMode = 'source' | 'RSD' | 'EUR';
 
@@ -23,6 +24,13 @@ export const tokenStore = {
   get: () => SecureStore.getItemAsync(TOKEN_KEY, secureOptions),
   set: (token: string) => SecureStore.setItemAsync(TOKEN_KEY, token, secureOptions),
   clear: () => SecureStore.deleteItemAsync(TOKEN_KEY, secureOptions)
+};
+
+// SAF folder (content:// tree URI) the user picked for saving product photos; not a secret.
+export const imageSaveFolderStore = {
+  get: () => SecureStore.getItemAsync(IMAGE_SAVE_FOLDER_KEY, secureOptions),
+  set: (uri: string) => SecureStore.setItemAsync(IMAGE_SAVE_FOLDER_KEY, uri, secureOptions),
+  clear: () => SecureStore.deleteItemAsync(IMAGE_SAVE_FOLDER_KEY, secureOptions)
 };
 
 export async function getInstallationId(): Promise<string> {
