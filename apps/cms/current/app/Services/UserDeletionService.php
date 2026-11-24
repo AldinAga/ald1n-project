@@ -250,8 +250,8 @@ final class UserDeletionService
      * takav nalog ima nasumičan hash, pa ostaje samo potvrda linkom iz e-pošte.
      * Nalog sa lozinkom koji je kasnije povezan sa Google-om i dalje traži lozinku.
      * shortcut: nema kolone "lozinka postavljena"; ako Google nalog dobije lozinku putem koji ne upisuje
-     * password_changed_at (danas ga upisuju reset, promena i aktivacija), ostaje tok samo linkom.
-     * Kad se uvede takva kolona, proveravati nju.
+     * password_changed_at (danas ga upisuju admin kreiranje, reset, promena i aktivacija), ostaje tok samo
+     * linkom. Kad se uvede kolona porekla naloga (npr. auth_origin='google' iz createPendingUser), proveravati nju.
      */
     public function needsPassword(User $user): bool
     {

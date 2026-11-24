@@ -85,8 +85,8 @@ final class AccountDeletionController extends Controller
         }
         $user = $request->user();
         if ($deletions->needsPassword($user)) {
-            $validator = Validator::make($request->all(), ['deletion_password' => ['required', 'string', 'max:4096']], [
-                'deletion_password.*' => 'Unesite trenutnu lozinku.',
+            $validator = Validator::make($request->all(), ['current_password' => ['required', 'string', 'max:4096']], [
+                'current_password.*' => 'Unesite trenutnu lozinku.',
             ]);
             if ($validator->fails()) {
                 return redirect()->route('account.show')->withErrors($validator);
@@ -96,12 +96,12 @@ final class AccountDeletionController extends Controller
             // poređenja, zaključan nalog odbija i tačnu lozinku, pa forma ne služi za pogađanje.
             $attempt = $throttle->begin($user);
             if ($attempt === null) {
-                return redirect()->route('account.show')->withErrors(['deletion_password' => $throttle->message($user)]);
+                return redirect()->route('account.show')->withErrors(['current_password' => $throttle->message($user)]);
             }
-            if (!Hash::check((string) $data['deletion_password'], (string) $user->password_hash)) {
+            if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
                 $throttle->failed($user, $request, 'web-deletion', $attempt);
 
-                return redirect()->route('account.show')->withErrors(['deletion_password' => 'Lozinka nije ispravna.']);
+                return redirect()->route('account.show')->withErrors(['current_password' => 'Lozinka nije ispravna.']);
             }
             $throttle->clear($user);
         }

@@ -191,7 +191,7 @@ final class AccountDeletionTest extends TestCase
         $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($user);
         $this->get('/account')->assertOk()->assertSee('Zatraži brisanje naloga');
-        $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertRedirectContains('/account');
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertRedirectContains('/account');
         Notification::assertSentTo($user, AccountDeletionNotification::class, static fn ($n): bool => $n->kind === 'confirm');
     }
 
@@ -201,19 +201,19 @@ final class AccountDeletionTest extends TestCase
         $user = $this->user('del-pw', 'user');
         $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($user);
-        $this->get('/account')->assertOk()->assertSee('name="deletion_password"', false);
+        $this->get('/account')->assertOk()->assertSee('name="current_password"', false);
 
-        foreach ([['deletion_password' => 'nije-ta'], [], ['deletion_password' => ['x']]] as $payload) {
+        foreach ([['current_password' => 'nije-ta'], [], ['current_password' => ['x']]] as $payload) {
             // Lozinka se ne vraca u formu (nema old input).
             $this->post('/account/deletion', $payload)->assertStatus(302)->assertRedirectContains('/account')
-                ->assertSessionHasErrors('deletion_password')->assertSessionMissing('status')->assertSessionMissing('_old_input');
+                ->assertSessionHasErrors('current_password')->assertSessionMissing('status')->assertSessionMissing('_old_input');
         }
         Notification::assertNothingSent();
         self::assertSame(0, DB::table('account_deletion_requests')->count());
 
         // Dnevni brojac slanja (3) je ceo: tri tacna zahteva van pauze salju tri linka.
         for ($i = 0; $i < 3; $i++) {
-            $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertSessionHasNoErrors()
+            $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertSessionHasNoErrors()
                 ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
             $this->travel(11)->minutes();
         }
@@ -228,18 +228,65 @@ final class AccountDeletionTest extends TestCase
         $this->assertAuthenticatedAs($user);
 
         for ($i = 1; $i <= 5; $i++) {
-            $this->post('/account/deletion', ['deletion_password' => 'pogresna-'.$i])
-                ->assertSessionHasErrors(['deletion_password' => 'Lozinka nije ispravna.']);
+            $this->post('/account/deletion', ['current_password' => 'pogresna-'.$i])
+                ->assertSessionHasErrors(['current_password' => 'Lozinka nije ispravna.']);
         }
-        $locked = $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])
-            ->assertSessionHasErrors('deletion_password')->assertSessionMissing('status');
-        self::assertStringStartsWith('Previše neuspešnih pokušaja', (string) $locked->getSession()->get('errors')->first('deletion_password'));
+        $locked = $this->post('/account/deletion', ['current_password' => self::PASSWORD])
+            ->assertSessionHasErrors('current_password')->assertSessionMissing('status');
+        self::assertStringStartsWith('Previše neuspešnih pokušaja', (string) $locked->getSession()->get('errors')->first('current_password'));
         Notification::assertNothingSent();
         self::assertSame(1, AuditLog::query()->where('action', 'account.password_change_throttled')->count());
 
         $this->travel(16)->minutes();
-        $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertSessionHasNoErrors();
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertSessionHasNoErrors();
         Notification::assertSentToTimes($user, AccountDeletionNotification::class, 1);
+    }
+
+    public function test_password_with_surrounding_spaces_is_not_trimmed(): void
+    {
+        Notification::fake();
+        $user = $this->user('del-pw-space', 'user');
+        $user->forceFill(['password_hash' => Hash::make(' '.self::PASSWORD.' ')])->save();
+        $this->post('/login', ['login' => $user->email, 'password' => ' '.self::PASSWORD.' ']);
+        $this->assertAuthenticatedAs($user);
+
+        $this->post('/account/deletion', ['current_password' => ' '.self::PASSWORD.' '])->assertSessionHasNoErrors()
+            ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
+        Notification::assertSentToTimes($user, AccountDeletionNotification::class, 1);
+    }
+
+    public function test_correct_password_clears_the_wrong_password_budget(): void
+    {
+        Notification::fake();
+        $user = $this->user('del-pw-clear', 'user');
+        $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
+        $this->assertAuthenticatedAs($user);
+
+        for ($i = 1; $i <= 4; $i++) {
+            $this->post('/account/deletion', ['current_password' => 'pogresna-'.$i])
+                ->assertSessionHasErrors(['current_password' => 'Lozinka nije ispravna.']);
+        }
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertSessionHasNoErrors();
+        // Posle tacne lozinke brojac krece od nule: jos 4 pogresne ne zakljucavaju nalog.
+        for ($i = 1; $i <= 4; $i++) {
+            $this->post('/account/deletion', ['current_password' => 'opet-pogresna-'.$i])
+                ->assertSessionHasErrors(['current_password' => 'Lozinka nije ispravna.']);
+        }
+        self::assertSame(0, AuditLog::query()->where('action', 'account.password_change_throttled')->count());
+    }
+
+    public function test_admin_created_account_linked_to_google_at_once_still_needs_the_password(): void
+    {
+        $actor = $this->user('del-pw-actor', 'superadmin');
+        $created = app(\App\Services\AdminUserService::class)->create([
+            'role_id' => DB::table('roles')->where('slug', 'user')->value('id'), 'user_group_id' => 1,
+            'username' => 'del-pw-admin-made', 'email' => 'del-pw-admin-made@example.test',
+            'password' => self::PASSWORD, 'status' => 'active',
+        ], $actor);
+        $this->linkGoogle($created, 'sub-del-admin-made');
+
+        self::assertNotNull($created->fresh()->password_changed_at);
+        self::assertTrue(app(\App\Services\UserDeletionService::class)->needsPassword($created->fresh()));
     }
 
     public function test_account_created_by_google_without_password_keeps_the_email_link_only_flow(): void
@@ -256,7 +303,7 @@ final class AccountDeletionTest extends TestCase
 
         $this->post('/login', ['login' => $google->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($google);
-        $this->get('/account')->assertOk()->assertDontSee('name="deletion_password"', false)->assertSee('samo linkom iz e-pošte', false);
+        $this->get('/account')->assertOk()->assertDontSee('name="current_password"', false)->assertSee('samo linkom iz e-pošte', false);
         $this->post('/account/deletion')->assertSessionHasNoErrors()
             ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
         Notification::assertSentToTimes($google, AccountDeletionNotification::class, 1);
@@ -266,7 +313,7 @@ final class AccountDeletionTest extends TestCase
             $this->post('/logout');
             $this->post('/login', ['login' => $other->email, 'password' => self::PASSWORD]);
             $this->assertAuthenticatedAs($other);
-            $this->post('/account/deletion')->assertSessionHasErrors('deletion_password');
+            $this->post('/account/deletion')->assertSessionHasErrors('current_password');
             Notification::assertNothingSentTo($other);
         }
     }
@@ -354,12 +401,12 @@ final class AccountDeletionTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1']);
         $this->post('/login', ['login' => $victim->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($victim);
-        $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertRedirectContains('/account')->assertSessionHasNoErrors()
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertRedirectContains('/account')->assertSessionHasNoErrors()
             ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
         Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
 
         // Odmah ponovo: pauza, bez maila i bez tvrdnje da je poslato.
-        $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertRedirectContains('/account')
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertRedirectContains('/account')
             ->assertSessionHas('status', 'Ako je potrebno, link je već poslat u poslednjih 10 minuta; proverite poštu.');
         Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
     }
@@ -374,14 +421,14 @@ final class AccountDeletionTest extends TestCase
             public function sendNow($notifiables, $notification, ?array $channels = null): void { throw new \RuntimeException('smtp down'); }
         });
 
-        $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertRedirectContains('/account')->assertSessionHasErrors('deletion')->assertSessionMissing('status');
+        $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertRedirectContains('/account')->assertSessionHasErrors('deletion')->assertSessionMissing('status');
         self::assertSame(0, DB::table('account_deletion_requests')->where('user_id', $user->id)->count());
 
         // SMTP radi ponovo: nema pauze (red je obrisan) i dnevni brojac nije potrosen.
         // instance() iznad je skinuo alias Dispatcher -> ChannelManager, pa fake vezujemo i na ugovor.
         $this->app->instance(\Illuminate\Contracts\Notifications\Dispatcher::class, Notification::fake());
         for ($i = 0; $i < 3; $i++) {
-            $this->post('/account/deletion', ['deletion_password' => self::PASSWORD])->assertSessionHasNoErrors()
+            $this->post('/account/deletion', ['current_password' => self::PASSWORD])->assertSessionHasNoErrors()
                 ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
             $this->travel(11)->minutes();
         }
