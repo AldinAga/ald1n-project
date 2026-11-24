@@ -1858,6 +1858,8 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
 [class~="ux-product-task-map"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 [class~="ux-product-task-map"]>button{grid-template-columns:34px minmax(min-content,1fr) auto}
 .a1-header .a1-header__end>.a1-rate>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Long button label in a narrow command bar wraps at its spaces instead of leaving the bar (gate finding, products-form 360). */
+.a1-pc-command>.a1-btn{white-space:normal;max-width:100%;text-align:center}
 /* Wide tables: columns never get narrower than their longest word (min-content), the wrapper scrolls sideways
    (keyboard reachable) instead of clipping the overflow, which is what cut off the last column. */
 @media (min-width:901px){
