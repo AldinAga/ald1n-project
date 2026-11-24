@@ -751,7 +751,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-item__end .a1-item__sub{white-space:normal}
 .a1-item__money{font-weight:var(--a1-typography-font-weight-numeric)}
 .a1-item__go{color:var(--a1-text-secondary)}
-.a1-item--order{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main main" "status money"}
+.a1-item--order{grid-template-columns:minmax(max-content,1fr) auto;grid-template-areas:"main main" "status money"}
 .a1-item--order .a1-item__main{grid-area:main}
 .a1-item--order .a1-item__status{grid-area:status}
 .a1-item--order .a1-item__end{grid-area:money}
@@ -1735,7 +1735,7 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-header .a1-header__bar:has(>.a1-header__end){display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:var(--a1-space-12);position:relative}
   .a1-header .a1-brand{grid-column:1;grid-row:1;justify-self:start}
   /* The field is centred on the header itself (not between logo and controls): the right-hand box is at most ~440px wide, so 880px stay free around the centre. */
-  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(180px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between;padding-inline:var(--a1-space-16)}
+  .a1-header .a1-header__bar:has(>.a1-header__end)>.a1-header__search.a1-searchbtn{position:absolute;left:50%;top:calc(var(--a1-space-8) + var(--a1-size-touch-target) / 2);translate:-50% -50%;width:max(280px,min(520px,calc(100% - 1000px)));max-width:none;margin:0;justify-content:space-between;padding-inline:var(--a1-space-16)}
   .a1-header .a1-header__end{grid-column:3;grid-row:1;justify-self:end;display:flex;flex-wrap:nowrap;align-items:center;gap:var(--a1-space-8)}
   .a1-header .a1-header__end>.a1-header__quick{order:1}
   .a1-header .a1-header__end>.a1-rate{order:2;max-width:9.5rem;overflow:hidden}
@@ -1837,6 +1837,12 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
 .access-control-tabs,.inventory-operation-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
 /* ald1n-ui-v2.css is a frozen generated asset (CI refuses edits), so its overflow-wrap:anywhere rules on table cells and short values are overridden here. */
 .admin-table th,.admin-table td,.ald-ops-index .operational-orders-table tbody td,.unified-product-card .product-footer .price,.unified-product-card .product-meta>*,.order-workspace-snapshot strong,.order-workspace-snapshot small,.order-buyer-detail-list dd,.ux-product-workspace-meta strong,.ux-product-review-grid strong,.access-control-user-meta strong,.product-type-preview-field strong{overflow-wrap:break-word}
+/* Findings of the first gate run (PR 235): a number with its sign, a task tile and the stale rate chip never break or clip. */
+.completeness-heading strong{white-space:nowrap;flex-shrink:0}
+.ux-product-task-map{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.ux-product-task-map>button{grid-template-columns:34px minmax(min-content,1fr) auto}
+.a1-header .a1-header__end>.a1-rate.is-stale{max-width:16rem}
+.a1-header .a1-header__end>.a1-rate>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Wide tables: columns never get narrower than their longest word (min-content), the wrapper scrolls sideways
    (keyboard reachable) instead of clipping the overflow, which is what cut off the last column. */
 @media (min-width:901px){

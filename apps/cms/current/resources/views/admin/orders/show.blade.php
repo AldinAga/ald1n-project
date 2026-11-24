@@ -146,7 +146,7 @@
                 @else
                     <a class="a1-btn a1-btn--primary" href="{{ $workspaceNextTarget }}">{{ $workspaceNextLabel }}</a>
                     @if(!empty($order['accepted_at']))
-                        <span class="a1-pill">Preuzeo: {{ $order['accepted_by'] ?? 'Administrator' }} · {{ $order['accepted_at'] }}</span>
+                        <span class="a1-pill a1-pill--wrap">Preuzeo: {{ $order['accepted_by'] ?? 'Administrator' }} · {{ $order['accepted_at'] }}</span>
                     @endif
                 @endif
                 @if($canCancelNow)
