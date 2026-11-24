@@ -145,6 +145,7 @@ foreach($steps as [$p,$k]){
 if(count($markers)>40){$keep=[];$n=count($markers);$j=0;$step=$n/40;foreach($markers as $k=>$v){if(floor($j/$step)!==floor(($j-1)/$step)||$j===0)$keep[$k]=$v;$j++;}$markers=array_slice($keep,0,40,true);}
 if($markers===[])throw new RuntimeException('GENERATE_NO_SOURCE_MARKER');
 $viewChecks=array_values(array_filter(array_column($steps,0),static fn($p)=>str_ends_with($p,'.blade.php')));
+if(count($viewChecks)>120)throw new RuntimeException('GENERATE_MORE_THAN_120_VIEWS_FOR_THE_ONE_COMPILE_CHECK_(AppCheck_views_limit_and_the_120_s_helper_timeout)');
 $newBin=array_values(array_filter(array_column($steps,0),static fn($p)=>str_starts_with($p,'bin/')));
 $newClasses=[];foreach($steps as [$p,$k])if($k==='new'&&str_starts_with($p,'app/')&&str_ends_with($p,'.php'))$newClasses[]='App\\'.str_replace('/','\\',substr($p,4,-4));
 // Classes the web-SAPI proof loads before the guard groups (pinned LoadProbe: at most 8): new classes first, then modified models/services.

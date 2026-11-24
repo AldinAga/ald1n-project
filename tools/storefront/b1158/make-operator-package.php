@@ -7,8 +7,8 @@ declare(strict_types=1);
  * (the artifact would not be this payload), or when the zip does not match its .sha256. Needs `gh` (logged in) and `git`. Nothing is uploaded anywhere.
  * @author Ald1n <https://ald1n.com>
  */
-$args=array_slice($argv,1);$run=null;$out=null;$pr='?';
-for($i=0;$i<count($args);$i++){if($args[$i]==='--run')$run=$args[++$i];elseif($args[$i]==='--out')$out=$args[++$i];elseif($args[$i]==='--pr')$pr=$args[++$i];else throw new RuntimeException('MAKE_ARGUMENT_'.$args[$i]);}
+$args=array_slice($argv,1);$run=null;$out=null;$pr='?';$viewSeconds='nije upisano';
+for($i=0;$i<count($args);$i++){if($args[$i]==='--run')$run=$args[++$i];elseif($args[$i]==='--out')$out=$args[++$i];elseif($args[$i]==='--pr')$pr=$args[++$i];elseif($args[$i]==='--view-seconds')$viewSeconds=$args[++$i];else throw new RuntimeException('MAKE_ARGUMENT_'.$args[$i]);}
 $here=__DIR__;$repo=dirname($here,3);
 $sh=static function(array $a,?string $cwd=null):string{$p=proc_open($a,[1=>['pipe','w'],2=>['pipe','w']],$pipes,$cwd);$o=stream_get_contents($pipes[1]);$e=stream_get_contents($pipes[2]);if(proc_close($p)!==0)throw new RuntimeException('MAKE_COMMAND_'.$a[0].'_'.$a[1].': '.trim($e));return $o;};
 $branch=trim($sh(['git','-C',$repo,'rev-parse','--abbrev-ref','HEAD']));
@@ -30,7 +30,7 @@ $hz=$provJson['orderHazards']??[];$tight=B1158Payload::TIGHT_ORDER;
 $hazards=($hz===[]&&$tight===[])?'nema.':implode(' ',array_map(static fn($x)=>$x.'.',$hz)).($tight===[]?'':' Servisi koji uklanjaju i dodaju javne metode su ubačeni u grupu C između starih i novih pozivalaca: '.json_encode($tight,JSON_UNESCAPED_SLASHES).'.');
 $tpl=(string)file_get_contents($here.'/OPERATOR.tpl.md');
 $map=['{{SRC8}}'=>substr(B1158Payload::SOURCE_COMMIT,0,8),'{{FILES}}'=>(string)B1158Payload::FILES,'{{NEW}}'=>(string)B1158Payload::NEW_FILES,'{{MOD}}'=>(string)B1158Payload::MODIFIED_FILES,'{{MIGRATIONS}}'=>implode(', ',array_map(static fn($x)=>'`'.$x.'`',B1158Payload::NEW_MIGRATIONS)),'{{TREE}}'=>(string)B1158Payload::TREE_FILES_AFTER,'{{ROUTES_AFTER}}'=>(string)B1158Payload::ROUTES_AFTER,
-    '{{BRANCH}}'=>$info['headBranch'],'{{PR}}'=>$pr,'{{RUN}}'=>$run,'{{ZIP_BYTES}}'=>(string)filesize($out.'/b1158-operator.zip'),'{{ZIP_SHA}}'=>$zipSha,'{{SHA_FILE_BYTES}}'=>(string)strlen($shaFile),'{{HAZARDS}}'=>$hazards];
+    '{{BRANCH}}'=>$info['headBranch'],'{{PR}}'=>$pr,'{{RUN}}'=>$run,'{{ZIP_BYTES}}'=>(string)filesize($out.'/b1158-operator.zip'),'{{ZIP_SHA}}'=>$zipSha,'{{SHA_FILE_BYTES}}'=>(string)strlen($shaFile),'{{HAZARDS}}'=>$hazards,'{{VIEWS}}'=>(string)count(B1158Payload::VIEW_CHECKS),'{{VIEW_SECONDS}}'=>$viewSeconds];
 file_put_contents($out.'/OPERATOR.md',strtr($tpl,$map));
 foreach(glob($tmp.'/*')?:[] as $f)unlink($f);rmdir($tmp);
 echo json_encode(['out'=>$out,'run'=>$run,'zipSHA256'=>$zipSha,'zipBytes'=>filesize($out.'/b1158-operator.zip'),'source'=>B1158Payload::SOURCE_COMMIT],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL;

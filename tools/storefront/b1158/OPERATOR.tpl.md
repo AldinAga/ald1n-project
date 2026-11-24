@@ -56,6 +56,7 @@ Instalater planira najgori slučaj: kopija fajlova, kopija baze i jedno ponavlja
 - Sa posljednjom rezervnom kopijom od oko 300 s: oko 10200 s, to jest 2 h 50 min.
 - Sa podrazumijevanih 2400 s po kopiji: oko 16479 s, to jest oko 4 h 35 min. U tom slučaju alat sam odbija start sa `HOLD_PREFLIGHT_BLOCKED` i `SCHEDULED_BACKUP_WITHIN_THE_NEEDED_WINDOW_...`, i ništa nije promijenjeno.
 - Ponovna provjera poslije grupe (čekanje pune pauze od oko 125 s pa još jedna provjera) nije dokazana testom. U najgorem slučaju prozor može biti do oko 2200 s duži od gornjih brojki.
+- Kompajliranje prikaza u prijemu (`VIEW_COMPILE_CHECK` u izvještaju, polje `seconds`) je jedan CLI poziv bez PHP vremenskog ograničenja weba; alat ga prekida poslije 120 s i prihvata najviše 120 prikaza (ovaj paket ih ima {{VIEWS}}). U CI fixture-u je izmjereno: {{VIEW_SECONDS}}.
 - Stvarno trajanje B1158 na produkciji nije izmjereno. Za poređenje, Izvještaj 1123 (B1157: 123 fajla, 3 migracije) je planirao `requiredWindowSeconds` 9459 s; rezervna kopija baze (oko 0,97 GB) trajala je oko 34 s, provjera oko 6 s.
 
 ## Šta se mijenja za korisnike

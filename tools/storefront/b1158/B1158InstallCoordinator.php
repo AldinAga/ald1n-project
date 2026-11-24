@@ -1886,9 +1886,9 @@ final class B1158InstallCoordinator
      */
     private function viewsCheck():array
     {
-        $h=$this->helper($this->featureScript,['views',json_encode($this->viewChecks,JSON_THROW_ON_ERROR)]);$bad=[];
+        $t0=hrtime(true);$h=$this->helper($this->featureScript,['views',json_encode($this->viewChecks,JSON_THROW_ON_ERROR)]);$seconds=round((hrtime(true)-$t0)/1e9,2);$bad=[];
         foreach($this->viewChecks as $v)if(($h['views'][$v]['compiled']??false)!==true||($h['views'][$v]['lint']??false)!==true)$bad[]=$v;
-        $this->emit('VIEW_COMPILE_CHECK',['views'=>count($this->viewChecks),'failed'=>$bad,'compiledViewDirectory'=>'NOT_WRITTEN']);
+        $this->emit('VIEW_COMPILE_CHECK',['views'=>count($this->viewChecks),'seconds'=>$seconds,'failed'=>$bad,'compiledViewDirectory'=>'NOT_WRITTEN']);
         if($bad!==[])throw new RuntimeException('BLADE_VIEW_COMPILE_OR_LINT_FAILED');return $h;
     }
 
