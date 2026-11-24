@@ -234,18 +234,14 @@ final class AfterSalesActionService
 
         $this->notify($completed, $actor, 'Postprodajna radnja je izvršena', 'Radnja '.$completed->action_number.' je završena.', 'success');
         if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
-            // Refundacija novca sama ne menja proviziju: odluka je ručna. Obaveštenje vodi na proviziju te porudžbine.
+            // Refundacija sama stornira proviziju "Za isplatu"/isplaćenu srazmerno (CommissionReversalService::reverseForRefund).
             try {
-                // Refundacija upisuje negativnu uplatu: ako porudžbina time prestane da bude plaćena (a nije isporučena), automatski
-                // odobrena provizija se sama vraća na "Na čekanju". Poruka kaže šta se zaista desilo.
                 $commissionStatus = (string) \App\Models\OrderCommission::query()->where('order_id', $completed->case?->order_id)->value('status');
                 $orderNumber = $completed->case?->order?->order_number ?? '';
                 $this->notifications->send($actor, [
                     'event' => 'after_sales_refund_commission_check',
                     'title' => 'Proveri proviziju posle refundacije',
-                    'message' => $commissionStatus === 'pending'
-                        ? 'Refundacija je evidentirana. Provizija porudžbine '.$orderNumber.' je na čekanju jer porudžbina više nije u potpunosti plaćena ni isporučena. Iznos nije menjan; ako treba, koristi "Storniraj proviziju".'
-                        : 'Refundacija je evidentirana. Iznos i status provizije porudžbine '.$orderNumber.' nisu menjani; ako treba, koristi "Storniraj proviziju".',
+                    'message' => 'Refundacija je evidentirana. Provizija porudžbine '.$orderNumber.' koja je bila za isplatu ili isplaćena automatski je stornirana srazmerno refundaciji (isplaćena dobija zaduženje); provizija na čekanju nije menjana. Trenutni status: '.($commissionStatus !== '' ? $commissionStatus : 'bez provizije').'.',
                     'url' => route('admin.commissions.index', ['q' => $completed->case?->order?->order_number]),
                     'action_label' => 'Otvori provizije',
                     'icon' => 'wallet',

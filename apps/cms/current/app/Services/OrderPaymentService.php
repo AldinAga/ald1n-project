@@ -23,6 +23,7 @@ final class OrderPaymentService
         private readonly OrderEmailOutboxService $emails,
         private readonly OrderFinancialReconciliationService $reconciliation,
         private readonly WarrantyIssuanceService $issuances,
+        private readonly CommissionReversalService $commissionReversal,
     ) {}
 
     /** @param array<string,mixed> $data */
@@ -151,6 +152,10 @@ final class OrderPaymentService
                 'verified_by' => $actor->id,
                 'verified_at' => now(),
             ]);
+            if ($type === 'refund') {
+                // pre projekcije: projekcija bi "Za isplatu" vratila na čekanje pa storno ne bi video pravi status
+                $this->commissionReversal->reverseForRefund($locked, $actor, (string) $payment->payment_number);
+            }
             $this->recalculateLocked($locked);
             $this->audit->log('order.payment_recorded', 'Evidentirana '.($type === 'refund' ? 'refundacija' : 'uplata').' '.$payment->payment_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'entry_type' => $type], user: $actor);
             // Same locked transaction: a confirmed first positive payment cannot commit
@@ -210,6 +215,7 @@ final class OrderPaymentService
             'verified_by' => $actor->id,
             'verified_at' => now(),
         ]);
+        $this->commissionReversal->reverseForRefund($order, $actor, (string) $payment->payment_number);
         $this->recalculateLocked($order);
         $this->audit->log('after_sales.refund_recorded', 'Evidentirana refundacija '.$payment->payment_number.' po radnji '.$action->action_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'after_sales_action_id' => $action->id], user: $actor);
 
