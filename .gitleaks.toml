@@ -82,3 +82,12 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1155/DashboardReportsInstallCoordinator\.php$''']
 regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+# Same integrity pin in the B1156 commissions install coordinator (merged by #204); this is what turned redacted-secrets red on main-based PRs.
+[[allowlists]]
+description = "CSS file digest constant in the B1156 commissions install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1156/CommissionsInstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
