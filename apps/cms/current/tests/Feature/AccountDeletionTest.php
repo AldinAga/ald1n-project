@@ -201,7 +201,7 @@ final class AccountDeletionTest extends TestCase
         $user = $this->user('del-pw', 'user');
         $this->post('/login', ['login' => $user->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($user);
-        $this->get('/account')->assertOk()->assertSee('name="current_password"', false);
+        $this->get('/account')->assertOk()->assertSee('id="ac-delete-password"', false);
 
         foreach ([['current_password' => 'nije-ta'], [], ['current_password' => ['x']]] as $payload) {
             // Lozinka se ne vraca u formu (nema old input).
@@ -303,7 +303,7 @@ final class AccountDeletionTest extends TestCase
 
         $this->post('/login', ['login' => $google->email, 'password' => self::PASSWORD]);
         $this->assertAuthenticatedAs($google);
-        $this->get('/account')->assertOk()->assertDontSee('name="current_password"', false)->assertSee('samo linkom iz e-pošte', false);
+        $this->get('/account')->assertOk()->assertDontSee('id="ac-delete-password"', false)->assertSee('samo linkom iz e-pošte', false);
         $this->post('/account/deletion')->assertSessionHasNoErrors()
             ->assertSessionHas('status', static fn (string $s): bool => str_starts_with($s, 'Poslali smo link'));
         Notification::assertSentToTimes($google, AccountDeletionNotification::class, 1);

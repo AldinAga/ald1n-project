@@ -138,7 +138,7 @@
         <form method="post" action="{{ route('account.deletion.request') }}" class="a1-form" data-confirm-submit="Poslati link za potvrdu brisanja naloga?">
             @csrf
             @if(app(\App\Services\UserDeletionService::class)->needsPassword($user))
-            <label class="a1-field"><span class="a1-label">Trenutna lozinka</span><input class="a1-input" type="password" name="current_password" autocomplete="current-password" maxlength="4096" required></label>
+            <label class="a1-field"><span class="a1-label">Trenutna lozinka</span><input class="a1-input" type="password" id="ac-delete-password" name="current_password" autocomplete="current-password" maxlength="4096" required></label>
             @else
             <p class="a1-help">Nalog je napravljen Google prijavom i nema lozinku, pa brisanje potvrđujete samo linkom iz e-pošte.</p>
             @endif
