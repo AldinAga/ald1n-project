@@ -59,7 +59,7 @@
             @endforeach
         </ul>
         @else
-        <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="check" :size="28" :shell="true" /></span><p>Nema problema. Kritični i warning integritet podataka je trenutno čist.</p></div>
+        <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="check-circle":size="28" :shell="true" /></span><p>Nema problema. Kritični i warning integritet podataka je trenutno čist.</p></div>
         @endif
     </section>
 

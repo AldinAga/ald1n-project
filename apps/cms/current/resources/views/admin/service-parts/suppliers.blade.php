@@ -59,7 +59,7 @@
                         <td role="cell" data-label="Rok">{{ $supplier->lead_time_days }} dana</td>
                         <td class="a1-table__num" role="cell" data-label="Delovi">{{ $supplier->parts_count }}</td>
                         <td class="a1-table__num" role="cell" data-label="Nabavke">{{ $supplier->purchase_requests_count }}</td>
-                        <td role="cell" data-label="Status"><span class="a1-pill {{ $supplier->is_active ? 'a1-pill--success' : '' }}">{{ $supplier->is_active ? 'Aktivan' : 'Neaktivan' }}</span></td>
+                        <td role="cell" data-label="Status"><span class="a1-pill {{ $supplier->is_active ? 'a1-pill--ok' : 'a1-pill--off' }}">{{ $supplier->is_active ? 'Aktivan' : 'Neaktivan' }}</span></td>
                         <td class="a1-table__actions" role="cell" data-label="Izmena">
                             <details class="a1-ow-edit">
                                 <summary class="a1-btn a1-btn--sm" aria-label="Uredi dobavljača {{ $supplier->code }}">Uredi</summary>
