@@ -117,6 +117,53 @@ final class OrderEmailDispatcher
         return $rows->reject(static fn (OrderEmailOutbox $row): bool => in_array($row->id, $staleIds, true))->values();
     }
 
+    /**
+     * Pri slanju (samo u memoriji, outbox se ne mijenja) dopunjuje redove product_published:
+     * - slika iz kataloga ako je dodata nakon objave (URL je trajan HMAC potpis, namjerno bez isteka);
+     * - napomene artikla (`notes`) samo za registrovane SubAgente (role slug `user`), ne za ostale primaoce.
+     * Neaktivni i obrisani artikli se preskaču: mail ne smije otkriti artikal koji više nije u ponudi.
+     * Jedan upit za artikle (sa slikama) i jedan za primaoce po batch-u.
+     *
+     * @param Collection<int,OrderEmailOutbox> $rows
+     */
+    private function enrichProductRows(Collection $rows): void
+    {
+        $productRows = $rows->filter(static fn (OrderEmailOutbox $row): bool => $row->event_type === 'product_published'
+            && is_array($row->metadata_json) && !empty($row->metadata_json['product_id']));
+        if ($productRows->isEmpty()) return;
+
+        try {
+            $products = \App\Models\Product::query()->with('images')
+                ->whereIn('id', $productRows->map(static fn (OrderEmailOutbox $row): int => (int) $row->metadata_json['product_id'])->unique()->all())
+                ->where('status', 'active')->whereNull('deleted_at')
+                ->get()->keyBy('id');
+            $users = \App\Models\User::query()->with('role')
+                ->whereIn('id', $productRows->pluck('recipient_user_id')->filter()->unique()->all())
+                ->get()->keyBy('id');
+            $service = app(ProductAnnouncementService::class);
+
+            foreach ($productRows as $row) {
+                $meta = $row->metadata_json;
+                $product = $products->get((int) $meta['product_id']);
+                if ($product === null) continue;
+                $extra = [];
+                if (empty($meta['product_image_url']) && ($url = $service->absoluteImageUrl($product)) !== null) {
+                    $extra['product_image_url'] = $url;
+                }
+                $notes = trim((string) $product->notes);
+                $recipient = $users->get((int) $row->recipient_user_id);
+                // Interna napomena: samo aktivan SubAgent (suspendovan ili penzionisan je ne dobija).
+                if ($notes !== '' && $recipient !== null && $recipient->hasRole('user')
+                    && $recipient->status === 'active' && $recipient->retired_at === null) {
+                    $extra['product_notes'] = $notes;
+                }
+                if ($extra !== []) $row->metadata_json = $extra + $meta;
+            }
+        } catch (Throwable) {
+            // Slika i napomena su dodaci: mail se šalje i bez njih.
+        }
+    }
+
     /** @param Collection<int,OrderEmailOutbox> $rows */
     private function sendBatch(Collection $rows): void
     {
@@ -128,6 +175,8 @@ final class OrderEmailDispatcher
                 ? 'Novi artikli u katalogu ('.$rows->count().')'
                 : 'Obaveštenja iz sistema ('.$rows->count().')');
         $attachments = [];
+
+        $this->enrichProductRows($rows);
 
         foreach ($rows as $row) {
             $document = null;

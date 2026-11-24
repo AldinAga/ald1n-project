@@ -9,7 +9,7 @@
     button.setAttribute('data-js', '');
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     // Fixed or sticky bars at the bottom of the screen; keep this list in step with the CSS (BackToTopContractTest).
-    const bars = '.a1-actionbar,.product-editor-action-bar,.dictionary-sort-finish,.ux-mobile-action-dock';
+    const bars = '.a1-actionbar,.product-editor-action-bar,.dictionary-sort-finish,.a1-dock,.ux-mobile-action-dock';
     let queued = false;
     const lift = () => {
         const zone = window.innerHeight - 72;

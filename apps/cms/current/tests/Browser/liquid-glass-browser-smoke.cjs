@@ -406,7 +406,7 @@ async function archiveSmoke(page, mode, width) {
 async function editorSmoke(page, mode, width, screen) {
   await page.setViewportSize({ width, height: width <= 390 ? 780 : 900 });
   await navigate(page, fixture.paths[screen], 'EDITOR_' + screen.toUpperCase());
-  const form = page.locator('form.liquid-glass-product-editor-form');
+  const form = page.locator('form[data-product-editor-form]');
   check(await form.count() === 1, 'EDITOR_FORM_EXISTS', mode+'/'+width+'/'+screen);
   if (await form.count() === 0) return;
   const bar = form.locator('[data-product-editor-action-bar]');
@@ -423,11 +423,11 @@ async function editorSmoke(page, mode, width, screen) {
   check(b && b.x >= -1 && b.x+b.width <= width + 1, 'EDITOR_BAR_FITS_VIEWPORT', mode+'/'+width+'/'+screen+': '+JSON.stringify(b));
   check(p && p.x>=-1 && p.x+p.width<=width+1 && p.height>=40, 'EDITOR_PRIMARY_FITS', mode+'/'+width+'/'+screen);
   if (screen==='product_edit') {
-    const sale = bar.locator('a.product-editor-action-direct');
+    const sale = bar.locator('a[data-product-direct-sale]');
     check(await sale.count() === 1 && (await sale.getAttribute('href')).includes('#direct-sale-title'),
       'EDITOR_DIRECT_SALE_REMAINS_LINK', mode+'/'+width);
   } else {
-    check(await bar.locator('.product-editor-action-direct').count() === 0, 'EDITOR_CREATE_NO_DIRECT_SALE', mode+'/'+width);
+    check(await bar.locator('[data-product-direct-sale]').count() === 0, 'EDITOR_CREATE_NO_DIRECT_SALE', mode+'/'+width);
   }
   if (mode !== 'auto' && (width===1440 || width===320)) await snapshot(page, mode+'-'+width+'-'+screen+'-sticky-actions');
 }
