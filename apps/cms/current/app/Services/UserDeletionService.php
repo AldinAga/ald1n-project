@@ -10,6 +10,7 @@ use App\Notifications\AccountDeletionNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
@@ -33,6 +34,8 @@ final class UserDeletionService
 {
     public const GRACE_DAYS = 14;
     public const CONFIRM_TTL_MINUTES = 60;
+    public const RESEND_PAUSE_MINUTES = 10;
+    public const MAX_SENDS_PER_DAY = 3;
 
     public function __construct(
         private readonly UserRetirementService $retirement,
@@ -93,10 +96,37 @@ final class UserDeletionService
         }
 
         $user = User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])->first();
-        if ($user === null || $user->status !== 'active' || $user->retired_at !== null) {
+        if ($user !== null) {
+            $this->requestFor($user, 'web');
+        }
+    }
+
+    /** Prijavljen korisnik: link ide na e-poštu naloga; brojač slanja je odvojen od javne forme. */
+    public function requestForUser(User $user): void
+    {
+        if (self::available()) {
+            $this->requestFor($user, 'own');
+        }
+    }
+
+    private function requestFor(User $user, string $channel): void
+    {
+        if ($user->status !== 'active' || $user->retired_at !== null) {
             return;
         }
         if ($this->successorProblem($user) !== null) {
+            return;
+        }
+        // Pauza po nalogu (ne po upisanoj adresi, jer collation poklapa akcente i fullwidth varijante):
+        // dok je nepotvrđen link mlađi od 10 min, ne šaljemo novi i ne pravimo novi token.
+        $recent = DB::table('account_deletion_requests')
+            ->where('user_id', $user->getKey())
+            ->where('status', 'pending')
+            ->whereNull('grace_until')
+            ->where('requested_at', '>', now()->subMinutes(self::RESEND_PAUSE_MINUTES))
+            ->exists();
+        $dailyKey = 'acct-del-send|'.$channel.'|'.$user->getKey();
+        if ($recent || RateLimiter::tooManyAttempts($dailyKey, self::MAX_SENDS_PER_DAY)) {
             return;
         }
 
@@ -123,6 +153,7 @@ final class UserDeletionService
         });
 
         if (DB::table('account_deletion_requests')->where('user_id', $user->getKey())->where('confirm_token_hash', hash('sha256', $plain))->exists()) {
+            RateLimiter::hit($dailyKey, 86400);
             $this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain));
         }
     }
@@ -573,6 +604,12 @@ final class UserDeletionService
             $username .= '_'.$suffix;
             $email = 'deleted_'.$id.'_'.$suffix.'@invalid.local';
         }
+        // Neuspjele prijave nemaju user_id, nego login_hash upisanog imena; hash računamo prije izmjene reda.
+        $old = DB::table('users')->where('id', $id)->first(['email', 'username']);
+        $loginHashes = array_values(array_unique(array_map(
+            static fn (string $login): string => hash('sha256', mb_strtolower(trim($login))),
+            array_filter([(string) ($old->email ?? ''), (string) ($old->username ?? '')], static fn (string $v): bool => $v !== ''),
+        )));
         $values = [
             'username' => $username,
             'email' => $email,
@@ -586,6 +623,8 @@ final class UserDeletionService
             'remember_token' => null,
             'email_verified_at' => null,
             'portal_activated_at' => null,
+            // Sesija starija od ovog trenutka se ne može vratiti (PortalSessionService poredi logged_in_at).
+            'password_changed_at' => now(),
             'updated_at' => now(),
         ];
         foreach (array_keys($values) as $column) {
@@ -611,6 +650,11 @@ final class UserDeletionService
             // Događaj ostaje (vrsta, vrijeme, ozbiljnost), a lični podaci odlaze.
             DB::table('security_events')->where('user_id', $id)
                 ->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null, 'request_id' => null]);
+            if ($loginHashes !== []) {
+                DB::table('security_events')->where('event_type', 'login.failed')
+                    ->whereIn('context_json->login_hash', $loginHashes)
+                    ->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null, 'request_id' => null]);
+            }
         }
 
         // Audit zapisi o samom korisniku nose IP, user agent i stare vrednosti profila.

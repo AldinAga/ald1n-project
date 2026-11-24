@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Throwable;
 
+use function Illuminate\Support\defer;
+
 /**
  * Javna stranica za brisanje naloga (Google Play zahteva javni URL) i potvrda e-poštom.
  * Odgovor na zahtev je isti bez obzira da li nalog postoji. Potvrda i poništavanje
@@ -61,7 +63,8 @@ final class AccountDeletionController extends Controller
                 ->withErrors(['turnstile' => $verified['message']])->withInput($request->only('email'));
         }
 
-        $this->start($deletions, (string) $request->input('email'));
+        $email = (string) $request->input('email');
+        $this->afterResponse(static fn () => $deletions->requestByEmail($email));
 
         return AppUrlOrigin::redirect($request, 'account-deletion.show')->with('status', $this->neutralMessage());
     }
@@ -77,7 +80,8 @@ final class AccountDeletionController extends Controller
         if ($problem !== null) {
             return redirect()->route('account.show')->withErrors(['deletion' => $problem]);
         }
-        $this->start($deletions, (string) $request->user()->email);
+        $user = $request->user();
+        $this->afterResponse(static fn () => $deletions->requestForUser($user));
 
         return redirect()->route('account.show')->with('status', 'Poslali smo link za potvrdu na e-poštu naloga. Link važi '.UserDeletionService::CONFIRM_TTL_MINUTES.' minuta.');
     }
@@ -150,16 +154,17 @@ final class AccountDeletionController extends Controller
         return $validator->fails() ? null : (string) $request->input('token');
     }
 
-    private function start(UserDeletionService $deletions, string $email): void
+    private function afterResponse(\Closure $work): void
     {
         // Posle odgovora: vrijeme odgovora ne smije odavati da nalog postoji (SMTP traje stotine ms).
-        app()->terminating(static function () use ($deletions, $email): void {
+        // defer() se izvrši jednom i ispražnjava listu (app()->terminating bi se ponavljao u istom procesu).
+        defer(static function () use ($work): void {
             try {
-                $deletions->requestByEmail($email);
+                $work();
             } catch (Throwable $exception) {
                 Log::error('Account deletion request failed.', ['exception' => $exception::class]);
             }
-        });
+        }, always: true);
     }
 
     private function neutralMessage(): string

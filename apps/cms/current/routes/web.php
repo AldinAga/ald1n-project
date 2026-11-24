@@ -222,7 +222,7 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::get('/media/product/{image}', ProductMediaController::class)->whereNumber('image')->name('media.product');
     Route::get('/media/product/{image}/download', ProductMediaDownloadController::class)->whereNumber('image')->name('media.product.download');
     Route::post('/account/deletion', [\App\Http\Controllers\AccountDeletionController::class, 'requestOwn'])
-        ->middleware('throttle:account-deletion-request')->name('account.deletion.request');
+        ->middleware('throttle:account-deletion-own')->name('account.deletion.request');
     Route::put('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
     Route::put('/account/password', [AccountController::class, 'password'])->name('account.password');
     Route::put('/account/notifications', [AccountController::class, 'notifications'])->name('account.notifications');

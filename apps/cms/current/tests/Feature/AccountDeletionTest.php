@@ -193,32 +193,100 @@ final class AccountDeletionTest extends TestCase
 
     // ---- Ogranicenje i izjednaceno vrijeme javnog zahtjeva ---------------------
 
-    public function test_public_request_is_limited_per_address_and_per_ip_with_identical_429(): void
+    public function test_public_request_pauses_per_account_counts_only_real_sends_and_limits_per_ip(): void
     {
         Notification::fake();
         $known = $this->user('del-limit', 'customer');
 
-        // Isti e-mail sa razlicitih IP adresa: cetvrti zahtjev u satu je 429 (bez obzira na IP).
-        foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3'] as $ip) {
-            $this->withServerVariables(['REMOTE_ADDR' => $ip])->post('/brisanje-naloga', ['email' => 'del-limit@example.test'])->assertRedirect();
+        // Isti nalog sa razlicitih IP adresa: u pauzi od 10 min samo prvi zahtjev salje mail, token ostaje isti.
+        $responses = [];
+        foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3', '198.51.100.4'] as $i => $ip) {
+            $responses[] = $this->withServerVariables(['REMOTE_ADDR' => $ip])
+                ->post('/brisanje-naloga', ['email' => $i === 3 ? 'DEL-limit@example.test' : 'del-limit@example.test']);
         }
-        $existing = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])->post('/brisanje-naloga', ['email' => 'DEL-limit@example.test']);
-        $unknownFor = 'nepoznat-limit@example.test';
-        foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3'] as $ip) {
-            $this->withServerVariables(['REMOTE_ADDR' => $ip])->post('/brisanje-naloga', ['email' => $unknownFor])->assertRedirect();
-        }
-        $unknown = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])->post('/brisanje-naloga', ['email' => $unknownFor]);
-        $existing->assertStatus(429);
-        $unknown->assertStatus(429);
-        self::assertSame($existing->getContent(), $unknown->getContent());
-        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 3); // 4. zahtjev nije poslao mail
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 1);
+        $first = $this->capturedToken($known, 'confirm');
+        self::assertSame(1, DB::table('account_deletion_requests')->where('user_id', $known->id)->count());
+        self::assertSame(hash('sha256', $first), DB::table('account_deletion_requests')->where('user_id', $known->id)->value('confirm_token_hash'));
 
-        // Jedna IP adresa, razliciti e-mailovi: gornja granica 20 po satu.
+        // Odgovor za postojeci nalog u pauzi i za nepostojeci nalog je isti.
+        $unknown = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.5'])->post('/brisanje-naloga', ['email' => 'nepoznat-limit@example.test']);
+        foreach ($responses as $response) {
+            self::assertSame($unknown->getStatusCode(), $response->getStatusCode());
+            self::assertSame($unknown->headers->get('Location'), $response->headers->get('Location'));
+            self::assertSame($unknown->getSession()->get('status'), $response->getSession()->get('status'));
+        }
+
+        // Posle pauze novi link; najvise 3 stvarna slanja dnevno po nalogu.
+        for ($i = 0; $i < 3; $i++) {
+            $this->travel(11)->minutes();
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.9'])->post('/brisanje-naloga', ['email' => 'del-limit@example.test'])->assertStatus(302);
+        }
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 3);
+
+        // Jedna IP adresa, razliciti e-mailovi: gornja granica 20 po satu, isti 429 za postojeci i nepostojeci nalog.
         $ip = ['REMOTE_ADDR' => '203.0.113.50'];
         for ($i = 1; $i <= 20; $i++) {
             $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => "bulk{$i}@example.test"])->assertStatus(302);
         }
-        $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => 'bulk21@example.test'])->assertStatus(429);
+        $blockedKnown = $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => 'del-limit@example.test'])->assertStatus(429);
+        $blockedUnknown = $this->withServerVariables($ip)->post('/brisanje-naloga', ['email' => 'bulk21@example.test'])->assertStatus(429);
+        // CSP nonce je drugaciji u svakom odgovoru; ostatak stranice mora biti isti.
+        $strip = static fn (string $html): string => (string) preg_replace('/nonce="[^"]*"/', 'nonce=""', $html);
+        self::assertSame($strip((string) $blockedKnown->getContent()), $strip((string) $blockedUnknown->getContent()));
+    }
+
+    public function test_unicode_and_width_variants_of_an_address_share_the_account_pause(): void
+    {
+        Notification::fake();
+        $known = $this->user('del-uni', 'customer');
+        $deletions = app(\App\Services\UserDeletionService::class);
+
+        // Na MySQL utf8mb4_unicode_ci ove varijante pogadjaju isti red; pauza je po nalogu, pa ide samo jedan mail.
+        foreach (['del-uni@example.test', 'DÉL-uni@example.test', 'dél-uni@example.test', 'ｄｅｌ-uni@example.test', 'del-ｕni@example.test'] as $variant) {
+            $deletions->requestByEmail($variant);
+        }
+        $this->post('/brisanje-naloga', ['email' => 'Del-Uni@example.test'])->assertStatus(302);
+
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 1);
+        self::assertSame(1, DB::table('account_deletion_requests')->where('user_id', $known->id)->count());
+    }
+
+    public function test_attacker_cannot_spend_the_logged_in_users_send_budget(): void
+    {
+        Notification::fake();
+        $victim = $this->user('del-victim', 'customer');
+
+        // Napadac iscrpi javni dnevni budzet za adresu zrtve i javni limit po IP-u.
+        $attacker = ['REMOTE_ADDR' => '192.0.2.77'];
+        for ($i = 0; $i < 3; $i++) {
+            $this->withServerVariables($attacker)->post('/brisanje-naloga', ['email' => 'del-victim@example.test'])->assertStatus(302);
+            $this->travel(11)->minutes();
+        }
+        $this->withServerVariables($attacker)->post('/brisanje-naloga', ['email' => 'del-victim@example.test'])->assertStatus(302);
+        Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 3); // 4. javni pokusaj: dnevni limit
+        for ($i = 1; $i <= 20; $i++) {
+            $this->withServerVariables($attacker)->post('/brisanje-naloga', ['email' => "spam{$i}@example.test"]);
+        }
+        $this->withServerVariables($attacker)->post('/brisanje-naloga', ['email' => 'del-victim@example.test'])->assertStatus(429);
+
+        // Prijavljena zrtva ima svoj limiter i svoj brojac slanja.
+        $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1']);
+        $this->post('/login', ['login' => $victim->email, 'password' => self::PASSWORD]);
+        $this->assertAuthenticatedAs($victim);
+        $this->post('/account/deletion')->assertRedirectContains('/account')->assertSessionHasNoErrors();
+        Notification::assertSentToTimes($victim, AccountDeletionNotification::class, 4);
+    }
+
+    public function test_array_in_email_field_is_a_validation_error_not_500(): void
+    {
+        Notification::fake();
+        $this->user('del-array', 'customer');
+
+        $this->post('/brisanje-naloga', ['email' => ['del-array@example.test']])
+            ->assertStatus(302)->assertSessionHasErrors('email');
+        $this->post('/brisanje-naloga', ['email' => ['x' => ['y']]])->assertStatus(302)->assertSessionHasErrors('email');
+        Notification::assertNothingSent();
     }
 
     public function test_request_work_runs_after_the_response_so_known_and_unknown_look_the_same(): void
@@ -226,17 +294,19 @@ final class AccountDeletionTest extends TestCase
         Notification::fake();
         $known = $this->user('del-defer', 'customer');
         $before = [];
-        // Registrovano prije kontrolera, pa se izvrsava prvo: do tada se ne smije desiti nista sto odaje nalog.
-        $this->app->terminating(static function () use (&$before): void {
-            $before = ['rows' => DB::table('account_deletion_requests')->count()];
+        // RequestHandled ide kad je odgovor gotov, a prije terminate(): do tada se ne smije desiti nista sto odaje nalog.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Foundation\Http\Events\RequestHandled::class, static function () use (&$before): void {
+            $before[] = DB::table('account_deletion_requests')->count();
         });
 
         $known1 = $this->post('/brisanje-naloga', ['email' => 'del-defer@example.test']);
-        self::assertSame(['rows' => 0], $before);
+        self::assertSame([0], $before);
         self::assertSame(1, DB::table('account_deletion_requests')->count());
         Notification::assertSentToTimes($known, AccountDeletionNotification::class, 1);
 
         $unknown = $this->post('/brisanje-naloga', ['email' => 'nema-me@example.test']);
+        // Posao prethodnog zahtjeva se ne ponavlja u sljedecem.
+        Notification::assertSentToTimes($known, AccountDeletionNotification::class, 1);
         self::assertSame($known1->getStatusCode(), $unknown->getStatusCode());
         self::assertSame($known1->headers->get('Location'), $unknown->headers->get('Location'));
         self::assertSame($known1->getContent(), $unknown->getContent());
@@ -262,6 +332,15 @@ final class AccountDeletionTest extends TestCase
             ['user_id' => $other->id, 'event_type' => 'login.failed', 'severity' => 'warning', 'request_id' => 'req-2', 'route_name' => 'login',
                 'ip_address' => '203.0.113.8', 'user_agent' => 'Mozilla', 'context_json' => json_encode(['login' => 'x']), 'created_at' => now()],
         ]);
+        // Neuspjele prijave nemaju user_id; vezane su samo preko login_hash (e-posta ili korisnicko ime).
+        $failed = static fn (string $hash, string $ip): array => ['user_id' => null, 'event_type' => 'login.failed', 'severity' => 'warning',
+            'request_id' => 'req-'.$ip, 'route_name' => 'login', 'ip_address' => $ip, 'user_agent' => 'Mozilla',
+            'context_json' => json_encode(['login_hash' => $hash, 'user_found' => true]), 'created_at' => now()];
+        DB::table('security_events')->insert([
+            $failed(hash('sha256', 'del-leftovers@example.test'), '203.0.113.21'),
+            $failed(hash('sha256', 'del-leftovers'), '203.0.113.22'),
+            $failed(hash('sha256', 'del-other@example.test'), '203.0.113.23'),
+        ]);
 
         $method = new \ReflectionMethod(\App\Services\UserDeletionService::class, 'anonymize');
         $method->invoke(app(\App\Services\UserDeletionService::class), (int) $target->id);
@@ -278,6 +357,14 @@ final class AccountDeletionTest extends TestCase
         $untouched = DB::table('security_events')->where('user_id', $other->id)->first();
         self::assertNotNull($untouched->context_json);
         self::assertSame('req-2', $untouched->request_id);
+        self::assertSame(0, DB::table('security_events')->whereIn('ip_address', ['203.0.113.21', '203.0.113.22'])->count());
+        self::assertSame(2, DB::table('security_events')->whereNull('user_id')->where('event_type', 'login.failed')
+            ->whereNull('ip_address')->whereNull('context_json')->whereNull('request_id')->count(), 'Dogadjaji ostaju bez licnih podataka.');
+        $otherFailed = DB::table('security_events')->where('ip_address', '203.0.113.23')->first();
+        self::assertNotNull($otherFailed, 'Tudja neuspjela prijava ostaje.');
+        self::assertSame('req-203.0.113.23', $otherFailed->request_id);
+        self::assertNotNull($otherFailed->context_json);
+        self::assertNotNull(DB::table('users')->where('id', $target->id)->value('password_changed_at'));
     }
 
     // ---- Konacno brisanje (MySQL) -------------------------------------------

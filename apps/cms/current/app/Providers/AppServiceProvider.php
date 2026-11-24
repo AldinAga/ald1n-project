@@ -296,16 +296,11 @@ final class AppServiceProvider extends ServiceProvider
             ];
         });
 
-        // Zahtjev za brisanje naloga šalje mail trećem licu: gornja granica po IP-u i po adresi (bez IP-a).
-        RateLimiter::for('account-deletion-request', static function (Request $request): array {
-            $email = mb_strtolower(trim((string) ($request->user()?->email ?? $request->input('email', 'guest'))));
-
-            return [
-                Limit::perMinute(3)->by('acct-del|'.hash('sha256', $email.'|'.$request->ip())),
-                Limit::perHour(20)->by('acct-del-ip|'.$request->ip()),
-                Limit::perHour(3)->by('acct-del-mail|'.hash('sha256', $email)),
-            ];
-        });
+        // Javni zahtjev za brisanje naloga: samo gornja granica po IP-u. Limit po nalogu (pauza 10 min, 3 slanja dnevno)
+        // je u UserDeletionService i broji samo stvarna slanja, pa tuđa adresa u formi ne troši ničiji limit ovdje.
+        RateLimiter::for('account-deletion-request', static fn (Request $request): Limit => Limit::perHour(20)->by('acct-del-ip|'.$request->ip()));
+        // Prijavljen korisnik: sopstveni ključ po user_id, odvojen od javne forme.
+        RateLimiter::for('account-deletion-own', static fn (Request $request): Limit => Limit::perHour(10)->by('acct-del-own|'.$request->user()?->getAuthIdentifier()));
 
         RateLimiter::for('password-reset', static function (Request $request): Limit {
             $token = (string) $request->input('token', 'missing');
