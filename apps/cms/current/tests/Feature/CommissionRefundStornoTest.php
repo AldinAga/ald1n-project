@@ -271,9 +271,12 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame('pending', $commission->fresh()->status);
         self::assertTrue(AuditLog::query()->where('action', 'commission.refund_reversal_skipped')->exists());
 
-        $this->refund($order, $admin, 6000);
+        $last = $this->refund($order, $admin, 6000);
         self::assertSame(['cancelled', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
         self::assertSame(0, CommissionAdjustment::query()->count());
+
+        app(OrderPaymentService::class)->void($last, $admin);
+        self::assertSame(['pending', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
     }
 
     /** @return array{0:User,1:User,2:Order,3:OrderCommission} */

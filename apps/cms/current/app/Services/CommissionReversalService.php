@@ -218,7 +218,8 @@ final class CommissionReversalService
         // delimična refundacija vraća "Za isplatu" na čekanje (projekcija), puna je otkazuje: te provizije i dalje prate refundacije i void
         $refundStorned = in_array($status, ['pending', 'cancelled'], true) && CommissionAdjustment::query()->where('commission_id', $commission->id)
             ->where('source', 'order_refund')->where('status', '!=', 'rejected')->exists();
-        $rateHeldCancelled = $voided && $status === 'cancelled' && $this->cancelledByRefundWhileRateHeld($commission);
+        // otkazivanje zbog kursa nema red u commission_adjustments; storno koji je doveo do 0 EUR ima, i vraća se ispod
+        $rateHeldCancelled = $voided && $status === 'cancelled' && !$refundStorned && $this->cancelledByRefundWhileRateHeld($commission);
         if (!$rateHeld && !$refundStorned && !$rateHeldCancelled && !in_array($status, ['approved', 'paid'], true)) {
             return null;
         }
@@ -249,7 +250,7 @@ final class CommissionReversalService
         }
 
         $original = M::cents($commission->total_eur) + $this->sumCents($commission, ['reversal'], ['confirmed']);
-        $target = $full ? $original : (int) round($original * $refunded / $base);
+        $target = $full ? $original : ($base > 0 ? (int) round($original * $refunded / $base) : 0);
         $done = $this->sumCents($commission, ['reversal', 'debit'], ['confirmed', 'proposed']) - $this->sumCents($commission, ['credit'], ['confirmed']);
         if ($target < $done) {
             // void refundacije (ili ponovna uplata): vraća se samo ono što je stornirala refundacija, nikad storno povrata robe
