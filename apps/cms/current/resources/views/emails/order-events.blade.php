@@ -22,15 +22,17 @@
         $productImage = trim((string) ($metadata['product_image_url'] ?? ''));
         $productDescription = trim((string) ($metadata['product_description'] ?? ''));
         $productPrice = trim((string) ($metadata['product_price_formatted'] ?? ''));
+        $productNotes = trim((string) ($metadata['product_notes'] ?? ''));
         $productSku = trim((string) ($metadata['product_sku'] ?? ''));
     @endphp
     <div style="border:1px solid #dce2ea;border-radius:12px;padding:18px;margin:16px 0;background:#f8fafc;overflow:hidden">
         <strong style="display:block;font-size:18px;margin-bottom:12px">{{ $event->subject }}</strong>
 
         @if($isProductEvent && $productImage !== '')
-            <div style="margin:-2px -2px 16px;background:#fff;border:1px solid #e5eaf0;border-radius:10px;padding:12px;text-align:center">
-                <img src="{{ $productImage }}" alt="{{ $metadata['product_name'] ?? $event->subject }}" width="560" style="display:block;width:100%;max-width:560px;max-height:420px;height:auto;object-fit:contain;margin:0 auto;border:0">
-            </div>
+            {{-- Email-safe: tabela umjesto div/object-fit; bgcolor drži bijelu pozadinu i u tamnom modu. Visina slike nije poznata, pa je bez height atributa (height:auto); Outlook zato koristi width="560" i prirodni omjer, a veoma visoke slike u Outlooku mogu ispasti više. --}}
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="margin:0 0 16px;background-color:#ffffff;border:1px solid #e5eaf0;border-radius:10px"><tr><td align="center" bgcolor="#ffffff" style="padding:12px;background-color:#ffffff">
+                <img src="{{ $productImage }}" alt="{{ $metadata['product_name'] ?? $event->subject }}" width="560" border="0" style="display:block;width:100%;max-width:560px;height:auto;border:0;outline:none;text-decoration:none;margin:0 auto">
+            </td></tr></table>
         @endif
 
         @if($isProductEvent)
@@ -39,6 +41,12 @@
                 <p style="margin:0 0 14px;line-height:1.6;color:#344054">{{ $productDescription }}</p>
             @else
                 <p style="margin:0 0 14px;line-height:1.55">{{ $event->message }}</p>
+            @endif
+            @if($productNotes !== '')
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 14px"><tr>
+                    <td valign="top" style="white-space:nowrap;padding:0 10px 0 0;color:#667085;font-size:12px;font-weight:700">Napomena</td>
+                    <td valign="top" style="line-height:1.55;color:#344054">{!! nl2br(e($productNotes)) !!}</td>
+                </tr></table>
             @endif
             @if($productPrice !== '')
                 <div style="margin:0 0 16px;padding:12px 14px;border-radius:10px;background:#eef5ff;color:#174ea6;font-size:18px;font-weight:700">Cena: {{ $productPrice }}</div>

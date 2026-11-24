@@ -23,7 +23,7 @@ function b794_readonly_render(string $cms): void
         ];
         $product=App\Models\Product::query()->publiclyVisible()->first();
         if(!$product) throw new RuntimeException('READONLY_RENDER_VISIBLE_PRODUCT_NOT_FOUND');
-        $cases[]=['name'=>'product','path'=>'/catalog/'.rawurlencode((string)$product->slug),'markers'=>['data-product-gallery','build16-product-summary','ald1n-ui-refinement.css']];
+        $cases[]=['name'=>'product','path'=>'/catalog/'.rawurlencode((string)$product->slug),'markers'=>['data-product-gallery','a1-cat-detail','ald1n-ui-refinement.css']];
         foreach($cases as $case) {
             $request=Illuminate\Http\Request::create('https://cms.ald1n.com'.$case['path'],'GET');
             $request->setUserResolver(static fn()=>$actor);

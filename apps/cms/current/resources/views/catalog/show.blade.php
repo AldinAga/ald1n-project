@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin-catalog.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin-catalog.css')) ?: config('app.version') }}">
 @endPushOnce
 <div class="a1-cat">
-<div class="build16-product-detail-shell" data-catalog-detail-ready="1" data-build16-product-detail-redesign="1">
+<div class="a1-cat-shell" data-catalog-detail-ready="1" data-build16-product-detail-redesign="1">
 @php
     $displayImages = $product->images
         ->map(fn ($image) => ['model' => $image, 'url' => $image->url, 'download_url' => $image->download_url])
@@ -16,39 +16,39 @@
     $galleryCount = $displayImages->count();
 @endphp
 <div><a class="a1-btn a1-btn--quiet a1-btn--sm" href="{{ route('catalog.index') }}"><x-icon name="chevron-left" size="18" :shell="true" /> Nazad na artikle</a></div>
-<div class="product-detail build16-product-detail-layout {{ filled($product->description) ? 'has-desktop-description' : '' }}">
-    <section class="gallery-panel product-gallery build16-product-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
+<div class="a1-cat-layout {{ filled($product->description) ? 'a1-cat-layout--desc' : '' }}">
+    <section class="a1-card a1-cat-gallery" data-product-gallery aria-label="Galerija proizvoda {{ $product->name }}">
         @if($mainImage)
-            <div class="product-gallery-stage" data-gallery-stage>
+            <div class="a1-cat-gal__stage" data-gallery-stage>
                 @if($galleryCount > 1)
-                    <button class="product-gallery-arrow product-gallery-arrow-prev" type="button" data-gallery-prev aria-label="Prethodna slika">
+                    <button class="a1-cat-gal__arrow a1-cat-gal__arrow--prev" type="button" data-gallery-prev aria-label="Prethodna slika">
                         <x-icon name="chevron-left" size="24" />
                     </button>
                 @endif
 
-                <button class="product-gallery-main" type="button" data-gallery-open data-gallery-src="{{ $mainImage['url'] }}" data-gallery-alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" data-gallery-download="{{ $mainImage['download_url'] }}" aria-label="Otvori sliku preko celog ekrana">
+                <button class="a1-cat-gal__main" type="button" data-gallery-open data-gallery-src="{{ $mainImage['url'] }}" data-gallery-alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" data-gallery-download="{{ $mainImage['download_url'] }}" aria-label="Otvori sliku preko celog ekrana">
                     <img data-gallery-main-image src="{{ $mainImage['url'] }}" alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}">
-                    <span class="product-gallery-open-hint"><x-icon name="expand" size="18" /> Uvećaj</span>
+                    <span class="a1-cat-gal__hint"><x-icon name="expand" size="18" /> Uvećaj</span>
                 </button>
-                <a class="product-gallery-download" href="{{ $mainImage['download_url'] }}" data-gallery-download-link aria-label="Preuzmi fotografiju u punoj rezoluciji" title="Preuzmi punu rezoluciju"><x-icon name="download" size="18" /> Preuzmi</a>
+                <a class="a1-cat-gal__download" href="{{ $mainImage['download_url'] }}" data-gallery-download-link aria-label="Preuzmi fotografiju u punoj rezoluciji" title="Preuzmi punu rezoluciju"><x-icon name="download" size="18" /> Preuzmi</a>
 
                 @if($galleryCount > 1)
-                    <button class="product-gallery-arrow product-gallery-arrow-next" type="button" data-gallery-next aria-label="Sledeća slika">
+                    <button class="a1-cat-gal__arrow a1-cat-gal__arrow--next" type="button" data-gallery-next aria-label="Sledeća slika">
                         <x-icon name="chevron-right" size="24" />
                     </button>
                 @endif
 
-                <div class="product-gallery-status" aria-live="polite">
+                <div class="a1-cat-gal__status" aria-live="polite">
                     <span data-gallery-counter>1 / {{ $galleryCount }}</span>
                     @if($galleryCount > 1)<small>Prevuci prstom ili koristi strelice</small>@endif
                 </div>
             </div>
 
             @if($galleryCount > 1)
-                <div class="product-gallery-thumbnails" role="list" aria-label="Sve slike proizvoda">
+                <div class="a1-cat-gal__thumbs" role="list" aria-label="Sve slike proizvoda">
                     @foreach($displayImages as $image)
                         <button
-                            class="product-gallery-thumbnail {{ $loop->first ? 'is-active' : '' }}"
+                            class="a1-cat-gal__thumb {{ $loop->first ? 'is-active' : '' }}"
                             type="button"
                             role="listitem"
                             data-gallery-thumbnail
@@ -66,50 +66,50 @@
                 </div>
             @endif
 
-            <div class="product-lightbox" data-product-lightbox hidden role="dialog" aria-modal="true" aria-label="Uvećan prikaz proizvoda {{ $product->name }}">
-                <button class="product-lightbox-backdrop" type="button" data-lightbox-close tabindex="-1" aria-label="Zatvori galeriju"></button>
-                <div class="product-lightbox-dialog">
-                    <header class="product-lightbox-header">
+            <div class="a1-cat-lb" data-product-lightbox hidden role="dialog" aria-modal="true" aria-label="Uvećan prikaz proizvoda {{ $product->name }}">
+                <button class="a1-cat-lb__backdrop" type="button" data-lightbox-close tabindex="-1" aria-label="Zatvori galeriju"></button>
+                <div class="a1-cat-lb__dialog">
+                    <header class="a1-cat-lb__header">
                         <div>
                             <strong>{{ $product->name }}</strong>
                             <small data-lightbox-counter>1 / {{ $galleryCount }}</small>
                         </div>
-                        <button class="product-lightbox-close" type="button" data-lightbox-close aria-label="Zatvori galeriju"><x-icon name="x" size="24" /></button>
+                        <button class="a1-cat-lb__close" type="button" data-lightbox-close aria-label="Zatvori galeriju"><x-icon name="x" size="24" /></button>
                     </header>
 
-                    <div class="product-lightbox-viewport" data-lightbox-viewport>
+                    <div class="a1-cat-lb__viewport" data-lightbox-viewport>
                         @if($galleryCount > 1)
-                            <button class="product-lightbox-arrow product-lightbox-arrow-prev" type="button" data-lightbox-prev aria-label="Prethodna slika"><x-icon name="chevron-left" size="30" /></button>
+                            <button class="a1-cat-lb__arrow a1-cat-lb__arrow--prev" type="button" data-lightbox-prev aria-label="Prethodna slika"><x-icon name="chevron-left" size="30" /></button>
                         @endif
-                        <div class="product-lightbox-image-wrap" data-lightbox-image-wrap>
+                        <div class="a1-cat-lb__imgwrap" data-lightbox-image-wrap>
                             <img data-lightbox-image src="{{ $mainImage['url'] }}" alt="{{ $product->name }} — slika 1 od {{ $galleryCount }}" draggable="false">
-                            <div class="product-gallery-image-error" data-gallery-image-error hidden>Slika trenutno nije dostupna.</div>
+                            <div class="a1-cat-gal__error" data-gallery-image-error hidden>Slika trenutno nije dostupna.</div>
                         </div>
                         @if($galleryCount > 1)
-                            <button class="product-lightbox-arrow product-lightbox-arrow-next" type="button" data-lightbox-next aria-label="Sledeća slika"><x-icon name="chevron-right" size="30" /></button>
+                            <button class="a1-cat-lb__arrow a1-cat-lb__arrow--next" type="button" data-lightbox-next aria-label="Sledeća slika"><x-icon name="chevron-right" size="30" /></button>
                         @endif
                     </div>
 
-                    <footer class="product-lightbox-toolbar">
+                    <footer class="a1-cat-lb__toolbar">
                         <span>Točkić miša, dvostruki klik ili dugmad za zoom</span>
-                        <div class="product-lightbox-toolbar-actions">
-                            <div class="product-lightbox-zoom-controls" aria-label="Kontrole uvećanja">
+                        <div class="a1-cat-lb__actions">
+                            <div class="a1-cat-lb__zoom" aria-label="Kontrole uvećanja">
                                 <button type="button" data-zoom-out aria-label="Umanji"><x-icon name="zoom-out" size="20" /></button>
                                 <button type="button" data-zoom-reset aria-label="Vrati originalni prikaz"><span data-zoom-value>100%</span></button>
                                 <button type="button" data-zoom-in aria-label="Uvećaj"><x-icon name="zoom-in" size="20" /></button>
                             </div>
-                            <a class="product-lightbox-download" href="{{ $mainImage['download_url'] }}" data-lightbox-download><x-icon name="download" size="18" /> Puna rezolucija</a>
+                            <a class="a1-cat-lb__download" href="{{ $mainImage['download_url'] }}" data-lightbox-download><x-icon name="download" size="18" /> Puna rezolucija</a>
                         </div>
                     </footer>
                 </div>
             </div>
         @else
-            <div class="main-product-image product-gallery-empty"><x-icon name="image" size="38" /><span>Bez slike</span></div>
+            <div class="a1-cat-gal__empty"><x-icon name="image" size="38" /><span>Bez slike</span></div>
         @endif
     </section>
 
     @if(filled($product->description))
-        <section class="a1-card product-description-desktop build16-product-description" aria-labelledby="product-description-title">
+        <section class="a1-card a1-cat-desc-card" aria-labelledby="product-description-title">
             <div class="a1-cat-descbar">
                 <h2 class="a1-h2" id="product-description-title">Opis artikla</h2>
                 <button
@@ -124,7 +124,7 @@
         </section>
     @endif
 
-    <section class="detail-panel build16-product-summary a1-cat-detail">
+    <section class="a1-card a1-cat-detail">
         <ul class="a1-cat-tags">
             @if($product->type)<li><span class="a1-pill a1-pill--info">{{ $product->type->name }}</span></li>@endif
             @if($product->brand)<li><span class="a1-pill">{{ $product->brand->name }}</span></li>@endif
@@ -187,7 +187,17 @@
             </dl>
         @endif
         @if(filled($product->description))
-            <div class="a1-cat-desc product-description-mobile">{!! nl2br(e((string) $product->description)) !!}</div>
+            <div class="a1-cat-desc a1-cat-desc--mobile">{!! nl2br(e((string) $product->description)) !!}</div>
+        @endif
+        {{-- Interna napomena: samo SuperAdmin i autor artikla s catalog.manage_products; nikad kupci, portal ni javna vitrina. --}}
+        @if($canManageProduct && filled($product->notes))
+            <section class="a1-card a1-cat-notes" data-product-internal-notes aria-labelledby="product-notes-title">
+                <div class="a1-cat-descbar">
+                    <h2 class="a1-h2" id="product-notes-title">Napomene</h2>
+                    <span class="a1-pill a1-pill--warning">Interno</span>
+                </div>
+                <div class="a1-cat-desc">{!! nl2br(e((string) $product->notes)) !!}</div>
+            </section>
         @endif
         @include('partials.cart-add-control', ['product' => $product, 'compact' => false])
         @can('orders.create')
@@ -199,7 +209,7 @@
 </div>
 </div>
 @if($canRecordDirectSale)
-<section class="a1-card a1-cat-sale build16-direct-sale" aria-labelledby="direct-sale-title">
+<section class="a1-card a1-cat-sale" aria-labelledby="direct-sale-title">
     <div class="a1-cat-sale__head">
         <div>
             <span class="a1-eyebrow">SUPER ADMINISTRATOR</span>
@@ -645,7 +655,7 @@
             lightboxImage.alt = image.alt;
             if (mainDownload && image.download) mainDownload.href = image.download;
             if (lightboxDownload && image.download) lightboxDownload.href = image.download;
-            mainImage.closest('.product-gallery-main')?.classList.remove('has-image-error');
+            mainImage.closest('.a1-cat-gal__main')?.classList.remove('has-image-error');
             imageError?.setAttribute('hidden', '');
 
             images.forEach((item, itemIndex) => {
@@ -670,7 +680,7 @@
         const openLightbox = () => {
             lastFocus = document.activeElement;
             lightbox.hidden = false;
-            document.body.classList.add('product-lightbox-open');
+            document.body.classList.add('a1-cat-lb-open');
             updateImage(index, false);
             requestAnimationFrame(() => gallery.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
         };
@@ -678,7 +688,7 @@
         const closeLightbox = () => {
             if (!isOpen()) return;
             lightbox.hidden = true;
-            document.body.classList.remove('product-lightbox-open');
+            document.body.classList.remove('a1-cat-lb-open');
             resetZoom();
             if (lastFocus instanceof HTMLElement) lastFocus.focus();
         };
@@ -722,10 +732,10 @@
         });
 
         lightboxImage.addEventListener('error', () => {
-            lightboxImage.closest('.product-lightbox-image-wrap')?.classList.add('has-image-error');
+            lightboxImage.closest('.a1-cat-lb__imgwrap')?.classList.add('has-image-error');
             imageError?.removeAttribute('hidden');
         });
-        mainImage.addEventListener('error', () => mainImage.closest('.product-gallery-main')?.classList.add('has-image-error'));
+        mainImage.addEventListener('error', () => mainImage.closest('.a1-cat-gal__main')?.classList.add('has-image-error'));
 
         lightboxViewport?.addEventListener('wheel', (event) => {
             event.preventDefault();
