@@ -9,6 +9,7 @@
         'cart' => 'shopping-cart-simple',
         'boxes' => 'package',
         'chart' => 'chart-line-up',
+        'check' => 'check',
         'check-circle' => 'check-circle',
         'chevron-left' => 'caret-left',
         'chevron-right' => 'caret-right',
