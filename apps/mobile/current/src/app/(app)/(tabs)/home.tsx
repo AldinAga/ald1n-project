@@ -33,7 +33,7 @@ type HomeAction = {
   title: string;
   copy: string;
   glyph: GlyphName;
-  route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/portal/messages' | '/admin';
+  route: '/catalog' | '/admin/catalog/create' | '/cart' | '/orders' | '/commissions' | '/warranties' | '/after-sales' | '/portal/messages' | '/admin' | '/account';
 };
 
 export default function HomeScreen() {
@@ -73,6 +73,8 @@ export default function HomeScreen() {
   ].filter(Boolean) as HomeAction[];
 
   const myActivities = [
+    // SubAgent has no Nalog tab; the header avatar and this shortcut both open /account.
+    bootstrap?.user.role?.slug === 'user' ? { title: 'Moj nalog', copy: 'Profil, sigurnost, uređaji i brisanje naloga', glyph: 'account' as const, route: '/account' as const } : null,
     can('commissions.view_own') ? { title: 'Moje provizije', copy: 'Obračun i status isplate', glyph: 'commission' as const, route: '/commissions' as const } : null,
     can('warranties.view_own') ? { title: 'Moje garancije', copy: 'Garantni listovi i održavanje', glyph: 'warranty' as const, route: '/warranties' as const } : null,
     can('after_sales.view_own') ? { title: 'Reklamacije i servis', copy: 'Postprodajni slučajevi i komunikacija', glyph: 'service' as const, route: '/after-sales' as const } : null,
