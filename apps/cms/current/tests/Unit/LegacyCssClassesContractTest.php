@@ -24,29 +24,14 @@ final class LegacyCssClassesContractTest extends TestCase
     /** Views (relative to resources/views, no extension) that still use a removed class. Shrink only. */
     private const VIEW_ALLOWLIST = [
         'account/show',
-        'admin/data-quality/index',
         'admin/dictionary/fields',
         'admin/dictionary/index',
         'admin/dictionary/product-type',
-        'admin/products/bulk',
-        'admin/products/clone',
-        'admin/products/form',
-        'admin/products/images',
-        'admin/products/import',
         'admin/reports/index',
-        'admin/service-parts/suppliers',
-        'catalog/show',
-        'layouts/app',
-        'notifications/index',
-        'partials/correlated-specification-filters',
-        'public/assets/js/ald1n-liquid-glass-r3.js',
-        'public/assets/js/ux-runtime.js',
     ];
 
     /** Files (relative to the CMS root) that still use an old custom property. Shrink only. */
-    private const VAR_ALLOWLIST = [
-        'resources/views/layouts/app.blade.php',
-    ];
+    private const VAR_ALLOWLIST = [];
 
     private const VAR_PATTERN = '/var\(\s*--(?:primary|line|bg|panel|ald-[\w-]+|lg5-[\w-]+|lg2-[\w-]+)\b/';
 

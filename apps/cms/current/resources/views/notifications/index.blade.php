@@ -4,7 +4,7 @@
 @php
     $severityTone = ['success' => 'ok', 'ok' => 'ok', 'warning' => 'warning', 'danger' => 'danger', 'error' => 'danger', 'critical' => 'danger'];
 @endphp
-<div class="a1-ops build16-notifications-shell" data-build16-notifications="1">
+<div class="a1-ops" data-build16-notifications="1">
     <header class="a1-pagehead">
         <div class="a1-pagehead__text">
             <span class="a1-eyebrow">Inbox</span>
@@ -48,7 +48,7 @@
                         $tone = $severityTone[$data['severity'] ?? 'info'] ?? 'info';
                     @endphp
                     <li>
-                        <form method="post" action="{{ route('notifications.read', $notification->id) }}" class="a1-item a1-item--static {{ $isUnread ? 'is-unread' : 'is-read' }}" data-inbox-notification>
+                        <form method="post" action="{{ route('notifications.read', $notification->id) }}" class="a1-item a1-item--static {{ $isUnread ? 'is-unread' : '' }}" data-inbox-notification>
                             @csrf
                             <span class="a1-item__icon a1-item__icon--{{ $tone }}"><x-icon name="{{ $data['icon'] ?? 'bell' }}" :size="20" :shell="true" /></span>
                             <div class="a1-item__main">
