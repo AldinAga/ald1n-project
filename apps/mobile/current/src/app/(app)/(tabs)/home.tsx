@@ -461,9 +461,9 @@ function DashboardMetric({
       <Card style={styles.dashboardMetricCard}>
         <View style={styles.metricHead}>
           <View style={[styles.metricDot, toneStyles[tone]]} />
-          <Text style={styles.dashboardMetricLabel} numberOfLines={2} ellipsizeMode="tail">{label}</Text>
+          <Text style={styles.dashboardMetricLabel} numberOfLines={3} ellipsizeMode="tail">{label}</Text>
         </View>
-        <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{value}</Text>
+        <Text style={styles.dashboardMetricValue} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{value}</Text>
         <Text style={styles.dashboardMetricMeta} numberOfLines={3} ellipsizeMode="tail">{meta}</Text>
       </Card>
     </Pressable>
@@ -546,7 +546,7 @@ function Metric({
   return (
     <Card style={styles.metricCard}>
       <View style={[styles.metricDot, toneStyles[tone]]} />
-      <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{value}</Text>
+      <Text style={styles.metricValue} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{value}</Text>
       <Text style={styles.metricLabel} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
     </Card>
   );
