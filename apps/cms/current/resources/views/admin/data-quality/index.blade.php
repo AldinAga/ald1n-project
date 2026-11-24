@@ -4,80 +4,95 @@
 @php
     $statusLabels = ['healthy' => 'Zdravo', 'attention' => 'Potrebna pažnja', 'critical' => 'Kritično'];
     $severityLabels = ['critical' => 'Kritično', 'warning' => 'Upozorenje', 'info' => 'Informativno'];
+    $severityPill = ['critical' => 'danger', 'warning' => 'warning', 'info' => 'info'];
     $visibleIssues = collect($report['issues'] ?? [])->filter(fn($issue) => (int)($issue['count'] ?? 0) > 0);
 @endphp
-<div class="page-heading">
-    <div>
-        <span class="eyebrow">Performance & Data Quality</span>
-        <h1>Data Quality Center</h1>
-        <p>Centralni pregled integriteta artikala, galerija, kategorija, specifikacija i korisničkih uloga.</p>
-    </div>
-    <div class="header-button-row">
-        <a class="button button-ghost" href="{{ route('admin.data-quality.export') }}"><x-icon name="download" />Preuzmi JSON</a>
-        <a class="button button-primary" href="{{ route('admin.data-quality.index') }}"><x-icon name="refresh" />Ponovi proveru</a>
-    </div>
-</div>
+<div class="a1-ops">
+    <header class="a1-pagehead">
+        <div class="a1-pagehead__text">
+            <span class="a1-eyebrow">Performance & Data Quality</span>
+            <h1 class="a1-title">Data Quality Center</h1>
+            <p class="a1-lead">Centralni pregled integriteta artikala, galerija, kategorija, specifikacija i korisničkih uloga.</p>
+        </div>
+        <div class="a1-pagehead__actions">
+            <a class="a1-btn" href="{{ route('admin.data-quality.export') }}"><x-icon name="download" />Preuzmi JSON</a>
+            <a class="a1-btn a1-btn--primary" href="{{ route('admin.data-quality.index') }}"><x-icon name="refresh" />Ponovi proveru</a>
+        </div>
+    </header>
 
-<section class="data-quality-overview status-{{ $report['status'] }}">
-    <div class="data-quality-score"><small>Data quality score</small><strong>{{ (int)$report['score'] }}<span>/100</span></strong><em>{{ $statusLabels[$report['status']] ?? $report['status'] }}</em></div>
-    <div class="data-quality-metrics">
-        <article><small>Aktivni artikli</small><strong>{{ (int)($report['metrics']['products_active'] ?? 0) }}</strong></article>
-        <article><small>Fotografije</small><strong>{{ (int)($report['metrics']['images_total'] ?? 0) }}</strong></article>
-        <article><small>Aktivni korisnici</small><strong>{{ (int)($report['metrics']['users_active'] ?? 0) }}</strong></article>
+    <div class="a1-kpis a1-kpis--4" aria-label="Data quality score i metrike">
+        <div class="a1-kpi"><span class="a1-kpi__label">Data quality score · {{ $statusLabels[$report['status']] ?? $report['status'] }}</span><strong class="a1-kpi__value">{{ (int)$report['score'] }}<span class="a1-kpi__unit">/100</span></strong></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Aktivni artikli</span><strong class="a1-kpi__value">{{ (int)($report['metrics']['products_active'] ?? 0) }}</strong></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Fotografije</span><strong class="a1-kpi__value">{{ (int)($report['metrics']['images_total'] ?? 0) }}</strong></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Aktivni korisnici</span><strong class="a1-kpi__value">{{ (int)($report['metrics']['users_active'] ?? 0) }}</strong></div>
     </div>
-</section>
 
-<div class="data-quality-summary-grid">
-    <article class="data-quality-summary critical"><small>Kritični zapisi</small><strong>{{ (int)$report['summary']['critical'] }}</strong><span>Moraju se ručno ili bezbednom popravkom rešiti.</span></article>
-    <article class="data-quality-summary warning"><small>Upozorenja</small><strong>{{ (int)$report['summary']['warning'] }}</strong><span>Ne blokiraju čitanje, ali narušavaju integritet.</span></article>
-    <article class="data-quality-summary info"><small>Za dopunu</small><strong>{{ (int)$report['summary']['info'] }}</strong><span>Poslovni podaci koje vredi dopuniti.</span></article>
-    <article class="data-quality-summary neutral"><small>Trajanje provere</small><strong>{{ (int)$report['duration_ms'] }} ms</strong><span>{{ \Carbon\Carbon::parse($report['generated_at'])->format('d.m.Y H:i:s') }}</span></article>
-</div>
-
-<section class="panel form-section">
-    <div class="card-header-row">
-        <div><h2>Pronađeni problemi</h2><p class="muted">Prikazane su samo grupe koje trenutno imaju zapise.</p></div>
+    <div class="a1-kpis a1-kpis--4">
+        <div class="a1-kpi"><span class="a1-kpi__label">Kritični zapisi</span><strong class="a1-kpi__value">{{ (int)$report['summary']['critical'] }}</strong><span class="a1-kpi__note">Moraju se ručno ili bezbednom popravkom rešiti.</span></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Upozorenja</span><strong class="a1-kpi__value">{{ (int)$report['summary']['warning'] }}</strong><span class="a1-kpi__note">Ne blokiraju čitanje, ali narušavaju integritet.</span></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Za dopunu</span><strong class="a1-kpi__value">{{ (int)$report['summary']['info'] }}</strong><span class="a1-kpi__note">Poslovni podaci koje vredi dopuniti.</span></div>
+        <div class="a1-kpi"><span class="a1-kpi__label">Trajanje provere</span><strong class="a1-kpi__value">{{ (int)$report['duration_ms'] }} <span class="a1-kpi__unit">ms</span></strong><span class="a1-kpi__note">{{ \Carbon\Carbon::parse($report['generated_at'])->format('d.m.Y H:i:s') }}</span></div>
     </div>
-    <div class="data-quality-issue-list">
-        @forelse($visibleIssues as $issue)
-            <article class="data-quality-issue severity-{{ $issue['severity'] }}">
-                <div class="data-quality-issue-main">
-                    <span class="status-badge status-{{ $issue['severity'] === 'critical' ? 'archived' : ($issue['severity'] === 'warning' ? 'draft' : 'inactive') }}">{{ $severityLabels[$issue['severity']] ?? $issue['severity'] }}</span>
-                    <div><h3>{{ $issue['label'] }}</h3><p>{{ $issue['description'] }}</p></div>
-                </div>
-                <div class="data-quality-issue-count"><strong>{{ (int)$issue['count'] }}</strong><small>zapisa</small></div>
-                <div class="data-quality-issue-actions">
+
+    <section class="a1-stack" aria-labelledby="dq-issues-title">
+        <div>
+            <h2 class="a1-h3" id="dq-issues-title">Pronađeni problemi</h2>
+            <p class="a1-help">Prikazane su samo grupe koje trenutno imaju zapise.</p>
+        </div>
+        @if($visibleIssues->isNotEmpty())
+        <ul class="a1-list">
+            @foreach($visibleIssues as $issue)
+            <li class="a1-item a1-item--static a1-item--stack">
+                <div class="a1-item__main">
+                    <div><span class="a1-pill a1-pill--{{ $severityPill[$issue['severity']] ?? 'off' }}">{{ $severityLabels[$issue['severity']] ?? $issue['severity'] }}</span></div>
+                    <span class="a1-item__title">{{ $issue['label'] }} · {{ (int)$issue['count'] }} zapisa</span>
+                    <span class="a1-item__sub">{{ $issue['description'] }}</span>
+                    @if(!empty($issue['repairable']))<span class="a1-item__sub">Bezbedna popravka dostupna</span>@endif
                     @if(!empty($issue['catalog_filter']))
-                        <a class="button button-small button-ghost" href="{{ route('catalog.index', ['quality' => $issue['catalog_filter']]) }}">Otvori artikle</a>
+                        <div><a class="a1-btn a1-btn--sm" href="{{ route('catalog.index', ['quality' => $issue['catalog_filter']]) }}">Otvori artikle</a></div>
                     @endif
-                    @if(!empty($issue['repairable']))<span class="repairable-note">Bezbedna popravka dostupna</span>@endif
+                    @if(!empty($issue['samples']))
+                        <details><summary>Prikaži primere</summary><pre>{{ json_encode($issue['samples'], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) }}</pre></details>
+                    @endif
                 </div>
-                @if(!empty($issue['samples']))
-                    <details class="data-quality-samples"><summary>Prikaži primere</summary><pre>{{ json_encode($issue['samples'], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) }}</pre></details>
-                @endif
-            </article>
-        @empty
-            <div class="empty-state"><h3>Nema problema</h3><p>Kritični i warning integritet podataka je trenutno čist.</p></div>
-        @endforelse
-    </div>
-</section>
+            </li>
+            @endforeach
+        </ul>
+        @else
+        <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="check" :size="28" :shell="true" /></span><p>Nema problema. Kritični i warning integritet podataka je trenutno čist.</p></div>
+        @endif
+    </section>
 
-<section class="panel form-section data-quality-repair-panel">
-    <div><h2>Bezbedna automatska popravka</h2><p class="muted">Usklađuje kategorije tipova, čisti zastarele specifikacione veze, preračunava diskove i kompletnost, normalizuje glavne slike. Ne briše artikle, slike ni poslovnu istoriju.</p></div>
-    <form method="post" action="{{ route('admin.data-quality.repair') }}" data-confirm="Pokrenuti bezbednu popravku kvaliteta podataka?">
-        @csrf
-        <label class="checkbox-row"><input type="checkbox" name="confirm_repair" value="1" required><span>Razumem da će sistem izmeniti samo automatski popravljive veze i izvedene vrednosti.</span></label>
-        <button class="button button-warning" type="submit"><x-icon name="settings" />Pokreni bezbednu popravku</button>
-    </form>
-</section>
+    <section class="a1-card" aria-labelledby="dq-repair-title">
+        <h2 class="a1-h3" id="dq-repair-title">Bezbedna automatska popravka</h2>
+        <p class="a1-help">Usklađuje kategorije tipova, čisti zastarele specifikacione veze, preračunava diskove i kompletnost, normalizuje glavne slike. Ne briše artikle, slike ni poslovnu istoriju.</p>
+        <form class="a1-form" method="post" action="{{ route('admin.data-quality.repair') }}" data-confirm="Pokrenuti bezbednu popravku kvaliteta podataka?">
+            @csrf
+            <div class="a1-field"><label class="a1-check"><input class="a1-check__input" type="checkbox" name="confirm_repair" value="1" required><span class="a1-check__box" aria-hidden="true"></span><span>Razumem da će sistem izmeniti samo automatski popravljive veze i izvedene vrednosti.</span></label></div>
+            <div><button class="a1-btn a1-btn--primary" type="submit"><x-icon name="settings" />Pokreni bezbednu popravku</button></div>
+        </form>
+    </section>
 
-<section class="panel form-section">
-    <h2>Istorija provera</h2>
-    <div class="health-list">
-        @forelse($snapshots as $snapshot)
-            <article><div><strong>{{ $statusLabels[$snapshot->status] ?? $snapshot->status }} · {{ $snapshot->score }}/100</strong><small>{{ $snapshot->source }} · {{ $snapshot->runner?->displayName() ?? 'CLI/Sistem' }}</small></div><div><span class="status-badge status-{{ $snapshot->status === 'healthy' ? 'active' : ($snapshot->status === 'critical' ? 'archived' : 'draft') }}">{{ $snapshot->status }}</span><small>{{ $snapshot->created_at?->format('d.m.Y H:i:s') }}</small></div></article>
-        @empty<div class="empty-state"><p>Istorija će se pojaviti nakon prve migrirane provere.</p></div>
-        @endforelse
-    </div>
-</section>
+    <section class="a1-stack" aria-labelledby="dq-history-title">
+        <h2 class="a1-h3" id="dq-history-title">Istorija provera</h2>
+        @if($snapshots->isNotEmpty())
+        <ul class="a1-list">
+            @foreach($snapshots as $snapshot)
+            <li class="a1-item a1-item--static a1-item--plain">
+                <div class="a1-item__main">
+                    <span class="a1-item__title">{{ $statusLabels[$snapshot->status] ?? $snapshot->status }} · {{ $snapshot->score }}/100</span>
+                    <span class="a1-item__sub">{{ $snapshot->source }} · {{ $snapshot->runner?->displayName() ?? 'CLI/Sistem' }}</span>
+                </div>
+                <div class="a1-item__end">
+                    <span class="a1-pill a1-pill--{{ $snapshot->status === 'healthy' ? 'ok' : ($snapshot->status === 'critical' ? 'danger' : 'warning') }}">{{ $snapshot->status }}</span>
+                    <span class="a1-item__sub">{{ $snapshot->created_at?->format('d.m.Y H:i:s') }}</span>
+                </div>
+            </li>
+            @endforeach
+        </ul>
+        @else
+        <div class="a1-empty"><span class="a1-empty__icon"><x-icon name="refresh" :size="28" :shell="true" /></span><p>Istorija će se pojaviti nakon prve migrirane provere.</p></div>
+        @endif
+    </section>
+</div>
 @endsection
