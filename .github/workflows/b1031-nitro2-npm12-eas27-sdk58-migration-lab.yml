@@ -42,10 +42,11 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process'),p=require('./package.json'),e=require('./eas.json'),lock=require('./package-lock.json');
           const files={
-           'package.json':'26ebe5b85f0af7dd22356fdd72e78bb34799cbe1',
+           // GATE-PLAY3 (M5): blobs re-pinned for the reviewed camera/EAN native layer; eas.json is unchanged on purpose.
+           'package.json':'38447a08e5a3525b0f14414e27665ce0e7eea01f',
            'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
-           'app.config.js':'3e228779f4e8267a5346b33a49aaea71f95e041d',
-           'package-lock.json':'f1655fd6f7bfd9e23238b02bbf81fc4d9bf04af8'
+           'app.config.js':'ffeed99983c3ec387959d53f18db80771f8cf3b4',
+           'package-lock.json':'73169758bb5e1e3819c40558ead2a560657ca26d'
           };
           for(const [path,sha] of Object.entries(files)){
             const r=cp.spawnSync('git',['hash-object',path],{encoding:'utf8'});
@@ -55,6 +56,9 @@ jobs:
              p.dependencies.expo!=='~58.0.26'||p.dependencies['react-native']!=='0.88.1'||
              p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
              p.dependencies['react-native-nitro-modules']!=='0.37.1'||
+             p.dependencies['expo-camera']!=='~58.0.14'||p.dependencies['expo-image-picker']!=='~58.0.10'||
+             lock.packages['node_modules/expo-camera']?.version!=='58.0.14'||
+             lock.packages['node_modules/expo-image-picker']?.version!=='58.0.10'||
              lock.packages['node_modules/react-native-nitro-google-signin'].version!=='2.3.1'||
              lock.packages['node_modules/react-native-nitro-modules'].version!=='0.37.1')
             throw Error('HOLD_B1031_UPGRADED_PINS');
