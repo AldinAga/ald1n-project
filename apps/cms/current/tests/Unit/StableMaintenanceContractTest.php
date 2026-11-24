@@ -45,12 +45,6 @@ final class StableMaintenanceContractTest extends TestCase
         self::assertStringContainsString('catalog-management-actions', $catalog);
     }
 
-    public function test_filters_are_collapsible_and_bank_accounts_are_compact(): void
-    {
-        $root = dirname(__DIR__, 2);
-        $css = (string) file_get_contents($root.'/public/assets/css/app.css');
-
-        self::assertStringContainsString('.filter-collapse-bar', $css);
-        self::assertStringContainsString('.account-list{grid-template-columns:repeat(2,minmax(0,1fr))', $css);
-    }
+    // G7: test_filters_are_collapsible_and_bank_accounts_are_compact asserted only app.css rules (.filter-collapse-bar,
+    // .account-list) for markup that no view uses any more (the product filter is a1-acc / data-pc-filter-collapse), so it was removed.
 }

@@ -6,16 +6,15 @@ declare(strict_types=1);
 // Read-only source contract; no bootstrap, .env, database or route execution.
 $cmsRoot = dirname(__DIR__);
 $bladePath = $argv[1] ?? ($cmsRoot.'/resources/views/admin/orders/index.blade.php');
-$cssPath = $argv[2] ?? ($cmsRoot.'/public/assets/css/ald1n-ui-v2.css');
+// $argv[2] used to be the old ald1n-ui-v2.css path; it is ignored now (G7 PR B) and kept only so callers' argv[3] still works.
 $adminCssPath = $argv[3] ?? ($cmsRoot.'/public/assets/css/ald1n-admin.css');
 $blade = @file_get_contents($bladePath);
-$css = @file_get_contents($cssPath);
 // Row actions live in a partial (quick-action forms, routes, CSRF); the contract covers both sources.
 if ($blade !== false && is_file($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php')) {
     $blade .= "\n".file_get_contents($cmsRoot.'/resources/views/admin/orders/partials/row-action.blade.php');
 }
 $adminCss = @file_get_contents($adminCssPath);
-if ($blade === false || $css === false || $adminCss === false) {
+if ($blade === false || $adminCss === false) {
     fwrite(STDERR, "FAIL: expected admin orders Blade/CSS source is unreadable.\n");
     exit(2);
 }
@@ -98,10 +97,7 @@ $checks = [
     'Quick actions keep keyboard focus treatment'
         => str_contains($adminCss, '.a1-ops :focus-visible')
            && str_contains($adminCss, 'outline-offset:var(--a1-focus-offset)'),
-    'Existing catalog and buyer-first deployment layers remain'
-        => str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
-           && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')
-           && str_contains($css, 'order-priority-layout'),
+    // G7 PR B: the "existing catalog and buyer-first layers" check read old ui-v2.css markers only and was removed.
 ];
 $passed = 0;
 foreach ($checks as $name => $ok) {

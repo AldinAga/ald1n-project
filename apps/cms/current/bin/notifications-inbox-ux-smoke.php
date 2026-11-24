@@ -6,10 +6,10 @@ declare(strict_types=1);
 // Source-only, zero database queries, no Laravel bootstrap or mutations.
 $root = dirname(__DIR__);
 $blade = @file_get_contents($argv[1] ?? "$root/resources/views/notifications/index.blade.php");
-$css = @file_get_contents($argv[2] ?? "$root/public/assets/css/ald1n-ui-v2.css");
+// $argv[2] used to be the old ald1n-ui-v2.css path; ignored now (G7 PR B), kept so argv[3] and argv[4] still work.
 $admin = @file_get_contents($argv[3] ?? "$root/public/assets/css/ald1n-admin.css");
 $tokens = @file_get_contents($argv[4] ?? "$root/public/assets/css/ald1n-tokens.css");
-if ($blade === false || $css === false || $admin === false || $tokens === false) {
+if ($blade === false || $admin === false || $tokens === false) {
     fwrite(STDERR, "FAIL: notifications Blade or canonical CSS missing.\n");
     exit(2);
 }
@@ -78,10 +78,7 @@ $rules = [
         && str_contains($admin, '.a1-item,.a1-tile,'),
     'Every CTA carries an accessible name with the notification title' =>
         str_contains($blade, 'data-inbox-action aria-label='),
-    'Batch564/565/566 CSS is intact' =>
-        str_contains($css, 'ALD1N_CATALOG_GRID_RESPONSIVE_4321_20261010')
-        && str_contains($css, 'ALD1N_CATALOG_CARD_ACTION_SAFETY_BATCH565')
-        && str_contains($css, 'ALD1N_ADMIN_ORDERS_INDEX_WORKSPACE_BATCH566'),
+    // G7 PR B: the "Batch564/565/566 CSS is intact" check read old ui-v2.css markers only and was removed.
 ];
 $pass = 0;
 foreach ($rules as $label => $ok) {

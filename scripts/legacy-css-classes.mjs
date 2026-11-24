@@ -5,6 +5,7 @@
 //   node scripts/legacy-css-classes.mjs --check   exit 1 when the fixture is stale (used by CI)
 // Author: Ald1n <https://ald1n.com>
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +66,28 @@ function classesOf(file) {
     }
   }
   return out;
+}
+
+// G7: once an old stylesheet is deleted the list can no longer be derived. The fixture is then frozen: --check only
+// validates it (still the same legacy_files, still more than 500 classes) and the write mode refuses to shrink it.
+const missingLegacy = LEGACY.filter((f) => !existsSync(css(f)));
+if (missingLegacy.length > 0) {
+  const frozenPath = join(cms, 'tests', 'Fixtures', 'removed-css-classes.json');
+  if (!process.argv.includes('--check')) {
+    console.error(`legacy stylesheet(s) deleted (${missingLegacy.join(', ')}); the fixture is frozen and is not rewritten.`);
+    process.exit(1);
+  }
+  const frozen = existsSync(frozenPath) ? JSON.parse(readFileSync(frozenPath, 'utf8')) : null;
+  // Exact pin: the ratchet list may only change together with a deliberate edit of these two constants.
+  const FROZEN_COUNT = 1139;
+  const FROZEN_SHA256 = 'a81f257a27aa45a9967aa7610849b5e9739c26d89d493c4668dd4660ed87acc7'; // sha256 of classes.join('\n')
+  const digest = frozen && Array.isArray(frozen.classes) ? createHash('sha256').update(frozen.classes.join('\n')).digest('hex') : '';
+  if (!frozen || JSON.stringify(frozen.legacy_files) !== JSON.stringify(LEGACY) || frozen.classes.length !== FROZEN_COUNT || digest !== FROZEN_SHA256) {
+    console.error(`removed-css-classes.json changed after the legacy stylesheets were deleted (expected ${FROZEN_COUNT} classes, sha256 ${FROZEN_SHA256}).`);
+    process.exit(1);
+  }
+  console.log(`removed-css-classes.json frozen (${frozen.classes.length} classes); deleted: ${missingLegacy.join(', ')}`);
+  process.exit(0);
 }
 
 const legacy = new Set(LEGACY.flatMap((f) => [...classesOf(css(f))]));

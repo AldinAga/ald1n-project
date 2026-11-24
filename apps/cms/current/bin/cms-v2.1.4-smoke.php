@@ -19,7 +19,7 @@ $admin = (string) file_get_contents($root.'/app/Services/ProductAdminService.php
 $deletion = (string) file_get_contents($root.'/app/Services/ProductDeletionService.php');
 $form = (string) file_get_contents($root.'/resources/views/admin/products/form.blade.php');
 $icons = (string) file_get_contents($root.'/resources/views/components/icon.blade.php');
-$css = (string) file_get_contents($root.'/public/assets/css/app.css');
+$css = (string) file_get_contents($root.'/public/assets/css/ald1n-admin.css'); // G7: button system is a1-btn* now
 $routes = (string) file_get_contents($root.'/routes/web.php');
 $release = (string) file_get_contents($root.'/config/release.php');
 $resource = (string) file_get_contents($root.'/app/Http/Resources/ProductResource.php');
@@ -43,8 +43,8 @@ $check('Trajno brisanje zahteva tačan SKU', str_contains($controller, 'hash_equ
 $check('Korisnik bira da li se brišu lokalne slike', str_contains($form, 'name="delete_images"') && str_contains($deletion, 'if ($deleteFiles)'));
 $check('Poslovna istorija blokira destruktivno brisanje', str_contains($deletion, "'Porudžbine' => 'order_items'") && str_contains($deletion, 'Arhiviraj ga'));
 $check('Lokalni direktorijum slika briše se kontrolisano', str_contains($deletion, "Storage::disk('public')->deleteDirectory") && str_contains($deletion, 'catch (Throwable $exception)'));
-$check('Semantičke klase boja postoje', str_contains($css, '.button-primary') && str_contains($css, '.button-secondary') && str_contains($css, '.button-success') && str_contains($css, '.button-warning') && str_contains($css, '.button-danger'));
-$check('Svi standardni tasteri dele visinu radius i interakcije', str_contains($css, '--button-height:46px') && str_contains($css, '--button-radius:15px') && str_contains($css, '.button:focus-visible') && str_contains($css, 'prefers-reduced-motion'));
+$check('Semantičke klase boja postoje', str_contains($css, '.a1-btn--primary{') && str_contains($css, '.a1-btn--quiet{') && str_contains($css, '.a1-btn--danger{'));
+$check('Svi standardni tasteri dele visinu radius i interakcije', str_contains($css, '.a1-btn--sm{min-height:var(--a1-size-touch-target)') && str_contains($css, '.a1-btn:hover{') && str_contains($css, '.a1-app :focus-visible{') && str_contains($css, 'prefers-reduced-motion'));
 $check('Ikonice arhive obnove i brisanja postoje', str_contains($icons, "@case('archive')") && str_contains($icons, "@case('refresh')") && str_contains($icons, "@case('trash')"));
 $check('Stable release check uključuje v2.1.4 doctor', str_contains($release, "'cms_v214'") && str_contains($release, "'command' => 'app:cms-v2-1-4-doctor'"));
 $check('Doctor proverava šemu rute CSS i šablone', str_contains($doctor, "Schema::hasColumn") && str_contains($doctor, "Route::has") && str_contains($doctor, 'repairTemplates'));

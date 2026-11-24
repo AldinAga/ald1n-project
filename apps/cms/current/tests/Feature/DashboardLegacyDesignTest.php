@@ -66,22 +66,17 @@ final class DashboardLegacyDesignTest extends TestCase
         $response->assertSee('Administracija');
     }
 
-    public function test_authenticated_dashboard_loads_liquid_glass_after_generated_css(): void
+    public function test_authenticated_dashboard_loads_admin_css_after_tokens(): void
     {
         $html = $this->actingAs($this->superAdmin())->get('/')->assertOk()->getContent();
 
         self::assertIsString($html);
-        $generatedOffset = strpos($html, 'assets/css/ald1n-ui-v2.css');
-        $glassOffset = strpos($html, 'assets/css/ald1n-liquid-glass.css');
-
-        self::assertNotFalse($generatedOffset);
-        self::assertNotFalse($glassOffset);
-        self::assertGreaterThan($generatedOffset, $glassOffset);
-
+        // G7 PR B: the order of the old stylesheets (ui-v2, liquid-glass) is no longer asserted; Cobalt order is.
+        $tokensOffset = strpos($html, 'assets/css/ald1n-tokens.css');
         $shellOffset = strpos($html, 'assets/css/ald1n-admin.css');
+        self::assertNotFalse($tokensOffset);
         self::assertNotFalse($shellOffset);
-        self::assertGreaterThan($glassOffset, $shellOffset);
-        self::assertGreaterThan(strpos($html, 'assets/css/ald1n-tokens.css'), $shellOffset);
+        self::assertGreaterThan($tokensOffset, $shellOffset);
 
         foreach ([
             'data-theme-mode-option',

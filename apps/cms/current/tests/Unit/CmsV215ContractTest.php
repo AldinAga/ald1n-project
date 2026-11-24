@@ -24,11 +24,13 @@ final class CmsV215ContractTest extends TestCase
 
     public function test_mobile_and_accessibility_css_contract_is_present(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2).'/public/assets/css/app.css');
+        // G7: touch target, action dock and field errors are a1-* in ald1n-admin.css; the old --ux-* / .has-field-error rules go with app.css.
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/public/assets/css/ald1n-admin.css');
 
-        self::assertStringContainsString('--ux-touch-target:46px', $css);
-        self::assertStringContainsString('.ux-mobile-action-dock', $css);
-        self::assertStringContainsString('.has-field-error', $css);
+        self::assertStringContainsString('.a1-btn--sm{min-height:var(--a1-size-touch-target)', $css);
+        self::assertStringContainsString('.a1-dock', $css);
+        self::assertStringContainsString('.a1-error{', $css);
+        self::assertStringContainsString('aria-invalid', $css);
         self::assertStringContainsString('prefers-reduced-motion', $css);
     }
 

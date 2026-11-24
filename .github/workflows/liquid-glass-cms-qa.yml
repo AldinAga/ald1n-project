@@ -78,14 +78,17 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           cp .env.example .env
           php artisan key:generate --force
-      - name: Verify untouched generated theme assets
+      - name: Verify operator tokens untouched and Cobalt stylesheets present
         shell: bash
         run: |
           set -euo pipefail
           BASE_SHA="$(git merge-base HEAD origin/main)"
-          git diff --quiet "$BASE_SHA" HEAD -- apps/cms/current/public/assets/css/ald1n-ui-v2.css packages/design-tokens/ald1n-operator.json
-          test -f apps/cms/current/public/assets/css/ald1n-liquid-glass.css
-          echo 'GENERATED_THEME_UNCHANGED=PASS'
+          # G7 PR B: ald1n-ui-v2.css is no longer pinned and ald1n-liquid-glass.css is no longer required (both are deleted in PR D);
+          # the Cobalt shell and token stylesheets must exist instead.
+          git diff --quiet "$BASE_SHA" HEAD -- packages/design-tokens/ald1n-operator.json
+          test -f apps/cms/current/public/assets/css/ald1n-admin.css
+          test -f apps/cms/current/public/assets/css/ald1n-tokens.css
+          echo 'OPERATOR_TOKENS_UNCHANGED_AND_COBALT_STYLESHEETS_PRESENT=PASS'
       - name: Execute real PHPUnit and canonical static gate
         working-directory: apps/cms/current
         shell: bash
