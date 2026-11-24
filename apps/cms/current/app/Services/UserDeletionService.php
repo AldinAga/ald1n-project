@@ -245,6 +245,32 @@ final class UserDeletionService
     }
 
     /**
+     * Da li web zahtev za brisanje traži trenutnu lozinku. Ne traži samo za nalog koji je napravila
+     * Google prijava (Google identitet upisan uz sam nalog) i kome lozinka nikad nije postavljena:
+     * takav nalog ima nasumičan hash, pa ostaje samo potvrda linkom iz e-pošte.
+     * Nalog sa lozinkom koji je kasnije povezan sa Google-om i dalje traži lozinku.
+     * shortcut: nema kolone "lozinka postavljena"; ako Google nalog dobije lozinku putem koji ne upisuje
+     * password_changed_at (danas ga upisuju reset, promena i aktivacija), ostaje tok samo linkom.
+     * Kad se uvede takva kolona, proveravati nju.
+     */
+    public function needsPassword(User $user): bool
+    {
+        if ($user->password_changed_at !== null || !Schema::hasTable('user_external_identities')) {
+            return true;
+        }
+        $created = $user->created_at;
+        if ($created === null) {
+            return true;
+        }
+
+        return !\App\Models\UserExternalIdentity::query()
+            ->where('user_id', $user->getKey())
+            ->where('provider', 'google')
+            ->where('created_at', '<=', $created->copy()->addMinutes(5))
+            ->exists();
+    }
+
+    /**
      * Administrator menja status naloga dok zahtev za brisanje traje (poziva AdminUserService
      * u istoj transakciji, nad zaključanim nalogom). Odblokiranje zatvara zahtev; ručna blokada
      * preuzima blokadu, pa je poništavanje zahteva više ne skida.
