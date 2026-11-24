@@ -1,97 +1,106 @@
 @extends('layouts.app')
 @section('title',$definition['label'])
 @section('content')
+@include('admin.products.partials.styles')
 @include('admin.settings.partials.context-nav', ['settingsSection' => 'Pravila i šifarnici'])
-<div class="page-heading dictionary-page-heading">
-    <div><span class="eyebrow">Kataloški šifarnici</span><h1>{{ $definition['label'] }}</h1><p>Redosled kartica možeš menjati prevlačenjem na telefonu i računaru. Deaktiviranje čuva istorijske veze.</p></div>
+<div class="a1-ops">
+<header class="a1-pagehead">
+    <div class="a1-pagehead__text">
+        <span class="a1-eyebrow">Kataloški šifarnici</span>
+        <h1 class="a1-title">{{ $definition['label'] }}</h1>
+        <p class="a1-lead">Redosled kartica možeš menjati prevlačenjem na telefonu i računaru. Deaktiviranje čuva istorijske veze.</p>
+    </div>
     @if($items->isNotEmpty())
-        <button class="button button-ghost" type="button" data-sort-edit-start><x-icon name="grip" size="17" /> Uredi raspored</button>
+    <div class="a1-pagehead__actions">
+        <button class="a1-btn" type="button" data-sort-edit-start><x-icon name="grip" size="17" /> Uredi raspored</button>
+    </div>
     @endif
-</div>
+</header>
 
-<nav class="subnav">@foreach($definitions as $key=>$def)<a class="{{ $resource===$key?'active':'' }}" href="{{ route('admin.dictionary.index',$key) }}">{{ $def['label'] }}</a>@endforeach</nav>
+<nav aria-label="Šifarnici"><ul class="a1-tabs">@foreach($definitions as $key=>$def)<li><a class="a1-tabs__link" href="{{ route('admin.dictionary.index',$key) }}" @if($resource===$key) aria-current="page" @endif>{{ $def['label'] }}</a></li>@endforeach</ul></nav>
 
 @if($resource === 'specification-fields')
 {{-- spec-library-workspace-batch2 --}}
-<section class="panel specification-library-intro" data-spec-library-workspace>
-    <div class="specification-library-head">
-        <div>
-            <span class="eyebrow">Biblioteka specifikacija</span>
-            <h2>Definicije polja, opcije i napredne veze</h2>
-            <p class="muted">Ovde određuješ šta jedno specifikaciono polje znači. U konkretnom Tipu proizvoda zatim biraš da li se to polje koristi, da li je obavezno i gde se prikazuje.</p>
+<section class="a1-card" data-spec-library-workspace aria-labelledby="sl-title">
+    <div class="a1-pc-fieldhead">
+        <div class="a1-card__title">
+            <span class="a1-eyebrow">Biblioteka specifikacija</span>
+            <h2 class="a1-h2" id="sl-title">Definicije polja, opcije i napredne veze</h2>
+            <p class="a1-text">Ovde određuješ šta jedno specifikaciono polje znači. U konkretnom Tipu proizvoda zatim biraš da li se to polje koristi, da li je obavezno i gde se prikazuje.</p>
         </div>
-        <a class="button button-primary button-small" href="{{ route('admin.dictionary.index','product-types') }}">
+        <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.dictionary.index','product-types') }}">
             <x-icon name="sliders" size="16" /> Idi na tipove proizvoda
         </a>
     </div>
 
-    <div class="specification-library-flow" aria-label="Kako koristiti specifikacije">
+    <div class="a1-pc-flow" aria-label="Kako koristiti specifikacije">
         <span><strong>1. Definiši polje</strong><small>Naziv, tip podatka i jedinica.</small></span>
         <span><strong>2. Dodaj opcije</strong><small>Samo kada je polje izbor.</small></span>
         <span><strong>3. Poveži zavisnost</strong><small>Samo za napredne dropdown veze.</small></span>
         <span><strong>4. Dodeli tipu</strong><small>U Tipu proizvoda uključi gde se koristi.</small></span>
     </div>
 
-    <div class="specification-library-tools">
-        <label>
-            <span>Pretraži biblioteku</span>
-            <input type="search" data-spec-library-search placeholder="Npr. RAM, procesor, boja..." autocomplete="off" aria-describedby="spec-library-status">
+    <div class="a1-pc-tools">
+        <label class="a1-field">
+            <span class="a1-label">Pretraži biblioteku</span>
+            <input class="a1-input" type="search" data-spec-library-search placeholder="Npr. RAM, procesor, boja..." autocomplete="off" aria-describedby="spec-library-status">
         </label>
-        <div class="product-type-filter-group" role="group" aria-label="Status specifikacionih polja">
-            <button class="button button-small is-active" type="button" data-spec-library-filter="all" aria-pressed="true">Sva</button>
-            <button class="button button-small button-ghost" type="button" data-spec-library-filter="active" aria-pressed="false">Aktivna</button>
-            <button class="button button-small button-ghost" type="button" data-spec-library-filter="inactive" aria-pressed="false">Neaktivna</button>
+        <div class="a1-pc-seg" role="group" aria-label="Status specifikacionih polja">
+            <button class="a1-btn a1-btn--sm is-active" type="button" data-spec-library-filter="all" aria-pressed="true">Sva</button>
+            <button class="a1-btn a1-btn--sm" type="button" data-spec-library-filter="active" aria-pressed="false">Aktivna</button>
+            <button class="a1-btn a1-btn--sm" type="button" data-spec-library-filter="inactive" aria-pressed="false">Neaktivna</button>
         </div>
     </div>
-    <p class="muted specification-library-status" id="spec-library-status" data-spec-library-status aria-live="polite"></p>
+    <p class="a1-muted" id="spec-library-status" data-spec-library-status aria-live="polite"></p>
 </section>
 @endif
-<section class="panel form-section dictionary-create-panel">
-    <h2>{{ $resource === 'product-types' ? 'Dodaj novi tip proizvoda' : 'Dodaj novu stavku' }}</h2>
-    <form class="dictionary-form" method="post" action="{{ route('admin.dictionary.store',$resource) }}">
+<section class="a1-card" aria-labelledby="dc-create">
+    <h2 class="a1-h2" id="dc-create">{{ $resource === 'product-types' ? 'Dodaj novi tip proizvoda' : 'Dodaj novu stavku' }}</h2>
+    <form class="a1-form" data-dictionary-form method="post" action="{{ route('admin.dictionary.store',$resource) }}">
         @csrf
         @include('admin.dictionary.fields',['item'=>null,'productTypeCompact'=>$resource==='product-types'])
-        <button class="button button-primary">{{ $resource === 'product-types' ? 'Dodaj i podesi specifikacije' : 'Dodaj' }}</button>
+        <div><button class="a1-btn a1-btn--primary">{{ $resource === 'product-types' ? 'Dodaj i podesi specifikacije' : 'Dodaj' }}</button></div>
     </form>
 </section>
 
-<div class="dictionary-grid dictionary-sortable" data-dictionary-sortable data-reorder-url="{{ route('admin.dictionary.reorder',$resource) }}" data-sort-scope="{{ $resource }}">
+<div class="a1-pc-cards" data-dictionary-sortable data-reorder-url="{{ route('admin.dictionary.reorder',$resource) }}" data-sort-scope="{{ $resource }}">
     @forelse($items as $item)
+        @php $pillClass = $item->status === 'active' ? 'a1-pill a1-pill--ok' : 'a1-pill a1-pill--off'; @endphp
         @if($resource==='product-types')
-            <article class="panel dictionary-card dictionary-sort-item product-type-summary-card" data-sort-item data-sort-id="{{ $item->id }}">
-                <button class="dictionary-drag-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
-                <div class="product-type-summary-head"><div><span class="status-badge status-{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2>{{ $item->name }}</h2><code>{{ $item->slug }}</code></div><x-icon name="settings" size="26" /></div>
-                <dl class="product-type-summary-stats"><div><dt>Specifikacije</dt><dd>{{ $item->fields->count() }}</dd></div><div><dt>Artikli</dt><dd>{{ $item->products_count }}</dd></div></dl>
-                <p><strong>Kategorija:</strong> {{ $item->category?->name ?? 'Nije povezana' }}</p>
-                <div class="card-actions">
-                    <a class="button button-primary button-small" href="{{ route('admin.dictionary.product-type',$item) }}"><x-icon name="sliders" size="16" /> Podesi tip{{-- legacy-v2.1.3-smoke: <x-icon name="sliders" size="16" /> Otvori specifikacije --}}</a>
-                    @if($item->status==='active')<button form="deactivate-{{ $resource }}-{{ $item->id }}" class="button button-danger button-small" data-confirm="Deaktivirati tip proizvoda {{ $item->name }}?">Deaktiviraj</button>@endif
+            <article class="a1-card a1-pc-card" data-dictionary-card data-sort-item data-sort-id="{{ $item->id }}">
+                <button class="a1-pc-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
+                <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2><code>{{ $item->slug }}</code></div><x-icon name="settings" size="26" /></div>
+                <dl class="a1-pc-stats"><div><dt>Specifikacije</dt><dd>{{ $item->fields->count() }}</dd></div><div><dt>Artikli</dt><dd>{{ $item->products_count }}</dd></div></dl>
+                <p class="a1-text"><strong>Kategorija:</strong> {{ $item->category?->name ?? 'Nije povezana' }}</p>
+                <div class="a1-cluster">
+                    <a class="a1-btn a1-btn--primary a1-btn--sm" href="{{ route('admin.dictionary.product-type',$item) }}"><x-icon name="sliders" size="16" /> Podesi tip{{-- legacy-v2.1.3-smoke: <x-icon name="sliders" size="16" /> Otvori specifikacije --}}</a>
+                    @if($item->status==='active')<button form="deactivate-{{ $resource }}-{{ $item->id }}" class="a1-btn a1-btn--danger a1-btn--sm" data-confirm="Deaktivirati tip proizvoda {{ $item->name }}?">Deaktiviraj</button>@endif
                 </div>
                 <form id="deactivate-{{ $resource }}-{{ $item->id }}" method="post" action="{{ route('admin.dictionary.destroy',[$resource,$item->id]) }}">@csrf @method('DELETE')</form>
             </article>
         @else
-            <article class="panel dictionary-card dictionary-sort-item" data-sort-item data-sort-id="{{ $item->id }}">
-                <button class="dictionary-drag-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
-                <form method="post" action="{{ route('admin.dictionary.update',[$resource,$item->id]) }}">
+            <article class="a1-card a1-pc-card" data-dictionary-card data-sort-item data-sort-id="{{ $item->id }}">
+                <button class="a1-pc-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
+                <form class="a1-form" method="post" action="{{ route('admin.dictionary.update',[$resource,$item->id]) }}">
                     @csrf @method('PUT')
-                    <div class="dictionary-card-heading"><div><span class="status-badge status-{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2>{{ $item->name }}</h2></div>@if($resource==='specification-fields')<code>{{ $item->slug }}</code>@endif</div>
+                    <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2></div>@if($resource==='specification-fields')<code>{{ $item->slug }}</code>@endif</div>
                     @include('admin.dictionary.fields',['item'=>$item])
                     @if($resource==='specification-fields')
                         @php($usage=$usageCounts[$item->id]??['types'=>0,'products'=>0,'children'=>0])
-                        <div class="spec-field-usage"><span>Tipovi: <strong>{{ $usage['types'] }}</strong></span><span>Artikli: <strong>{{ $usage['products'] }}</strong></span><span>Zavisna polja: <strong>{{ $usage['children'] }}</strong></span></div>
+                        <div class="a1-pc-usage"><span>Tipovi: <strong>{{ $usage['types'] }}</strong></span><span>Artikli: <strong>{{ $usage['products'] }}</strong></span><span>Zavisna polja: <strong>{{ $usage['children'] }}</strong></span></div>
                     @endif
-                    <div class="card-actions"><button class="button button-primary button-small">Sačuvaj</button><button form="deactivate-{{ $resource }}-{{ $item->id }}" class="button button-danger button-small" data-confirm="Deaktivirati stavku {{ $item->name }}?">Deaktiviraj</button></div>
+                    <div class="a1-cluster"><button class="a1-btn a1-btn--primary a1-btn--sm">Sačuvaj</button><button form="deactivate-{{ $resource }}-{{ $item->id }}" class="a1-btn a1-btn--danger a1-btn--sm" data-confirm="Deaktivirati stavku {{ $item->name }}?">Deaktiviraj</button></div>
                 </form>
                 <form id="deactivate-{{ $resource }}-{{ $item->id }}" method="post" action="{{ route('admin.dictionary.destroy',[$resource,$item->id]) }}">@csrf @method('DELETE')</form>
 
                 @if($resource==='specification-fields')
-                    <details class="dictionary-danger-zone">
+                    <details class="a1-acc a1-pc-danger">
                         <summary>Trajno brisanje</summary>
-                        <div><p>Ovo briše polje i njegove vrednosti iz artikala. Za potvrdu upiši tačan naziv: <strong>{{ $item->name }}</strong></p>
-                            <form method="post" action="{{ route('admin.dictionary.purge',[$resource,$item->id]) }}">
+                        <div class="a1-acc__body a1-stack"><p class="a1-text">Ovo briše polje i njegove vrednosti iz artikala. Za potvrdu upiši tačan naziv: <strong>{{ $item->name }}</strong></p>
+                            <form method="post" action="{{ route('admin.dictionary.purge',[$resource,$item->id]) }}" class="a1-form">
                                 @csrf @method('DELETE')
-                                <input name="confirm_name" required autocomplete="off" placeholder="{{ $item->name }}">
-                                <button class="button button-danger button-small" data-confirm="Trajno obrisati specifikaciono polje {{ $item->name }} i sve njegove vrednosti?">Obriši trajno</button>
+                                <input class="a1-input" name="confirm_name" required autocomplete="off" placeholder="{{ $item->name }}" aria-label="Potvrdi nazivom polja {{ $item->name }}">
+                                <div><button class="a1-btn a1-btn--danger a1-btn--sm" data-confirm="Trajno obrisati specifikaciono polje {{ $item->name }} i sve njegove vrednosti?">Obriši trajno</button></div>
                             </form>
                         </div>
                     </details>
@@ -99,16 +108,17 @@
             </article>
         @endif
     @empty
-        <section class="panel empty-state"><h2>Nema stavki</h2><p>Dodaj prvu stavku koristeći formu iznad.</p></section>
+        <section class="a1-empty"><span class="a1-empty__icon"><x-icon name="search" size="28" /></span><h2 class="a1-h2">Nema stavki</h2><p>Dodaj prvu stavku koristeći formu iznad.</p></section>
     @endforelse
 </div>
 
 @if($items->isNotEmpty())
-    <div class="dictionary-sort-finish" data-sort-finish-bar hidden>
-        <span data-sort-status>Prevuci kartice u željeni redosled.</span>
-        <button class="button button-primary" type="button" data-sort-edit-finish><x-icon name="check-circle" size="17" /> Završi uređivanje</button>
+    <div class="a1-actionbar" data-sort-finish-bar hidden>
+        <p class="a1-actionbar__status" data-sort-status>Prevuci kartice u željeni redosled.</p>
+        <div class="a1-actionbar__buttons"><button class="a1-btn a1-btn--primary" type="button" data-sort-edit-finish><x-icon name="check-circle" size="17" /> Završi uređivanje</button></div>
     </div>
 @endif
+</div>
 
 @if($resource === 'specification-fields')
 
@@ -138,7 +148,7 @@
         let visible = 0;
 
         rows().forEach((row) => {
-            const active = Boolean(row.querySelector('.status-badge.status-active'));
+            const active = Boolean(row.querySelector('[data-status="active"]'));
             const stateMatch =
                 activeFilter === 'all'
                 || (activeFilter === 'active' && active)
@@ -200,7 +210,7 @@
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}" src="{{ asset('assets/js/dictionary-sort-manager.js') }}?v={{ config('app.version') }}" defer></script>
 @if($resource==='specification-fields')
 <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
-document.querySelectorAll('.dictionary-form, .dictionary-card form').forEach((form) => {
+document.querySelectorAll('[data-dictionary-form], [data-dictionary-card] form').forEach((form) => {
     const type = form.querySelector('[data-spec-data-type]');
     if (!type) return;
     const refresh = () => form.querySelectorAll('[data-select-setting]').forEach((element) => {
