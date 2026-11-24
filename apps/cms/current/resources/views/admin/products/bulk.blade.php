@@ -5,7 +5,7 @@
 <div class="a1-ops">
 <nav aria-label="Putanja">
     <ol class="a1-crumbs">
-        <li><a class="back-link" href="{{ route('catalog.index') }}">Nazad na artikle</a></li>
+        <li><a href="{{ route('catalog.index') }}">Nazad na artikle</a></li>
         <li aria-current="page">Bulk izmena</li>
     </ol>
 </nav>
