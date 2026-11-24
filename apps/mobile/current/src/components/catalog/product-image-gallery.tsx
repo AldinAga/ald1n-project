@@ -300,7 +300,7 @@ export function ProductImageGallery({
               downloadingKey && downloadingKey !== 'save:all' ? styles.disabled : null,
             ]}
           >
-            <Text style={styles.downloadText} numberOfLines={1}>
+            <Text style={styles.downloadText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {downloadingKey === 'save:all' ? 'Čuvanje...' : 'Sačuvaj sve'}
             </Text>
           </Pressable>
@@ -344,7 +344,8 @@ export function ProductImageGallery({
                   <Text style={styles.imageLabel} numberOfLines={1}>Slika {index + 1}</Text>
                   {image.primary ? <Text style={styles.primaryLabel} numberOfLines={1}>Glavna</Text> : null}
                 </View>
-                <View style={styles.actionRow}>
+                {/* 172 px catalog tile: one button per row so no label is cut at large font sizes. */}
+                <View style={[styles.actionRow, mode === 'catalog' ? styles.actionColumn : null]}>
                   {canSaveProductImagesToDevice ? (
                     <Pressable
                       accessibilityRole="button"
@@ -359,7 +360,7 @@ export function ProductImageGallery({
                         downloadingKey && !saving ? styles.disabled : null,
                       ]}
                     >
-                      <Text style={styles.downloadText} numberOfLines={1}>
+                      <Text style={styles.downloadText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                         {saving ? 'Čuvanje...' : 'Sačuvaj'}
                       </Text>
                     </Pressable>
@@ -377,7 +378,7 @@ export function ProductImageGallery({
                       downloadingKey && !sharing ? styles.disabled : null,
                     ]}
                   >
-                    <Text style={styles.shareText} numberOfLines={1}>
+                    <Text style={styles.shareText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                       {sharing ? 'Priprema...' : 'Podeli'}
                     </Text>
                   </Pressable>
@@ -405,7 +406,8 @@ function createStyles(theme: AppColors) {
     labelWrap: { flex: 1, minWidth: 0 },
     labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 0 },
     actionRow: { flexDirection: 'row', gap: spacing.sm },
-    actionButton: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm },
+    actionColumn: { flexDirection: 'column' },
+    actionButton: { flexGrow: 1, flexBasis: 0, minWidth: 0, paddingHorizontal: spacing.sm },
     imageLabel: { ...typography.small, color: theme.ink },
     primaryLabel: { ...typography.small, color: theme.primary },
     downloadButton: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },

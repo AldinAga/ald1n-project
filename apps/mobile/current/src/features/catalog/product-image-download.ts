@@ -3,6 +3,10 @@ import { Platform } from 'react-native';
 
 import { imageSaveFolderStore } from '@/lib/storage';
 
+import { OFFLINE_MESSAGE, runProductImageSave, type ProductImageSaveResult } from './product-image-save-flow';
+
+export type { ProductImageSaveResult };
+
 const MAX_PRODUCT_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const MIME_EXTENSIONS: Record<string, string> = {
@@ -79,8 +83,6 @@ async function loadSharingModule() {
 
 type CachedOriginal = { file: File; bytes: Uint8Array; mimeType: string; fileName: string };
 
-const OFFLINE_MESSAGE = 'Nema internet veze. Poveži se i pokušaj ponovo.';
-
 async function fetchOriginalToCache(input: ProductImageDownloadInput): Promise<CachedOriginal> {
   assertRemoteImageUrl(input.originalUrl);
 
@@ -154,13 +156,9 @@ export const canSaveProductImagesToDevice = Platform.OS === 'android';
 // Opens the picker in Pictures so the saved photos land in the phone's gallery.
 const PICTURES_TREE_URI = 'content://com.android.externalstorage.documents/document/primary%3APictures';
 
-export type ProductImageSaveResult = { saved: number; total: number; cancelled: boolean; firstError: string | null };
-
 async function pickSaveFolder(): Promise<Directory | null> {
   try {
-    const picked = await Directory.pickDirectoryAsync(PICTURES_TREE_URI);
-    await imageSaveFolderStore.set(picked.uri);
-    return picked;
+    return await Directory.pickDirectoryAsync(PICTURES_TREE_URI);
   } catch (error) {
     // Closing the picker is a choice, not an error.
     // Native PickerCancelledException: code ERR_PICKER_CANCELLED, message "...was cancelled by the user".
@@ -170,53 +168,37 @@ async function pickSaveFolder(): Promise<Directory | null> {
   }
 }
 
-function writeToFolder(folder: Directory, original: CachedOriginal): void {
-  const target = folder.createFile(original.fileName, original.mimeType);
-  target.write(original.bytes);
+function openSaveFolder(uri: string): Directory | null {
+  try {
+    const folder = new Directory(uri);
+    return folder.exists ? folder : null;
+  } catch {
+    return null;
+  }
+}
+
+async function isOriginalReachable(input: ProductImageDownloadInput): Promise<boolean> {
+  try {
+    await fetch(input.originalUrl, { method: 'HEAD' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function saveProductImagesToDevice(inputs: ProductImageDownloadInput[]): Promise<ProductImageSaveResult> {
   if (!canSaveProductImagesToDevice) throw new Error('Direktno čuvanje je dostupno u Android aplikaciji. Koristi Podeli.');
-  const result: ProductImageSaveResult = { saved: 0, total: inputs.length, cancelled: false, firstError: null };
-  if (inputs.length === 0) return result;
-
-  const storedUri = await imageSaveFolderStore.get();
-  let folder: Directory | null = storedUri ? new Directory(storedUri) : null;
-  let folderFromStore = folder !== null;
-  if (folder === null) {
-    folder = await pickSaveFolder();
-    if (folder === null) return { ...result, cancelled: true };
-  }
-
-  // Sequential on purpose: one 30 MB original in memory at a time.
-  for (const input of inputs) {
-    let original: CachedOriginal;
-    try {
-      original = await fetchOriginalToCache(input);
-    } catch (error) {
-      result.firstError ??= error instanceof Error ? error.message : 'Preuzimanje nije uspelo.';
-      if (result.firstError === OFFLINE_MESSAGE) break;
-      continue;
-    }
-    try {
-      try {
-        writeToFolder(folder, original);
-      } catch (error) {
-        // A remembered folder can be deleted or its grant revoked: ask once for a new one.
-        if (!folderFromStore) throw error;
-        await imageSaveFolderStore.clear();
-        folderFromStore = false;
-        const repicked = await pickSaveFolder();
-        if (repicked === null) return { ...result, cancelled: true };
-        folder = repicked;
-        writeToFolder(folder, original);
-      }
-      result.saved += 1;
-    } catch {
-      result.firstError ??= 'Fotografiju nije moguće upisati u izabrani folder.';
-    } finally {
-      if (original.file.exists) original.file.delete();
-    }
-  }
-  return result;
+  return runProductImageSave(inputs, {
+    readStoredFolder: () => imageSaveFolderStore.get(),
+    rememberFolder: (uri) => imageSaveFolderStore.set(uri),
+    forgetFolder: () => imageSaveFolderStore.clear(),
+    openFolder: openSaveFolder,
+    pickFolder: pickSaveFolder,
+    isOnline: isOriginalReachable,
+    fetchOriginal: async (input) => {
+      const original = await fetchOriginalToCache(input);
+      return { ...original, discard: () => { if (original.file.exists) original.file.delete(); } };
+    },
+  });
 }
+
