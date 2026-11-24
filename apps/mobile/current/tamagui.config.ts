@@ -7,9 +7,10 @@ import { createTamagui } from 'tamagui';
 
 import {
   ald1nDarkPalette,
-  ald1nDesignTokens,
   ald1nLightPalette,
 } from './src/design/ald1n-tokens.generated';
+import { kobalt } from './src/design/ald1n-tokens.kobalt.generated';
+import { createAppColors } from './src/design/kobalt-app-colors';
 
 const themes = createV5Theme({
   lightPalette: [...ald1nLightPalette],
@@ -21,11 +22,11 @@ const themes = createV5Theme({
     const colorScheme: 'light' | 'dark' =
       scheme === 'dark' ? 'dark' : 'light';
 
-    const tokens = ald1nDesignTokens[colorScheme];
+    const tokens = createAppColors(kobalt[colorScheme]);
 
     return {
       brand: tokens.primary,
-      brandStrong: tokens.primaryStrong,
+      brandStrong: tokens.primaryDark,
       brandContainer: tokens.primaryContainer,
       onBrandContainer: tokens.onPrimaryContainer,
       onBrand: tokens.onPrimary,
@@ -34,10 +35,10 @@ const themes = createV5Theme({
       surfaceMuted: tokens.surfaceMuted,
       surfaceContainer: tokens.surfaceContainer,
       surfaceContainerHigh: tokens.surfaceContainerHigh,
-      text: tokens.text,
+      text: tokens.ink,
 
       textMuted: tokens.muted,
-      line: tokens.border,
+      line: tokens.line,
       outlineBrand: tokens.outline,
 
       accent: tokens.accent,

@@ -1285,13 +1285,14 @@ assert(
   'App theme resolver koristi React Native system color scheme.'
 );
 
+// Colours are produced by the Kobalt adapter (M1); theme.ts only assembles the themes.
 const rnThemeSource = fs.readFileSync(
-  path.join(root, 'src/constants/theme.ts'),
+  path.join(root, 'src/design/kobalt-app-colors.ts'),
   'utf8'
 );
 
 assert(
-  rnThemeSource.includes('onDanger: tokens.onDanger'),
+  /onDanger: dark \? k\.surface\.page : k\.button\.primary\.on/.test(rnThemeSource),
   'RN theme adapter koristi canonical onDanger semantic token.'
 );
 

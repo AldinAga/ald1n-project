@@ -26,7 +26,7 @@ export const TextField = forwardRef<TextFieldRef, TextFieldProps>(
       error,
       style,
       onFocus,
-      placeholderTextColor = '$placeholderColor',
+      placeholderTextColor = '$textMuted',
       selectionColor = '$brand',
       ...inputProps
     },

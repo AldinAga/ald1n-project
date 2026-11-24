@@ -142,7 +142,7 @@ function createStyles(theme: AppColors) {
   hero: { minHeight: 292, overflow: 'hidden', borderRadius: radii.xxl, backgroundColor: theme.hero, padding: spacing.xxl, justifyContent: 'flex-end', ...shadow },
   orbOne: { position: 'absolute', width: 230, height: 230, borderRadius: 115, right: -85, top: -75, backgroundColor: theme.primary, opacity: 0.62 },
   orbTwo: { position: 'absolute', width: 138, height: 138, borderRadius: 69, right: 52, top: 72, backgroundColor: theme.accent, opacity: 0.24 },
-  kicker: { ...typography.small, color: theme.accent, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
+  kicker: { ...typography.small, color: theme.heroMuted, letterSpacing: 1.8, fontWeight: '900', marginTop: spacing.xl },
   heroTitle: { ...typography.hero, color: theme.white, marginTop: spacing.sm, maxWidth: 340 },
   heroCopy: { ...typography.body, color: theme.heroMuted, marginTop: spacing.md, maxWidth: 350 },
   formCard: { backgroundColor: theme.surface, borderRadius: radii.xxl, padding: spacing.xl, gap: spacing.lg, ...shadow },
