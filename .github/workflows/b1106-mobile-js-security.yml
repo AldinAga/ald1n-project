@@ -86,7 +86,9 @@ jobs:
             changed.push(k);
           }
           // 5. Native config: untouched. The only permitted app.config.js edits are Expo SDK 58 version literals of an SDK patch bump.
-          cp.execFileSync('git',['diff','--exit-code',base,'HEAD','--',dir+'eas.json']);
+          // GATE-PLAY3: eas.json stays frozen except the single reviewed eas-cli pin move 27.2.0 -> 27.11.0.
+          const easDiff=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'eas.json'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l)).map(l=>l.replace(/\s+/g,''));
+          assert(easDiff.length===0||(easDiff.length===2&&easDiff[0]==='-"version":"27.2.0",'&&easDiff[1]==='+"version":"27.11.0",'),'eas.json changed beyond the reviewed eas-cli pin: '+easDiff.join(' | '));
           const cfg=cp.execFileSync('git',['diff','-U0',base,'HEAD','--',dir+'app.config.js'],{encoding:'utf8'}).split('\n').filter(l=>/^[+-]/.test(l)&&!/^(\+\+\+|---)/.test(l));
           if(added.length){
             // M5 native layer: the config must carry the reviewed privacy and identity settings (full contract: scripts/release25/m5-camera-kobalt-native.test.mjs).

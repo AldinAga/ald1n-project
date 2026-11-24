@@ -91,3 +91,12 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1156/CommissionsInstallCoordinator\.php$''']
 regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+# Same integrity pin in the B1157 install coordinator.
+[[allowlists]]
+description = "CSS file digest constant in the B1157 install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1157/B1157InstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
