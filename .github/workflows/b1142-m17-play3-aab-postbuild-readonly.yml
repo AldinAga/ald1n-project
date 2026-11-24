@@ -1,12 +1,8 @@
 name: B1142 M17 signed EAS AAB 16KiB binary audit (READ ONLY NO BUILD)
 
-# Auto-run once when this workflow is introduced on main; manual replay is read-only.
+# Manual only (workflow_dispatch on main), read-only. Run it after the play3 AAB build finished.
 # Never builds, submits, deploys, publishes OTA, updates credentials, or changes Play tracks.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/b1142-m17-aab-postbuild-readonly.yml'
   workflow_dispatch:
     inputs:
       build_id:

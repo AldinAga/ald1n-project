@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Author: Ald1n <https://ald1n.com>
 // Derives the play3 release gate set (B1141 build, B1142 post-build, play3 attest) from the frozen play2 set
-// (B1041, B1042, b1042-m17-aab-attest). NOT run yet: it needs the merged source SHA, so it is run by hand AFTER PR 234 is merged:
+// (B1041, B1042, b1042-m17-aab-attest). Run by hand on the merged source (24.11.2026: after PR 252 and PR 257 were merged):
 //
 //   node .github/scripts/derive-play3-gateset.mjs --sha <40 hex merged main commit> --tree <40 hex tree of that commit> \
 //        --pr <merged PR> --ci-runs <id,id,...> --cutoff <that PR's merged_at> [--out <repo root>]
@@ -23,8 +23,8 @@ const cutoff = arg('cutoff');
 const out = path.resolve(arg('out') || process.cwd());
 const hex40 = /^[0-9a-f]{40}$/;
 if (!hex40.test(sha || '') || !hex40.test(tree || '') || !/^[1-9][0-9]*$/.test(pr || '') || !runs.length || runs.some((r) => !/^[1-9][0-9]*$/.test(r)) ||
-    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(cutoff || '') || !Number.isFinite(Date.parse(cutoff))) {
-  console.error('Usage: --sha <40hex> --tree <40hex> --pr <number> --ci-runs <id,id,...> --cutoff <PR merged_at, YYYY-MM-DDTHH:MM:SSZ> [--out <dir>]'); process.exit(2);
+    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(cutoff || '') || !Number.isFinite(Date.parse(cutoff)) || Date.parse(cutoff) > Date.now()) {
+  console.error('Usage: --sha <40hex> --tree <40hex> --pr <number> --ci-runs <id,id,...> --cutoff <PR merged_at, YYYY-MM-DDTHH:MM:SSZ, not in the future> [--out <dir>]'); process.exit(2);
 }
 const OLD_SHA = '6adb3b440b8cfdc068b142a98c418d9d91487f64', OLD_TREE = 'fc4578c93820df8b0c85f5215924ab2bc501ba01';
 const read = (f) => fs.readFileSync(path.join(out, f), 'utf8').replace(/\r\n/g, '\n');
@@ -62,7 +62,11 @@ files['.github/workflows/b1141-m17-sdk58-play3-eas27-signed-aab-manual.yml'] = r
 files['.github/workflows/b1142-m17-play3-aab-postbuild-readonly.yml'] = renameAll(sub(read('.github/workflows/b1042-m17-aab-postbuild-readonly.yml'), [
   [OLD_SHA, sha, 2], [OLD_TREE, tree, 1], ["'1.0.0-m17-sdk58-play2'", "'1.0.0-m17-sdk58-play3'", 1], ["'~58.0.22'", "'~58.0.26'", 1], ['27.2.0', '27.11.0', 3],
   ["grep -E '27\\.2\\.0'", "grep -E '27\\.11\\.0'", 1],
+  // Manual only: the play3 AAB does not exist when this lands on main, so an auto-run could only HOLD.
+  ['# Auto-run once when this workflow is introduced on main; manual replay is read-only.', '# Manual only (workflow_dispatch on main), read-only. Run it after the play3 AAB build finished.', 1],
+  ["  push:\n    branches: [main]\n    paths:\n      - '.github/workflows/b1042-m17-aab-postbuild-readonly.yml'\n", '', 1],
 ], 'b1042'));
+if (/^\s+push:/m.test(files['.github/workflows/b1142-m17-play3-aab-postbuild-readonly.yml'])) throw new Error('b1142: push trigger survived');
 // renameAll here too: the attest writes B1042_BUILD_ID/B1042_VERSION_CODE to GITHUB_ENV, which B1142 reads as B1142_*.
 files['.github/scripts/b1142-m17-play3-aab-attest.mjs'] = renameAll(sub(read('.github/scripts/b1042-m17-aab-attest.mjs'), [
   [OLD_SHA, sha, 1], ["'1.0.0-m17-sdk58-play2'", "'1.0.0-m17-sdk58-play3'", 1],
