@@ -17,36 +17,45 @@ use App\Services\OrderPaymentService;
 use App\Services\SettingsService;
 use App\Support\CommissionSql;
 use Database\Seeders\CoreAccessSeeder;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\PendingCommand;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
  * commissions:fix-norate (analiza 24.11.2026). Pogođena provizija nastaje kroz pravi tok: RSD artikal bez ručne
  * provizije, kurs nije postavljen -> stavka 'automatic', 0,00 EUR, procenat 10, porudžbina bez kursa.
- * Očekivani iznosi su konstante iz testa: round(12000 / 117.2 * 0.10, 2) = 10.24; po kursu 118: 10.17.
+ * Očekivani iznosi su konstante iz testa: 12000 RSD x 10 %: kurs 117,2 -> 10.24; 118 -> 10.17; 130 -> 9.23.
  */
 final class FixNoRateCommissionsCommandTest extends TestCase
 {
     use RefreshDatabase;
 
     private const HISTORY_RATE = 117.2;
+    private const LATER_RATE = 130.0;
     private const CURRENT_RATE = '118.000000';
     private const EXPECTED_HISTORY = '10.24';
     private const EXPECTED_CURRENT = '10.17';
+    private const EXPECTED_LATER = '9.23';
+    private const CONFIRM = 'Upisati ispravke za %d provizija? Prethodno pregledaj dry-run CSV.';
 
     private int $seq = 0;
     private User $sub;
     private User $admin;
     private User $owner;
+    /** @var list<string> */
+    private array $reportsBefore = [];
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->reportsBefore = $this->reports();
         $this->seed(CoreAccessSeeder::class);
         $this->sub = $this->user('sub-nr', 'user');
         $this->admin = $this->user('adm-nr', 'admin');
@@ -55,8 +64,14 @@ final class FixNoRateCommissionsCommandTest extends TestCase
 
     protected function tearDown(): void
     {
-        File::delete(File::glob(storage_path('app/reports/commissions-fix-norate-*.csv')) ?: []);
+        File::delete(array_values(array_diff($this->reports(), $this->reportsBefore))); // samo CSV koje je napravio ovaj test
         parent::tearDown();
+    }
+
+    /** @return list<string> */
+    private function reports(): array
+    {
+        return File::glob(storage_path('app/reports/commissions-fix-norate-*.csv')) ?: [];
     }
 
     private function user(string $username, string $role): User
@@ -100,29 +115,43 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         return $commission;
     }
 
-    /** @return list<string> */
+    /** @return list<?string> izvor, jedinična provizija, procenat */
     private function itemState(OrderCommission $commission): array
     {
         $item = DB::table('order_items')->where('order_id', $commission->order_id)->orderBy('id')->first();
 
-        return [(string) $item->commission_source_snapshot, number_format((float) $item->commission_unit_eur_snapshot, 2, '.', ''), number_format((float) $item->commission_rate_percent_snapshot, 2, '.', '')];
+        return [
+            (string) $item->commission_source_snapshot,
+            number_format((float) $item->commission_unit_eur_snapshot, 2, '.', ''),
+            $item->commission_rate_percent_snapshot === null ? null : number_format((float) $item->commission_rate_percent_snapshot, 2, '.', ''),
+        ];
     }
 
-    private function seedRates(): void
+    private function rate(float $rate, Carbon $at): ExchangeRateHistory
     {
-        ExchangeRateHistory::query()->create([
-            'old_rate' => null, 'new_rate' => self::HISTORY_RATE, 'mode' => 'manual', 'provider' => 'manual', 'source' => 'test',
-            'provider_date' => now()->subDays(3)->toDateString(), 'triggered_by' => 'panel', 'status' => 'success', 'message' => 'test',
-        ])->forceFill(['created_at' => now()->subDays(3)])->save();
-        // Kasniji kurs (posle dana porudžbine) ne sme da se koristi kao kurs "na dan porudžbine".
-        ExchangeRateHistory::query()->create([
-            'old_rate' => self::HISTORY_RATE, 'new_rate' => 130, 'mode' => 'manual', 'provider' => 'manual', 'source' => 'test',
-            'provider_date' => now()->addDays(2)->toDateString(), 'triggered_by' => 'panel', 'status' => 'success', 'message' => 'test',
-        ])->forceFill(['created_at' => now()->addDays(2)])->save();
+        $row = ExchangeRateHistory::query()->create([
+            'old_rate' => null, 'new_rate' => $rate, 'mode' => 'manual', 'provider' => 'manual', 'source' => 'test',
+            'provider_date' => $at->toDateString(), 'triggered_by' => 'panel', 'status' => 'success', 'message' => 'test',
+        ]);
+        $row->forceFill(['created_at' => $at])->save();
+
+        return $row;
+    }
+
+    private function setCurrentRate(): void
+    {
         app(SettingsService::class)->putMany(['eur_rsd_rate' => self::CURRENT_RATE], null);
     }
 
-    private function fix(array $options = []): \Illuminate\Testing\PendingCommand
+    /** Raniji kurs (117,2), kasniji kurs (130) i trenutni (118): podrazumevano se mora uzeti raniji. */
+    private function seedRates(): void
+    {
+        $this->rate(self::HISTORY_RATE, now()->subDays(3));
+        $this->rate(self::LATER_RATE, now()->addDays(2));
+        $this->setCurrentRate();
+    }
+
+    private function fix(array $options = []): PendingCommand
     {
         return $this->artisan('commissions:fix-norate', $options + ['--no-interaction' => true]);
     }
@@ -140,6 +169,30 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         return array_combine($t = ['order_commissions', 'order_items', 'commission_status_history', 'audit_logs'], array_map($hash, $t));
     }
 
+    /** @return list<list<string>> redovi CSV-a bez zaglavlja */
+    private function csvRows(string $mode): array
+    {
+        $files = array_values(array_diff(File::glob(storage_path("app/reports/commissions-fix-norate-$mode-*.csv")), $this->reportsBefore));
+        self::assertCount(1, $files);
+        $lines = array_map(static fn (string $l): array => str_getcsv($l, ',', '"', ''), file($files[0], FILE_IGNORE_NEW_LINES));
+
+        return array_slice($lines, 1);
+    }
+
+    /** Porudžbina na fiksan datum (10:00), da granica dana ne zavisi od sata izvođenja testa. */
+    private function onDay(OrderCommission $commission, string $day): void
+    {
+        DB::table('orders')->where('id', $commission->order_id)->update(['created_at' => $day.' 10:00:00']);
+    }
+
+    private function auditFor(OrderCommission $commission): object
+    {
+        $rows = DB::table('audit_logs')->where('action', 'commission.norate_corrected')->where('auditable_id', $commission->id)->get();
+        self::assertCount(1, $rows);
+
+        return $rows[0];
+    }
+
     // 1
     public function test_dry_run_changes_nothing_and_reports_proposed_amounts_and_csv(): void
     {
@@ -150,15 +203,42 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         $this->fix()
             ->expectsOutputToContain('DRY-RUN')
             ->expectsOutputToContain(self::EXPECTED_HISTORY)
+            ->expectsOutputToContain('ukupno povećanje: '.self::EXPECTED_HISTORY.' EUR')
             ->assertSuccessful();
 
         self::assertSame($before, $this->tableHashes(), 'dry-run ne sme da upiše ništa');
-        $csv = File::glob(storage_path('app/reports/commissions-fix-norate-dry-run-*.csv'));
-        self::assertCount(1, $csv);
-        $content = (string) file_get_contents($csv[0]);
-        self::assertStringContainsString((string) $commission->order->order_number, $content);
-        self::assertStringContainsString(self::EXPECTED_HISTORY, $content);
-        self::assertStringContainsString('istorija #', $content);
+        $rows = $this->csvRows('dry-run');
+        self::assertCount(1, $rows);
+        self::assertSame((string) $commission->order->order_number, $rows[0][0]);
+        self::assertSame(self::EXPECTED_HISTORY, $rows[0][6]);
+        self::assertStringStartsWith('istorija #', $rows[0][8]);
+        self::assertSame('predlog', $rows[0][9]);
+    }
+
+    // 3 (deo): dry-run ne predlaže isključene provizije i ne ubraja ih u zbir
+    public function test_dry_run_does_not_propose_excluded_commissions_nor_count_them(): void
+    {
+        $classA = $this->affected();
+        Product::query()->whereKey(DB::table('order_items')->where('order_id', $classA->order_id)->value('product_id'))->update(['manual_commission_eur' => 20]);
+        $adjusted = $this->affected();
+        DB::table('commission_adjustments')->insert([
+            'commission_id' => $adjusted->id, 'order_id' => $adjusted->order_id, 'kind' => 'reversal', 'status' => 'proposed',
+            'amount_eur' => '0.00', 'reason' => 'test', 'source' => 'test', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $control = $this->affected();
+        $this->seedRates();
+
+        $this->fix()
+            ->expectsOutputToContain('1 provizija odgovara uslovu')
+            ->expectsOutputToContain('ukupno povećanje: '.self::EXPECTED_HISTORY.' EUR')
+            ->assertSuccessful();
+
+        $byCommission = collect($this->csvRows('dry-run'))->keyBy(1);
+        self::assertSame(self::EXPECTED_HISTORY, $byCommission[(string) $control->id][6]);
+        self::assertSame('', $byCommission[(string) $classA->id][6]);
+        self::assertStringContainsString('klasa A', $byCommission[(string) $classA->id][9]);
+        self::assertSame('', $byCommission[(string) $adjusted->id][6]);
+        self::assertStringContainsString('korekcije', $byCommission[(string) $adjusted->id][9]);
     }
 
     // 2
@@ -183,8 +263,73 @@ final class FixNoRateCommissionsCommandTest extends TestCase
             $history = DB::table('commission_status_history')->where('commission_id', $c->id)->where('metadata_json', 'like', '%fix_norate_20261124%')->get();
             self::assertCount(1, $history);
             self::assertSame($history[0]->old_status, $history[0]->new_status);
-            self::assertSame(1, DB::table('audit_logs')->where('action', 'commission.norate_corrected')->where('auditable_id', $c->id)->count());
+            $this->auditFor($c);
         }
+    }
+
+    // 7 (N7): sadržaj audit zapisa
+    public function test_audit_record_holds_before_after_and_item_details(): void
+    {
+        $commission = $this->affected(paid: true, quantity: 2);
+        $this->seedRates();
+
+        $this->fix(['--apply' => true])->assertSuccessful();
+
+        $audit = $this->auditFor($commission);
+        $before = json_decode((string) $audit->before_json, true, flags: JSON_THROW_ON_ERROR);
+        $after = json_decode((string) $audit->after_json, true, flags: JSON_THROW_ON_ERROR);
+        $meta = json_decode((string) $audit->metadata_json, true, flags: JSON_THROW_ON_ERROR);
+        $itemId = (int) DB::table('order_items')->where('order_id', $commission->order_id)->value('id');
+        self::assertSame(['total_eur' => '0.00', 'status' => 'approved'], array_intersect_key($before, ['total_eur' => 1, 'status' => 1]));
+        self::assertSame(['total_eur' => '20.48', 'status' => 'approved'], array_intersect_key($after, ['total_eur' => 1, 'status' => 1]));
+        self::assertSame(['unit' => '0.00', 'total' => '0.00'], $before['items'][$itemId]);
+        self::assertSame(['unit' => self::EXPECTED_HISTORY, 'total' => '20.48'], $after['items'][$itemId]);
+        self::assertSame('fix_norate_20261124', $meta['source']);
+        self::assertEqualsWithDelta(self::HISTORY_RATE, (float) $meta['rate'], 0.000001);
+        self::assertStringStartsWith('istorija #', $meta['rate_source']);
+        self::assertSame(2, $meta['items'][$itemId]['quantity']);
+        self::assertSame('0.00', $meta['items'][$itemId]['old_total']);
+        self::assertSame('20.48', $meta['items'][$itemId]['new_total']);
+    }
+
+    // kurs, put 1: najbliži raniji, uključujući kraj dana porudžbine (23:59:59)
+    public function test_rate_end_of_order_day_counts_as_earlier(): void
+    {
+        $commission = $this->affected();
+        $this->onDay($commission, '2026-11-20');
+        $this->rate(self::HISTORY_RATE, Carbon::parse('2026-11-20 23:59:59'));
+        $this->rate(self::LATER_RATE, Carbon::parse('2026-11-21 00:00:00'));
+        $this->setCurrentRate();
+
+        $this->fix(['--apply' => true])->expectsOutputToContain('istorija=1')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $commission->fresh()->total_eur);
+    }
+
+    // kurs, put 2: nema ranijeg -> prvi poslije porudžbine (granica: sledeći dan 00:00:00)
+    public function test_rate_falls_back_to_first_rate_after_order(): void
+    {
+        $commission = $this->affected();
+        $this->onDay($commission, '2026-11-20');
+        $this->rate(self::LATER_RATE, Carbon::parse('2026-11-21 00:00:00'));
+        $this->rate(150, Carbon::parse('2026-11-23 09:00:00'));
+        $this->setCurrentRate();
+
+        $this->fix(['--apply' => true])->expectsOutputToContain('prvi poslije=1')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_LATER, $commission->fresh()->total_eur);
+        self::assertStringStartsWith('prvi poslije #', json_decode((string) $this->auditFor($commission)->metadata_json, true)['rate_source']);
+    }
+
+    // kurs, put 3: istorija prazna -> trenutni
+    public function test_rate_falls_back_to_current_setting_without_history(): void
+    {
+        $commission = $this->affected();
+        $this->setCurrentRate();
+
+        $this->fix(['--apply' => true])->expectsOutputToContain('trenutni=1')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_CURRENT, $commission->fresh()->total_eur);
     }
 
     public function test_use_current_rate_option_takes_rate_from_settings(): void
@@ -211,10 +356,18 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         self::assertSame(['automatic', '0.00', '10.00'], $this->itemState($classA));
         self::assertSame(self::EXPECTED_HISTORY, $control->fresh()->total_eur, 'kontrola u istom pokretanju je ispravljena');
 
-        $this->fix(['--apply' => true, '--include-manual' => true])->assertSuccessful();
+        $this->fix(['--apply' => true, '--include-manual' => true])
+            ->expectsOutputToContain('DANAŠNJU ručnu proviziju')
+            ->assertSuccessful();
 
         self::assertSame('40.00', $classA->fresh()->total_eur, '20,00 EUR x 2');
-        self::assertSame(['manual', '20.00', '10.00'], $this->itemState($classA));
+        self::assertSame(['manual', '20.00', null], $this->itemState($classA), 'kao OrderService: ručna stavka nema procenat');
+        $itemId = (int) DB::table('order_items')->where('order_id', $classA->order_id)->value('id');
+        $meta = json_decode((string) $this->auditFor($classA)->metadata_json, true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame('20.00', $meta['items'][$itemId]['manual_commission_eur']);
+        self::assertSame('0.00', $meta['items'][$itemId]['old_total']);
+        self::assertSame('40.00', $meta['items'][$itemId]['new_total']);
+        self::assertTrue($meta['items'][$itemId]['estimate']);
     }
 
     /** @return array<string,array{0:string}> */
@@ -223,7 +376,7 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         return array_combine($c = ['paid', 'cancelled', 'payment_batch', 'adjustment', 'order_cancelled', 'direct_sale', 'eur_item', 'rate_percent_zero', 'price_zero', 'order_has_rate'], array_map(static fn (string $x): array => [$x], $c));
     }
 
-    // 4
+    // 4: svaka granica posebno, uz kontrolnu proviziju koja se u istom pokretanju ispravlja
     #[DataProvider('untouchable')]
     public function test_boundaries_are_never_touched(string $case): void
     {
@@ -261,6 +414,22 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         self::assertSame(0, DB::table('audit_logs')->where('action', 'commission.norate_corrected')->where('auditable_id', $target->id)->count());
     }
 
+    // N8: isplaćene pogođene provizije se samo listaju
+    public function test_paid_affected_commissions_are_listed_but_not_changed(): void
+    {
+        $paid = $this->affected(paid: true);
+        $paid->update(['status' => 'paid', 'paid_at' => now(), 'paid_by' => $this->owner->id]);
+        $this->seedRates();
+        $before = $this->tableHashes();
+
+        $this->fix(['--apply' => true])
+            ->expectsOutputToContain('Već isplaćene pogođene provizije (samo pregled, ne menja se)')
+            ->expectsOutputToContain('već isplaćenih pogođenih: 1')
+            ->assertSuccessful();
+
+        self::assertSame($before, $this->tableHashes());
+    }
+
     // 5
     public function test_missing_rate_skips_with_reason_and_writes_nothing(): void
     {
@@ -288,6 +457,46 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         self::assertSame(1, $this->fixHistoryCount());
     }
 
+    // N6 + N7: potvrda broji samo primenjive provizije; odbijanje -> nema upisa
+    public function test_declined_confirmation_writes_nothing_and_counts_only_applicable(): void
+    {
+        $this->affected();
+        $classA = $this->affected();
+        Product::query()->whereKey(DB::table('order_items')->where('order_id', $classA->order_id)->value('product_id'))->update(['manual_commission_eur' => 20]);
+        $this->seedRates();
+        $before = $this->tableHashes();
+
+        $this->artisan('commissions:fix-norate', ['--apply' => true])
+            ->expectsConfirmation(sprintf(self::CONFIRM, 1), 'no')
+            ->expectsOutputToContain('Prekinuto')
+            ->assertSuccessful();
+
+        self::assertSame($before, $this->tableHashes());
+    }
+
+    public function test_confirmed_interactive_apply_writes(): void
+    {
+        $commission = $this->affected();
+        $this->seedRates();
+
+        $this->artisan('commissions:fix-norate', ['--apply' => true])->expectsConfirmation(sprintf(self::CONFIRM, 1), 'yes')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $commission->fresh()->total_eur);
+    }
+
+    // N7: --order ograničava na izabranu porudžbinu
+    public function test_order_option_limits_to_selected_order(): void
+    {
+        $chosen = $this->affected();
+        $other = $this->affected();
+        $this->seedRates();
+
+        $this->fix(['--apply' => true, '--order' => [$chosen->order_id]])->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $chosen->fresh()->total_eur);
+        self::assertSame('0.00', $other->fresh()->total_eur);
+    }
+
     // 7
     public function test_mixed_order_total_is_sum_of_both_items(): void
     {
@@ -304,30 +513,76 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         self::assertSame('15.24', $commission->fresh()->total_eur, '5,00 + 10,24');
     }
 
-    // 8
+    /** Jednom, odmah posle izbora provizije u chunk-u (pre transakcije), izvrši izmenu "iz drugog procesa". */
+    private function betweenSelectionAndTransaction(callable $change): void
+    {
+        $fired = false;
+        Event::listen('eloquent.retrieved: '.OrderCommission::class, static function (OrderCommission $row) use (&$fired, $change): void {
+            if (!$fired) {
+                $fired = true;
+                $change($row);
+            }
+        });
+    }
+
+    // 8a: isplata u međuvremenu
     public function test_commission_paid_between_selection_and_transaction_is_skipped(): void
     {
         $commission = $this->affected(paid: true);
         $this->seedRates();
-        $fired = false;
-        $key = 'eloquent.retrieved: '.OrderCommission::class;
-        // Prvo čitanje (izbor u chunk-u) vidi "approved"; odmah posle toga isplata stiže iz drugog procesa.
-        Event::listen($key, static function (OrderCommission $row) use (&$fired): void {
-            if (!$fired) {
-                $fired = true;
-                DB::table('order_commissions')->where('id', $row->id)->update(['status' => 'paid', 'paid_at' => now()]);
-            }
-        });
-        try {
-            $this->fix(['--apply' => true])->expectsOutputToContain('promenila')->assertSuccessful();
-        } finally {
-            Event::forget($key);
-        }
+        $this->betweenSelectionAndTransaction(static fn (OrderCommission $row) => DB::table('order_commissions')->where('id', $row->id)->update(['status' => 'paid', 'paid_at' => now()]));
 
-        self::assertTrue($fired);
+        $this->fix(['--apply' => true])->expectsOutputToContain('provizija se u međuvremenu promenila')->assertSuccessful();
+
         self::assertSame('0.00', $commission->fresh()->total_eur);
         self::assertSame(['automatic', '0.00', '10.00'], $this->itemState($commission));
         self::assertSame(0, $this->fixHistoryCount());
+    }
+
+    // 8b: korekcija u međuvremenu
+    public function test_adjustment_added_between_selection_and_transaction_is_skipped(): void
+    {
+        $commission = $this->affected(paid: true);
+        $this->seedRates();
+        $this->betweenSelectionAndTransaction(static fn (OrderCommission $row) => DB::table('commission_adjustments')->insert([
+            'commission_id' => $row->id, 'order_id' => $row->order_id, 'kind' => 'reversal', 'status' => 'proposed',
+            'amount_eur' => '0.00', 'reason' => 'test', 'source' => 'test', 'created_at' => now(), 'updated_at' => now(),
+        ]));
+
+        $this->fix(['--apply' => true])->expectsOutputToContain('provizija ima korekcije')->assertSuccessful();
+
+        self::assertSame('0.00', $commission->fresh()->total_eur);
+        self::assertSame(0, $this->fixHistoryCount());
+    }
+
+    // 8c: količina promenjena u međuvremenu -> iznos iz zaključane stavke
+    public function test_amount_uses_locked_quantity_changed_after_selection(): void
+    {
+        $commission = $this->affected(paid: true);
+        $this->seedRates();
+        $this->betweenSelectionAndTransaction(static fn (OrderCommission $row) => DB::table('order_items')->where('order_id', $row->order_id)->update(['quantity' => 3]));
+
+        $this->fix(['--apply' => true])->assertSuccessful();
+
+        self::assertSame('30.72', $commission->fresh()->total_eur, '3 komada x 10.24, ne 1 komad iz izbora');
+        self::assertSame('30.72', number_format((float) DB::table('order_items')->where('order_id', $commission->order_id)->value('commission_total_eur_snapshot'), 2, '.', ''));
+    }
+
+    // N1: zaključavanje porudžbina -> proizvodi -> stavke -> provizija
+    public function test_apply_locks_order_products_items_commission_in_order(): void
+    {
+        $this->affected(paid: true);
+        $this->seedRates();
+        $locked = [];
+        DB::listen(static function (QueryExecuted $q) use (&$locked): void {
+            if (str_contains(strtolower($q->sql), 'for update') && preg_match('/from [`"]?(\w+)[`"]?/i', $q->sql, $m) === 1) {
+                $locked[] = $m[1];
+            }
+        });
+
+        $this->fix(['--apply' => true])->assertSuccessful();
+
+        self::assertSame(['orders', 'products', 'order_items', 'order_commissions'], $locked);
     }
 
     // 9
