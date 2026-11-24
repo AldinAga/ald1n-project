@@ -394,7 +394,9 @@ jobs:
           echo "STEPS=$steps NEW=$nnew MODIFIED=$nmod ORPHANS=$norph"
           test "$steps" -gt 0
           echo "$steps" > "$RUNNER_TEMP/steps-count.txt"
-          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vE $'\tapps/cms/current/((tests|docs)/|composer\\.lock$|MANIFEST-SHA256\\.txt$)' | tee "$RUNNER_TEMP/source-diff.txt"
+          # Files the generator excluded from the payload (composer.lock, files outside the runtime manifest roots, bin tools no earlier rollout shipped) are listed in EXCLUDED_FILES.
+          excl="$(php -r 'require $argv[1];echo implode("|",array_map(static fn($p)=>preg_quote($p,"~"),array_keys(B1158Payload::EXCLUDED_FILES)));' tools/storefront/b1158/Payload.php)"; test -n "$excl"
+          git diff --no-renames --name-status "$B1158_BASE" "$B1158_SRC" -- apps/cms/current | grep -vP "\tapps/cms/current/((tests|docs)/|($excl)\$)" | tee "$RUNNER_TEMP/source-diff.txt"
           test "$(grep -vc $'^D\t' "$RUNNER_TEMP/source-diff.txt")" = "$steps"
           test "$(cut -f2 "$RUNNER_TEMP/source-diff.txt" | sort | uniq -d | wc -l)" = 0
           test "$(grep -c $'^A\t' "$RUNNER_TEMP/source-diff.txt")" = "$nnew"

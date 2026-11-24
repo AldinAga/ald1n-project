@@ -33,20 +33,8 @@ final class B1158Payload
         ['app/Http/Controllers/AccountDeletionController.php','modified','C','M'],
         ['app/Http/Controllers/SignedProductMediaController.php','modified','C','M'],
         ['bin/admin-orders-index-ux-smoke.php','modified','C','M'],
-        ['bin/brand-manager-v0.9-smoke.php','modified','C','M'],
-        ['bin/catalog-card-action-smoke.php','modified','C','M'],
-        ['bin/catalog-settings-product-data-smoke.php','modified','C','M'],
-        ['bin/cms-v2.1.4-smoke.php','modified','C','M'],
-        ['bin/cms-v2.1.5-smoke.php','modified','C','M'],
-        ['bin/cms-v2.1.6-smoke.php','modified','C','M'],
-        ['bin/customer-portal-2-smoke.php','modified','C','M'],
         ['bin/notifications-inbox-ux-smoke.php','modified','C','M'],
-        ['bin/product-media-ux-smoke.php','modified','C','M'],
-        ['bin/stable-maintenance-smoke.php','modified','C','M'],
         ['bin/static-check.php','modified','C','M'],
-        ['bin/storage-capacity-total-smoke.php','modified','C','M'],
-        ['bin/theme-css-smoke.php','modified','C','M'],
-        ['bin/ui794-render-smoke.php','modified','C','M'],
         ['public/assets/css/ald1n-admin.css','modified','C','M'],
         ['public/assets/css/ald1n-auth.css','modified','C','M'],
         ['public/assets/css/ald1n-liquid-glass.css','modified','C','M'],
@@ -148,20 +136,8 @@ final class B1158Payload
         'app/Http/Controllers/AccountDeletionController.php'=>['a126e70f21b0c301ea0c636a6ab23e9064874bebc2f9757d98e8525a096c50f1','ae8c2cec956257dcb5d13cffff0c1281e9d6e501c63770e382ca2578114781e6'],
         'app/Http/Controllers/SignedProductMediaController.php'=>['d029fd2346b534b63e27721101d8a3bfdd6d6b2b4ef8648817c713f5b2dea1b6','8c27907ec7728c9b07714de77cc19971fa9e70bad42c176417f123e739019d64'],
         'bin/admin-orders-index-ux-smoke.php'=>['7682b2bd802c5003292921b551ae4b1b0016f2ca940cf6f37efada438693d217','c6f722e6ef8e7c1880ba61280781fc7da28f115e14ef1ffa4a5f5eb9257022de'],
-        'bin/brand-manager-v0.9-smoke.php'=>['79e8abaf29b78d8a9895647a0d57967588a0c2a04520c4f2ce65f4adb569b34e','67d97fd456def91bc27f6662a7b96dff2e6cea23ff94873c94241075776325a5'],
-        'bin/catalog-card-action-smoke.php'=>['ba7e74dda91933753101a6747b18c8119e4313992e5a0a7b3005bc979bf14c38','0389129265d9285d5a33b99090ff1c00e0c8504ed2379f3e87e6c58bfdca8e95'],
-        'bin/catalog-settings-product-data-smoke.php'=>['df46147014e493b7c5771df058329c614f933a8ba47585958d6b46a33505d1dd','0fe6a98cd865688502c36d51ee28f96a860f18d51e4a06f3fe39b76c9f05e778'],
-        'bin/cms-v2.1.4-smoke.php'=>['fe930ed461629a7974d0fb4300b61faa3f805fbb29cd4bb9efb341af31f763a0','57079e6cdffeb3ef5e28f9bfb6213fd566333863d6c93c7edc1022818b4907f6'],
-        'bin/cms-v2.1.5-smoke.php'=>['e7f4e6878130a13747ea413d9825f99d99300df7e3330d615356b0de213f1a47','97f8fff875561a4f22b3a7c508f5e3c4433787150541ba8b46d30e3de4897101'],
-        'bin/cms-v2.1.6-smoke.php'=>['955733e6ce259be0dc1b7f4cceb8a61d975024a08ce7143828e3859464493b19','ef9f752195383788cdea8020efbfe3534c365a12e9f69833789bed0f6fcfd59e'],
-        'bin/customer-portal-2-smoke.php'=>['2c73148421c7efd7e5310d024ca9c7153f811c3e3c4d8bb7056cf189df6d441f','c7901bc8a9adeeece00635e3c312924e8ba19df698456c43f673842f19d5792f'],
         'bin/notifications-inbox-ux-smoke.php'=>['9e61533310ee2432e2940bd4152ae3ec3cd386e848f8dfb18250d8358d04d1de','523606d02d1eee3e44eb3849e50eeb60e89c8c379702176b7670f0ae96715585'],
-        'bin/product-media-ux-smoke.php'=>['121659734e9503a76e1514fc0a239e0156bd44f41e29b046ac0e84c7be34151e','ba72c7aa88f2abc8d0bf7980e80b062f957e9c612c5e6604f473f7ff3d04740d'],
-        'bin/stable-maintenance-smoke.php'=>['690220058a6618017b1f76e902213a0f27fb10fea9fc842c5a8ff2637123ed9c','8b81a048accbc05f78516426541588e9358491a4876989ccad10f65ac645b23f'],
         'bin/static-check.php'=>['11686a5a82ee7d4e5976b75bd6bd8ccab3ff2a66600337ed153d0d48edfb704c','c822f367b118a9a9020be8728cf7fe6ba3a79deb2d5bf61afb68aa7d1ca2e049'],
-        'bin/storage-capacity-total-smoke.php'=>['9d6a17f18b567cafe8fd98afbc9a342b95e41e208100a2db6f6e0233d8a28e76','35094d1d49be3e2434be547517654a8e75345b38b2589f5fb117b48c7632120f'],
-        'bin/theme-css-smoke.php'=>['af6773ed354754252a948397579c3ecbbe1cfec4ba23e186f8ffe8d2e73d2782','91989d7e2dfe09a7248ee10a6fb400a562fca2d769fac57c246a0aa85d80d9ad'],
-        'bin/ui794-render-smoke.php'=>['9107e8530c04cc430d89fe08b7f0db99dfec102df215b21eed74bf9ad50ba5b4','7b2ed7e85155edcc3c471670c8e8a687fb6b5db867b0961b471635397b2746ce'],
         'public/assets/css/ald1n-admin.css'=>['c8220e77c0d9e3274fb718c36e1190d589d4847f50ececd931652ebb51e0e032','036e787fd99648567f1565c3596e2b4cc67acde5d7105d787d40871eb416872a'],
         'public/assets/css/ald1n-auth.css'=>['b9ad3fef8b9ebac1287eb6e17fe3e36c29a2425bbf54794684bfb10b135ec610','eabecf6f439f80f43afcd1d925d545668038b084ee8df23c4620aef14106e18b'],
         'public/assets/css/ald1n-liquid-glass.css'=>['ace1930985f69a8f3d5f5fa5b0e3d4fbd2c6f2d701d78a66e8c9126c354b6a3d','a2054399a6d32c0a66deff0af7ebc948c85ac330dc1fe8d940ea5fb218211852'],
@@ -238,7 +214,6 @@ final class B1158Payload
         'resources/views/warranties/show.blade.php'=>['6426b4567ecb02a5f8fd213819fe2aa1fa6657bf5b32023f7f9e7dfbce556bbb','53c21aebc897f094b0e39df7ff7570d81053c4eb205cf9fa6109b840cde9f382'],
     ];
     public const ORPHANS=[
-        'bin/catalog-grid-responsive-smoke.php'=>'a59f38cc10d729eb291885294c4d4260b520bef698329bb78efca2827872313a',
         'public/assets/css/ald1n-dashboard-d1.css'=>'1dcb486ba6c710e98518d319943eae03eccc93ee6c2dff71d4bace9db161011d',
         'public/assets/css/ald1n-user-retirement-action.css'=>'9aeb663a2c0433748c42f75cf54fe9f340ab9597b827a26ca1ca6c9a3a8c2cdb',
         'resources/views/admin/access-control/partials/workspace-style.blade.php'=>'8e32a692eeb0e47a9bb1d77ba2b13bc4cd1d49dd598afa507f06a54cda90d593',
@@ -261,7 +236,6 @@ final class B1158Payload
     public const ORPHANS_ALL=array (
   'resources/views/dashboard/partials/kpi-delta.blade.php' => '61c4e167f073a1e5ab464c1afd6ec69f276251d8c803bdb2a3e2a2a8248d2b1a',
   'resources/views/dashboard/partials/operator-orders.blade.php' => 'b46002803a914ff5c1c8c2015fe04ce36d842b423708e3761c70d7e183cf08b5',
-  'bin/catalog-grid-responsive-smoke.php' => 'a59f38cc10d729eb291885294c4d4260b520bef698329bb78efca2827872313a',
   'public/assets/css/ald1n-dashboard-d1.css' => '1dcb486ba6c710e98518d319943eae03eccc93ee6c2dff71d4bace9db161011d',
   'public/assets/css/ald1n-user-retirement-action.css' => '9aeb663a2c0433748c42f75cf54fe9f340ab9597b827a26ca1ca6c9a3a8c2cdb',
   'resources/views/admin/access-control/partials/workspace-style.blade.php' => '8e32a692eeb0e47a9bb1d77ba2b13bc4cd1d49dd598afa507f06a54cda90d593',
@@ -476,20 +450,8 @@ final class B1158Payload
     public const NEW_API_ROUTES=0;
     public const NEW_BIN=array (
   0 => 'bin/admin-orders-index-ux-smoke.php',
-  1 => 'bin/brand-manager-v0.9-smoke.php',
-  2 => 'bin/catalog-card-action-smoke.php',
-  3 => 'bin/catalog-settings-product-data-smoke.php',
-  4 => 'bin/cms-v2.1.4-smoke.php',
-  5 => 'bin/cms-v2.1.5-smoke.php',
-  6 => 'bin/cms-v2.1.6-smoke.php',
-  7 => 'bin/customer-portal-2-smoke.php',
-  8 => 'bin/notifications-inbox-ux-smoke.php',
-  9 => 'bin/product-media-ux-smoke.php',
-  10 => 'bin/stable-maintenance-smoke.php',
-  11 => 'bin/static-check.php',
-  12 => 'bin/storage-capacity-total-smoke.php',
-  13 => 'bin/theme-css-smoke.php',
-  14 => 'bin/ui794-render-smoke.php',
+  1 => 'bin/notifications-inbox-ux-smoke.php',
+  2 => 'bin/static-check.php',
 );
     public const VIEW_CHECKS=array (
   0 => 'resources/views/admin/partials/g5-styles.blade.php',
@@ -576,187 +538,187 @@ final class B1158Payload
     0 => 'public/assets/css/ald1n-icons.css',
     1 => '.a1-icon--fit{display:block;flex:0 0 auto;overflow:visible;color:inherit;vertical-align:baseline}',
   ),
-  'm09' => 
+  'm08' => 
   array (
-    0 => 'app/Console/Commands/CmsV214DoctorCommand.php',
-    1 => 'public_path(\'assets/css/ald1n-admin.css\'),',
+    0 => 'database/migrations/2026_11_24_000001_add_catalog_view_notes_permission.php',
+    1 => 'declare(strict_types=1);',
   ),
   'm11' => 
   array (
     0 => 'app/Console/Commands/DeploymentCheckCommand.php',
     1 => '\'catalog.view_notes\',',
   ),
-  'm14' => 
+  'm13' => 
   array (
-    0 => 'app/Services/ApiAccessService.php',
-    1 => '\'catalog_notes\' => $has(\'catalog.view_notes\'),',
+    0 => 'app/Models/ProductImage.php',
+    1 => 'return $this->signedUrl(\'original\');',
   ),
-  'm16' => 
+  'm15' => 
   array (
-    0 => 'app/Services/MobilePushOutboxService.php',
-    1 => '$image = $data[\'image_url\'] ?? null;',
+    0 => 'app/Services/ExpoPushTransport.php',
+    1 => '$imageUrl = $payloadData[\'image_url\'] ?? null;',
   ),
-  'm19' => 
+  'm17' => 
   array (
-    0 => 'app/Services/UserDeletionService.php',
-    1 => 'use Illuminate\\Support\\Facades\\RateLimiter;',
+    0 => 'app/Services/OrderEmailDispatcher.php',
+    1 => 'private function enrichProductRows(Collection $rows): void',
   ),
-  'm21' => 
+  'm20' => 
   array (
-    0 => 'app/Http/Controllers/SignedProductMediaController.php',
-    1 => 'use App\\Models\\Product;',
+    0 => 'app/Http/Controllers/AccountDeletionController.php',
+    1 => 'use function Illuminate\\Support\\defer;',
+  ),
+  'm22' => 
+  array (
+    0 => 'bin/admin-orders-index-ux-smoke.php',
+    1 => 'if ($blade === false || $adminCss === false) {',
   ),
   'm24' => 
   array (
-    0 => 'bin/catalog-settings-product-data-smoke.php',
-    1 => '$catalogCss = $source(\'public/assets/css/ald1n-admin-catalog.css\');',
+    0 => 'bin/static-check.php',
+    1 => '$check(\'CSS ima pouzdan cache busting\', str_contains($layout, "filemtime(public_path(\'assets/css/ald1n-admin.css\'))"));',
   ),
-  'm26' => 
+  'm27' => 
   array (
-    0 => 'bin/cms-v2.1.5-smoke.php',
-    1 => '$css = $source(\'public/assets/css/ald1n-admin.css\'); // G7: touch target, dock and field errors are a1-* now',
+    0 => 'public/assets/css/ald1n-liquid-glass.css',
+    1 => '/* Ald1n Liquid Glass -- manually maintained CMS presentation overlay.',
   ),
   'm29' => 
   array (
-    0 => 'bin/stable-maintenance-smoke.php',
-    1 => '$check(\'Layout nema mrtav filter-collapse blok\', !str_contains($layout, \'form.filter-panel\'));',
+    0 => 'public/assets/css/app.css',
+    1 => '/* Alpha 2 catalog administration */',
   ),
   'm31' => 
-  array (
-    0 => 'bin/theme-css-smoke.php',
-    1 => '$files = array_merge(',
-  ),
-  'm34' => 
-  array (
-    0 => 'public/assets/css/ald1n-auth.css',
-    1 => '/* ---------- Page ---------- */',
-  ),
-  'm36' => 
-  array (
-    0 => 'public/assets/css/ald1n-ui-refinement.css',
-    1 => '/* Ald1n UI794 - scoped layout refinements over the existing Liquid Glass tokens.',
-  ),
-  'm39' => 
   array (
     0 => 'routes/web.php',
     1 => '->middleware(\'throttle:account-deletion-request\')->name(\'account-deletion.request\');',
   ),
-  'm41' => 
+  'm33' => 
   array (
     0 => 'resources/views/layouts/guest.blade.php',
     1 => 'class="floating-theme"',
   ),
-  'm44' => 
+  'm36' => 
   array (
     0 => 'resources/views/admin/products/partials/image-upload.blade.php',
     1 => '<div class="a1-pc-upload" data-image-upload-widget>',
   ),
-  'm46' => 
+  'm38' => 
   array (
     0 => 'resources/views/admin/settings/partials/svg-logo-panel.blade.php',
     1 => '<div class="a1-set-svgprev" data-svg-logo-preview>',
   ),
-  'm49' => 
+  'm40' => 
   array (
-    0 => 'resources/views/admin/audit/index.blade.php',
-    1 => '@include(\'admin.partials.g5-styles\')',
+    0 => 'resources/views/account/show.blade.php',
+    1 => '<div class="a1-ops" data-build16-account="1">',
   ),
-  'm51' => 
+  'm42' => 
   array (
-    0 => 'resources/views/admin/commissions/index.blade.php',
-    1 => '<div class="a1-rowact">',
+    0 => 'resources/views/admin/brands/index.blade.php',
+    1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm53' => 
+  'm45' => 
   array (
     0 => 'resources/views/admin/customer-portal/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
+  'm47' => 
+  array (
+    0 => 'resources/views/admin/data-quality/index.blade.php',
+    1 => '$severityPill = [\'critical\' => \'danger\', \'warning\' => \'warning\', \'info\' => \'info\'];',
+  ),
+  'm49' => 
+  array (
+    0 => 'resources/views/admin/dictionary/index.blade.php',
+    1 => '@include(\'admin.products.partials.styles\')',
+  ),
+  'm52' => 
+  array (
+    0 => 'resources/views/admin/inventory/index.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
+  ),
+  'm54' => 
+  array (
+    0 => 'resources/views/admin/products/bulk.blade.php',
+    1 => '@include(\'admin.products.partials.styles\')',
+  ),
   'm56' => 
   array (
-    0 => 'resources/views/admin/dictionary/fields.blade.php',
-    1 => '<div class="a1-pc-note a1-pc-span2">',
+    0 => 'resources/views/admin/products/form.blade.php',
+    1 => '@include(\'admin.products.partials.styles\')',
   ),
   'm58' => 
-  array (
-    0 => 'resources/views/admin/dictionary/product-type.blade.php',
-    1 => '@include(\'admin.products.partials.styles\')',
-  ),
-  'm61' => 
-  array (
-    0 => 'resources/views/admin/products/archived.blade.php',
-    1 => '@include(\'admin.products.partials.styles\')',
-  ),
-  'm63' => 
-  array (
-    0 => 'resources/views/admin/products/clone.blade.php',
-    1 => '@include(\'admin.products.partials.styles\')',
-  ),
-  'm66' => 
   array (
     0 => 'resources/views/admin/products/import.blade.php',
     1 => '@include(\'admin.products.partials.styles\')',
   ),
-  'm68' => 
+  'm61' => 
   array (
-    0 => 'resources/views/admin/products/purchase-costs.blade.php',
-    1 => '@include(\'admin.products.partials.styles\')',
+    0 => 'resources/views/admin/reports/index.blade.php',
+    1 => '<div class="a1-alert a1-alert--warning" role="status">',
   ),
-  'm71' => 
+  'm63' => 
   array (
     0 => 'resources/views/admin/settings/appearance.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm73' => 
+  'm65' => 
   array (
     0 => 'resources/views/admin/settings/bank-accounts.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm76' => 
+  'm67' => 
   array (
-    0 => 'resources/views/admin/settings/exchange-rate.blade.php',
+    0 => 'resources/views/admin/settings/documents.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm78' => 
+  'm70' => 
   array (
     0 => 'resources/views/admin/settings/modules.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
-  'm81' => 
+  'm72' => 
   array (
-    0 => 'resources/views/admin/settings/public-storefront.blade.php',
+    0 => 'resources/views/admin/settings/public-storefront-legal.blade.php',
     1 => '<div class="a1-ops a1-set">',
   ),
+  'm74' => 
+  array (
+    0 => 'resources/views/admin/settings/smtp.blade.php',
+    1 => '<div class="a1-ops a1-set">',
+  ),
+  'm77' => 
+  array (
+    0 => 'resources/views/admin/stock/index.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
+  ),
+  'm79' => 
+  array (
+    0 => 'resources/views/admin/users/index.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
+  ),
+  'm81' => 
+  array (
+    0 => 'resources/views/admin/warranties/index.blade.php',
+    1 => '@include(\'admin.partials.g5-styles\')',
+  ),
   'm83' => 
-  array (
-    0 => 'resources/views/admin/settings/system-health.blade.php',
-    1 => '$statusTone = [\'healthy\' => \'ok\', \'warning\' => \'warning\', \'critical\' => \'danger\'];',
-  ),
-  'm86' => 
-  array (
-    0 => 'resources/views/admin/user-groups/index.blade.php',
-    1 => '@include(\'admin.partials.g5-styles\')',
-  ),
-  'm88' => 
-  array (
-    0 => 'resources/views/admin/users/retirement-preview.blade.php',
-    1 => '@include(\'admin.partials.g5-styles\')',
-  ),
-  'm91' => 
   array (
     0 => 'resources/views/catalog/index.blade.php',
     1 => '@pushOnce(\'head\', \'a1-admin-catalog-css\')',
   ),
-  'm93' => 
+  'm86' => 
   array (
-    0 => 'resources/views/components/icon.blade.php',
-    1 => '\'check\' => \'check\',',
+    0 => 'resources/views/emails/order-events.blade.php',
+    1 => '$productNotes = trim((string) ($metadata[\'product_notes\'] ?? \'\'));',
   ),
-  'm96' => 
+  'm88' => 
   array (
     0 => 'resources/views/portal/messages/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
   ),
-  'm98' => 
+  'm90' => 
   array (
     0 => 'resources/views/warranties/index.blade.php',
     1 => '@include(\'admin.partials.g5-styles\')',
@@ -780,11 +742,82 @@ final class B1158Payload
 );
     public const TIGHT_ORDER=array (
 );
+    public const BIN_SHIPPED_ALL=array (
+  0 => 'bin/admin-orders-index-ux-smoke.php',
+  1 => 'bin/commission-percentage-policy-smoke.php',
+  2 => 'bin/static-check.php',
+  3 => 'bin/notifications-inbox-ux-smoke.php',
+);
     public const EXCLUDED_FILES=array (
   'MANIFEST-SHA256.txt' => 
   array (
     0 => '115afe66a1363167521cdb5e18f8bae6de58a855d59a5a9d35a4a8d95f0ddd8b',
     1 => '1bf81987734d009504591b17920583eacad4eebce1c40231faa40a0739cb4233',
+  ),
+  'bin/brand-manager-v0.9-smoke.php' => 
+  array (
+    0 => '79e8abaf29b78d8a9895647a0d57967588a0c2a04520c4f2ce65f4adb569b34e',
+    1 => '67d97fd456def91bc27f6662a7b96dff2e6cea23ff94873c94241075776325a5',
+  ),
+  'bin/catalog-card-action-smoke.php' => 
+  array (
+    0 => 'ba7e74dda91933753101a6747b18c8119e4313992e5a0a7b3005bc979bf14c38',
+    1 => '0389129265d9285d5a33b99090ff1c00e0c8504ed2379f3e87e6c58bfdca8e95',
+  ),
+  'bin/catalog-grid-responsive-smoke.php' => 
+  array (
+    0 => 'a59f38cc10d729eb291885294c4d4260b520bef698329bb78efca2827872313a',
+    1 => NULL,
+  ),
+  'bin/catalog-settings-product-data-smoke.php' => 
+  array (
+    0 => 'df46147014e493b7c5771df058329c614f933a8ba47585958d6b46a33505d1dd',
+    1 => '0fe6a98cd865688502c36d51ee28f96a860f18d51e4a06f3fe39b76c9f05e778',
+  ),
+  'bin/cms-v2.1.4-smoke.php' => 
+  array (
+    0 => 'fe930ed461629a7974d0fb4300b61faa3f805fbb29cd4bb9efb341af31f763a0',
+    1 => '57079e6cdffeb3ef5e28f9bfb6213fd566333863d6c93c7edc1022818b4907f6',
+  ),
+  'bin/cms-v2.1.5-smoke.php' => 
+  array (
+    0 => 'e7f4e6878130a13747ea413d9825f99d99300df7e3330d615356b0de213f1a47',
+    1 => '97f8fff875561a4f22b3a7c508f5e3c4433787150541ba8b46d30e3de4897101',
+  ),
+  'bin/cms-v2.1.6-smoke.php' => 
+  array (
+    0 => '955733e6ce259be0dc1b7f4cceb8a61d975024a08ce7143828e3859464493b19',
+    1 => 'ef9f752195383788cdea8020efbfe3534c365a12e9f69833789bed0f6fcfd59e',
+  ),
+  'bin/customer-portal-2-smoke.php' => 
+  array (
+    0 => '2c73148421c7efd7e5310d024ca9c7153f811c3e3c4d8bb7056cf189df6d441f',
+    1 => 'c7901bc8a9adeeece00635e3c312924e8ba19df698456c43f673842f19d5792f',
+  ),
+  'bin/product-media-ux-smoke.php' => 
+  array (
+    0 => '121659734e9503a76e1514fc0a239e0156bd44f41e29b046ac0e84c7be34151e',
+    1 => 'ba72c7aa88f2abc8d0bf7980e80b062f957e9c612c5e6604f473f7ff3d04740d',
+  ),
+  'bin/stable-maintenance-smoke.php' => 
+  array (
+    0 => '690220058a6618017b1f76e902213a0f27fb10fea9fc842c5a8ff2637123ed9c',
+    1 => '8b81a048accbc05f78516426541588e9358491a4876989ccad10f65ac645b23f',
+  ),
+  'bin/storage-capacity-total-smoke.php' => 
+  array (
+    0 => '9d6a17f18b567cafe8fd98afbc9a342b95e41e208100a2db6f6e0233d8a28e76',
+    1 => '35094d1d49be3e2434be547517654a8e75345b38b2589f5fb117b48c7632120f',
+  ),
+  'bin/theme-css-smoke.php' => 
+  array (
+    0 => 'af6773ed354754252a948397579c3ecbbe1cfec4ba23e186f8ffe8d2e73d2782',
+    1 => '91989d7e2dfe09a7248ee10a6fb400a562fca2d769fac57c246a0aa85d80d9ad',
+  ),
+  'bin/ui794-render-smoke.php' => 
+  array (
+    0 => '9107e8530c04cc430d89fe08b7f0db99dfec102df215b21eed74bf9ad50ba5b4',
+    1 => '7b2ed7e85155edcc3c471670c8e8a687fb6b5db867b0961b471635397b2746ce',
   ),
   'composer.lock' => 
   array (
@@ -792,9 +825,9 @@ final class B1158Payload
     1 => '14c8674060018b8155afb06accaa2b523b5e1018b476eadd507c36263d8bdb68',
   ),
 );
-    public const FILES=113;
+    public const FILES=101;
     public const NEW_FILES=10;
-    public const MODIFIED_FILES=103;
+    public const MODIFIED_FILES=91;
     public const TREE_FILES_AFTER=8630;
     public const TREE_FILES_BEFORE=8620;
     public const CHAIN_REPORT_SHA256='62f1789cefa18f418effc34b8581459e5e0afb13da55d046d1dbfe234363338f';

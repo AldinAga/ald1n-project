@@ -31,11 +31,14 @@ if($src===$base)throw new RuntimeException('GENERATE_TARGET_IS_THE_PREVIOUS_PAYL
 $blob=static fn(string $c,string $p):string=>(string)$git(['show',$c.':'.CMS.$p]);
 $diff=[];foreach(explode("\n",trim((string)$git(['diff','--no-renames','--name-status',$base,$src,'--',rtrim(CMS,'/')]))) as $l){if($l==='')continue;if(!preg_match('~^([AMD])\t'.preg_quote(CMS,'~').'(\S+)$~D',$l,$m))throw new RuntimeException('GENERATE_DIFF_LINE');$diff[$m[2]]=$m[1];}
 ksort($diff,SORT_STRING);
+$binShippedBefore=[];foreach(array_merge(CommissionsInstallCoordinator::STEPS,$P::STEPS) as $st)if(str_starts_with($st[0],'bin/'))$binShippedBefore[$st[0]]=true;if(defined($P.'::BIN_SHIPPED_ALL'))foreach(constant($P.'::BIN_SHIPPED_ALL') as $bp)$binShippedBefore[$bp]=true;
 $excludedFiles=[];$orphansBefore=defined($P.'::ORPHANS_ALL')?constant($P.'::ORPHANS_ALL'):array_merge(CommissionsInstallCoordinator::ORPHANS,$P::ORPHANS);$new=[];$mod=[];$orph=[];
 foreach($diff as $p=>$k){
     if(str_starts_with($p,'tests/')||str_starts_with($p,'docs/'))continue;
     // A path outside the runtime manifest roots (e.g. MANIFEST-SHA256.txt at the root of apps/cms/current) is not on the host at all: excluded and reported, never shipped.
     if(preg_match('~^(app|bootstrap|config|database/(migrations|seeders)|resources|routes|public|bin)/|^(artisan|composer\.json|composer\.lock|VERSION|RELEASE-TAG|CHANGELOG\.md)$~D',$p)!==1){$h=static fn(string $c)=>($bb=$git(['show',$c.':'.CMS.$p],false))===null?null:hash('sha256',$bb);$excludedFiles[$p]=[$k==='A'?null:$h($base),$k==='D'?null:$h($src)];fwrite(STDERR,'WARNING '.$p.' is outside the runtime manifest roots: EXCLUDED from the payload'.PHP_EOL);continue;}
+    // bin/: B1150 to B1153 did not ship bin/, so a bin file that no earlier rollout shipped is still the (older) manifest copy on the host, not the base commit's blob: it cannot be replaced safely (pre digest unknown here) and is excluded.
+    if(str_starts_with($p,'bin/')&&$k!=='A'&&!isset($binShippedBefore[$p])){$h=static fn(string $c)=>($bb=$git(['show',$c.':'.CMS.$p],false))===null?null:hash('sha256',$bb);$excludedFiles[$p]=[$h($base),$k==='D'?null:$h($src)];fwrite(STDERR,'WARNING '.$p.' is a bin tool no earlier rollout shipped: EXCLUDED from the payload (the host keeps its manifest copy)'.PHP_EOL);continue;}
     // composer.lock is NOT installed (the vendor tree stays as it is on the host): excluded and reported, never shipped. Any other composer, config or .env change stops the build.
     if($p==='composer.lock'){$excludedFiles[$p]=[hash('sha256',$blob($base,$p)),hash('sha256',$blob($src,$p))];fwrite(STDERR,'WARNING composer.lock differs between the base and the target: it is EXCLUDED from the payload, the vendor tree on the host is NOT updated; check that the code does not need the newer vendor versions'.PHP_EOL);continue;}
     if(preg_match('~^(config/|composer\.|\.env)~',$p)===1)throw new RuntimeException('GENERATE_FORBIDDEN_PATH_'.$p);
@@ -173,6 +176,7 @@ $out.="    public const ROUTES=".$B_ROUTES.";\n    public const ROUTES_AFTER=".$
 $out.="    public const NEW_BIN=".$v($newBin).";\n    public const VIEW_CHECKS=".$v($viewChecks).";\n    public const SOURCE_MARKERS=".$v($markers).";\n    public const PROOF_CLASSES=".$v($proof).";\n    public const PROVIDER_BINDINGS=".$v($bindings).";\n";
 $out.="    public const ADMIN_CSS_PATHS=".$v($cssChanged?['/assets/css/ald1n-admin.css'=>'public/assets/css/ald1n-admin.css']:[]).";\n";
 $out.="    public const TIGHT_ORDER=".$v($tight).";\n";
+$out.="    public const BIN_SHIPPED_ALL=".$v(array_values(array_unique(array_merge(array_keys($binShippedBefore),array_values(array_filter(array_column($steps,0),static fn($x)=>str_starts_with($x,'bin/'))))))).";\n";
 $out.="    public const EXCLUDED_FILES=".$v($excludedFiles).";\n";
 $out.="    public const FILES=".count($steps).";\n    public const NEW_FILES=".$newFiles.";\n    public const MODIFIED_FILES=".(count($steps)-$newFiles).";\n    public const TREE_FILES_AFTER=".$treeAfter.";\n    public const TREE_FILES_BEFORE=".$B_TREE.";\n";
 $out.="    public const CHAIN_REPORT_SHA256=".$v($reportSha??str_repeat('0',64)).";\n    public const CHAIN_STATE_ID=".$v($stateId??str_repeat('0',32)).";\n    public const CHAIN_PINS_FILLED=".($reportSha===null?'false':'true').";\n}\n";

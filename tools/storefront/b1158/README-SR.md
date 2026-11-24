@@ -1,4 +1,4 @@
-# B1158: 113 fajlova (10 novih, 103 izmijenjenih), migracije: `2026_11_24_000001_add_catalog_view_notes_permission`
+# B1158: 101 fajlova (10 novih, 91 izmijenjenih), migracije: `2026_11_24_000001_add_catalog_view_notes_permission`
 
 Autor: Ald1n <https://ald1n.com>
 
@@ -8,8 +8,8 @@ Paket prebacuje produkciju sa stanja B1157 (Izvještaj 1123, 8620 fajlova, 597 r
 
 ## Šta se mijenja
 
-- 113 fajlova u `apps/cms/current`: 10 novih, 103 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A10 B12 C25 D1 E1 F64.
-- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: `bin/catalog-grid-responsive-smoke.php`, `public/assets/css/ald1n-dashboard-d1.css`, `public/assets/css/ald1n-user-retirement-action.css`, `resources/views/admin/access-control/partials/workspace-style.blade.php` (broj: 4).
+- 101 fajlova u `apps/cms/current`: 10 novih, 91 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: A10 B12 C13 D1 E1 F64.
+- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: `public/assets/css/ald1n-dashboard-d1.css`, `public/assets/css/ald1n-user-retirement-action.css`, `resources/views/admin/access-control/partials/workspace-style.blade.php` (broj: 3).
 - Stablo posle instalacije ima 8630 fajlova (8620 + 10 novih).
 - Rute: 597 postaje 597 (razlika 0). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
 - Migracije: `2026_11_24_000001_add_catalog_view_notes_permission`. Izvršene posle migracije: 76 postaje 77.
