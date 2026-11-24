@@ -38,7 +38,7 @@ $check('Web BrandManagerController exists', str_contains($webController, $marker
 $check('API CatalogBrandController exists', str_contains($apiController, $marker) && str_contains($apiController, 'BrandManagerService'));
 $check('Specialized Laravel Brand Manager routes exist', str_contains($webRoutes, $marker) && str_contains($webRoutes, "/catalog-settings/brands"));
 $check('API Brand Manager routes use taxonomy permission', str_contains($apiRoutes, $marker) && str_contains($apiRoutes, "permission:catalog.manage_taxonomy"));
-$check('Laravel Brand Manager view has filter/add/compact table', str_contains($view, 'Pretraga brenda') && str_contains($view, '+ Dodaj brend') && str_contains($view, 'admin-table'));
+$check('Laravel Brand Manager view has filter/add/compact table', str_contains($view, 'Pretraga brenda') && str_contains($view, '+ Dodaj brend') && str_contains($view, 'a1-table'));
 $check('Service uses existing type-scoped pivots', str_contains($service, 'brand_product_type') && str_contains($service, 'product_line_product_type'));
 $check('Service protects historical product relations', str_contains($service, "DB::table('products')") && str_contains($service, 'ne može biti uklonjena'));
 $check('Service caps curated line input to ten per type', str_contains($service, $lineExpansionMarker) && str_contains($service, 'count($names) > 10') && str_contains($request, "'max:10'"));

@@ -57,7 +57,7 @@
     $phosphorSprite = asset('assets/icons/phosphor-regular.svg').'?v='.$phosphorSpriteVersion;
 @endphp
 <svg
-    {{ $attributes->merge(['class' => $shell ? 'a1-icon a1-icon--ph' : 'ui-icon']) }}
+    {{ $attributes->merge(['class' => $shell ? 'a1-icon a1-icon--ph' : 'a1-icon a1-icon--ph a1-icon--fit a1-icon--n'.(int) $size]) }}
     width="{{ $size }}"
     height="{{ $size }}"
     viewBox="0 0 256 256"

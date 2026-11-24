@@ -102,7 +102,7 @@
                             <span class="a1-g5-link__head">
                                 <strong>{{ $conversation->subject }}</strong>
                                 @if($conversation->unread_staff_count > 0)
-                                    <span class="a1-count" aria-label="Nepročitanih poruka: {{ $conversation->unread_staff_count }}">{{ $conversation->unread_staff_count }}</span>
+                                    <span class="a1-count" role="img" aria-label="Nepročitanih poruka: {{ $conversation->unread_staff_count }}">{{ $conversation->unread_staff_count }}</span>
                                 @endif
                             </span>
                             <span class="a1-g5-link__meta">

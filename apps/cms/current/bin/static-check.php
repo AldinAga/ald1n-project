@@ -393,7 +393,7 @@ $inventoryWorkspaceTest = (string) file_get_contents($root.'/tests/Feature/Inven
 $check('beta5 inventory koristi jednu aktivnu operaciju', str_contains($inventoryView, 'inventory-operation-tabs') && str_contains($inventoryView, "\$mode === 'receive'") && str_contains($inventoryView, "\$mode === 'count'"));
 $check('beta5 inventory čuva filter i limit nakon knjiženja', str_contains($inventoryView, '_return_q') && str_contains($inventoryController, 'PAGE_LIMITS') && str_contains($inventoryController, 'returnQuery'));
 $check('beta5 inventory nema unutrašnji vertikalni scrollbar', str_contains($css, 'v2.1.0-beta5 - inventory workspace responsive redesign') && str_contains($css, 'max-height:none!important') && str_contains($css, 'overflow-y:visible!important'));
-$check('beta5 inventory responsive tabela koristi data-label kartice', str_contains($inventoryView, 'data-label="Artikal"') && str_contains($css, '.inventory-data-table td{display:grid!important'));
+$check('beta5 inventory responsive tabela koristi data-label kartice', str_contains($inventoryView, 'data-label="Artikal"') && str_contains((string) file_get_contents($root.'/public/assets/css/ald1n-admin.css'), '.a1-table--cards td::before{content:attr(data-label)'));
 $check('beta5 feature test pokriva inventory workspace', str_contains($inventoryWorkspaceTest, 'test_inventory_workspace_uses_single_active_operation_and_preserves_filters'));
 
 
