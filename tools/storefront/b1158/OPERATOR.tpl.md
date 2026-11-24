@@ -70,6 +70,15 @@ Instalater planira najgori slučaj: kopija fajlova, kopija baze i jedno ponavlja
 - Redoslijed grupa je izveden pravilom: novi fajlovi, biblioteke, kontroleri, provider, rute, prikazi. Prikaz koji zove rutu koju payload briše ide u grupu C prije ruta; servis koji uklanja javnu metodu ide poslije kontrolera koji je još zovu. Preostala uska mjesta su navedena ispod („Poznata uska mjesta redoslijeda“).
 - Strane iza prijave mogu dati kratku grešku 500 do oko 2 minuta poslije svake grupe (keširani bajtkod).
 
+## Ručna provjera poslije instalacije (catalog.view_notes)
+
+Alat ne prijavljuje korisnika, pa ovo provjeravate sami:
+
+1. Prijavite se kao SuperAdministrator, otvorite pregled dozvola grupa i provjerite da postoji dozvola „Pregled napomena artikla“ (`catalog.view_notes`).
+2. Svaka grupa SubAgenata koja ima „Pregled kataloga“ (`catalog.view`) mora imati i `catalog.view_notes`; grupe koje nemaju `catalog.view` ne smiju je dobiti.
+3. Prijavite se kao SubAgent iz takve grupe i otvorite artikal u aplikaciji ili API-ju: napomene artikla moraju biti vidljive. Ako nisu, ne popravljajte bazu ručno; javite i priložite izvještaj.
+4. Migracija ne poništava ništa: ako pokazuje više grupa nego što očekujete, dozvola se uklanja u administraciji, ne iz baze.
+
 ## Šta alat ne provjerava
 
 Alat nikad ne prijavljuje korisnika. Poslije uspjeha otvorite sami, na računaru i na telefonu: kontrolnu tablu, listu porudžbina i jednu porudžbinu (forma uplate, status, povrat pošiljke), potraživanja, formu proizvoda i izvještaje. Mogu se javiti kratke prolazne greške 500 na stranama iza prijave, do oko 2 minuta poslije svake grupe ili vraćanja; sačekajte 2 minuta pa osvježite.
