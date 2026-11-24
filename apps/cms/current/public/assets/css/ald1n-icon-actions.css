@@ -5,8 +5,8 @@
    Na uskom ekranu red ostaje jedan; kontejner tabele (.a1-tablewrap) dobija horizontalni skrol. */
 .a1-rowact,.a1-table .a1-table__actions .a1-rowact,.a1-ops .a1-table .a1-table__actions .a1-rowact{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;gap:.5rem;white-space:nowrap}
 .a1-rowact .a1-rowact__form,.a1-table .a1-rowact .a1-rowact__form{display:flex;flex-wrap:nowrap;align-items:center;flex:0 1 auto;gap:.5rem;margin:0;white-space:nowrap}
-.a1-rowact .a1-rowact__form .a1-rowact__reason{flex:1 1 9rem;min-width:8rem;width:auto;max-width:14rem;min-height:40px;white-space:normal}
-.a1-iconpill{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;box-sizing:border-box;min-width:40px;min-height:40px;width:40px;height:40px;padding:0;border-radius:999px;border:2px solid currentColor;background:transparent;cursor:pointer;font:inherit;line-height:1;white-space:nowrap;transition:background-color .15s ease,transform .15s ease,opacity .15s ease}
+.a1-rowact .a1-rowact__form .a1-rowact__reason{flex:1 1 9rem;min-width:8rem;width:auto;max-width:14rem;min-height:44px;white-space:normal}
+.a1-iconpill{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;box-sizing:border-box;min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:999px;border:2px solid currentColor;background:transparent;cursor:pointer;font:inherit;line-height:1;white-space:nowrap;transition:background-color .15s ease,transform .15s ease,opacity .15s ease}
 .a1-iconpill .a1-icon{display:block;flex:none;width:20px;height:20px;pointer-events:none}
 .a1-iconpill--ok{color:var(--a1-status-ok-text);background:var(--a1-status-ok-bg);border-color:var(--a1-status-ok-dot)}
 .a1-iconpill--danger{color:var(--a1-status-danger-text);background:var(--a1-status-danger-bg);border-color:var(--a1-status-danger-dot)}

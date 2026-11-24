@@ -101,7 +101,7 @@
                                             </form>
                                         @endif
                                     @elseif(($payment['status'] ?? '') === 'verified' && !empty($payment['void_url']))
-                                        <form method="post" action="{{ $payment['void_url'] }}">
+                                        <form method="post" action="{{ $payment['void_url'] }}" class="a1-rowact__form">
                                             @csrf
                                             <button class="a1-btn a1-btn--danger a1-btn--sm" type="submit" aria-label="Storniraj stavku {{ $paymentRef }}" data-confirm="Stornirati ovu stavku?">Storniraj</button>
                                         </form>

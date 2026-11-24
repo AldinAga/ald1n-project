@@ -111,7 +111,7 @@ final class PaymentActionIconPillTest extends TestCase
         }
         self::assertGreaterThanOrEqual(3, $checked);
         self::assertMatchesRegularExpression('~\.a1-rowact__reason\{[^}]*min-width:8rem~', $css);
-        self::assertMatchesRegularExpression('~\.a1-iconpill\{[^}]*min-width:40px;min-height:40px;width:40px;height:40px~', $css);
+        self::assertMatchesRegularExpression('~\.a1-iconpill\{[^}]*min-width:44px;min-height:44px;width:44px;height:44px~', $css);
         self::assertMatchesRegularExpression('~\.a1-iconpill:focus-visible\{[^}]*outline:~', $css);
         self::assertMatchesRegularExpression('~\.a1-iconpill\.is-loading\{[^}]*opacity~', $css);
 
