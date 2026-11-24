@@ -33,18 +33,13 @@ final class LegacyCssClassesContractTest extends TestCase
         'admin/products/form',
         'admin/products/images',
         'admin/products/import',
-        'admin/products/partials/image-upload',
         'admin/reports/index',
         'admin/service-parts/suppliers',
-        'auth/login',
         'catalog/show',
         'layouts/app',
         'notifications/index',
-        'partials/correlated-specification-filter-script',
         'partials/correlated-specification-filters',
         'public/assets/js/ald1n-liquid-glass-r3.js',
-        'public/assets/js/dictionary-sort-manager.js',
-        'public/assets/js/product-media-manager.js',
         'public/assets/js/ux-runtime.js',
     ];
 
