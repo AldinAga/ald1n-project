@@ -1841,7 +1841,7 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
 .completeness-heading strong{white-space:nowrap;flex-shrink:0}
 .ux-product-task-map{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 .ux-product-task-map>button{grid-template-columns:34px minmax(min-content,1fr) auto}
-.a1-header .a1-header__end>.a1-rate.is-stale{max-width:16rem}
+.a1-header .a1-header__end>.a1-rate.is-stale{max-width:12rem}
 .a1-header .a1-header__end>.a1-rate>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Wide tables: columns never get narrower than their longest word (min-content), the wrapper scrolls sideways
    (keyboard reachable) instead of clipping the overflow, which is what cut off the last column. */
