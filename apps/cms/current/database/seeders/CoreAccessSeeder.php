@@ -103,6 +103,7 @@ final class CoreAccessSeeder extends Seeder
             ['id' => 48, 'name' => 'Upravljanje garancijama', 'slug' => 'warranties.manage', 'description' => 'Pravila garancije, serijski brojevi i preventivno održavanje.', 'sort_order' => 116],
             ['id' => 49, 'name' => 'Upravljanje potraživanjima', 'slug' => 'receivables.manage', 'description' => 'Aging pregled, automatske opomene, planovi otplate i evidencija komunikacije.', 'sort_order' => 117],
             ['id' => 50, 'name' => 'Upravljanje izveštajima', 'slug' => 'reports.manage', 'description' => 'Zakazivanje, slanje i administracija upravljačkih izveštaja.', 'sort_order' => 165],
+            ['id' => 51, 'name' => 'Pregled napomena artikla', 'slug' => 'catalog.view_notes', 'description' => 'Napomene artikla u API-ju za prijavljene SubAgente.', 'sort_order' => 25],
         ];
         foreach ($permissions as $permission) {
             $slug = $permission['slug'];
@@ -135,6 +136,7 @@ final class CoreAccessSeeder extends Seeder
             ->whereIn('slug', [
                 'catalog.view',
                 'catalog.view_prices',
+                'catalog.view_notes',
                 'orders.create',
                 'orders.view_own',
                 'orders.cancel_own',
