@@ -84,7 +84,7 @@
                         </td>
                         <td role="cell" class="a1-table__actions">
                             @if($canManagePayments)
-                                <div class="a1-od-rowactions a1-rowact">
+                                <div class="a1-rowact">
                                     @if(($payment['status'] ?? '') === 'submitted')
                                         @if(!empty($payment['verify_url']))
                                             <form method="post" action="{{ $payment['verify_url'] }}" class="a1-rowact__form">

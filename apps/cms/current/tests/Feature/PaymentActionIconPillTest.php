@@ -60,8 +60,11 @@ final class PaymentActionIconPillTest extends TestCase
     {
         $html = $this->paymentsHtml();
 
-        self::assertStringContainsString('action="https://example.test/admin/payments/7/verify"', $html);
-        self::assertStringContainsString('action="https://example.test/admin/payments/7/reject"', $html);
+        // ✓ (ok, #ph-check) je isključivo u formi verify; ✕ (danger, #ph-x) isključivo u formi reject.
+        self::assertMatchesRegularExpression('~<form[^>]*action="https://example\.test/admin/payments/7/verify"[^>]*>(?:(?!</form>).)*a1-iconpill--ok(?:(?!</form>).)*#ph-check(?:(?!</form>).)*</form>~s', $html);
+        self::assertMatchesRegularExpression('~<form[^>]*action="https://example\.test/admin/payments/7/reject"[^>]*>(?:(?!</form>).)*a1-iconpill--danger(?:(?!</form>).)*#ph-x(?:(?!</form>).)*</form>~s', $html);
+        self::assertDoesNotMatchRegularExpression('~/verify"[^>]*>(?:(?!</form>).)*a1-iconpill--danger~s', $html);
+        self::assertDoesNotMatchRegularExpression('~/reject"[^>]*>(?:(?!</form>).)*a1-iconpill--ok~s', $html);
         self::assertMatchesRegularExpression('~<input[^>]*id="od-reject-7"[^>]*name="reason"[^>]*required[^>]*maxlength="1000"~', $html);
         self::assertStringContainsString('for="od-reject-7"', $html);
     }
@@ -83,20 +86,39 @@ final class PaymentActionIconPillTest extends TestCase
     {
         $src = (string) file_get_contents(resource_path('views/admin/commissions/index.blade.php'));
 
-        self::assertStringContainsString('<x-icon-action-pill tone="ok" label="Potvrdi zaduženje"', $src);
-        self::assertStringContainsString('<x-icon-action-pill tone="danger" label="Odbij predlog zaduženja"', $src);
-        self::assertStringContainsString('data-confirm="Odbiti predlog zaduženja?"', $src);
+        // ✓ vodi na confirm rutu i nosi iznos u data-confirm; ✕ vodi na reject rutu.
+        self::assertMatchesRegularExpression('~debits\.confirm[^>]*>[^<]*(?:<[^>]*>)?\s*@csrf<x-icon-action-pill tone="ok" label="Potvrdi zaduženje" data-confirm="Potvrditi zaduženje od \{\{ \$eur\(\$debit->amount_eur\) \}\} EUR\?" /></form>~', $src);
+        self::assertMatchesRegularExpression('~debits\.reject.*?<x-icon-action-pill tone="danger" label="Odbij predlog zaduženja" data-confirm="Odbiti predlog zaduženja\?" /></form>~s', $src);
     }
 
     public function test_styles_guarantee_touch_target_and_focus(): void
     {
         $css = (string) file_get_contents(public_path('assets/css/ald1n-icon-actions.css'));
 
-        self::assertStringContainsString('min-width:40px', $css);
-        self::assertStringContainsString('min-height:40px', $css);
-        self::assertStringContainsString(':focus-visible', $css);
-        self::assertStringContainsString('flex-wrap:nowrap', $css);
-        self::assertStringContainsString('min-width:8rem', $css);
+        // Svako pravilo za red (.a1-rowact) i formu (.a1-rowact__form) mora imati flex-wrap:nowrap.
+        // Pravila iz ald1n-admin.css (.a1-od-rowactions form = 0,1,1) pobjeđuju jednu klasu, pa je potrebna specifičnost >= 0,2,0.
+        preg_match_all('~([^{}]+)\{([^{}]*)\}~', $css, $rules, PREG_SET_ORDER);
+        $checked = 0;
+        foreach ($rules as [, $selectors, $body]) {
+            if (!str_contains($body, 'flex-wrap:nowrap') || !str_contains($selectors, '.a1-rowact__form')) {
+                continue;
+            }
+            foreach (explode(',', $selectors) as $selector) {
+                $classes = substr_count($selector, '.');
+                self::assertGreaterThanOrEqual(2, $classes, 'Slaba specifičnost: '.trim($selector));
+                $checked++;
+            }
+        }
+        self::assertGreaterThanOrEqual(3, $checked);
+        self::assertMatchesRegularExpression('~\.a1-rowact__reason\{[^}]*min-width:8rem~', $css);
+        self::assertMatchesRegularExpression('~\.a1-iconpill\{[^}]*min-width:40px;min-height:40px;width:40px;height:40px~', $css);
+        self::assertMatchesRegularExpression('~\.a1-iconpill:focus-visible\{[^}]*outline:~', $css);
+        self::assertMatchesRegularExpression('~\.a1-iconpill\.is-loading\{[^}]*opacity~', $css);
+
+        // Kontejner u tabeli uplata ne smije nositi stare klase iz ald1n-admin.css koje lome red.
+        $partial = (string) file_get_contents(resource_path('views/admin/orders/partials/payments.blade.php'));
+        self::assertStringContainsString('<div class="a1-rowact">', $partial);
+        self::assertStringNotContainsString('a1-od-rowactions a1-rowact', $partial);
         self::assertStringContainsString('assets/css/ald1n-icon-actions.css', (string) file_get_contents(resource_path('views/layouts/app.blade.php')));
     }
 }
