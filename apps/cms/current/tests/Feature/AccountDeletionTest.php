@@ -255,7 +255,7 @@ final class AccountDeletionTest extends TestCase
     public function test_attacker_cannot_spend_the_logged_in_users_send_budget(): void
     {
         Notification::fake();
-        $victim = $this->user('del-victim', 'customer');
+        $victim = $this->user('del-victim', 'user'); // /account je portal ruta (kao test dugmeta na stranici naloga)
 
         // Napadac iscrpi javni dnevni budzet za adresu zrtve i javni limit po IP-u.
         $attacker = ['REMOTE_ADDR' => '192.0.2.77'];
