@@ -129,6 +129,19 @@ final class OrderEmailDispatcher
                 : 'Obaveštenja iz sistema ('.$rows->count().')');
         $attachments = [];
 
+        // Slika može biti dodata nakon objave artikla: pri slanju je uzmi iz kataloga (samo u memoriji).
+        foreach ($rows as $row) {
+            $meta = is_array($row->metadata_json) ? $row->metadata_json : [];
+            if ($row->event_type !== 'product_published' || !empty($meta['product_image_url']) || empty($meta['product_id'])) continue;
+            try {
+                $product = \App\Models\Product::query()->find((int) $meta['product_id']);
+                $url = $product ? app(ProductAnnouncementService::class)->absoluteImageUrl($product) : null;
+                if ($url !== null) $row->metadata_json = $meta + ['product_image_url' => $url];
+            } catch (Throwable) {
+                // Slika je dodatak: mail se šalje i bez nje.
+            }
+        }
+
         foreach ($rows as $row) {
             $document = null;
             if ($row->attach_document && $row->document_id) {
