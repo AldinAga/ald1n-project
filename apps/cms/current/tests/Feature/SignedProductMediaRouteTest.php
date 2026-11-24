@@ -349,6 +349,23 @@ final class SignedProductMediaRouteTest extends TestCase
         self::assertStringContainsString('immutable', (string) $response->headers->get('Cache-Control'));
     }
 
+    public function test_a_rendition_file_that_is_not_webp_is_not_served_and_stays_no_cache(): void
+    {
+        [, $image, $bytes] = $this->publicImage();
+        $path = ProductImageDerivativeService::relativePaths($image)['thumbnail'];
+        Storage::disk('public')->put($path, $bytes); // PNG content under the thumbnail name
+        $url = (string) ProductImage::query()->findOrFail($image->id)->thumbnail_url;
+
+        self::assertSame(ProductImage::query()->findOrFail($image->id)->mediaVersion('thumbnail'), $this->signedParams($url)['v']);
+        $response = $this->fetch($url);
+        $response->assertOk();
+        self::assertSame($bytes, $this->servedBytes($response));
+        self::assertSame('image/png', $response->headers->get('Content-Type'));
+        $cache = (string) $response->headers->get('Cache-Control');
+        self::assertStringContainsString('no-cache', $cache);
+        self::assertStringNotContainsString('immutable', $cache);
+    }
+
     public function test_replaced_photo_makes_the_old_fallback_thumbnail_url_no_cache(): void
     {
         [, $image] = $this->publicImage();
