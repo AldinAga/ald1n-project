@@ -76,6 +76,12 @@ final class MobilePushOutboxService
             }
         }
 
+        // Expo richContent.image: samo https URL (Android 9+ blokira cleartext), do 2048 znakova zbog limita poruke od 4 KiB.
+        $image = $data['image_url'] ?? null;
+        if (is_string($image) && strlen($image) <= 2048 && preg_match('#^https://\S+$#', $image) === 1) {
+            $result['image_url'] = $image;
+        }
+
         if (!isset($result['route'])) {
             $route = $this->mobileRoute($data);
             if ($route !== null) {

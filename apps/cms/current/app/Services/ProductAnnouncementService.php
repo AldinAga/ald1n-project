@@ -172,12 +172,13 @@ final class ProductAnnouncementService
 
         $event = 'product.published.'.(int) $product->id;
         $route = '/product/'.rawurlencode($slug);
+        $imageUrl = $this->absoluteImageUrl($product);
 
         User::query()
             ->where('status', 'active')
             ->whereHas('notificationPreference', static fn ($query) => $query->where('push_enabled', true))
             ->orderBy('id')
-            ->chunkById(200, function ($recipients) use ($event, $route, $product): void {
+            ->chunkById(200, function ($recipients) use ($event, $route, $imageUrl, $product): void {
                 foreach ($recipients as $recipient) {
                     try {
                         $alreadyQueued = MobilePushOutbox::query()
@@ -192,6 +193,7 @@ final class ProductAnnouncementService
                             'title' => 'Novi artikal u katalogu',
                             'message' => (string) $product->name,
                             'route' => $route,
+                            'image_url' => $imageUrl,
                             'icon' => 'catalog',
                             'severity' => 'info',
                         ]);
