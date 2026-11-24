@@ -152,7 +152,9 @@ final class MobilePushTokenRotationB912Test extends TestCase
         self::assertSame('pending', $row->fresh()->status);
         Http::assertSentCount(1);
         $this->rotate($device, 'new');
-        $row->forceFill(['scheduled_for' => now()->subSecond()])->save();
+        // Direct UPDATE: the stale $row still holds the enqueue-time scheduled_for, so when the clock
+        // crosses a second boundary forceFill()->save() sees no dirty attribute and skips the write.
+        MobilePushOutbox::query()->whereKey($row->id)->update(['scheduled_for' => now()->subMinute()]);
         $second = app(MobilePushDispatcher::class)->dispatch(10);
         self::assertSame(0, $second['sent']);
         self::assertSame(0, $second['retried']);
