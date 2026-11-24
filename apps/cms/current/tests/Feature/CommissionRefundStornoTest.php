@@ -19,6 +19,7 @@ use App\Services\AfterSalesActionService;
 use App\Services\CommissionReversalService;
 use App\Services\CommissionWorkflowService;
 use App\Services\OrderPaymentService;
+use App\Services\OrderWorkflowService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +175,89 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame('10.00', $commission->fresh()->total_eur);
     }
 
+    public function test_base_is_what_was_actually_paid_partial_payment_fully_refunded_cancels_all(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 6000);
+        $this->completeOrder($order, $admin); // "Za isplatu" po isporuci, plaćeno pola
+        self::assertSame('approved', $commission->fresh()->status);
+
+        $this->refund($order, $admin, 6000); // vraćeno sve što je plaćeno
+
+        self::assertSame(['cancelled', '0.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        self::assertSame('20.00', CommissionAdjustment::query()->sole()->amount_eur);
+
+        // isporučena bez ijedne uplate: nema šta da se refundira, storno ne nastaje
+        [, , $unpaid, $unpaidCommission] = $this->scenario();
+        $this->completeOrder($unpaid, $admin);
+        self::assertSame('approved', $unpaidCommission->fresh()->status);
+        self::assertNull(app(CommissionReversalService::class)->reverseForRefund($unpaid->fresh(), $admin, 'NEMA'));
+        self::assertSame(1, CommissionAdjustment::query()->count());
+    }
+
+    public function test_void_of_refund_restores_unpaid_commission_and_double_void_is_a_no_op(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 12000);
+        $refund = $this->refund($order, $admin, 12000);
+        self::assertSame('cancelled', $commission->fresh()->status);
+
+        app(OrderPaymentService::class)->void($refund, $admin);
+        app(OrderPaymentService::class)->void($refund->fresh(), $admin);
+        self::assertNull(app(CommissionReversalService::class)->reverseForRefund($order->fresh(), $admin, (string) $refund->payment_number, true));
+
+        $fresh = $commission->fresh();
+        self::assertSame(['approved', '20.00'], [$fresh->status, $fresh->total_eur], 'vraćena i ponovo za isplatu jer je porudžbina opet plaćena');
+        $row = CommissionAdjustment::query()->sole();
+        self::assertSame(['rejected', '0.00'], [$row->status, $row->amount_eur]);
+        self::assertSame(1, AuditLog::query()->where('action', 'commission.refund_void_restored')->count());
+        self::assertTrue(DB::table('commission_status_history')->where('commission_id', $commission->id)->where('old_status', 'cancelled')->where('new_status', 'pending')->exists());
+    }
+
+    public function test_void_of_refund_on_commission_in_batch_removes_the_unsettled_debit(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($order, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $refund = $this->refund($order, $admin, 12000);
+
+        app(OrderPaymentService::class)->void($refund, $admin);
+        app(OrderPaymentService::class)->void($refund->fresh(), $admin);
+
+        $fresh = $commission->fresh();
+        self::assertSame(['paid', '20.00'], [$fresh->status, $fresh->total_eur]);
+        self::assertSame(['rejected', '0.00'], [CommissionAdjustment::query()->sole()->status, CommissionAdjustment::query()->sole()->amount_eur]);
+        self::assertSame('0.00', $fresh->openDebitEur());
+        self::assertSame(0, CommissionAdjustment::query()->where('kind', 'credit')->count());
+    }
+
+    public function test_void_of_refund_after_the_debit_was_netted_creates_a_credit_and_keeps_the_payout(): void
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($order, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $refund = $this->refund($order, $admin, 6000);
+        $next = $this->placeOrder($sub, $admin);
+        $this->pay($next, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) OrderCommission::query()->where('order_id', $next->id)->value('id')], $super, ['payment_method' => 'cash']);
+        $settlements = DB::table('commission_debit_settlements')->get()->toArray();
+        $superBefore = $super->notifications()->count();
+
+        app(OrderPaymentService::class)->void($refund, $admin);
+        app(OrderPaymentService::class)->void($refund->fresh(), $admin);
+
+        $debit = CommissionAdjustment::query()->where('kind', 'debit')->sole();
+        self::assertSame(['confirmed', '10.00'], [$debit->status, $debit->amount_eur], 'prebijeno zaduženje ostaje');
+        $credit = CommissionAdjustment::query()->where('kind', 'credit')->sole();
+        self::assertSame(['confirmed', '10.00', 'order_refund_void'], [$credit->status, $credit->amount_eur, $credit->source]);
+        self::assertEquals($settlements, DB::table('commission_debit_settlements')->get()->toArray(), 'isplate i poravnanja se ne menjaju');
+        self::assertSame(['paid', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        self::assertSame($superBefore + 1, $super->notifications()->count());
+        self::assertTrue(AuditLog::query()->where('action', 'commission.credit_recorded')->exists());
+    }
+
     public function test_commission_waiting_for_exchange_rate_is_only_cancelled_on_full_refund(): void
     {
         $sub = $this->user('sub-'.++$this->seq, 'user');
@@ -205,6 +289,13 @@ final class CommissionRefundStornoTest extends TestCase
     private function pay(Order $order, User $actor, float $amount): OrderPayment
     {
         return app(OrderPaymentService::class)->record($order->fresh(), ['amount_rsd' => $amount, 'payment_method' => 'bank_transfer', 'paid_at' => now()], $actor);
+    }
+
+    /** Prava potvrda isporuke (OrderWorkflowService::complete); uplata na račun, da isporuka ne evidentira naplatu pouzeća. */
+    private function completeOrder(Order $order, User $actor): void
+    {
+        $order->forceFill(['status' => 'confirmed', 'payment_method' => 'bank_transfer'])->save();
+        app(OrderWorkflowService::class)->complete($order->fresh(), $actor, ['delivery_method' => 'own_transport']);
     }
 
     private function refund(Order $order, User $actor, float $amount): OrderPayment

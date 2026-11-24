@@ -281,6 +281,10 @@ final class OrderPaymentService
             if ($locked->status === 'voided') return $locked;
             if ($locked->status !== 'verified') throw ValidationException::withMessages(['payment' => 'Samo verifikovana stavka može biti stornirana.']);
             $locked->update(['status' => 'voided', 'voided_by' => $actor->id, 'voided_at' => now()]);
+            if ($locked->entry_type === 'refund') {
+                // void refundacije vraća njen storno provizije; pre projekcije, kao i pri upisu refundacije
+                $this->commissionReversal->reverseForRefund($order, $actor, (string) $locked->payment_number, true);
+            }
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_voided', 'Stornirana uplata '.$locked->payment_number, $locked, before: ['status' => 'verified'], after: ['status' => 'voided'], user: $actor);
             $transitioned = true;
