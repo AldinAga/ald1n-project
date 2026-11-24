@@ -48,7 +48,7 @@ final class CatalogNotesApiTest extends TestCase
     public function test_admin_receives_notes_and_default_standard_group_gets_permission_from_seeder(): void
     {
         $product = $this->product('Za admina');
-        $this->actingAs($this->user('admin', ['catalog.view']), 'sanctum')->getJson('/api/v1/products/'.$product->slug)
+        $this->actingAs($this->user('superadmin', ['catalog.view']), 'sanctum')->getJson('/api/v1/products/'.$product->slug)
             ->assertOk()->assertJsonPath('data.notes', 'Za admina');
 
         $standard = User::query()->create([
