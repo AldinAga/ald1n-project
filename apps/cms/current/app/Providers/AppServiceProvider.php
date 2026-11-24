@@ -192,6 +192,7 @@ final class AppServiceProvider extends ServiceProvider
 
         Gate::define('catalog.view', static fn (User $user): bool => $user->hasPermission('catalog.view'));
         Gate::define('catalog.view_prices', static fn (User $user): bool => $user->hasPermission('catalog.view_prices'));
+        Gate::define('catalog.view_notes', static fn (User $user): bool => $user->hasPermission('catalog.view_notes'));
         Gate::define('orders.create', static fn (User $user): bool => $user->hasPermission('orders.create'));
         Gate::define('orders.view_own', static fn (User $user): bool => $user->hasPermission('orders.view_own'));
         Gate::define('orders.cancel_own', static fn (User $user): bool => $user->hasPermission('orders.cancel_own'));

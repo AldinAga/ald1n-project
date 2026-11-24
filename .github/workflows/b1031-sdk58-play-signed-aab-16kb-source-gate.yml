@@ -41,9 +41,9 @@ jobs:
           const fs=require('node:fs'),p=require('./package.json'),e=require('./eas.json');
           const sdk58=fs.readFileSync('scripts/release27/signed-16kb-sdk58-aab-gate.mjs','utf8');
           const old=fs.readFileSync('scripts/release25/signed-16kb-aab-release-gate.mjs','utf8');
-          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||
+          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.11.0'||
              p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
-             !sdk58.includes("EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play2'")||
+             !sdk58.includes("EXPECTED_RUNTIME = '1.0.0-m17-sdk58-play3'")||
              !sdk58.includes('PAGE_ALIGNMENT_16K')||
              !sdk58.includes("'zipalign'")||
              !sdk58.includes("Number(out['expected-version-code']) <= 28")||
