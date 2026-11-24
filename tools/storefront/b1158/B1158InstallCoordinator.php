@@ -911,6 +911,8 @@ final class B1158InstallCoordinator
      */
     private function webClassProof(string $label,string $group,int $requests=self::WEB_PROOF_REQUESTS):array
     {
+        // A payload that contains no PHP class under app/ has nothing to load in the web SAPI.
+        if(self::proofClasses()===[]){$this->emit('WEB_CLASS_PROOF_SKIPPED',['label'=>$label,'why'=>'NO_PHP_CLASS_IN_THE_PAYLOAD']);return [];}
         $classes=$this->proofClassFiles();$values=[];
         if($classes===[]||count($classes)!==count(self::proofClasses())||$requests<1||$requests>self::WEB_PROOF_REQUESTS)throw new RuntimeException('WEB_CLASS_PROOF_NO_CLASSES');
         for($i=1;$i<=$requests;$i++){

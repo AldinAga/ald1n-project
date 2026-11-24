@@ -141,7 +141,8 @@ $viewChecks=array_values(array_filter(array_column($steps,0),static fn($p)=>str_
 $newBin=array_values(array_filter(array_column($steps,0),static fn($p)=>str_starts_with($p,'bin/')));
 $newClasses=[];foreach($steps as [$p,$k])if($k==='new'&&str_starts_with($p,'app/')&&str_ends_with($p,'.php'))$newClasses[]='App\\'.str_replace('/','\\',substr($p,4,-4));
 // Classes the web-SAPI proof loads before the guard groups (pinned LoadProbe: at most 8): new classes first, then modified models/services.
-$proofMod=array_values(array_filter(array_column(array_filter($steps,static fn($s)=>$s[1]==='modified'),0),static fn($p)=>str_starts_with($p,'app/Models/')||str_starts_with($p,'app/Services/')||str_starts_with($p,'app/Support/')));
+$proofMod=array_values(array_filter(array_column(array_filter($steps,static fn($s)=>$s[1]==='modified'),0),static fn($p)=>str_starts_with($p,'app/')&&str_ends_with($p,'.php')&&!str_ends_with($p,'.blade.php')));
+usort($proofMod,static fn($x,$y)=>[preg_match('~^app/(Models|Services|Support)/~',$x)?0:1,$x]<=>[preg_match('~^app/(Models|Services|Support)/~',$y)?0:1,$y]);
 $proof=array_slice(array_merge($newClasses,array_map(static fn($p)=>'App\\'.str_replace('/','\\',substr($p,4,-4)),$proofMod)),0,8);
 // Classes the provider registers: resolved by the boot proof (bind/singleton/scoped lines of the payload provider).
 $bindings=[];if(isset($digests['app/Providers/AppServiceProvider.php'])&&preg_match_all('~->(?:bind|singleton|scoped)\(\s*\\\\?([A-Za-z0-9_\\\\]+)::class~',$blob($src,'app/Providers/AppServiceProvider.php'),$mb))$bindings=array_values(array_unique(array_map(static fn($c)=>str_starts_with($c,'App\\')?$c:'',$mb[1])));
