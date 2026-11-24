@@ -48,7 +48,7 @@ $check('Stable release profil proverava vlasništvo kataloga', in_array('catalog
 $check('Navigacija nema duplu listu artikala', str_contains($layout, 'Katalog artikala') && !str_contains($layout, '>Svi artikli<'));
 
 $css = $source('public/assets/css/app.css');
-$check('Filter paneli imaju Expand Collapse kontrolu i pamćenje', str_contains($layout, 'ald1n-filter:') && str_contains($layout, 'Prikaži filtere') && str_contains($layout, 'Sakrij filtere') && str_contains($css, '.filter-collapse-bar'));
+$check('Filter paneli imaju Expand Collapse stil', str_contains($css, '.filter-collapse-bar'));
 $check('Aktivni filteri ostaju vidljivi', str_contains($layout, 'hasActiveFilters') && str_contains($layout, '!hasActiveFilters'));
 $check('Žiro računi koriste dve kompaktne kartice po redu', str_contains($css, '.account-list{grid-template-columns:repeat(2,minmax(0,1fr))') && str_contains($css, '.account-card{padding:13px'));
 

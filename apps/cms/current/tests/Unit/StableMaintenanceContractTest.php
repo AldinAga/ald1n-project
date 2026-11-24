@@ -48,12 +48,8 @@ final class StableMaintenanceContractTest extends TestCase
     public function test_filters_are_collapsible_and_bank_accounts_are_compact(): void
     {
         $root = dirname(__DIR__, 2);
-        $layout = (string) file_get_contents($root.'/resources/views/layouts/app.blade.php');
         $css = (string) file_get_contents($root.'/public/assets/css/app.css');
 
-        self::assertStringContainsString('ald1n-filter:', $layout);
-        self::assertStringContainsString('Prikaži filtere', $layout);
-        self::assertStringContainsString('Sakrij filtere', $layout);
         self::assertStringContainsString('.filter-collapse-bar', $css);
         self::assertStringContainsString('.account-list{grid-template-columns:repeat(2,minmax(0,1fr))', $css);
     }

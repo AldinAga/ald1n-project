@@ -27,20 +27,20 @@ final class ProductEditorLiquidGlassTest extends TestCase
         $html = $this->actingAs($this->editor('superadmin'))->get(route('admin.products.create'))
             ->assertOk()->getContent();
         self::assertIsString($html);
-        self::assertStringContainsString('liquid-glass-product-editor-form', $html);
+        self::assertStringContainsString('data-product-editor-form', $html);
         self::assertStringContainsString('data-ux-sticky-actions', $html);
         self::assertStringContainsString('action="'.route('admin.products.store').'"', $html);
 
         $bar = $this->stickyBar($html);
         self::assertStringContainsString('a1-actionbar__buttons', $bar);
-        self::assertStringContainsString('class="a1-btn a1-btn--primary product-editor-action-primary"', $bar);
+        self::assertStringContainsString('class="a1-btn a1-btn--primary" type="submit" data-product-save-primary', $bar);
         self::assertStringContainsString('data-product-save-primary', $bar);
         self::assertStringContainsString('Kreiraj artikal', $bar);
         self::assertStringContainsString('name="save_draft" value="1" formnovalidate', $bar);
         self::assertSame(1, substr_count($bar, 'data-product-save-draft'));
         self::assertSame(1, substr_count($bar, 'data-product-save-primary'));
         self::assertStringContainsString('a1-btn', $bar);
-        self::assertStringNotContainsString('product-editor-action-direct', $bar);
+        self::assertStringNotContainsString('data-product-direct-sale ', $bar);
     }
 
     public function test_active_superadmin_edit_keeps_direct_sale_link_and_primary_edit_submit(): void
@@ -55,10 +55,10 @@ final class ProductEditorLiquidGlassTest extends TestCase
 
         $bar = $this->stickyBar($html);
         self::assertStringContainsString('Sačuvaj izmene', $bar);
-        self::assertStringContainsString('class="a1-btn a1-btn--primary product-editor-action-primary"', $bar);
-        self::assertStringContainsString('class="a1-btn product-editor-action-draft"', $bar);
+        self::assertStringContainsString('class="a1-btn a1-btn--primary" type="submit" data-product-save-primary', $bar);
+        self::assertStringContainsString('class="a1-btn" type="submit" name="save_draft"', $bar);
         self::assertStringContainsString('name="save_draft" value="1" formnovalidate', $bar);
-        self::assertStringContainsString('class="a1-btn a1-btn--quiet product-editor-action-direct"', $bar);
+        self::assertStringContainsString('class="a1-btn a1-btn--quiet" data-product-direct-sale', $bar);
         self::assertStringContainsString('href="'.route('catalog.show', ['slug' => $product->slug]).'#direct-sale-title"', $bar);
         self::assertStringContainsString('a1-btn', $bar);
     }
@@ -73,7 +73,7 @@ final class ProductEditorLiquidGlassTest extends TestCase
         $bar = $this->stickyBar($html);
         self::assertStringContainsString('Sačuvaj izmene', $bar);
         self::assertStringContainsString('Sačuvaj kao nacrt', $bar);
-        self::assertStringNotContainsString('product-editor-action-direct', $bar);
+        self::assertStringNotContainsString('data-product-direct-sale ', $bar);
         self::assertStringNotContainsString('#direct-sale-title', $bar);
     }
 

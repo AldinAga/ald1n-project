@@ -13,14 +13,7 @@
     const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
 
     const improveAlerts = () => {
-        document.querySelectorAll('.alert').forEach((alert) => {
-            const isError = alert.classList.contains('error');
-            alert.setAttribute('role', isError ? 'alert' : 'status');
-            alert.setAttribute('aria-live', isError ? 'assertive' : 'polite');
-            if (isError) alert.setAttribute('tabindex', '-1');
-        });
-
-        const errorAlert = document.querySelector('.alert.error, [data-a1-flash-error]');
+        const errorAlert = document.querySelector('[data-a1-flash-error]');
         if (errorAlert) {
             window.requestAnimationFrame(() => {
                 errorAlert.focus({ preventScroll: true });
@@ -42,20 +35,18 @@
             if (field.hasAttribute('required')) field.setAttribute('aria-required', 'true');
 
             const label = field.closest('label');
-            const fieldError = label?.parentElement?.querySelector(':scope > .field-error') || label?.querySelector('.field-error');
+            const fieldError = label?.parentElement?.querySelector(':scope > .a1-error') || label?.querySelector('.a1-error');
             if (fieldError) {
                 if (!fieldError.id) fieldError.id = `${field.id}-error`;
                 const describedBy = new Set((field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
                 describedBy.add(fieldError.id);
                 field.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
                 field.setAttribute('aria-invalid', 'true');
-                label?.classList.add('has-field-error');
             }
 
             field.addEventListener('input', () => {
                 if (field.getAttribute('aria-invalid') === 'true' && field.checkValidity()) {
                     field.removeAttribute('aria-invalid');
-                    label?.classList.remove('has-field-error');
                 }
             });
         });
@@ -64,7 +55,6 @@
             const field = event.target;
             if (!(field instanceof HTMLElement)) return;
             field.setAttribute('aria-invalid', 'true');
-            field.closest('label')?.classList.add('has-field-error');
             if (invalidHandled) return;
             invalidHandled = true;
             window.requestAnimationFrame(() => {
@@ -91,7 +81,6 @@
                 if (!form.checkValidity()) return;
 
                 submitting = true;
-                form.classList.add('is-submitting');
                 form.setAttribute('aria-busy', 'true');
                 form.dataset.uxSubmitted = '1';
                 const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
@@ -135,20 +124,21 @@
 
     const findPrimarySubmit = (form) => {
         const candidates = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
-        return candidates.find((button) => isVisible(button) && !button.disabled && button.classList.contains('button-primary'))
-            || candidates.find((button) => isVisible(button) && !button.disabled && !button.classList.contains('button-danger'))
+        return candidates.find((button) => isVisible(button) && !button.disabled && button.classList.contains('a1-btn--primary'))
+            || candidates.find((button) => isVisible(button) && !button.disabled && !button.classList.contains('a1-btn--danger'))
             || null;
     };
 
+    // The first breadcrumb link ("Nazad na ...") is the back target on every Kobalt page.
     const findBackAction = () => {
-        const candidates = Array.from(document.querySelectorAll('.back-link, .page-heading-actions a.button-secondary, .page-heading-actions a.button-ghost'));
+        const candidates = Array.from(document.querySelectorAll('.a1-crumbs a'));
         return candidates.find(isVisible) || null;
     };
 
     const createMobileActionDock = () => {
         if (document.querySelector('[data-ux-action-dock]')) return;
 
-        const forms = Array.from(document.querySelectorAll('form')).filter((candidate) => candidate.matches('[data-ux-sticky-actions]') || candidate.querySelector('.admin-form-grid, .after-sales-create-grid'));
+        const forms = Array.from(document.querySelectorAll('form')).filter((candidate) => candidate.matches('[data-ux-sticky-actions]'));
         const form = forms.find((candidate) => !candidate.querySelector('[data-product-editor-action-bar]') && candidate.scrollHeight > window.innerHeight * 1.15 && findPrimarySubmit(candidate));
         if (!form) return;
 
@@ -156,7 +146,7 @@
         if (!submit) return;
 
         const dock = document.createElement('div');
-        dock.className = 'ux-mobile-action-dock';
+        dock.className = 'a1-dock';
         dock.dataset.uxActionDock = '1';
         dock.setAttribute('role', 'region');
         dock.setAttribute('aria-label', 'Brze akcije formulara');
@@ -165,14 +155,14 @@
         if (back) {
             const backButton = document.createElement('a');
             backButton.href = back.href;
-            backButton.className = 'button button-secondary ux-dock-back';
+            backButton.className = 'a1-btn a1-dock__back';
             backButton.textContent = textOf(back) || 'Nazad';
             dock.appendChild(backButton);
         }
 
         const saveButton = document.createElement('button');
         saveButton.type = 'button';
-        saveButton.className = 'button button-primary ux-dock-submit';
+        saveButton.className = 'a1-btn a1-btn--primary a1-dock__submit';
         saveButton.textContent = textOf(submit) || 'Sačuvaj';
         saveButton.addEventListener('click', () => {
             submit.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -184,11 +174,11 @@
         document.body.classList.add('has-ux-action-dock');
 
         const sync = () => {
-            const disabled = submit.disabled || form.classList.contains('is-submitting');
+            const disabled = submit.disabled || form.getAttribute('aria-busy') === 'true';
             saveButton.disabled = disabled;
             saveButton.textContent = disabled ? 'Čuvanje…' : (textOf(submit) || 'Sačuvaj');
         };
-        new MutationObserver(sync).observe(form, { attributes: true, subtree: true, attributeFilter: ['disabled', 'class'] });
+        new MutationObserver(sync).observe(form, { attributes: true, subtree: true, attributeFilter: ['disabled', 'aria-busy'] });
         sync();
     };
 
@@ -209,7 +199,7 @@
     };
 
     const improveTables = () => {
-        document.querySelectorAll('.admin-table-wrap, .table-wrap').forEach((wrapper) => {
+        document.querySelectorAll('.a1-tablewrap:not([tabindex])').forEach((wrapper) => {
             wrapper.setAttribute('tabindex', '0');
             wrapper.setAttribute('role', 'region');
             wrapper.setAttribute('aria-label', wrapper.getAttribute('aria-label') || 'Tabela sa horizontalnim pomeranjem');
