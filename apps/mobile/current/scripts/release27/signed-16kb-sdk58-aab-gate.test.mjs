@@ -40,7 +40,7 @@ test('SDK58 Play binary gate is distinct from old v1.5 source-only gate',()=>{
  assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
  assert.equal(pkg.dependencies['react-native-nitro-modules'],'0.37.1');
  assert.equal(pkg.packageManager,'npm@12.2.1');
- assert.equal(eas.cli.version,'27.2.0');
+ assert.equal(eas.cli.version,'27.11.0');
  assert.equal(eas.build['m17-sdk58-play-rc'].android.buildType,'app-bundle');
  assert.ok(source.includes("const EXPECTED_VERSION = '1.0.0'"));
  assert.ok(source.includes("const EXPECTED_RUNTIME = '"+RUNTIME+"'"));

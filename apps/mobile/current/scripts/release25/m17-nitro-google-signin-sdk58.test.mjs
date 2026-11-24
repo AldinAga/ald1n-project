@@ -43,7 +43,7 @@ test('Native auth iOS readiness remains fail-closed and tracks exact 2.3.1 bridg
 test('Native source upgrade cannot authorize EAS build, OTA or Play', () => {
   assert.equal(pkg.version, '1.0.0');
   assert.equal(pkg.packageManager, 'npm@12.2.1');
-  assert.equal(eas.cli.version, '27.2.0');
+  assert.equal(eas.cli.version, '27.11.0');
   assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(eas.build.production.channel, 'production');
   assert.equal(pkg.scripts['build:android:production'], 'node scripts/build25-release-controller.mjs');

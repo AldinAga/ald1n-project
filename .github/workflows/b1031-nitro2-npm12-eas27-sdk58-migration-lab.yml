@@ -42,9 +42,9 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process'),p=require('./package.json'),e=require('./eas.json'),lock=require('./package-lock.json');
           const files={
-           // GATE-PLAY3 (M5): blobs re-pinned for the reviewed camera/EAN native layer; eas.json is unchanged on purpose.
+           // GATE-PLAY3 (M5): blobs re-pinned for the reviewed camera/EAN native layer; eas.json re-pinned for eas-cli 27.11.0.
            'package.json':'38447a08e5a3525b0f14414e27665ce0e7eea01f',
-           'eas.json':'5b526f229465e2b5e10ed00dd46b663d7eff05a7',
+           'eas.json':'962921a34d4f1dfc5d4cd8313030e218358d9da4',
            'app.config.js':'ffeed99983c3ec387959d53f18db80771f8cf3b4',
            'package-lock.json':'73169758bb5e1e3819c40558ead2a560657ca26d'
           };
@@ -52,7 +52,7 @@ jobs:
             const r=cp.spawnSync('git',['hash-object',path],{encoding:'utf8'});
             if(r.status!==0||r.stdout.trim()!==sha)throw Error('HOLD_B1031_COMMITTED_BLOB_'+path);
           }
-          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.2.0'||e.cli.appVersionSource!=='remote'||
+          if(p.packageManager!=='npm@12.2.1'||e.cli.version!=='27.11.0'||e.cli.appVersionSource!=='remote'||
              p.dependencies.expo!=='~58.0.26'||p.dependencies['react-native']!=='0.88.1'||
              p.dependencies['react-native-nitro-google-signin']!=='2.3.1'||
              p.dependencies['react-native-nitro-modules']!=='0.37.1'||
@@ -66,7 +66,7 @@ jobs:
             throw Error('HOLD_B1031_PLAY_RELEASE_PROFILE_CHANGED');
           console.log('B1031_EXACT_COMMITTED_MIGRATION_SOURCE=PASS');
           NODE
-      - name: Install npm12.2.1 and EAS CLI27.2.0 in nonproduction scratch
+      - name: Install npm12.2.1 and EAS CLI27.11.0 in nonproduction scratch
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -74,10 +74,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/ald1n-npm12" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict npm@12.2.1
           NPM12="$RUNNER_TEMP/ald1n-npm12/node_modules/npm/bin/npm-cli.js"
           test "$(node "$NPM12" --version)" = '12.2.1'
-          node "$NPM12" install --prefix "$RUNNER_TEMP/ald1n-eas27" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@27.2.0
+          node "$NPM12" install --prefix "$RUNNER_TEMP/ald1n-eas27" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund --engine-strict eas-cli@27.11.0
           EAS_REL="$(node - "$RUNNER_TEMP/ald1n-eas27/node_modules/eas-cli/package.json" <<'NODE'
           const p=require(process.argv[2]);
-          if(p.version!=='27.2.0')throw Error('HOLD_EAS_CLI_NOT_27_2_0');
+          if(p.version!=='27.11.0')throw Error('HOLD_EAS_CLI_NOT_27_2_0');
           const bin=typeof p.bin==='string'?p.bin:p.bin?.eas;
           if(!bin)throw Error('HOLD_EAS_CLI_BIN_UNDECLARED');
           process.stdout.write(bin);

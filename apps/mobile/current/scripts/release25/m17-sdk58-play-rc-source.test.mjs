@@ -47,7 +47,7 @@ test('Expo58 Play candidate is a source-only AAB identity and never auto-submits
  assert.equal(pkg.dependencies.expo,'~58.0.26');
  assert.equal(pkg.dependencies['react-native'],'0.88.1');
  assert.equal(pkg.dependencies['react-native-nitro-google-signin'],'2.3.1');
- assert.equal(eas.cli.version,'27.2.0');
+ assert.equal(eas.cli.version,'27.11.0');
  assert.equal(eas.cli.appVersionSource,'remote');
  assert.equal(profile.extends,'production');
  assert.equal(profile.environment,'production');
