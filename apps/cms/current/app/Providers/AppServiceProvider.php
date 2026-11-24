@@ -296,6 +296,12 @@ final class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // Javni zahtjev za brisanje naloga: samo gornja granica po IP-u. Limit po nalogu (pauza 10 min, 3 slanja dnevno)
+        // je u UserDeletionService i broji samo stvarna slanja, pa tuđa adresa u formi ne troši ničiji limit ovdje.
+        RateLimiter::for('account-deletion-request', static fn (Request $request): Limit => Limit::perHour(20)->by('acct-del-ip|'.$request->ip()));
+        // Prijavljen korisnik: sopstveni ključ po user_id, odvojen od javne forme.
+        RateLimiter::for('account-deletion-own', static fn (Request $request): Limit => Limit::perHour(10)->by('acct-del-own|'.$request->user()?->getAuthIdentifier()));
+
         RateLimiter::for('password-reset', static function (Request $request): Limit {
             $token = (string) $request->input('token', 'missing');
             return Limit::perMinute(5)->by(hash('sha256', $token.'|'.$request->ip()));

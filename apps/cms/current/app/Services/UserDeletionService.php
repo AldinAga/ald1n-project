@@ -10,6 +10,7 @@ use App\Notifications\AccountDeletionNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
@@ -33,6 +34,8 @@ final class UserDeletionService
 {
     public const GRACE_DAYS = 14;
     public const CONFIRM_TTL_MINUTES = 60;
+    public const RESEND_PAUSE_MINUTES = 10;
+    public const MAX_SENDS_PER_DAY = 3;
 
     public function __construct(
         private readonly UserRetirementService $retirement,
@@ -93,38 +96,91 @@ final class UserDeletionService
         }
 
         $user = User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])->first();
-        if ($user === null || $user->status !== 'active' || $user->retired_at !== null) {
-            return;
+        if ($user !== null) {
+            $this->requestFor($user, 'web');
+        }
+    }
+
+    /**
+     * Prijavljen korisnik: link ide na e-poštu naloga; brojač slanja je odvojen od javne forme.
+     *
+     * @return 'sent'|'skipped'|'failed' skipped = pauza ili dnevni limit, failed = mail nije otišao (red je obrisan)
+     */
+    public function requestForUser(User $user): string
+    {
+        return self::available() ? $this->requestFor($user, 'own') : 'skipped';
+    }
+
+    /** @return 'sent'|'skipped'|'failed' */
+    private function requestFor(User $user, string $channel): string
+    {
+        if ($user->status !== 'active' || $user->retired_at !== null) {
+            return 'skipped';
         }
         if ($this->successorProblem($user) !== null) {
-            return;
+            return 'skipped';
         }
 
         $plain = Str::random(80);
-        DB::transaction(function () use ($user, $plain): void {
+        $dailyKey = 'acct-del-send|'.$channel.'|'.$user->getKey();
+        $created = DB::transaction(function () use ($user, $plain, $dailyKey, $channel): bool {
+            // Zaključan red korisnika: dva istovremena zahtjeva ne prave dva pending reda niti brišu svjež red.
+            // Redoslijed: users pa account_deletion_requests, kao startGrace. cancel/process zaključavaju prvo red zahtjeva,
+            // ali samo red sa grace_until, koji ovaj put ne dira. shortcut: moguć rijedak deadlock preko index lockova
+            // (InnoDB ga prekida, zahtjev se samo odbije); ako se pojavi u logu, ujednačiti redoslijed i tamo.
+            User::query()->whereKey($user->getKey())->lockForUpdate()->first(['id']);
+            // Pauza po nalogu (ne po upisanoj adresi, jer collation poklapa akcente i fullwidth varijante):
+            // dok je nepotvrđen link mlađi od 10 min, ne šaljemo novi i ne pravimo novi token.
+            $recent = DB::table('account_deletion_requests')
+                ->where('user_id', $user->getKey())
+                ->where('status', 'pending')
+                ->whereNull('grace_until')
+                ->where('requested_at', '>', now()->subMinutes(self::RESEND_PAUSE_MINUTES))
+                ->exists();
+            if ($recent || RateLimiter::tooManyAttempts($dailyKey, self::MAX_SENDS_PER_DAY)) {
+                return false;
+            }
             DB::table('account_deletion_requests')
                 ->where('user_id', $user->getKey())
                 ->where('status', 'pending')
                 ->whereNull('grace_until')
                 ->delete();
             if ($this->activeRequest((int) $user->getKey()) !== null) {
-                return;
+                return false;
             }
             DB::table('account_deletion_requests')->insert([
                 'user_id' => (int) $user->getKey(),
                 'requested_at' => now(),
                 'status' => 'pending',
-                'source' => 'web',
+                'source' => $channel,
                 'confirm_token_hash' => hash('sha256', $plain),
                 'confirm_expires_at' => now()->addMinutes(self::CONFIRM_TTL_MINUTES),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-        });
+            if ($channel === 'web') {
+                // Javni kanal: brojač se troši i kad SMTP padne (odgovor ionako ništa ne otkriva).
+                RateLimiter::hit($dailyKey, 86400);
+            }
 
-        if (DB::table('account_deletion_requests')->where('user_id', $user->getKey())->where('confirm_token_hash', hash('sha256', $plain))->exists()) {
-            $this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain));
+            return true;
+        });
+        if (!$created) {
+            return 'skipped';
         }
+        if ($this->send($user, new AccountDeletionNotification(AccountDeletionNotification::CONFIRM, $plain))) {
+            if ($channel !== 'web') {
+                RateLimiter::hit($dailyKey, 86400);
+            }
+
+            return 'sent';
+        }
+        if ($channel !== 'web') {
+            // Prijavljeni korisnik mora znati da mail nije otišao: bez reda i bez potrošenog brojača može odmah ponovo.
+            DB::table('account_deletion_requests')->where('confirm_token_hash', hash('sha256', $plain))->delete();
+        }
+
+        return 'failed';
     }
 
     public function confirmTokenIsValid(string $plain): bool
@@ -573,6 +629,12 @@ final class UserDeletionService
             $username .= '_'.$suffix;
             $email = 'deleted_'.$id.'_'.$suffix.'@invalid.local';
         }
+        // Neuspjele prijave nemaju user_id, nego login_hash upisanog imena; hash računamo prije izmjene reda.
+        $old = DB::table('users')->where('id', $id)->first(['email', 'username']);
+        $loginHashes = array_values(array_unique(array_map(
+            static fn (string $login): string => hash('sha256', mb_strtolower(trim($login))),
+            array_filter([(string) ($old->email ?? ''), (string) ($old->username ?? '')], static fn (string $v): bool => $v !== ''),
+        )));
         $values = [
             'username' => $username,
             'email' => $email,
@@ -586,6 +648,8 @@ final class UserDeletionService
             'remember_token' => null,
             'email_verified_at' => null,
             'portal_activated_at' => null,
+            // Sesija starija od ovog trenutka se ne može vratiti (PortalSessionService poredi logged_in_at).
+            'password_changed_at' => now(),
             'updated_at' => now(),
         ];
         foreach (array_keys($values) as $column) {
@@ -600,10 +664,22 @@ final class UserDeletionService
                 DB::table($table)->where('user_id', $id)->delete();
             }
         }
-        DB::table('user_login_sessions')->where('user_id', $id)
-            ->update(['ip_address' => null, 'user_agent' => null, 'device_label' => null]);
+        // Sesije nose session_hash (identifikator) i uređaj; nalog je već povučen, pa redovi ne trebaju.
+        DB::table('user_login_sessions')->where('user_id', $id)->delete();
+        if (Schema::hasTable('notifications')) {
+            // Obavještenja u aplikaciji mogu nositi ime kupca, broj porudžbine i e-poštu.
+            DB::table('notifications')->where('notifiable_id', $id)
+                ->whereIn('notifiable_type', array_unique([(new User())->getMorphClass(), User::class]))->delete();
+        }
         if (Schema::hasTable('security_events')) {
-            DB::table('security_events')->where('user_id', $id)->update(['ip_address' => null, 'user_agent' => null]);
+            // Događaj ostaje (vrsta, vrijeme, ozbiljnost), a lični podaci odlaze.
+            DB::table('security_events')->where('user_id', $id)
+                ->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null, 'request_id' => null]);
+            if ($loginHashes !== []) {
+                DB::table('security_events')->where('event_type', 'login.failed')
+                    ->whereIn('context_json->login_hash', $loginHashes)
+                    ->update(['ip_address' => null, 'user_agent' => null, 'context_json' => null, 'request_id' => null]);
+            }
         }
 
         // Audit zapisi o samom korisniku nose IP, user agent i stare vrednosti profila.
@@ -647,12 +723,16 @@ final class UserDeletionService
         ]);
     }
 
-    private function send(User $user, AccountDeletionNotification $notification): void
+    private function send(User $user, AccountDeletionNotification $notification): bool
     {
         try {
             $user->notify($notification);
+
+            return true;
         } catch (Throwable $exception) {
             Log::warning('Account deletion e-mail failed.', ['user_id' => $user->getKey(), 'exception' => $exception::class]);
+
+            return false;
         }
     }
 }
