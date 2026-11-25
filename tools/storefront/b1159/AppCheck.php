@@ -1,0 +1,203 @@
+<?php
+declare(strict_types=1);
+/**
+ * B1155 read-only application check, run as its own uncached CLI process:
+ * php -d opcache.enable=0 b1155-app-check.php <active tree> features <JSON list of the new class names> <route name> <pinned origin> <JSON source markers of B1155> <JSON source markers of B1154> <JSON list of the two report route names>
+ * php -d opcache.enable=0 b1155-app-check.php <active tree> env <64 hex HMAC key> <pinned origin>
+ * php -d opcache.enable=0 b1155-app-check.php <active tree> views <JSON list of view paths>
+ * php -d opcache.enable=0 b1155-app-check.php <active tree> login-bg
+ * php -d opcache.enable=0 b1155-app-check.php <active tree> media-sample
+ * B1155 facts (features): the source markers of this payload (sourceMarkers: the new and the changed files of the dashboard, the registration page, the report, the requests and controllers, the routes; read as
+ * text, a file that is not there is false) are true after the install and false before it; the four new classes of the payload (newClassesTotal / newClassesLoaded / newClassesAutoloaded: autoload only, nothing is
+ * called); libraryApis (the three group B libraries have their new methods: AppUrlOrigin::redirect, PublicStorefrontAppearance::loginBackground, ManagementReportService::reportOrderIds, by reflection, never called);
+ * reportRoutes (for each passed route name: present, and answers GET), routeCount (the booted router) and bootstrapNamesRedirect (bootstrap/app.php names AppUrlOrigin::redirect, read as text). All false before and
+ * true after the install. login-bg (read-only): ONE boolean, youtubeModeValidId (the login background mode is youtube AND the stored video id is 11 characters of [A-Za-z0-9_-]); neither the mode nor the id is printed.
+ * B1154 facts (features, b1154Markers: the admin shell source markers) and the B1153 facts below hold in BOTH states since Reports 1120 and 1119: logoHeightsApi (SettingsService::LOGO_HEIGHTS has the six places and logoHeight() keeps a value inside
+ * its range and gives the default for junk; a pure static function, no setting is read), catalogWhitelist (PublicCatalogPresentation::perPage() accepts exactly 20, 40 and 80 and
+ * falls back to 40, viewMode() accepts grid and list; pure), freshBrandingApi (PublicStorefrontAppearance::freshBranding() exists, public and static), mailBrandingApi (MailBranding::logo()
+ * exists, public and static; it is NEVER called, so no setting is read and no URL is built).
+ * B1152 facts (features), true in BOTH states since Report1118: originConfiguredIsExpected (AppUrlOrigin::configured() equals the pinned origin), middlewareGlobal (PinAppUrlOrigin is in
+ * the HTTP kernel's global middleware list), bootstrapNamesPin (bootstrap/app.php names PinAppUrlOrigin::class, read as text) and
+ * pdfRasterGuard (FlowPdfLayout::isRasterLogo exists, is static and refuses '' and a PHP file).
+ * env: appUrlExact (config('app.url') equals the pinned origin; a boolean, the value is never printed) and trustedOrCanonicalHostConfigPresent (INFO).
+ * Everything else below is the B1151 helper, unchanged: its facts hold in both states.
+ * It boots the CMS console kernel exactly as artisan does, refuses a cached configuration and prints ONE JSON object with
+ * booleans, counts and fixed keywords only (never a setting value, path, URL or credential; the media-sample URL is the one
+ * documented exception: a signed public image URL, handed to the coordinator and never written to the report). It never
+ * writes and never sends mail. It never calls a password endpoint and never reads a password or a user.
+ * features: whether the new classes of the payload load through composer (the coordinator derives the list from the new
+ * app/*.php entries of STEPS by PSR-4, so the list is never typed twice); the facts that must stay in both states:
+ *   throttleApi: PasswordChangeThrottle exists with begin, message, clear and failed and the budget of 5 attempts per 900 s;
+ *   throttleResolvable: the container can build it (its AuditLogger dependency resolves);
+ *   webPasswordUsesThrottle / apiPasswordUsesThrottle: by reflection, password() of the web and of the API AccountController
+ *   takes a PasswordChangeThrottle parameter;
+ *   merchantIssueLabels: PublicMerchantSettingsController carries the ISSUE_LABELS constant of the draft behaviour;
+ * the B1150 classes (ProductMediaUrl, SignedProductMediaController) and the named media route (MediaInstallCoordinator::MEDIA_ROUTE_NAME,
+ * passed in) with GET, and the B1149 facts (routes site-assets.show and admin.settings.smtp.index, MailSettingsServiceProvider registered, the POST-only theme route of B1148).
+ * env: PHP extensions of this CLI (dom, libxml, fileinfo, mbstring, gd, imagick), whether APP_URL is an origin the shipped
+ * catalog rule accepts, and mailFingerprintHMAC: one HMAC-SHA256, keyed with a random per-run key the caller passes, over the
+ * effective mail transport (default mailer, transport, host, port, encryption, timeout, hashes of username and password, from
+ * address, mailer names). The caller keeps the key and the result only in its private 0600 state file and never prints either;
+ * comparing the two results proves the transport did not change.
+ * media-sample: the proof of the signed B1150 route without a login (unchanged by this rollout). The public catalog page does
+ * not necessarily link a /media/p/ URL (it links /katalog/slika/ routes too), so this hook hands the coordinator ONE signed URL
+ * for the first product image, generated by the application's own signer, plus the number of product images (null = unknown).
+ * Read-only.
+ * @author Ald1n <https://ald1n.com>
+ */
+$fail=static function(string $code):never{echo json_encode(['ok'=>false,'error'=>$code]).PHP_EOL;exit(2);};
+[$self,$base,$mode,$arg1,$arg2,$arg3,$arg4,$arg5,$arg6]=$argv+[null,null,null,null,null,null,null,null,null];
+$originOk=static fn(mixed $o):bool=>is_string($o)&&preg_match('~^https://[a-z0-9.-]{1,120}$~D',$o)===1;
+$checkMarkers=static function(mixed $m):array{if(!is_array($m)||$m===[]||count($m)>40)return [];foreach($m as $k=>$x)if(!is_string($k)||preg_match('/^[A-Za-z0-9]{1,60}$/D',$k)!==1||!is_array($x)||count($x)!==2||!is_string($x[0])||preg_match('~^[A-Za-z0-9_/.-]{1,160}\.(php|js|css)$~D',$x[0])!==1||str_contains($x[0],'..')||!is_string($x[1])||$x[1]===''||strlen($x[1])>200)return [];return $m;};
+if(PHP_SAPI!=='cli'||!is_string($base)||realpath($base)!==$base||!is_file($base.'/artisan')||!in_array($mode,['features','env','media-sample','views','login-bg','boot-proof','census','schema'],true)||($mode==='boot-proof'&&(!is_string($arg1)||!str_starts_with($arg1,'/')||str_contains($arg1,'..')||!is_file($arg1)||is_link($arg1)))||($mode==='env'&&(!is_string($arg1)||preg_match('/^[a-f0-9]{64}$/D',$arg1)!==1||!$originOk($arg2))))$fail('APP_CHECK_ARGUMENTS');
+$viewList=[];
+if($mode==='views'){$viewList=is_string($arg1)?json_decode($arg1,true,4):null;if(!is_array($viewList)||$viewList===[]||count($viewList)>120)$fail('APP_CHECK_ARGUMENTS');foreach($viewList as $v)if(!is_string($v)||preg_match('~^resources/views/[A-Za-z0-9_/.-]{1,160}\.blade\.php$~D',$v)!==1||str_contains($v,'..'))$fail('APP_CHECK_ARGUMENTS');}
+$newClasses=[];$routeName='';$expectedOrigin='';$markers=[];$reportRoutes=[];
+if($mode==='env')$expectedOrigin=$arg2;
+if($mode==='features'){
+    $list=is_string($arg1)?json_decode($arg1,true,4):null;
+    if(!is_array($list)||count($list)>64||!is_string($arg2)||preg_match('/^[a-z0-9._-]{1,80}$/D',$arg2)!==1||!$originOk($arg3))$fail('APP_CHECK_ARGUMENTS');
+    foreach($list as $c)if(!is_string($c)||preg_match('/^App\\\\[A-Za-z0-9_\\\\]{1,200}$/D',$c)!==1)$fail('APP_CHECK_ARGUMENTS');
+    $newClasses=array_values($list);$routeName=$arg2;$expectedOrigin=$arg3;
+    // The source markers (key => [path under the tree, needle]) of B1155 and of B1154: read as text, never executed. The names of the report routes (arg6) are only looked up in the router.
+    $markers=$checkMarkers(is_string($arg4)?json_decode($arg4,true,4):null);$markers154=$checkMarkers(is_string($arg5)?json_decode($arg5,true,4):null);if($markers===[]||$markers154===[])$fail('APP_CHECK_ARGUMENTS');
+    $reportRoutes=is_string($arg6)?json_decode($arg6,true,4):null;if(!is_array($reportRoutes)||count($reportRoutes)>64)$fail('APP_CHECK_ARGUMENTS');foreach($reportRoutes as $n)if(!is_string($n)||preg_match('/^[a-z0-9._-]{1,80}$/D',$n)!==1)$fail('APP_CHECK_ARGUMENTS');
+}
+if(is_file($base.'/bootstrap/cache/config.php'))$fail('APP_CHECK_CONFIG_CACHED');
+// The eleven classes B1149 delivered and the two B1150 delivered; they stay loadable in both states.
+const B1149_CLASSES=['App\Services\SvgSanitizer','App\Services\SvgSanitizeResult','App\Services\SvgSanitizerException','App\Services\SiteLogoAssetService','App\Rules\SiteLogoFile','App\Services\SmtpMailSettingsService','App\Services\MailRuntimeConfigurator','App\Services\SmtpTestTransportFactory','App\Providers\MailSettingsServiceProvider','App\Support\PublicProductImageFiles','App\Support\PublicProductImages'];
+const B1150_CLASSES=['App\Support\ProductMediaUrl','App\Http\Controllers\SignedProductMediaController'];
+const THROTTLE='App\Services\PasswordChangeThrottle';
+const PIN_MIDDLEWARE='App\Http\Middleware\PinAppUrlOrigin';
+/** Whether password() of $class takes a PasswordChangeThrottle parameter (reflection only; the method is never called). */
+$takesThrottle=static function(string $class):bool{
+    if(!class_exists($class,true)||!method_exists($class,'password'))return false;
+    foreach((new ReflectionMethod($class,'password'))->getParameters() as $parameter){$t=$parameter->getType();if($t instanceof ReflectionNamedType&&ltrim($t->getName(),'\\')===THROTTLE)return true;}
+    return false;
+};
+try{
+    chdir($base);require $base.'/vendor/autoload.php';
+    if($mode==='boot-proof'){
+        // B1159: the payload AppServiceProvider (a private temp copy, NOT in the live tree; its class is renamed) is registered against the live application in this CLI process and the binding of CommissionCalculator
+        // is resolved: the container builds it through the NEW constructor (the rate comes from the settings, read only). Nothing is written (no cache, no database); only booleans are printed.
+        $code=(string)file_get_contents($arg1);if(!str_starts_with($code,'<?php')||str_contains($code,'__halt_compiler')||substr_count($code,'final class AppServiceProvider ')!==1)$fail('APP_CHECK_BOOT_PROOF_SOURCE');
+        $app=require $base.'/bootstrap/app.php';$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        eval(substr(str_replace('final class AppServiceProvider ','final class AppServiceProviderProof ',$code),5));
+        $provider=new App\Providers\AppServiceProviderProof($app);$provider->register();
+        $list=is_string($arg2)?json_decode($arg2,true,4):null;if(!is_array($list)||count($list)>16)$fail('APP_CHECK_ARGUMENTS');$resolved=true;
+        foreach($list as $c){if(!is_string($c)||preg_match('/^App\\\\[A-Za-z0-9_\\\\]{1,200}$/D',$c)!==1)$fail('APP_CHECK_ARGUMENTS');try{$resolved=$resolved&&is_object($app->make($c))&&$app->make($c) instanceof $c;}catch(Throwable){$resolved=false;}}
+        echo json_encode(['ok'=>true,'providerRegistered'=>true,'calculatorResolved'=>$resolved],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    $app=require $base.'/bootstrap/app.php';
+    if(method_exists($app,'configurationIsCached')&&$app->configurationIsCached())$fail('APP_CHECK_CONFIG_CACHED');
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    if($mode==='env'){
+        $ext=[];foreach(['dom','libxml','fileinfo','mbstring','gd','imagick'] as $x)$ext[$x]=extension_loaded($x);
+        $origin=class_exists(App\Support\PublicCatalogPresentation::class,true)&&App\Support\PublicCatalogPresentation::baseUrl()!==null;
+        $mail=(array)config('mail');$default=(string)($mail['default']??'');$mailer=(array)(($mail['mailers']??[])[$default]??[]);
+        $fingerprint=hash_hmac('sha256',json_encode(['default'=>$default,'transport'=>$mailer['transport']??null,'host'=>$mailer['host']??null,'port'=>$mailer['port']??null,'encryption'=>$mailer['encryption']??($mailer['scheme']??null),'timeout'=>$mailer['timeout']??null,
+            'usernameSha'=>hash('sha256',(string)($mailer['username']??'')),'passwordSha'=>hash('sha256',(string)($mailer['password']??'')),'from'=>$mail['from']??null,'mailers'=>array_keys((array)($mail['mailers']??[]))],JSON_THROW_ON_ERROR),(string)$arg1);
+        // The cache store the rate limiters use (config cache.limiter, else the default store): the driver keyword only, never a connection value.
+        $store=config('cache.limiter')??config('cache.default');$driver=is_string($store)?config('cache.stores.'.$store.'.driver'):null;
+        $limiterStore=is_string($driver)&&in_array($driver,['redis','file','database','array','memcached','apc','dynamodb','octane','null'],true)?$driver:'other';
+        // The pinned origin: config('app.url') must be EXACTLY the expected string (a boolean only; the value is not printed). A trusted-host or canonical-host
+        // setting would interact with the pin: informational (bootstrap/app.php text, a TrustHosts middleware file or an app config key).
+        $appUrlExact=config('app.url')===$expectedOrigin;
+        $bootText=(string)@file_get_contents($base.'/bootstrap/app.php');$trusted=str_contains($bootText,'trustHosts')||is_file($base.'/app/Http/Middleware/TrustHosts.php')||config('app.trusted_hosts')!==null||config('app.canonical_host')!==null||config('app.canonical_url')!==null;
+        echo json_encode(['ok'=>true,'limiterStore'=>$limiterStore,'extensions'=>$ext,'phpVersionOk'=>PHP_VERSION_ID>=80401&&PHP_VERSION_ID<80500,'appUrlHttpsOrigin'=>$origin,'appUrlExact'=>$appUrlExact,'trustedOrCanonicalHostConfigPresent'=>$trusted,'mailTransportKind'=>is_string($mailer['transport']??null)?$mailer['transport']:'UNKNOWN','mailFingerprintHMAC'=>$fingerprint],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='schema'){
+        // Read-only: the tables, columns and migration rows the b1159 migrations add (booleans only). The lists come from the coordinator (generated from the migration bytes).
+        $spec=is_string($arg1)?json_decode($arg1,true,6):null;if(!is_array($spec)||!is_array($spec['tables']??null)||!is_array($spec['columns']??null)||!is_array($spec['migrations']??null))$fail('APP_CHECK_ARGUMENTS');
+        $S=Illuminate\Support\Facades\Schema::class;$tables=[];foreach($spec['tables'] as $x)if(is_string($x)&&preg_match('/^\w{1,64}$/D',$x)===1)$tables[$x]=$S::hasTable($x);
+        $columns=[];foreach($spec['columns'] as $tb=>$cols)if(is_string($tb)&&preg_match('/^\w{1,64}$/D',$tb)===1&&is_array($cols))foreach($cols as $c)if(is_string($c)&&preg_match('/^\w{1,64}$/D',$c)===1)$columns[$tb.'.'.$c]=$S::hasTable($tb)&&$S::hasColumn($tb,$c);
+        $rows=[];foreach($spec['migrations'] as $m)if(is_string($m)&&preg_match('/^[0-9a-z_]{1,160}$/D',$m)===1)$rows[$m]=(int)Illuminate\Support\Facades\DB::table('migrations')->where('migration',$m)->count()===1;
+        echo json_encode(['ok'=>true,'tables'=>$tables,'columns'=>$columns,'migrationRows'=>$rows],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='census'){
+        // Read-only plain SELECTs: the row count of every table that looks like a notification, outbox, mail, push or queue table (so "nothing was sent" is measured, not assumed). Only counts are printed.
+        $DB=Illuminate\Support\Facades\DB::class;$notif=[];
+        foreach($DB::select('SHOW TABLES') as $row){$name=(string)array_values((array)$row)[0];if(preg_match('/notif|outbox|mail|push|jobs$|job_batches/i',$name)===1&&$name!=='notification_preferences')$notif[$name]=(int)$DB::table($name)->count();}ksort($notif);
+        echo json_encode(['ok'=>true,'notificationRows'=>$notif],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='media-sample'){
+        // The first product image that has a file, as the ProductImage accessor builds its URL (the call every admin page and the app make),
+        // split into path and query; plus how many image rows with a usable path were looked at and how many of them got a null or foreign
+        // URL (the silent-null case: the model swallows a route() exception). Read-only SELECTs and file_exists, at most 500 rows.
+        $prefix='https://cms.ald1n.com/media/p/';$sample=null;$thumbnail=null;$checked=0;$nulls=0;
+        foreach(App\Models\ProductImage::query()->orderBy('id')->limit(500)->get() as $image){
+            $disk=trim((string)$image->storage_disk);$path=ltrim(str_replace('\\','/',trim((string)$image->file_path)),'/');
+            if(!in_array($disk,['public','legacy'],true)||$path===''||in_array('..',explode('/',$path),true))continue;
+            $checked++;$url=$image->url;
+            if(!is_string($url)||!str_starts_with($url,$prefix)){$nulls++;continue;}
+            if($sample===null&&($disk==='legacy'||Illuminate\Support\Facades\Storage::disk('public')->exists($path))){
+                $parts=parse_url($url);parse_str((string)($parts['query']??''),$q);
+                if(is_string($parts['path']??null)&&is_string($q['v']??null)&&is_string($q['s']??null)&&count($q)===2){
+                    $sample=['path'=>$parts['path'],'query'=>['v'=>$q['v'],'s'=>$q['s']]];
+                    // The thumbnail URL of the same image, signed by the application's own signer (the rendition falls back to the original
+                    // when no WebP file exists, so the smoke can read a body without ever depending on a large original).
+                    $tid=(int)$image->getKey();// Since B1159 the media route compares the version in the URL with the CURRENT version of that rendition (a replaced photo is served `private, no-cache`): the thumbnail URL carries the thumbnail's own version when the model has one.
+                    // PR 259: for a rendition without a file of its own mediaVersion() is the ORIGINAL's version (the file the route serves), so this URL is current and the route answers with the immutable header, with or without a WebP thumbnail.
+                    $tv=method_exists($image,'mediaVersion')?(string)($image->mediaVersion('thumbnail')??$q['v']):$q['v'];$ts=App\Support\ProductMediaUrl::signature($tid,'thumbnail',$tv);
+                    if($ts!==null){$tu=parse_url(route('media.product.signed',['image'=>$tid,'rendition'=>'thumbnail','v'=>$tv,'s'=>$ts]));parse_str((string)($tu['query']??''),$tq);if(is_string($tu['path']??null)&&is_string($tq['v']??null)&&is_string($tq['s']??null))$thumbnail=['path'=>$tu['path'],'query'=>['v'=>$tq['v'],'s'=>$tq['s']]];}
+                }
+            }
+        }
+        echo json_encode(['ok'=>true,'sample'=>$sample,'thumbnail'=>$thumbnail,'imageCount'=>$sample===null?0:$checked,'urlNull'=>$nulls,'hook'=>'PRODUCT_IMAGE_ACCESSOR'],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='views'){
+        // Read-only: every view is compiled IN MEMORY (Blade::compileString never touches the compiled-view directory) and the compiled PHP is parsed (token_get_all with TOKEN_PARSE, ParseError caught).
+        // Nothing else runs (no branding call, no request, no write, no mail; only booleans are printed).
+        $rows=[];foreach($viewList as $v){$file=$base.'/'.$v;$compiled=false;$lint=false;
+            if(is_file($file)&&!is_link($file)){try{$php=Illuminate\Support\Facades\Blade::compileString((string)file_get_contents($file));$compiled=true;token_get_all($php,TOKEN_PARSE);$lint=true;}catch(Throwable){}}
+            $rows[$v]=['compiled'=>$compiled,'lint'=>$lint];}
+        echo json_encode(['ok'=>true,'views'=>$rows],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    if($mode==='login-bg'){
+        // Read-only: the login background settings as the storefront appearance reads them (the cached SettingsService). ONE boolean is printed: the mode is youtube AND the stored id is a syntactically valid 11-character
+        // video id. Neither the mode nor the id nor any other setting value leaves this process. A settings service that cannot be read is an error, never a guess.
+        $all=$app->make('App\Services\SettingsService')->all();if(!is_array($all))$fail('APP_CHECK_BOOT_OR_CLASS_UNAVAILABLE');
+        $youtube=(string)($all['login_background_mode']??'default')==='youtube'&&preg_match('/^[A-Za-z0-9_-]{11}$/D',trim((string)($all['login_background_youtube_id']??'')))===1;
+        echo json_encode(['ok'=>true,'youtubeModeValidId'=>$youtube],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+    }
+    $loaded=0;foreach($newClasses as $c)if(class_exists($c,true))$loaded++;
+    $b1149Loaded=0;foreach(B1149_CLASSES as $c)if(class_exists($c,true))$b1149Loaded++;
+    $b1150Loaded=0;foreach(B1150_CLASSES as $c)if(class_exists($c,true))$b1150Loaded++;
+    // The throttle: class API and budget by reflection; resolvable = the container builds it (read-only, no state is touched by building it).
+    $throttleApi=false;$throttleResolvable=false;
+    if(class_exists(THROTTLE,true)){
+        $throttleApi=true;foreach(['begin','message','clear','failed'] as $method)if(!method_exists(THROTTLE,$method))$throttleApi=false;
+        $throttleApi=$throttleApi&&defined(THROTTLE.'::MAX_ATTEMPTS')&&constant(THROTTLE.'::MAX_ATTEMPTS')===5&&defined(THROTTLE.'::DECAY_SECONDS')&&constant(THROTTLE.'::DECAY_SECONDS')===900;
+        try{$throttleResolvable=is_a($app->make(THROTTLE),THROTTLE);}catch(Throwable){$throttleResolvable=false;}
+    }
+    $merchant='App\Http\Controllers\Admin\PublicMerchantSettingsController';
+    $issueLabels=class_exists($merchant,true)&&(new ReflectionClass($merchant))->hasConstant('ISSUE_LABELS');
+    $routes=$app->make('router')->getRoutes();$routes->refreshNameLookups();
+    $site=$routes->getByName('site-assets.show');$smtp=$routes->getByName('admin.settings.smtp.index');$theme=$routes->getByName('public-shop.theme');$media=$routes->getByName($routeName);
+    $themeMethods=$theme===null?[]:array_values(array_diff($theme->methods(),['HEAD']));
+    // B1152: the pin. All read-only, nothing is called that writes or sends.
+    $originClass='App\Support\AppUrlOrigin';$originConfigured=class_exists($originClass,true)&&$originClass::configured()===$expectedOrigin;
+    // The HTTP kernel's global middleware list (bootstrap/app.php prepends the middleware there); nothing is instantiated.
+    $middlewareGlobal=false;try{$kernel=$app->make(Illuminate\Contracts\Http\Kernel::class);$middlewareGlobal=method_exists($kernel,'getGlobalMiddleware')&&in_array(PIN_MIDDLEWARE,(array)$kernel->getGlobalMiddleware(),true);}catch(Throwable){$middlewareGlobal=false;}
+    $bootstrapNamesPin=str_contains((string)@file_get_contents($base.'/bootstrap/app.php'),'PinAppUrlOrigin::class');
+    // The reset-password notification is NOT instantiated or run (no mail message is built, nothing can be sent); its APP_URL-based link is a source marker (sourceMarkers).
+    // The PDF raster guard: the private static isRasterLogo of FlowPdfLayout exists and refuses an empty path and a PHP file (read-only; the PDF writer is never run).
+    $pdfGuard=false;try{$cls='App\Services\Pdf\FlowPdfLayout';if(class_exists($cls,true)&&(new ReflectionClass($cls))->hasMethod('isRasterLogo')){$m=new ReflectionMethod($cls,'isRasterLogo');$pdfGuard=$m->isStatic()&&$m->invoke(null,'')===false&&$m->invoke(null,__FILE__)===false;}}catch(Throwable){$pdfGuard=false;}
+    // B1153: pure static functions only (no setting read, no database, nothing written); a class or method that is not there yet is simply false.
+    $logoApi=false;try{$st='App\Services\SettingsService';if(class_exists($st,true)&&defined($st.'::LOGO_HEIGHTS')&&method_exists($st,'logoHeight')){$h=constant($st.'::LOGO_HEIGHTS');$logoApi=is_array($h)&&count($h)===6&&$st::logoHeight('site_header_logo_height','38')===38&&$st::logoHeight('site_header_logo_height','5')===32&&$st::logoHeight('site_header_logo_height','abc')===32&&$st::logoHeight('documents_logo_height','36')===36&&$st::logoHeight('email_logo_height',null)===36;}}catch(Throwable){$logoApi=false;}
+    $catalogApi=false;try{$pp='App\Support\PublicCatalogPresentation';if(class_exists($pp,true)&&method_exists($pp,'perPage')&&method_exists($pp,'viewMode')){$catalogApi=$pp::perPage(null)===40&&$pp::perPage('20')===20&&$pp::perPage('40')===40&&$pp::perPage('80')===80&&$pp::perPage('999')===40&&$pp::perPage('040')===40&&$pp::perPage(['20'])===40&&$pp::viewMode('list')==='list'&&$pp::viewMode('grid')==='grid'&&$pp::viewMode('x')==='grid'&&$pp::viewMode(null)==='grid';}}catch(Throwable){$catalogApi=false;}
+    $freshApi=false;try{$fb='App\Support\PublicStorefrontAppearance';$freshApi=class_exists($fb,true)&&method_exists($fb,'freshBranding')&&(new ReflectionMethod($fb,'freshBranding'))->isStatic()&&(new ReflectionMethod($fb,'freshBranding'))->isPublic();}catch(Throwable){$freshApi=false;}
+    $mailApi=false;try{$mb='App\Support\MailBranding';$mailApi=class_exists($mb,true)&&method_exists($mb,'logo')&&(new ReflectionMethod($mb,'logo'))->isStatic()&&(new ReflectionMethod($mb,'logo'))->isPublic();}catch(Throwable){$mailApi=false;}
+    $sourceMarkers=[];foreach($markers as $k=>[$p,$needle]){$f=$base.'/'.$p;$sourceMarkers[$k]=is_file($f)&&!is_link($f)&&str_contains((string)@file_get_contents($f),$needle);}
+    $b1154Markers=[];foreach($markers154 as $k=>[$p,$needle]){$f=$base.'/'.$p;$b1154Markers[$k]=is_file($f)&&!is_link($f)&&str_contains((string)@file_get_contents($f),$needle);}
+    // B1159: the new methods of the libraries (reflection only, nothing is called), the six new web routes (present, with their methods), the route count and the bootstrap text (true in both states since B1155).
+    $api=static function(string $class,string $method):bool{try{return class_exists($class,true)&&method_exists($class,$method)&&(new ReflectionMethod($class,$method))->isPublic();}catch(Throwable){return false;}};
+    $libraryApis=['hasAdjustments'=>$api('App\Support\CommissionMoney','hasAdjustments'),'ratePercent'=>$api('App\Services\CommissionCalculator','ratePercent'),'adjustments'=>$api('App\Models\OrderCommission','adjustments'),'reverse'=>$api('App\Services\CommissionReversalService','reverse')];
+    $reportFacts=[];foreach($reportRoutes as $n){$rt=$routes->getByName($n);$reportFacts[$n]=['present'=>$rt!==null,'methods'=>$rt===null?[]:array_values(array_diff($rt->methods(),['HEAD']))];}
+    $bootstrapNamesRedirect=str_contains((string)@file_get_contents($base.'/bootstrap/app.php'),'AppUrlOrigin::redirect(');
+    echo json_encode(['ok'=>true,'libraryApis'=>$libraryApis,'newRoutes'=>$reportFacts,'routeCount'=>$routes->count(),'bootstrapNamesRedirect'=>$bootstrapNamesRedirect,'originConfiguredIsExpected'=>$originConfigured,'middlewareGlobal'=>$middlewareGlobal,'bootstrapNamesPin'=>$bootstrapNamesPin,'pdfRasterGuard'=>$pdfGuard,'logoHeightsApi'=>$logoApi,'catalogWhitelist'=>$catalogApi,'freshBrandingApi'=>$freshApi,'mailBrandingApi'=>$mailApi,'sourceMarkers'=>$sourceMarkers,'priorMarkers'=>$b1154Markers,'newClassesTotal'=>count($newClasses),'newClassesLoaded'=>$loaded,'newClassesAutoloaded'=>$loaded===count($newClasses),
+        'throttleApi'=>$throttleApi,'throttleResolvable'=>$throttleResolvable,'webPasswordUsesThrottle'=>$takesThrottle('App\Http\Controllers\AccountController'),'apiPasswordUsesThrottle'=>$takesThrottle('App\Http\Controllers\Api\V1\AccountController'),'merchantIssueLabels'=>$issueLabels,
+        'b1150ClassesLoaded'=>$b1150Loaded===count(B1150_CLASSES),'routeMedia'=>$media!==null&&in_array('GET',$media->methods(),true),
+        'b1149ClassesLoaded'=>$b1149Loaded===count(B1149_CLASSES),'routeSiteAssets'=>$site!==null&&in_array('GET',$site->methods(),true),'routeSmtpIndex'=>$smtp!==null&&in_array('GET',$smtp->methods(),true),
+        'providerRegistered'=>array_key_exists('App\Providers\MailSettingsServiceProvider',$app->getLoadedProviders()),'themeRoutePostOnly'=>$themeMethods===['POST'],'routesCached'=>$app->routesAreCached()],JSON_THROW_ON_ERROR).PHP_EOL;exit(0);
+}catch(Throwable){$fail('APP_CHECK_BOOT_OR_CLASS_UNAVAILABLE');}
