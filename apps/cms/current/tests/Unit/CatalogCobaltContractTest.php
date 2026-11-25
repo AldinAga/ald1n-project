@@ -143,6 +143,15 @@ final class CatalogCobaltContractTest extends TestCase
         self::assertMatchesRegularExpression('/\.a1-cat-card__image img\{[^}]*max-height:100%[^}]*object-fit:contain/', $css);
     }
 
+    /** A glass card (backdrop-filter) traps position:fixed descendants; the lightbox must be mounted on <body> when it opens. */
+    public function test_lightbox_is_mounted_on_body_when_it_opens(): void
+    {
+        $view = (string) file_get_contents(self::root().'/resources/views/catalog/show.blade.php');
+
+        self::assertStringContainsString('if (lightbox.parentElement !== document.body) document.body.appendChild(lightbox);', $view);
+        self::assertStringContainsString("lightbox.querySelector('[data-lightbox-close]:not([tabindex=\"-1\"])')", $view);
+    }
+
     public function test_lightbox_is_fullscreen_on_phones_and_never_taller_than_the_viewport(): void
     {
         $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');

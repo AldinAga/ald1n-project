@@ -679,10 +679,13 @@
 
         const openLightbox = () => {
             lastFocus = document.activeElement;
+            // A glass card (backdrop-filter) becomes the containing block of position:fixed descendants, which squeezed the
+            // lightbox into the gallery card while the page scroll was locked. Mount it directly on <body> so it covers the viewport.
+            if (lightbox.parentElement !== document.body) document.body.appendChild(lightbox);
             lightbox.hidden = false;
             document.body.classList.add('a1-cat-lb-open');
             updateImage(index, false);
-            requestAnimationFrame(() => gallery.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
+            requestAnimationFrame(() => lightbox.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
         };
 
         const closeLightbox = () => {
