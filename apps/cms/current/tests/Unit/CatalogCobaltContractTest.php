@@ -133,6 +133,16 @@ final class CatalogCobaltContractTest extends TestCase
         self::assertStringContainsString('.a1-cat-grid>.a1-empty{grid-column:1/-1}', $css);
     }
 
+    /** A tall product photo must never stretch the 4:3 image box and cover the title/SKU rows of the card below it. */
+    public function test_catalog_card_image_is_clipped_to_its_aspect_box(): void
+    {
+        $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
+
+        self::assertMatchesRegularExpression('/\.a1-cat-card__media\{[^}]*aspect-ratio:4\/3[^}]*min-height:0[^}]*overflow:hidden/', $css);
+        self::assertMatchesRegularExpression('/\.a1-cat-card__image\{[^}]*position:absolute[^}]*inset:0[^}]*overflow:hidden/', $css);
+        self::assertMatchesRegularExpression('/\.a1-cat-card__image img\{[^}]*max-height:100%[^}]*object-fit:contain/', $css);
+    }
+
     public function test_lightbox_is_fullscreen_on_phones_and_never_taller_than_the_viewport(): void
     {
         $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
