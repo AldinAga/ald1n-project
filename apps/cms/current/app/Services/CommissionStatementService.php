@@ -97,7 +97,8 @@ final class CommissionStatementService
         [$settledMonth, $debitRows] = $hasSettlements ? $this->settledInMonth((int) $agent->id, $from, $to) : [0, []];
         $appliedDebt = min($openDebt, $due);
         $netDue = $due - $appliedDebt;
-        $netDueRsd = $current === null ? null : max(0, $dueRsd - $this->rsdCents($appliedDebt, $current));
+        // neto 0,00 EUR je i 0,00 RSD (bez ostatka zaokruživanja po stavci)
+        $netDueRsd = $current === null ? null : ($netDue === 0 ? 0 : max(0, $dueRsd - $this->rsdCents($appliedDebt, $current)));
         $s = $this->settings->all();
         $note = 'Osnovica i % su iz porudžbine, pre storna; iznos provizije je posle storna. '
             .'Provizija se obračunava u EUR, a isplaćuje u RSD po kursu na dan isplate. RSD je zaokružen po stavci; zbir je zbir stavki.';
@@ -173,7 +174,7 @@ final class CommissionStatementService
             $sumGross += $g;
             $sumDebit += $d;
             // neto RSD = zbir zaokruženih redova minus zaokružen dug korisnika; zbir primalaca = kartica "NETO RSD"
-            $userRsd = $rate === null ? 0 : $grossRsd[$uid] - $this->rsdCents($d, $rate);
+            $userRsd = $rate === null || $g === $d ? 0 : $grossRsd[$uid] - $this->rsdCents($d, $rate);
             $netRsd += $userRsd;
             $recipients[] = [$names[$uid], $this->eur($g), $this->eur($d), $this->eur($g - $d), $rate === null ? '-' : $this->rsdFormat($userRsd).($recorded ? '' : ' *')];
         }

@@ -196,6 +196,32 @@ final class CommissionStatementPdfTest extends TestCase
         self::assertStringContainsString('(27,00 EUR) Tj', $pdf); // stavka u tabeli posle storna, kao na stranici provizija
     }
 
+    public function test_bulk_payout_of_all_open_commissions_pays_the_statement_net(): void
+    {
+        // Bravo: dve otvorene po 20,00 (jedna sa stornom 3,00 → 17,00) i otvoreno zaduženje 4,00. Očekivano: neto 33,00, zaduženje 4,00.
+        $first = $this->approvedCommission($this->bravo);
+        $second = $this->approvedCommission($this->bravo);
+        app(\App\Services\CommissionReversalService::class)->reverse($second->fresh(), $this->super, 'Delimičan storno', '3.00');
+        $paid = OrderCommission::query()->where('user_id', $this->bravo->id)->where('status', 'paid')->firstOrFail();
+        CommissionAdjustment::query()->create([
+            'commission_id' => $paid->id, 'order_id' => $paid->order_id, 'kind' => 'debit', 'status' => 'confirmed',
+            'amount_eur' => '4.00', 'reason' => 'Povrat posle isplate', 'source' => 'manual', 'created_by' => $this->super->id,
+        ]);
+
+        $pdf = $this->actingAs($this->super)->get('/admin/commissions/statement.pdf?month='.now()->format('Y-m').'&user_id='.$this->bravo->id)->assertOk()->getContent();
+        $neto = strpos($pdf, '(Neto za isplatu) Tj');
+        self::assertNotFalse($neto);
+        self::assertStringContainsString('(33,00 EUR) Tj', substr($pdf, $neto, 400));
+
+        $open = OrderCommission::query()->where('user_id', $this->bravo->id)->where('status', 'approved')->pluck('id')->all();
+        self::assertEqualsCanonicalizing([$first->id, $second->id], $open);
+        $this->actingAs($this->super)->post('/admin/commissions/bulk-pay', ['commission_ids' => $open, 'payment_method' => 'bank_transfer'])->assertSessionHasNoErrors();
+        $batch = DB::table('commission_payment_batches')->latest('id')->first();
+        self::assertNotSame($this->batchId, (int) $batch->id);
+        self::assertSame('33.00', (string) $batch->net_eur, 'bulk isplata isplaćuje neto iz obračuna');
+        self::assertSame('4.00', (string) $batch->debit_eur);
+    }
+
     public function test_open_debit_larger_than_payable_is_capped_and_net_is_zero(): void
     {
         $this->approvedCommission($this->bravo); // 20,00 za isplatu
@@ -212,6 +238,7 @@ final class CommissionStatementPdfTest extends TestCase
         self::assertStringContainsString('(0,00 EUR) Tj', substr($pdf, $neto, 400));
         // otvoreno zaduženje u celosti u pasusu, iznos i EUR spojeni NBSP-om (ne prelamaju se)
         self::assertStringContainsString($this->pdfText("25,00\u{00A0}EUR"), $pdf);
+        self::assertStringContainsString($this->pdfText("0,00\u{00A0}RSD"), $pdf); // neto RSD 0 kad je neto EUR 0
     }
 
     public function test_large_amounts_and_statuses_stay_on_one_line(): void
