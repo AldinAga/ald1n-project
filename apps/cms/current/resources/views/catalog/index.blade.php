@@ -23,9 +23,9 @@
         $value = (string) request('status');
         $catalogFilterChips[] = ['label' => 'Status: '.($catalogStatusLabels[$value] ?? $value), 'remove' => ['status']];
     }
-    if ($isSuperAdministrator && filled(request('ownership'))) {
-        $value = (string) request('ownership');
-        $catalogFilterChips[] = ['label' => 'Vlasništvo: '.($catalogOwnershipLabels[$value] ?? $value), 'remove' => ['ownership']];
+    $catalogOwnership = request('ownership');
+    if ($canManageCatalog && ($catalogOwnership === 'mine' || ($isSuperAdministrator && $catalogOwnership === 'unassigned'))) {
+        $catalogFilterChips[] = ['label' => 'Vlasništvo: '.$catalogOwnershipLabels[$catalogOwnership], 'remove' => ['ownership']];
     }
     if ($canManageCatalog && filled(request('quality'))) {
         $value = (string) request('quality');
@@ -177,13 +177,13 @@
         </div>
         <div class="a1-cat-drawer__body">
             <div class="a1-cat-drawer__grid">
-                @if($canManageCatalog && $isSuperAdministrator)
+                @if($canManageCatalog)
                     <label class="a1-field">
                         <span class="a1-label">Vlasništvo</span>
                         <select class="a1-select" name="ownership">
                             <option value="">Svi artikli</option>
                             <option value="mine" @selected(request('ownership') === 'mine')>Moji artikli</option>
-                            <option value="unassigned" @selected(request('ownership') === 'unassigned')>Bez vlasnika</option>
+                            @if($isSuperAdministrator)<option value="unassigned" @selected(request('ownership') === 'unassigned')>Bez vlasnika</option>@endif
                         </select>
                     </label>
                 @endif

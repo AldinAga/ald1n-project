@@ -25,6 +25,63 @@ final class CatalogAccessTest extends TestCase
         $this->seed(CoreAccessSeeder::class);
     }
 
+    public function test_catalog_managers_can_filter_articles_by_their_own_author_id(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $superadmin = User::factory()->create(['role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id')]);
+        $adminProduct = $this->product('admin-product', 'Artikal administratora', $admin->id);
+        $superadminProduct = $this->product('superadmin-product', 'Artikal superadministratora', $superadmin->id);
+
+        $this->actingAs($admin)->get('/catalog')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertSee($superadminProduct->name)
+            ->assertSee('name="ownership"', false)
+            ->assertSee('Moji artikli')
+            ->assertDontSee('<option value="unassigned"', false);
+
+        $this->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertDontSee($superadminProduct->name)
+            ->assertSee('Ukloni filter: Vlasništvo: Moji artikli');
+
+        $this->get('/admin/catalog/'.$superadminProduct->id.'/edit')->assertNotFound();
+
+        $this->actingAs($superadmin)->get('/catalog')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertSee($superadminProduct->name)
+            ->assertSee('name="ownership"', false)
+            ->assertSee('<option value="unassigned"', false);
+
+        $this->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($superadminProduct->name)
+            ->assertDontSee($adminProduct->name);
+    }
+
+    public function test_catalog_viewer_without_manage_permission_cannot_filter_by_author(): void
+    {
+        $group = UserGroup::query()->create([
+            'name' => 'Pregled kataloga', 'slug' => 'pregled-kataloga', 'status' => 'active',
+            'category_access_mode' => 'all', 'include_uncategorized' => true,
+        ]);
+        $catalogPermission = DB::table('permissions')->where('slug', 'catalog.view')->value('id');
+        DB::table('user_group_permissions')->insert(['group_id' => $group->id, 'permission_id' => $catalogPermission, 'created_at' => now()]);
+        $viewer = $this->user($group);
+        $other = User::factory()->create();
+        $ownProduct = $this->product('viewer-product', 'Artikal posmatrača', $viewer->id);
+        $otherProduct = $this->product('other-product', 'Artikal drugog autora', $other->id);
+
+        $this->actingAs($viewer)->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($ownProduct->name)
+            ->assertSee($otherProduct->name)
+            ->assertDontSee('name="ownership"', false)
+            ->assertDontSee('Moji artikli');
+    }
+
     public function test_selected_parent_category_includes_children_and_optional_uncategorized_products(): void
     {
         $group = UserGroup::query()->create([
