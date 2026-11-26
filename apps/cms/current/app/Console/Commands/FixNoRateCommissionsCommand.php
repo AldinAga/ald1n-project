@@ -34,14 +34,17 @@ final class FixNoRateCommissionsCommand extends Command
         {--apply : Upiši ispravke (bez ove opcije samo prikaz i CSV, ništa se ne menja)}
         {--include-manual : Uključi klasu A (artikal ima ručnu proviziju; iznos = DANAŠNJA ručna provizija x količina, procena)}
         {--use-current-rate : Koristi trenutni kurs iz podešavanja umesto kursa po datumu porudžbine}
-        {--order=* : Ograniči na ID porudžbine (može više puta)}';
+        {--order=* : Ograniči na porudžbinu: ID (npr. 123) ili broj (APC-...); može više puta, neispravna vrednost = FAIL bez obrade}';
 
     protected $description = 'Provizije bez kursa (RSD stavka, 0 EUR): dry-run lista predloga, --apply upisuje ispravku';
 
     private const SOURCE = 'fix_norate_20261124';
-    private const HEADERS = ['Narudžba', 'Provizija', 'Stavka', 'Status', 'Klasa', 'Trenutni snimak EUR', 'Predloženi iznos EUR', 'Kurs', 'Izvor kursa', 'Akcija'];
-    private const COL_PROPOSED = 6;
-    private const COL_ACTION = 9;
+    private const HEADERS = ['Narudžba', 'ID porudžbine', 'Provizija', 'Stavka', 'Status', 'Klasa', 'Trenutni snimak EUR', 'Predloženi iznos EUR', 'Kurs', 'Izvor kursa', 'Akcija'];
+    private const COL_PROPOSED = 7;
+    private const COL_ACTION = 10;
+
+    /** @var list<int> razrešeni --order ID-evi (prazno = bez ograničenja) */
+    private array $orderIds = [];
 
     /** @var list<array{ts:int,rate:float,id:int,date:string}> uspešni kursevi iz istorije, rastuće po vremenu */
     private array $history = [];
@@ -63,6 +66,11 @@ final class FixNoRateCommissionsCommand extends Command
         $this->applicable = [];
         $this->rateKinds = [];
         $this->stats = array_map(static fn (): int => 0, $this->stats);
+        $orderIds = $this->resolveOrderOption();
+        if ($orderIds === null) {
+            return self::FAILURE; // neispravan --order: ništa se ne obrađuje, da filter nikad tiho ne nestane
+        }
+        $this->orderIds = $orderIds;
         $this->loadRates($settings);
         $this->line($apply ? 'APPLY' : 'DRY-RUN (ništa se ne menja)');
 
@@ -97,7 +105,7 @@ final class FixNoRateCommissionsCommand extends Command
         $paid = $this->paidAffected();
         if ($paid !== []) {
             $this->line('Već isplaćene pogođene provizije (samo pregled, ne menja se):');
-            $this->table(['Narudžba', 'Provizija', 'Isplaćeno EUR', 'Isplaćeno'], $paid);
+            $this->table(['Narudžba', 'ID porudžbine', 'Provizija', 'Isplaćeno EUR', 'Isplaćeno'], $paid);
         }
         $csv = $this->writeCsv($apply, $paid);
         ksort($this->rateKinds);
@@ -137,12 +145,44 @@ final class FixNoRateCommissionsCommand extends Command
     private function scopeAffectedOrder(Builder $query): Builder
     {
         $query->whereHas('order', static fn (Builder $o): Builder => self::noRateOrder($o)->whereHas('items', static fn (Builder $i): Builder => self::affectedItems($i)));
-        $orderIds = array_values(array_filter(array_map('intval', (array) $this->option('order')), static fn (int $id): bool => $id > 0));
-        if ($orderIds !== []) {
-            $query->whereIn('order_commissions.order_id', $orderIds);
+        if ($this->orderIds !== []) {
+            $query->whereIn('order_commissions.order_id', $this->orderIds);
         }
 
         return $query;
+    }
+
+    /**
+     * --order prihvata pozitivan ceo broj (ID porudžbine) ili broj porudžbine (APC-...). Bilo šta drugo, ili broj
+     * porudžbine koji ne postoji, je greška: komanda staje bez obrade (null), umesto da radi nad svim provizijama.
+     * @return list<int>|null
+     */
+    private function resolveOrderOption(): ?array
+    {
+        $ids = [];
+        foreach ((array) $this->option('order') as $raw) {
+            $value = trim((string) $raw);
+            if (preg_match('/^[1-9]\d{0,18}$/', $value) === 1) {
+                $ids[] = (int) $value;
+                continue;
+            }
+            if (preg_match('/^[A-Z]{2,10}-\d{8}-\d{1,12}$/', $value) === 1) {
+                $id = Order::query()->where('order_number', $value)->value('id');
+                if ($id === null) {
+                    $this->error(sprintf('FAIL --order=%s: porudžbina sa tim brojem ne postoji. Ništa nije obrađeno.', $value));
+
+                    return null;
+                }
+                $this->line(sprintf('--order=%s -> ID porudžbine %d', $value, (int) $id));
+                $ids[] = (int) $id;
+                continue;
+            }
+            $this->error(sprintf('FAIL --order="%s" nije ID porudžbine (pozitivan ceo broj) ni broj porudžbine (APC-...). Ništa nije obrađeno.', $value));
+
+            return null;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -194,7 +234,7 @@ final class FixNoRateCommissionsCommand extends Command
             $reason = $commonReason ?? $p['reason'];
             $index = count($this->rows);
             $this->rows[] = [
-                (string) $order->order_number, (string) $commission->id, (string) $item->id, (string) $commission->status, $p['class'],
+                (string) $order->order_number, (string) $order->id, (string) $commission->id, (string) $item->id, (string) $commission->status, $p['class'],
                 number_format((float) $item->commission_total_eur_snapshot, 2, '.', ''),
                 $reason === null ? number_format((float) $p['total'], 2, '.', '') : '',
                 $p['class'] === 'A' ? '' : ($rate === null ? '' : number_format($rate, 6, '.', '')),
@@ -363,7 +403,7 @@ final class FixNoRateCommissionsCommand extends Command
             ->with('order:id,order_number');
         $query->chunkById(500, static function (Collection $chunk) use (&$rows): void {
             foreach ($chunk as $c) {
-                $rows[] = [(string) $c->order?->order_number, (string) $c->id, (string) $c->total_eur, (string) $c->paid_at];
+                $rows[] = [(string) $c->order?->order_number, (string) $c->order_id, (string) $c->id, (string) $c->total_eur, (string) $c->paid_at];
             }
         }, 'order_commissions.id', 'id');
 
@@ -388,7 +428,8 @@ final class FixNoRateCommissionsCommand extends Command
     }
 
     /**
-     * Kurs: najbliži raniji iz istorije (do kraja dana porudžbine); ako ga nema, prvi posle porudžbine; ako ni njega,
+     * Kurs: poslednji iz istorije do kraja dana porudžbine ('na dan' ako je istog dana, inače 'istorija' = najbliži raniji);
+     * ako ga nema, prvi posle porudžbine; ako ni njega,
      * trenutni iz podešavanja. --use-current-rate uvek uzima trenutni.
      * @return array{0:?float,1:string,2:string} kurs, opis izvora, vrsta izvora
      */
@@ -407,7 +448,12 @@ final class FixNoRateCommissionsCommand extends Command
                 }
             }
             if ($before !== null) {
-                return [$before['rate'], sprintf('istorija #%d (%s)', $before['id'], $before['date']), 'istorija'];
+                // Odluka vlasnika: kurs "na dan porudžbine" je poslednji kurs tog dana, i kad je upisan posle porudžbine.
+                $sameDay = substr($before['date'], 0, 10) === Carbon::parse((string) $orderCreatedAt)->toDateString();
+
+                return $sameDay
+                    ? [$before['rate'], sprintf('na dan #%d (%s, poslednji kurs dana porudžbine)', $before['id'], $before['date']), 'na dan']
+                    : [$before['rate'], sprintf('istorija #%d (%s)', $before['id'], $before['date']), 'istorija'];
             }
             if ($after !== null) {
                 return [$after['rate'], sprintf('prvi poslije #%d (%s)', $after['id'], $after['date']), 'prvi poslije'];
@@ -442,8 +488,8 @@ final class FixNoRateCommissionsCommand extends Command
         foreach ($this->rows as $row) {
             fputcsv($handle, $row, ',', '"', '');
         }
-        foreach ($paid as [$number, $id, $total]) {
-            fputcsv($handle, [$number, $id, '', 'paid', '', $total, '', '', '', 'već isplaćena: samo pregled, ne menja se'], ',', '"', '');
+        foreach ($paid as [$number, $orderId, $id, $total]) {
+            fputcsv($handle, [$number, $orderId, $id, '', 'paid', '', $total, '', '', '', 'već isplaćena: samo pregled, ne menja se'], ',', '"', '');
         }
         fclose($handle);
 

@@ -210,9 +210,10 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         $rows = $this->csvRows('dry-run');
         self::assertCount(1, $rows);
         self::assertSame((string) $commission->order->order_number, $rows[0][0]);
-        self::assertSame(self::EXPECTED_HISTORY, $rows[0][6]);
-        self::assertStringStartsWith('istorija #', $rows[0][8]);
-        self::assertSame('predlog', $rows[0][9]);
+        self::assertSame((string) $commission->order_id, $rows[0][1], 'kolona ID porudžbine za --order');
+        self::assertSame(self::EXPECTED_HISTORY, $rows[0][7]);
+        self::assertStringStartsWith('istorija #', $rows[0][9]);
+        self::assertSame('predlog', $rows[0][10]);
     }
 
     // 3 (deo): dry-run ne predlaže isključene provizije i ne ubraja ih u zbir
@@ -233,12 +234,12 @@ final class FixNoRateCommissionsCommandTest extends TestCase
             ->expectsOutputToContain('ukupno povećanje: '.self::EXPECTED_HISTORY.' EUR')
             ->assertSuccessful();
 
-        $byCommission = collect($this->csvRows('dry-run'))->keyBy(1);
-        self::assertSame(self::EXPECTED_HISTORY, $byCommission[(string) $control->id][6]);
-        self::assertSame('', $byCommission[(string) $classA->id][6]);
-        self::assertStringContainsString('klasa A', $byCommission[(string) $classA->id][9]);
-        self::assertSame('', $byCommission[(string) $adjusted->id][6]);
-        self::assertStringContainsString('korekcije', $byCommission[(string) $adjusted->id][9]);
+        $byCommission = collect($this->csvRows('dry-run'))->keyBy(2);
+        self::assertSame(self::EXPECTED_HISTORY, $byCommission[(string) $control->id][7]);
+        self::assertSame('', $byCommission[(string) $classA->id][7]);
+        self::assertStringContainsString('klasa A', $byCommission[(string) $classA->id][10]);
+        self::assertSame('', $byCommission[(string) $adjusted->id][7]);
+        self::assertStringContainsString('korekcije', $byCommission[(string) $adjusted->id][10]);
     }
 
     // 2
@@ -292,8 +293,8 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         self::assertSame('20.48', $meta['items'][$itemId]['new_total']);
     }
 
-    // kurs, put 1: najbliži raniji, uključujući kraj dana porudžbine (23:59:59)
-    public function test_rate_end_of_order_day_counts_as_earlier(): void
+    // kurs, put 1a: kraj dana porudžbine (23:59:59) je još "na dan", sledeći dan 00:00:00 nije
+    public function test_rate_end_of_order_day_counts_as_order_day(): void
     {
         $commission = $this->affected();
         $this->onDay($commission, '2026-11-20');
@@ -301,9 +302,74 @@ final class FixNoRateCommissionsCommandTest extends TestCase
         $this->rate(self::LATER_RATE, Carbon::parse('2026-11-21 00:00:00'));
         $this->setCurrentRate();
 
+        $this->fix(['--apply' => true])->expectsOutputToContain('na dan=1')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $commission->fresh()->total_eur);
+    }
+
+    // kurs, put 1b (odluka vlasnika): raniji kurs (D-3) i kurs istog dana posle porudžbine (D 22:00) -> kurs od 22:00
+    public function test_rate_same_day_after_order_wins_over_earlier_day(): void
+    {
+        $commission = $this->affected();
+        $this->onDay($commission, '2026-11-20');
+        $this->rate(self::LATER_RATE, Carbon::parse('2026-11-17 10:00:00'));
+        $this->rate(self::HISTORY_RATE, Carbon::parse('2026-11-20 22:00:00'));
+        $this->setCurrentRate();
+
+        $this->fix(['--apply' => true])->expectsOutputToContain('na dan=1')->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $commission->fresh()->total_eur, 'kurs od 22:00 istog dana, ne D-3');
+        self::assertStringStartsWith('na dan #', json_decode((string) $this->auditFor($commission)->metadata_json, true)['rate_source']);
+    }
+
+    // kurs, put 1c: samo raniji dan -> 'istorija'
+    public function test_rate_from_earlier_day_is_history(): void
+    {
+        $commission = $this->affected();
+        $this->onDay($commission, '2026-11-20');
+        $this->rate(self::HISTORY_RATE, Carbon::parse('2026-11-17 10:00:00'));
+        $this->setCurrentRate();
+
         $this->fix(['--apply' => true])->expectsOutputToContain('istorija=1')->assertSuccessful();
 
         self::assertSame(self::EXPECTED_HISTORY, $commission->fresh()->total_eur);
+    }
+
+    /** @return array<string,array{0:string}> */
+    public static function invalidOrderOption(): array
+    {
+        return ['nepostojeći broj porudžbine' => ['APC-20261124-99999999'], 'nula' => ['0'], 'broj sa slovima' => ['12abc'], 'prazno' => [''], 'negativan' => ['-5']];
+    }
+
+    // P1: neispravan --order nikad ne sme da ukine filter
+    #[DataProvider('invalidOrderOption')]
+    public function test_invalid_order_option_fails_without_any_write(string $value): void
+    {
+        $commission = $this->affected();
+        $this->seedRates();
+        $before = $this->tableHashes();
+
+        $this->fix(['--apply' => true, '--order' => [$value]])->expectsOutputToContain('Ništa nije obrađeno')->assertFailed();
+
+        self::assertSame($before, $this->tableHashes());
+        self::assertSame('0.00', $commission->fresh()->total_eur);
+        self::assertSame([], array_values(array_diff($this->reports(), $this->reportsBefore)), 'ni CSV se ne pravi');
+    }
+
+    // P1: broj porudžbine (APC-...) se razrešava u ID i ograničava obradu na tu porudžbinu
+    public function test_order_option_accepts_order_number(): void
+    {
+        $chosen = $this->affected();
+        $other = $this->affected();
+        $this->seedRates();
+        $number = (string) $chosen->order->order_number;
+
+        $this->fix(['--apply' => true, '--order' => [$number]])
+            ->expectsOutputToContain(sprintf('--order=%s -> ID porudžbine %d', $number, $chosen->order_id))
+            ->assertSuccessful();
+
+        self::assertSame(self::EXPECTED_HISTORY, $chosen->fresh()->total_eur);
+        self::assertSame('0.00', $other->fresh()->total_eur);
     }
 
     // kurs, put 2: nema ranijeg -> prvi poslije porudžbine (granica: sledeći dan 00:00:00)
