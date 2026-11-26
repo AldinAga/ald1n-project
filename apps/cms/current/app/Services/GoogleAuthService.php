@@ -167,7 +167,7 @@ final class GoogleAuthService
                 return null;
             }
 
-            return Carbon::parse($state['grace_until'])->timezone((string) config('app.timezone'))->format('d.m.Y.');
+            return Carbon::parse($state['grace_until'])->timezone((string) config('app.timezone'))->format('d.m.Y');
         } catch (Throwable) {
             return null;
         }
