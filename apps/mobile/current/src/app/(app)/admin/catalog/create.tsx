@@ -915,7 +915,7 @@ export default function AdminCatalogCreateScreen() {
           style={styles.multiline}
         />
         <TextField
-          label="Interne napomene"
+          label="Napomene"
           value={notes}
           onChangeText={setNotes}
           multiline

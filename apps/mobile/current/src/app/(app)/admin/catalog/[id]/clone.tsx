@@ -125,7 +125,7 @@ export default function AdminCatalogCloneScreen() {
         <ToggleRow label="Specifikacije" value={copySpecifications} onChange={setCopySpecifications} />
         <ToggleRow label="Cena i provizija" value={copyPrice} onChange={setCopyPrice} />
         <ToggleRow label="Opis" value={copyDescription} onChange={setCopyDescription} />
-        <ToggleRow label="Interne napomene" value={copyNotes} onChange={setCopyNotes} />
+        <ToggleRow label="Napomene" value={copyNotes} onChange={setCopyNotes} />
         <ToggleRow label="Fotografije" value={copyImages} onChange={setCopyImages} />
         <ToggleRow label="Pravila garancije" value={copyWarrantyRules} onChange={setCopyWarrantyRules} />
         <ToggleRow label="Regeneriši naziv iz šablona" value={regenerateName} onChange={setRegenerateName} />
