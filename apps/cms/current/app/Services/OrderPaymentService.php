@@ -152,10 +152,10 @@ final class OrderPaymentService
                 'verified_by' => $actor->id,
                 'verified_at' => now(),
             ]);
-            if ($type === 'refund') {
-                // pre projekcije: projekcija bi "Za isplatu" vratila na čekanje pa storno ne bi video pravi status
-                $this->commissionReversal->reverseForRefund($locked, $actor, (string) $payment->payment_number);
-            }
+            // pre projekcije: projekcija bi "Za isplatu" vratila na čekanje pa storno ne bi video pravi status.
+            // Uplata posle refundacije odmah vraća storno srazmerno (odluka vlasnika 25.11.2026).
+            $this->commissionReversal->reverseForRefund($locked, $actor, (string) $payment->payment_number,
+                $type === 'refund' ? CommissionReversalService::EVENT_REFUND : CommissionReversalService::EVENT_PAYMENT);
             $this->recalculateLocked($locked);
             $this->audit->log('order.payment_recorded', 'Evidentirana '.($type === 'refund' ? 'refundacija' : 'uplata').' '.$payment->payment_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'entry_type' => $type], user: $actor);
             // Same locked transaction: a confirmed first positive payment cannot commit
@@ -237,6 +237,8 @@ final class OrderPaymentService
             if ($locked->status === 'verified') return $locked;
             if ($locked->status !== 'submitted') throw ValidationException::withMessages(['payment' => 'Samo poslata potvrda može biti verifikovana.']);
             $locked->update(['status' => 'verified', 'verified_by' => $actor->id, 'verified_at' => now(), 'rejected_by' => null, 'rejected_at' => null, 'rejection_reason' => null]);
+            // verifikovana uplata kupca posle refundacije vraća storno, isto kao record()
+            $this->commissionReversal->reverseForRefund($order, $actor, (string) $locked->payment_number, CommissionReversalService::EVENT_PAYMENT);
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_verified', 'Verifikovana uplata '.$locked->payment_number, $locked, before: ['status' => 'submitted'], after: ['status' => 'verified'], user: $actor);
             $this->issuances->issueForVerifiedPaymentLocked($order, $locked, $actor);
@@ -283,7 +285,7 @@ final class OrderPaymentService
             $locked->update(['status' => 'voided', 'voided_by' => $actor->id, 'voided_at' => now()]);
             if ($locked->entry_type === 'refund') {
                 // void refundacije vraća njen storno provizije; pre projekcije, kao i pri upisu refundacije
-                $this->commissionReversal->reverseForRefund($order, $actor, (string) $locked->payment_number, true);
+                $this->commissionReversal->reverseForRefund($order, $actor, (string) $locked->payment_number, CommissionReversalService::EVENT_VOID);
             }
             $this->recalculateLocked($order);
             $this->audit->log('order.payment_voided', 'Stornirana uplata '.$locked->payment_number, $locked, before: ['status' => 'verified'], after: ['status' => 'voided'], user: $actor);

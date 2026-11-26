@@ -145,13 +145,33 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame('10.00', $commission->fresh()->total_eur);
     }
 
-    public function test_pending_commission_and_order_without_commission_are_untouched(): void
+    public function test_pending_then_refund_then_delivery_does_not_pay_the_full_commission(): void
     {
         [, $admin, $order, $commission] = $this->scenario();
         $this->pay($order, $admin, 6000); // delimično: na čekanju
-        $this->refund($order, $admin, 6000);
-        self::assertSame(['pending', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        $this->refund($order, $admin, 6000); // vraćeno sve plaćeno
+        self::assertSame(['cancelled', '0.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        $this->completeOrder($order, $admin);
+        self::assertSame('cancelled', $commission->fresh()->status, 'isporuka ne isplaćuje proviziju porudžbine sa neto uplatom 0');
 
+        // refundacija upisana pre ove izmene (bez storna): automatsko odobrenje je uračunava istim pravilom
+        [, , $legacy, $legacyCommission] = $this->scenario();
+        $this->pay($legacy, $admin, 6000);
+        OrderPayment::query()->create([
+            'order_id' => $legacy->id, 'payment_number' => 'REF-LEGACY-1', 'entry_type' => 'refund', 'status' => 'verified',
+            'amount_rsd' => 6000, 'payment_method' => 'bank_transfer', 'paid_at' => now(),
+            'submitted_by' => $admin->id, 'verified_by' => $admin->id, 'verified_at' => now(),
+        ]);
+        $this->completeOrder($legacy, $admin);
+        self::assertSame(['cancelled', '0.00'], [$legacyCommission->fresh()->status, $legacyCommission->fresh()->total_eur]);
+        $auto = CommissionAdjustment::query()->where('commission_id', $legacyCommission->id)->sole();
+        self::assertSame(['reversal', '20.00', 'order_refund'], [$auto->kind, $auto->amount_eur, $auto->source]);
+        self::assertNull($auto->created_by);
+    }
+
+    public function test_order_without_commission_is_untouched(): void
+    {
+        [, $admin] = $this->scenario();
         [, , $bare, $bareCommission] = $this->scenario();
         $bareCommission->delete();
         $this->pay($bare, $admin, 12000);
@@ -169,10 +189,102 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame(['approved', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
 
         $this->refund($order, $admin, 6000); // pola vrednosti
-        $this->pay($order, $admin, 6000);    // kupac ponovo plati
+        $this->pay($order, $admin, 6000);    // kupac ponovo plati: storno se odmah vraća
+        self::assertSame(['approved', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
         $this->refund($order, $admin, 6000); // isti deo ponovo refundiran: cilj ostaje 50 %
-        self::assertSame('10.00', CommissionAdjustment::query()->sole()->amount_eur);
+        self::assertSame(['10.00'], CommissionAdjustment::query()->where('status', 'confirmed')->pluck('amount_eur')->all());
         self::assertSame('10.00', $commission->fresh()->total_eur);
+    }
+
+    public function test_repayment_after_refund_restores_the_storno_proportionally_and_never_above_original(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 12000);
+        $this->refund($order, $admin, 6000);
+        self::assertSame('10.00', $commission->fresh()->total_eur);
+
+        $this->pay($order, $admin, 3000); // pola refundiranog: vraća se 5,00
+        self::assertSame('15.00', $commission->fresh()->total_eur);
+        $this->pay($order, $admin, 5000); // preplata: vraća se samo ostatak, nikad iznad originala
+        self::assertSame(['approved', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        self::assertSame(['rejected', '0.00'], [CommissionAdjustment::query()->sole()->status, CommissionAdjustment::query()->sole()->amount_eur]);
+        self::assertTrue(AuditLog::query()->where('action', 'commission.refund_storno_returned')->exists());
+
+        // isplaćena: ponovna uplata ukida neprebijeno zaduženje, isplata ostaje
+        [, , $paidOrder, $paidCommission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($paidOrder, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $paidCommission->id], $super, ['payment_method' => 'bank_transfer']);
+        $this->refund($paidOrder, $admin, 6000);
+        $this->pay($paidOrder, $admin, 6000);
+        $debit = CommissionAdjustment::query()->where('commission_id', $paidCommission->id)->sole();
+        self::assertSame(['debit', 'rejected', '0.00'], [$debit->kind, $debit->status, $debit->amount_eur]);
+        self::assertSame(['paid', '20.00'], [$paidCommission->fresh()->status, $paidCommission->fresh()->total_eur]);
+    }
+
+    public function test_thirds_round_to_the_exact_total_and_void_of_the_middle_refund_returns_its_share(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 12000);
+        $this->refund($order, $admin, 4000);
+        $middle = $this->refund($order, $admin, 4000);
+        $this->refund($order, $admin, 4000);
+
+        self::assertSame(['6.67', '6.66', '6.67'], CommissionAdjustment::query()->orderBy('id')->pluck('amount_eur')->all());
+        self::assertSame(['cancelled', '0.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+
+        app(OrderPaymentService::class)->void($middle, $admin);
+
+        self::assertSame(['pending', '6.67'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
+        self::assertSame('13.33', number_format((float) CommissionAdjustment::query()->where('status', 'confirmed')->sum('amount_eur'), 2, '.', ''));
+    }
+
+    public function test_credit_from_void_is_consumed_by_the_next_refund_instead_of_a_new_debit(): void
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($order, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $refund = $this->refund($order, $admin, 6000);
+        $next = $this->placeOrder($sub, $admin);
+        $this->pay($next, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) OrderCommission::query()->where('order_id', $next->id)->value('id')], $super, ['payment_method' => 'cash']);
+        app(OrderPaymentService::class)->void($refund, $admin);
+        self::assertSame('10.00', CommissionAdjustment::query()->where('kind', 'credit')->sole()->amount_eur);
+
+        $this->refund($order, $admin, 6000);
+
+        $credit = CommissionAdjustment::query()->where('kind', 'credit')->sole();
+        self::assertSame(['rejected', '0.00'], [$credit->status, $credit->amount_eur]);
+        self::assertSame(1, CommissionAdjustment::query()->where('commission_id', $commission->id)->where('kind', 'debit')->count());
+        self::assertSame('0.00', $commission->fresh()->openDebitEur());
+        self::assertTrue(AuditLog::query()->where('action', 'commission.credit_consumed')->exists());
+    }
+
+    public function test_void_does_not_reopen_a_manually_cancelled_commission(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 12000);
+        $refund = $this->refund($order, $admin, 6000);
+        app(CommissionWorkflowService::class)->transition($commission->fresh(), 'cancelled', $admin, ['note' => 'Ručno otkazano.']);
+
+        app(OrderPaymentService::class)->void($refund, $admin);
+
+        self::assertSame(['cancelled', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur], 'iznos se vraća, ručno otkazivanje ostaje');
+    }
+
+    public function test_refund_after_manual_debit_never_debits_more_than_the_paid_commission(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($order, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        app(CommissionReversalService::class)->reverse($commission->fresh(), $super, 'Ručno zaduženje', '15');
+
+        $this->refund($order, $admin, 12000);
+
+        self::assertSame(['15.00', '5.00'], CommissionAdjustment::query()->where('kind', 'debit')->orderBy('id')->pluck('amount_eur')->all());
+        self::assertSame('20.00', number_format((float) CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'confirmed')->sum('amount_eur'), 2, '.', ''));
     }
 
     public function test_base_is_what_was_actually_paid_partial_payment_fully_refunded_cancels_all(): void
@@ -204,13 +316,13 @@ final class CommissionRefundStornoTest extends TestCase
 
         app(OrderPaymentService::class)->void($refund, $admin);
         app(OrderPaymentService::class)->void($refund->fresh(), $admin);
-        self::assertNull(app(CommissionReversalService::class)->reverseForRefund($order->fresh(), $admin, (string) $refund->payment_number, true));
+        self::assertNull(app(CommissionReversalService::class)->reverseForRefund($order->fresh(), $admin, (string) $refund->payment_number, CommissionReversalService::EVENT_VOID));
 
         $fresh = $commission->fresh();
         self::assertSame(['approved', '20.00'], [$fresh->status, $fresh->total_eur], 'vraćena i ponovo za isplatu jer je porudžbina opet plaćena');
         $row = CommissionAdjustment::query()->sole();
         self::assertSame(['rejected', '0.00'], [$row->status, $row->amount_eur]);
-        self::assertSame(1, AuditLog::query()->where('action', 'commission.refund_void_restored')->count());
+        self::assertSame(1, AuditLog::query()->where('action', 'commission.refund_storno_returned')->count());
         self::assertTrue(DB::table('commission_status_history')->where('commission_id', $commission->id)->where('old_status', 'cancelled')->where('new_status', 'pending')->exists());
     }
 
@@ -243,6 +355,7 @@ final class CommissionRefundStornoTest extends TestCase
         $this->pay($next, $admin, 12000);
         app(CommissionWorkflowService::class)->markPaidBulk([(int) OrderCommission::query()->where('order_id', $next->id)->value('id')], $super, ['payment_method' => 'cash']);
         $settlements = DB::table('commission_debit_settlements')->get()->toArray();
+        $batches = DB::table('commission_payment_batches')->orderBy('id')->get()->toArray();
         $superBefore = $super->notifications()->count();
 
         app(OrderPaymentService::class)->void($refund, $admin);
@@ -253,6 +366,7 @@ final class CommissionRefundStornoTest extends TestCase
         $credit = CommissionAdjustment::query()->where('kind', 'credit')->sole();
         self::assertSame(['confirmed', '10.00', 'order_refund_void'], [$credit->status, $credit->amount_eur, $credit->source]);
         self::assertEquals($settlements, DB::table('commission_debit_settlements')->get()->toArray(), 'isplate i poravnanja se ne menjaju');
+        self::assertEquals($batches, DB::table('commission_payment_batches')->orderBy('id')->get()->toArray(), 'iznosi batch-a se ne menjaju');
         self::assertSame(['paid', '20.00'], [$commission->fresh()->status, $commission->fresh()->total_eur]);
         self::assertSame($superBefore + 1, $super->notifications()->count());
         self::assertTrue(AuditLog::query()->where('action', 'commission.credit_recorded')->exists());

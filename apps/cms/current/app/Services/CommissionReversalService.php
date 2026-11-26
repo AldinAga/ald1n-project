@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\OrderPayment;
 use App\Models\User;
 use App\Support\CommissionMoney as M;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -113,11 +114,15 @@ final class CommissionReversalService
             $proposed->update(['status' => 'rejected', 'decided_by' => $actor->id, 'decided_at' => now(), 'decision_note' => 'Zamenjeno otkazivanjem porudžbine']);
             $this->audit->log('commission.debit_rejected', sprintf('Provizija #%d: predlog zaduženja zamenjen otkazivanjem porudžbine', $locked->id), $proposed, metadata: ['note' => 'Zamenjeno otkazivanjem porudžbine'], user: $actor);
         }
-        $available = max(0, M::cents($locked->total_eur) - $this->debitCents($locked, ['confirmed']));
+        $rows = $this->lockedRows($locked);
+        $reason = 'Porudžbina je otkazana posle isplate provizije. '.$note;
+        // kredit agentu (void refundacije posle prebijanja) se prvo troši, pa zaduženje pokriva ostatak
+        $available = max(0, M::cents($locked->total_eur) - $this->sumRows($rows, ['debit'], ['confirmed']) + $this->sumRows($rows, ['credit'], ['confirmed']));
+        $available -= $this->consumeCredits($locked, $rows, $available, $actor, $reason);
         if ($available <= 0) {
             return null;
         }
-        $adjustment = $this->apply($locked, $available, 'Porudžbina je otkazana posle isplate provizije. '.$note, 'order_cancellation', $actor, null, null, null, 'confirmed');
+        $adjustment = $this->apply($locked, $available, $reason, 'order_cancellation', $actor, null, null, null, 'confirmed');
         $this->notifyOwner($locked, $adjustment);
 
         return $adjustment;
@@ -147,7 +152,8 @@ final class CommissionReversalService
             return 0;
         }
         // Ručni storno samo iznosom ne zna koji je komad pokrio: ne dupliramo, SuperAdmin odlučuje ručno.
-        if (CommissionAdjustment::query()->where('commission_id', $commission->id)->whereNull('order_item_id')->where('status', '!=', 'rejected')->exists()) {
+        // kredit agentu nije storno (vraća novac agentu), pa ne blokira automatski storno povrata
+        if (CommissionAdjustment::query()->where('commission_id', $commission->id)->whereNull('order_item_id')->where('kind', '!=', 'credit')->where('status', '!=', 'rejected')->lockForUpdate()->exists()) {
             $this->audit->log('commission.auto_reversal_skipped', sprintf('Provizija #%d: povrat %s nije automatski stornirana (postoji ručni storno bez artikla)', $commission->id, $action->action_number), $commission, metadata: ['action_id' => $action->id], user: $actor);
 
             return 0;
@@ -203,69 +209,107 @@ final class CommissionReversalService
      * isplaćena: potvrđeno zaduženje koje se prebija pri sledećoj isplati. Obična provizija "Na čekanju" se ne dira; ona koja čeka
      * kurs se samo otkazuje i to samo pri punoj refundaciji (iznos joj nije poznat).
      */
-    public function reverseForRefund(Order $order, User $actor, string $paymentNumber, bool $voided = false): ?CommissionAdjustment
+    public const EVENT_REFUND = 'refund';      // nova refundacija: storno raste
+
+    public const EVENT_VOID = 'void';          // void refundacije: storno refundacije se vraća
+
+    public const EVENT_PAYMENT = 'payment';    // nova uplata posle refundacije: storno se vraća srazmerno (odluka vlasnika 25.11.)
+
+    public const EVENT_APPROVAL = 'approval';  // automatsko odobrenje: refundacija pre dospelosti se uračunava pre "Za isplatu"
+
+    public function reverseForRefund(Order $order, ?User $actor, string $reference, string $event = self::EVENT_REFUND): ?CommissionAdjustment
     {
         if (!M::hasAdjustments()) {
             return null;
         }
+        // Redosled zaključavanja kao na svim ulazima: porudžbina (pozivalac) -> provizija -> korekcije (rastuće po id) -> poravnanja.
         /** @var OrderCommission|null $commission */
         $commission = OrderCommission::query()->where('order_id', $order->id)->lockForUpdate()->first();
         if (!$commission instanceof OrderCommission) {
             return null;
         }
-        $status = (string) $commission->status;
-        $rateHeld = $status === 'pending' && $this->eligibility->awaitsExchangeRate($order);
-        // delimična refundacija vraća "Za isplatu" na čekanje (projekcija), puna je otkazuje: te provizije i dalje prate refundacije i void
-        $refundStorned = in_array($status, ['pending', 'cancelled'], true) && CommissionAdjustment::query()->where('commission_id', $commission->id)
-            ->where('source', 'order_refund')->where('status', '!=', 'rejected')->exists();
-        // otkazivanje zbog kursa nema red u commission_adjustments; storno koji je doveo do 0 EUR ima, i vraća se ispod
-        $rateHeldCancelled = $voided && $status === 'cancelled' && !$refundStorned && $this->cancelledByRefundWhileRateHeld($commission);
-        if (!$rateHeld && !$refundStorned && !$rateHeldCancelled && !in_array($status, ['approved', 'paid'], true)) {
+        $rows = $this->lockedRows($commission);
+        $restoring = in_array($event, [self::EVENT_VOID, self::EVENT_PAYMENT], true);
+        $activeRefundRows = $rows->contains(static fn (CommissionAdjustment $r): bool => $r->source === 'order_refund' && $r->status !== 'rejected');
+        // auto-odobrenje radi i van transakcije porudžbine (backfill, vraćanje na čekanje): uplate se tada čitaju bez zaključavanja,
+        // da redosled ne bude provizija -> uplate (ostali ulazi idu porudžbina -> uplate -> provizija)
+        $verified = OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified');
+        if ($event !== self::EVENT_APPROVAL) {
+            $verified->lockForUpdate();
+        }
+        $payments = $verified->get(['entry_type', 'amount_rsd']);
+        $hasRefund = $payments->contains(static fn (OrderPayment $p): bool => $p->entry_type === 'refund');
+        // bez reda storna refundacije: uplata/void može samo da vrati proviziju otkazanu zbog kursa; inače treba verifikovana refundacija
+        if (!$activeRefundRows && ($restoring ? $commission->status !== 'cancelled' : !$hasRefund)) {
             return null;
         }
 
-        // Odluka vlasnika (ispravka PR 263): osnova je stvarno plaćeno, ne vrednost porudžbine. Osnova = min(bruto uplate, subtotal),
-        // pa povraćaj preplate ne stornira ništa; refundirani deo = osnova - neto uplaćeno. Puna refundacija svega plaćenog = 100 %.
+        $status = (string) $commission->status;
+        $cancelledByRefund = $status === 'cancelled' && $this->lastCancellationSource($commission) === 'order_refund';
+        $rateHeld = $status === 'pending' && $this->eligibility->awaitsExchangeRate($order);
+
+        // Osnova je stvarno plaćeno: min(bruto uplate, subtotal), pa povraćaj preplate ne stornira ništa;
+        // refundirani deo = osnova - neto uplaćeno. Puna refundacija svega plaćenog = 100 %.
         $subtotal = round((float) $order->subtotal_rsd, 2);
-        $verified = OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified');
-        $grossPaid = (float) (clone $verified)->where('entry_type', '!=', 'refund')->sum('amount_rsd');
-        $netPaid = (float) (clone $verified)->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")->value('net_total');
+        $grossPaid = 0.0;
+        $netPaid = 0.0;
+        foreach ($payments as $p) {
+            $amount = (float) $p->amount_rsd;
+            $grossPaid += $p->entry_type === 'refund' ? 0.0 : $amount;
+            $netPaid += $p->entry_type === 'refund' ? -$amount : $amount;
+        }
         $base = round(min($grossPaid, $subtotal), 2);
         $refunded = $base > 0 ? round(min($base, max(0.0, $base - $netPaid)), 2) : 0.0;
         $full = $base > 0 && $refunded + 0.004 >= $base;
 
         if ($rateHeld) {
-            if ($refunded > 0) {
-                $this->cancelRateHeldForRefund($commission, $actor, $paymentNumber, $full);
+            // iznos provizije koja čeka kurs nije pouzdan: samo puna refundacija je otkazuje
+            if ($event === self::EVENT_REFUND && $refunded > 0) {
+                $this->cancelRateHeldForRefund($commission, $actor, $reference, $full);
             }
 
             return null;
         }
-        if ($rateHeldCancelled) {
-            if (!$full && (string) $order->status !== 'cancelled') {
-                $this->reopenAfterVoid($commission, $actor, $paymentNumber);
+        if ($cancelledByRefund && !$activeRefundRows) {
+            // otkazana punom refundacijom dok je čekala kurs (bez reda korekcije): void ili nova uplata je vraća na čekanje
+            if ($restoring && !$full && (string) $order->status !== 'cancelled') {
+                $this->reopenAfterRestore($commission, $actor, $reference, $event);
             }
 
             return null;
         }
+        // ručno otkazana ili otkazana sa porudžbinom: storno se više ne povećava
+        if ($status === 'cancelled' && !$restoring) {
+            return null;
+        }
 
-        $original = M::cents($commission->total_eur) + $this->sumCents($commission, ['reversal'], ['confirmed']);
+        $original = M::cents($commission->total_eur) + $this->sumRows($rows, ['reversal'], ['confirmed']);
         $target = $full ? $original : ($base > 0 ? (int) round($original * $refunded / $base) : 0);
-        $done = $this->sumCents($commission, ['reversal', 'debit'], ['confirmed', 'proposed']) - $this->sumCents($commission, ['credit'], ['confirmed']);
-        if ($target < $done) {
-            // void refundacije (ili ponovna uplata): vraća se samo ono što je stornirala refundacija, nikad storno povrata robe
-            if ((string) $order->status !== 'cancelled') {
-                $this->restoreRefundStorno($commission, $actor, $paymentNumber, $done - $target);
+        $done = $this->sumRows($rows, ['reversal', 'debit'], ['confirmed', 'proposed']) - $this->sumRows($rows, ['credit'], ['confirmed']);
+
+        if ($restoring) {
+            // vraća se samo ono što je stornirala refundacija, nikad storno povrata robe ni ručni storno
+            if ($target < $done && (string) $order->status !== 'cancelled') {
+                $this->restoreRefundStorno($commission, $rows, $actor, $reference, $done - $target, $event, $cancelledByRefund);
             }
 
             return null;
         }
-        $cents = min($target - $done, $this->availableCents($commission));
+
+        $cents = min($target - $done, $this->availableFromRows($commission, $rows));
         if ($cents <= 0) {
             return null;
         }
-
-        $reason = sprintf('Refundacija %s: refundirano %s od %s RSD.', $paymentNumber, number_format($refunded, 2, ',', '.'), number_format($subtotal, 2, ',', '.'));
+        $reason = $event === self::EVENT_APPROVAL
+            ? sprintf('Refundacija pre dospelosti: refundirano %s od plaćenih %s RSD (uračunato pri automatskom odobrenju).', number_format($refunded, 2, ',', '.'), number_format($base, 2, ',', '.'))
+            : sprintf('Refundacija %s: refundirano %s od plaćenih %s RSD.', $reference, number_format($refunded, 2, ',', '.'), number_format($base, 2, ',', '.'));
+        if ($commission->status === 'paid') {
+            // otvoren kredit agentu (iz ranijeg void-a) se troši pre novog zaduženja
+            $cents -= $this->consumeCredits($commission, $rows, $cents, $actor, $reason);
+            if ($cents <= 0) {
+                return null;
+            }
+        }
         $adjustment = $this->apply($commission, $cents, $reason, 'order_refund', $actor, null, null, null, 'confirmed');
         $this->notifyOwner($commission, $adjustment);
         if ($adjustment->kind === 'debit') {
@@ -326,12 +370,14 @@ final class CommissionReversalService
         }, 5);
     }
 
-    /** Neto iznos koji se još može stornirati (isplaćena: umanjeno za potvrđena i predložena zaduženja). */
+    /** Neto iznos koji se još može stornirati (isplaćena: umanjeno za potvrđena i predložena zaduženja, uvećano za kredite agentu). */
     public function availableCents(OrderCommission $commission): int
     {
         $total = M::cents($commission->total_eur);
 
-        return $commission->status !== 'paid' ? $total : max(0, $total - $this->debitCents($commission, ['confirmed', 'proposed']));
+        return $commission->status !== 'paid'
+            ? $total
+            : max(0, $total - $this->debitCents($commission, ['confirmed', 'proposed']) + $this->sumCents($commission, ['credit'], ['confirmed']));
     }
 
     public function remainingQuantity(OrderCommission $commission, OrderItem $item): int
@@ -403,49 +449,119 @@ final class CommissionReversalService
     /** @param list<string> $kinds @param list<string> $statuses */
     private function sumCents(OrderCommission $commission, array $kinds, array $statuses): int
     {
+        // zaključavajuće čitanje: posle zaključane provizije snapshot transakcije može biti stariji od upravo potvrđene korekcije
         $sum = 0;
-        foreach (CommissionAdjustment::query()->where('commission_id', $commission->id)->whereIn('kind', $kinds)->whereIn('status', $statuses)->pluck('amount_eur') as $v) {
+        foreach (CommissionAdjustment::query()->where('commission_id', $commission->id)->whereIn('kind', $kinds)->whereIn('status', $statuses)->orderBy('id')->lockForUpdate()->pluck('amount_eur') as $v) {
             $sum += M::cents($v);
         }
 
         return $sum;
     }
 
+    /** Sve korekcije provizije, zaključane rastuće po id (isti redosled kao openDebitsForUser). @return Collection<int,CommissionAdjustment> */
+    private function lockedRows(OrderCommission $commission): Collection
+    {
+        return CommissionAdjustment::query()->where('commission_id', $commission->id)->orderBy('id')->lockForUpdate()->get();
+    }
+
+    /** @param Collection<int,CommissionAdjustment> $rows @param list<string> $kinds @param list<string> $statuses */
+    private function sumRows(Collection $rows, array $kinds, array $statuses, ?string $source = null): int
+    {
+        $sum = 0;
+        foreach ($rows as $row) {
+            if (in_array($row->kind, $kinds, true) && in_array($row->status, $statuses, true) && ($source === null || $row->source === $source)) {
+                $sum += M::cents($row->amount_eur);
+            }
+        }
+
+        return $sum;
+    }
+
+    /** Isto kao availableCents(), iz već zaključanih redova. @param Collection<int,CommissionAdjustment> $rows */
+    private function availableFromRows(OrderCommission $commission, Collection $rows): int
+    {
+        $total = M::cents($commission->total_eur);
+        if ($commission->status !== 'paid') {
+            return $total;
+        }
+
+        return max(0, $total - $this->sumRows($rows, ['debit'], ['confirmed', 'proposed']) + $this->sumRows($rows, ['credit'], ['confirmed']));
+    }
+
     /**
-     * Vraća storno refundacije posle void-a: redovi order_refund se umanjuju od najnovijeg (na 0 => rejected), uz audit i istoriju.
-     * Neisplaćena: total_eur raste, otkazana zbog refundacije se vraća na čekanje (projekcija posle toga odlučuje o "Za isplatu").
-     * Isplaćena: umanjuje se samo neprebijeni deo zaduženja; ostatak (već prebijeno ili storno pre isplate) postaje kredit agentu.
-     * Isplata i poravnanja se nikad ne menjaju.
+     * Troši otvorene kredite agenta na isplaćenoj proviziji (najstariji prvi) pre novog zaduženja; redovi se umanjuju, na 0 => rejected.
+     * @param Collection<int,CommissionAdjustment> $rows
      */
-    private function restoreRefundStorno(OrderCommission $locked, User $actor, string $paymentNumber, int $cents): void
+    private function consumeCredits(OrderCommission $locked, Collection $rows, int $cents, ?User $actor, string $reason): int
+    {
+        $used = 0;
+        foreach ($rows as $row) {
+            if ($used >= $cents) {
+                break;
+            }
+            if ($row->kind !== 'credit' || $row->status !== 'confirmed') {
+                continue;
+            }
+            $amount = M::cents($row->amount_eur);
+            $take = min($cents - $used, $amount);
+            $new = $amount - $take;
+            $row->update(['amount_eur' => M::format($new)] + ($new === 0
+                ? ['status' => 'rejected', 'decided_by' => $actor?->id, 'decided_at' => now(), 'decision_note' => mb_substr('Kredit potrošen: '.$reason, 0, 500)]
+                : []));
+            $this->audit->log('commission.credit_consumed', sprintf('Provizija #%d: kredit agentu umanjen za %s EUR umesto novog zaduženja', $locked->id, M::format($take)), $row,
+                before: ['amount_eur' => M::format($amount)], after: ['amount_eur' => M::format($new), 'status' => $new === 0 ? 'rejected' : 'confirmed'],
+                metadata: ['commission_id' => $locked->id, 'reason' => $reason], user: $actor);
+            $used += $take;
+        }
+        if ($used > 0) {
+            DB::table('commission_status_history')->insert([
+                'commission_id' => $locked->id, 'order_id' => $locked->order_id, 'changed_by' => $actor?->id,
+                'old_status' => (string) $locked->status, 'new_status' => (string) $locked->status,
+                'note' => 'Kredit agentu umanjen za '.M::format($used).' EUR: '.$reason,
+                'metadata_json' => json_encode(['source' => 'order_refund', 'credit_consumed_eur' => M::format($used)], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+            ]);
+        }
+
+        return $used;
+    }
+
+    /**
+     * Vraća storno refundacije posle void-a refundacije ili nove uplate: order_refund redovi se umanjuju od najnovijeg
+     * (na 0 => rejected), uz audit i istoriju. Neisplaćena: total_eur raste; otkazana JE vraćena na čekanje samo ako ju je
+     * otkazala refundacija (ručno otkazana ostaje otkazana). Isplaćena: umanjuje se samo neprebijeni deo zaduženja; ostatak
+     * (već prebijeno ili storno pre isplate) postaje kredit agentu. Isplata, batch i poravnanja se nikad ne menjaju.
+     * @param Collection<int,CommissionAdjustment> $rows zaključani rastuće; obrađuju se od najnovijeg
+     */
+    private function restoreRefundStorno(OrderCommission $locked, Collection $rows, ?User $actor, string $reference, int $cents, string $event, bool $cancelledByRefund): void
     {
         $paid = $locked->status === 'paid';
-        $rows = CommissionAdjustment::query()->where('commission_id', $locked->id)->where('source', 'order_refund')
-            ->where('kind', $paid ? 'debit' : 'reversal')->where('status', 'confirmed')->orderByDesc('id')->lockForUpdate()->get();
+        $why = $event === self::EVENT_VOID ? 'refundacija '.$reference.' je stornirana (void)' : 'ponovna uplata '.$reference.' posle refundacije';
+        $candidates = $rows->filter(static fn (CommissionAdjustment $r): bool => $r->source === 'order_refund' && $r->status === 'confirmed' && $r->kind === ($paid ? 'debit' : 'reversal'));
+        $settled = [];
+        if ($paid && $candidates->isNotEmpty()) {
+            foreach (DB::table('commission_debit_settlements')->whereIn('adjustment_id', $candidates->pluck('id'))->orderBy('id')->lockForUpdate()->get(['adjustment_id', 'amount_eur']) as $s) {
+                $settled[$s->adjustment_id] = ($settled[$s->adjustment_id] ?? 0) + M::cents($s->amount_eur);
+            }
+        }
         $left = $cents;
         $restored = 0;
-        foreach ($rows as $row) {
+        foreach ($candidates->reverse() as $row) {
             if ($left <= 0) {
                 break;
             }
             $amount = M::cents($row->amount_eur);
-            $floor = 0;
-            if ($paid) {
-                foreach (DB::table('commission_debit_settlements')->where('adjustment_id', $row->id)->lockForUpdate()->pluck('amount_eur') as $v) {
-                    $floor += M::cents($v);
-                }
-            }
-            $take = min($left, $amount - $floor);
+            $take = min($left, $amount - (int) ($settled[$row->id] ?? 0));
             if ($take <= 0) {
                 continue;
             }
             $new = $amount - $take;
             $row->update(['amount_eur' => M::format($new)] + ($new === 0
-                ? ['status' => 'rejected', 'decided_by' => $actor->id, 'decided_at' => now(), 'decision_note' => 'Refundacija '.$paymentNumber.' je stornirana (void).']
+                ? ['status' => 'rejected', 'decided_by' => $actor?->id, 'decided_at' => now(), 'decision_note' => mb_substr('Vraćeno: '.$why.'.', 0, 500)]
                 : []));
-            $this->audit->log('commission.refund_storno_restored', sprintf('Provizija #%d: storno refundacije umanjen za %s EUR (void %s)', $locked->id, M::format($take), $paymentNumber), $row,
+            $this->audit->log('commission.refund_storno_restored', sprintf('Provizija #%d: storno refundacije umanjen za %s EUR (%s)', $locked->id, M::format($take), $why), $row,
                 before: ['amount_eur' => M::format($amount), 'status' => 'confirmed'], after: ['amount_eur' => M::format($new), 'status' => $new === 0 ? 'rejected' : 'confirmed'],
-                metadata: ['commission_id' => $locked->id, 'payment_number' => $paymentNumber], user: $actor);
+                metadata: ['commission_id' => $locked->id, 'reference' => $reference, 'event' => $event], user: $actor);
             $left -= $take;
             $restored += $take;
         }
@@ -454,26 +570,26 @@ final class CommissionReversalService
         $newStatus = $oldStatus;
         if (!$paid && $restored > 0) {
             $changes = ['total_eur' => M::format(M::cents($locked->total_eur) + $restored), 'status_updated_at' => now()];
-            if ($oldStatus === 'cancelled') {
+            if ($oldStatus === 'cancelled' && $cancelledByRefund) {
                 $newStatus = 'pending';
-                $changes += ['status' => 'pending', 'status_note' => 'Refundacija je stornirana (void); provizija je vraćena.', 'cancelled_by' => null, 'cancelled_at' => null,
+                $changes += ['status' => 'pending', 'status_note' => 'Provizija je vraćena: '.$why.'.', 'cancelled_by' => null, 'cancelled_at' => null,
                     'approved_by' => null, 'approved_at' => null, 'auto_approved_at' => null];
             }
             $locked->update($changes);
         }
         $credit = null;
         if ($paid && $left > 0) {
-            // ono što je već prebijeno ili stornirano pre isplate ne može da se vrati u isplatu: agent dobija potraživanje (kredit)
-            $refundNet = $this->refundNetCents($locked);
-            $creditCents = min($left, $refundNet);
+            // ono što je već prebijeno ili stornirano pre isplate ne vraća se u isplatu: agent dobija potraživanje (kredit)
+            $refundNet = $this->sumRows($rows, ['reversal', 'debit'], ['confirmed'], 'order_refund') - $this->sumRows($rows, ['credit'], ['confirmed']);
+            $creditCents = min($left, max(0, $refundNet));
             if ($creditCents > 0) {
                 $credit = CommissionAdjustment::query()->create([
                     'commission_id' => $locked->id, 'order_id' => $locked->order_id, 'kind' => 'credit', 'status' => 'confirmed',
-                    'amount_eur' => M::format($creditCents), 'reason' => 'Kredit agentu: refundacija '.$paymentNumber.' je stornirana (void) posle prebijanja ili isplate.',
-                    'source' => 'order_refund_void', 'created_by' => $actor->id,
+                    'amount_eur' => M::format($creditCents), 'reason' => mb_substr('Kredit agentu: '.$why.', a zaduženje je već prebijeno ili isplaćeno.', 0, 1000),
+                    'source' => 'order_refund_void', 'created_by' => $actor?->id,
                 ]);
-                $this->audit->log('commission.credit_recorded', sprintf('Provizija #%d: kredit agentu %s EUR (void %s)', $locked->id, M::format($creditCents), $paymentNumber), $locked,
-                    metadata: ['adjustment_id' => $credit->id, 'amount_eur' => M::format($creditCents), 'payment_number' => $paymentNumber], user: $actor);
+                $this->audit->log('commission.credit_recorded', sprintf('Provizija #%d: kredit agentu %s EUR (%s)', $locked->id, M::format($creditCents), $why), $locked,
+                    metadata: ['adjustment_id' => $credit->id, 'amount_eur' => M::format($creditCents), 'reference' => $reference, 'event' => $event], user: $actor);
                 $restored += $creditCents;
             }
         }
@@ -483,57 +599,52 @@ final class CommissionReversalService
         DB::table('commission_status_history')->insert([
             'commission_id' => $locked->id,
             'order_id' => $locked->order_id,
-            'changed_by' => $actor->id,
+            'changed_by' => $actor?->id,
             'old_status' => $oldStatus,
             'new_status' => $newStatus,
-            'note' => 'Void refundacije '.$paymentNumber.': vraćeno '.M::format($restored).' EUR'.($credit instanceof CommissionAdjustment ? ' (kredit agentu '.$credit->amount_eur.' EUR)' : '').'.',
-            'metadata_json' => json_encode(['source' => 'order_refund_void', 'payment_number' => $paymentNumber, 'restored_eur' => M::format($restored), 'credit_adjustment_id' => $credit?->id], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'note' => ucfirst($why).': vraćeno '.M::format($restored).' EUR'.($credit instanceof CommissionAdjustment ? ' (kredit agentu '.$credit->amount_eur.' EUR)' : '').'.',
+            'metadata_json' => json_encode(['source' => 'order_refund_restore', 'event' => $event, 'reference' => $reference, 'restored_eur' => M::format($restored), 'credit_adjustment_id' => $credit?->id], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             'created_at' => now(),
         ]);
-        $this->audit->log('commission.refund_void_restored', sprintf('Provizija #%d: void refundacije %s vratio %s EUR', $locked->id, $paymentNumber, M::format($restored)), $locked,
-            before: ['status' => $oldStatus], after: ['status' => $newStatus, 'total_eur' => (string) $locked->total_eur], metadata: ['payment_number' => $paymentNumber, 'restored_eur' => M::format($restored)], user: $actor);
+        $this->audit->log('commission.refund_storno_returned', sprintf('Provizija #%d: %s, vraćeno %s EUR', $locked->id, $why, M::format($restored)), $locked,
+            before: ['status' => $oldStatus], after: ['status' => $newStatus, 'total_eur' => (string) $locked->total_eur], metadata: ['reference' => $reference, 'event' => $event, 'restored_eur' => M::format($restored)], user: $actor);
         if ($credit instanceof CommissionAdjustment) {
-            $this->notifySuperAdmins($locked, $credit, 'commission.credit_recorded', 'Kredit agentu posle void-a refundacije', sprintf(
-                'Refundacija na porudžbini #%d je stornirana posle prebijanja/isplate: agent ima potraživanje %s EUR (isplata ručno).',
+            $this->notifySuperAdmins($locked, $credit, 'commission.credit_recorded', 'Kredit agentu posle refundacije', sprintf(
+                'Porudžbina #%d: %s posle prebijanja ili isplate; agent ima potraživanje %s EUR (isplata ručno).',
                 $locked->order_id,
+                $why,
                 number_format((float) $credit->amount_eur, 2, ',', '.'),
             ));
         }
     }
 
-    /** Neto aktivni storno iz refundacija (posle umanjenja), minus već upisani krediti. */
-    private function refundNetCents(OrderCommission $commission): int
+    /** Izvor poslednjeg otkazivanja provizije iz istorije ('order_refund' kad ju je otkazala refundacija), ili null. */
+    private function lastCancellationSource(OrderCommission $commission): ?string
     {
-        $sum = 0;
-        foreach (CommissionAdjustment::query()->where('commission_id', $commission->id)->where('source', 'order_refund')->whereIn('kind', ['reversal', 'debit'])->where('status', 'confirmed')->pluck('amount_eur') as $v) {
-            $sum += M::cents($v);
+        $last = DB::table('commission_status_history')->where('commission_id', $commission->id)->where('new_status', 'cancelled')->orderByDesc('id')->first(['metadata_json']);
+        if ($last === null || !is_string($last->metadata_json)) {
+            return null;
         }
+        $meta = json_decode($last->metadata_json, true);
 
-        return max(0, $sum - $this->sumCents($commission, ['credit'], ['confirmed']));
+        return is_array($meta) && isset($meta['source']) ? (string) $meta['source'] : null;
     }
 
-    private function cancelledByRefundWhileRateHeld(OrderCommission $commission): bool
+    /** Provizija koja je čekala kurs i otkazana punom refundacijom: void ili nova uplata je vraća na čekanje. */
+    private function reopenAfterRestore(OrderCommission $locked, ?User $actor, string $reference, string $event): void
     {
-        $last = DB::table('commission_status_history')->where('commission_id', $commission->id)->orderByDesc('id')->first(['new_status', 'metadata_json']);
-
-        return $last !== null && $last->new_status === 'cancelled' && str_contains((string) $last->metadata_json, '"source":"order_refund"');
-    }
-
-    /** Provizija koja je čekala kurs i otkazana punom refundacijom: void je vraća na čekanje. */
-    private function reopenAfterVoid(OrderCommission $locked, User $actor, string $paymentNumber): void
-    {
-        $note = 'Refundacija '.$paymentNumber.' je stornirana (void); provizija je vraćena na čekanje.';
+        $note = ($event === self::EVENT_VOID ? 'Refundacija '.$reference.' je stornirana (void)' : 'Ponovna uplata '.$reference.' posle refundacije').'; provizija je vraćena na čekanje.';
         $locked->update(['status' => 'pending', 'status_note' => $note, 'status_updated_at' => now(), 'cancelled_by' => null, 'cancelled_at' => null]);
         DB::table('commission_status_history')->insert([
-            'commission_id' => $locked->id, 'order_id' => $locked->order_id, 'changed_by' => $actor->id, 'old_status' => 'cancelled', 'new_status' => 'pending',
-            'note' => $note, 'metadata_json' => json_encode(['source' => 'order_refund_void', 'payment_number' => $paymentNumber], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'created_at' => now(),
+            'commission_id' => $locked->id, 'order_id' => $locked->order_id, 'changed_by' => $actor?->id, 'old_status' => 'cancelled', 'new_status' => 'pending',
+            'note' => $note, 'metadata_json' => json_encode(['source' => 'order_refund_restore', 'event' => $event, 'reference' => $reference], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'created_at' => now(),
         ]);
-        $this->audit->log('commission.refund_void_restored', sprintf('Provizija #%d: vraćena na čekanje posle void-a refundacije %s', $locked->id, $paymentNumber), $locked,
-            before: ['status' => 'cancelled'], after: ['status' => 'pending'], metadata: ['payment_number' => $paymentNumber], user: $actor);
+        $this->audit->log('commission.refund_storno_returned', sprintf('Provizija #%d: vraćena na čekanje (%s)', $locked->id, $note), $locked,
+            before: ['status' => 'cancelled'], after: ['status' => 'pending'], metadata: ['reference' => $reference, 'event' => $event], user: $actor);
     }
 
     /** Provizija koja čeka kurs nema pouzdan iznos: puna refundacija je samo otkazuje, delimična se samo beleži u audit. */
-    private function cancelRateHeldForRefund(OrderCommission $locked, User $actor, string $paymentNumber, bool $full): void
+    private function cancelRateHeldForRefund(OrderCommission $locked, ?User $actor, string $paymentNumber, bool $full): void
     {
         if (!$full) {
             $this->audit->log('commission.refund_reversal_skipped', sprintf('Provizija #%d: delimična refundacija %s, provizija čeka kurs i nije menjana', $locked->id, $paymentNumber), $locked, metadata: ['payment_number' => $paymentNumber, 'reason' => 'waiting_exchange_rate'], user: $actor);
@@ -541,11 +652,11 @@ final class CommissionReversalService
             return;
         }
         $note = 'Porudžbina je u potpunosti refundirana ('.$paymentNumber.'); provizija je čekala kurs EUR/RSD.';
-        $locked->update(['status' => 'cancelled', 'status_note' => $note, 'status_updated_at' => now(), 'cancelled_by' => $actor->id, 'cancelled_at' => now()]);
+        $locked->update(['status' => 'cancelled', 'status_note' => $note, 'status_updated_at' => now(), 'cancelled_by' => $actor?->id, 'cancelled_at' => now()]);
         DB::table('commission_status_history')->insert([
             'commission_id' => $locked->id,
             'order_id' => $locked->order_id,
-            'changed_by' => $actor->id,
+            'changed_by' => $actor?->id,
             'old_status' => 'pending',
             'new_status' => 'cancelled',
             'note' => $note,
@@ -560,7 +671,7 @@ final class CommissionReversalService
         return M::cents($item->commission_unit_eur_snapshot ?? '0');
     }
 
-    private function apply(OrderCommission $locked, int $cents, string $reason, string $source, User $actor, ?int $orderItemId, ?int $quantity, ?int $actionItemId, string $status): CommissionAdjustment
+    private function apply(OrderCommission $locked, int $cents, string $reason, string $source, ?User $actor,?int $orderItemId, ?int $quantity, ?int $actionItemId, string $status): CommissionAdjustment
     {
         $paid = $locked->status === 'paid';
         $adjustment = CommissionAdjustment::query()->create([
@@ -574,7 +685,7 @@ final class CommissionReversalService
             'reason' => mb_substr($reason, 0, 1000),
             'source' => $source,
             'after_sales_action_item_id' => $actionItemId,
-            'created_by' => $actor->id,
+            'created_by' => $actor?->id,
         ]);
 
         $oldStatus = (string) $locked->status;
@@ -584,7 +695,7 @@ final class CommissionReversalService
             $changes = ['total_eur' => M::format($newTotal), 'status_updated_at' => now()];
             if ($newTotal <= 0) {
                 $newStatus = 'cancelled';
-                $changes += ['status' => 'cancelled', 'status_note' => $reason, 'cancelled_by' => $actor->id, 'cancelled_at' => now()];
+                $changes += ['status' => 'cancelled', 'status_note' => $reason, 'cancelled_by' => $actor?->id, 'cancelled_at' => now()];
             }
             $locked->update($changes);
         }
@@ -592,7 +703,7 @@ final class CommissionReversalService
         DB::table('commission_status_history')->insert([
             'commission_id' => $locked->id,
             'order_id' => $locked->order_id,
-            'changed_by' => $actor->id,
+            'changed_by' => $actor?->id,
             'old_status' => $oldStatus,
             'new_status' => $newStatus,
             'note' => ($paid ? ($status === 'proposed' ? 'Predlog zaduženja ' : 'Zaduženje ') : 'Storno ').M::format($cents).' EUR: '.$reason,
@@ -632,6 +743,12 @@ final class CommissionReversalService
 
     private function notifyOwner(OrderCommission $commission, CommissionAdjustment $adjustment, string $event = '', string $title = ''): void
     {
+        // posle commit-a: pad ili ponovni pokušaj transakcije (5 pokušaja) ne sme da pošalje obaveštenje ni dvaput ni bez upisa
+        DB::afterCommit(fn () => $this->sendOwnerNotice($commission, $adjustment, $event, $title));
+    }
+
+    private function sendOwnerNotice(OrderCommission $commission, CommissionAdjustment $adjustment, string $event, string $title): void
+    {
         try {
             $owner = $commission->user()->first();
             if (!$owner instanceof User) {
@@ -651,6 +768,11 @@ final class CommissionReversalService
     }
 
     private function notifySuperAdmins(OrderCommission $commission, CommissionAdjustment $adjustment, string $event = 'commission.debit_proposed', string $title = 'Predlog zaduženja čeka potvrdu', ?string $message = null): void
+    {
+        DB::afterCommit(fn () => $this->sendSuperAdminNotice($commission, $adjustment, $event, $title, $message));
+    }
+
+    private function sendSuperAdminNotice(OrderCommission $commission, CommissionAdjustment $adjustment, string $event, string $title, ?string $message): void
     {
         try {
             $admins = User::query()->whereHas('role', static fn ($role) => $role->where('slug', 'superadmin'))->where('status', 'active')->get();

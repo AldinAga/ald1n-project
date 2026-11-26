@@ -24,6 +24,7 @@ final class CommissionAutoApprovalService
         private readonly CommissionEligibilityService $eligibility,
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
+        private readonly CommissionReversalService $reversals,
     ) {}
 
     /** @return string|null 'approved' | 'pending' ako se stanje promenilo, inače null */
@@ -42,6 +43,12 @@ final class CommissionAutoApprovalService
             $meets = $this->eligibility->orderMeetsCondition($order);
 
             if ($commission->status === 'pending' && $meets) {
+                // refundacija pre dospelosti (npr. refundacija pa isporuka) uračunava se pre "Za isplatu", istim pravilom kao refundacija
+                $this->reversals->reverseForRefund($order, null, 'auto-approval', CommissionReversalService::EVENT_APPROVAL);
+                $commission->refresh();
+                if ($commission->status !== 'pending') {
+                    return null;
+                }
                 $reason = $order->completed_at !== null
                     ? 'Automatski za isplatu: isporuka je potvrđena.'
                     : 'Automatski za isplatu: porudžbina je u potpunosti naplaćena.';

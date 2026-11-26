@@ -234,14 +234,26 @@ final class AfterSalesActionService
 
         $this->notify($completed, $actor, 'Postprodajna radnja je izvršena', 'Radnja '.$completed->action_number.' je završena.', 'success');
         if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
-            // Refundacija sama stornira proviziju "Za isplatu"/isplaćenu srazmerno (CommissionReversalService::reverseForRefund).
+            // Refundacija sama stornira proviziju srazmerno (CommissionReversalService::reverseForRefund); poruka kaže šta se zaista desilo.
             try {
-                $commissionStatus = (string) \App\Models\OrderCommission::query()->where('order_id', $completed->case?->order_id)->value('status');
+                $commission = \App\Models\OrderCommission::query()->where('order_id', $completed->case?->order_id)->first();
                 $orderNumber = $completed->case?->order?->order_number ?? '';
+                $paymentNumber = (string) ($completed->payment?->payment_number ?? '');
+                $labels = ['pending' => 'Na čekanju', 'approved' => 'Za isplatu', 'paid' => 'Isplaćena', 'cancelled' => 'Stornirana'];
+                $storno = $commission instanceof \App\Models\OrderCommission && $paymentNumber !== ''
+                    ? \App\Models\CommissionAdjustment::query()->where('commission_id', $commission->id)->where('source', 'order_refund')
+                        ->where('status', '!=', 'rejected')->where('reason', 'like', '%'.$paymentNumber.'%')->first()
+                    : null;
+                $message = match (true) {
+                    !$commission instanceof \App\Models\OrderCommission => 'Refundacija je evidentirana. Porudžbina '.$orderNumber.' nema proviziju.',
+                    $storno instanceof \App\Models\CommissionAdjustment => sprintf('Refundacija je evidentirana. Provizija porudžbine %s je automatski %s za %s EUR. Status provizije: %s.',
+                        $orderNumber, $storno->kind === 'debit' ? 'zadužena' : 'umanjena', number_format((float) $storno->amount_eur, 2, ',', '.'), $labels[$commission->status] ?? $commission->status),
+                    default => sprintf('Refundacija je evidentirana. Iznos provizije porudžbine %s nije menjan. Status provizije: %s.', $orderNumber, $labels[$commission->status] ?? $commission->status),
+                };
                 $this->notifications->send($actor, [
                     'event' => 'after_sales_refund_commission_check',
                     'title' => 'Proveri proviziju posle refundacije',
-                    'message' => 'Refundacija je evidentirana. Provizija porudžbine '.$orderNumber.' koja je bila za isplatu ili isplaćena automatski je stornirana srazmerno refundaciji (isplaćena dobija zaduženje); provizija na čekanju nije menjana. Trenutni status: '.($commissionStatus !== '' ? $commissionStatus : 'bez provizije').'.',
+                    'message' => $message,
                     'url' => route('admin.commissions.index', ['q' => $completed->case?->order?->order_number]),
                     'action_label' => 'Otvori provizije',
                     'icon' => 'wallet',

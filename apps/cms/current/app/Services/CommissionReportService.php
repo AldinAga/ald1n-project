@@ -187,6 +187,8 @@ final class CommissionReportService
             'not_due_eur' => $notDue['eur'],
             'reversed_eur' => $adjusted('reversal'),
             'owed_eur' => max(0.0, round($adjusted('debit') - $settled, 2)),
+            // kredit agentu (void refundacije posle prebijanja/isplate): firma duguje agentu, isplata ručno
+            'credit_eur' => $adjusted('credit'),
             'proposed_debit_count' => (int) ($proposed->c ?? 0),
             'proposed_debit_eur' => (float) ($proposed->s ?? 0),
             'count' => (int) $rows->sum('total_count'),
