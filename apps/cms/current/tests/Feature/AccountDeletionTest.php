@@ -289,6 +289,66 @@ final class AccountDeletionTest extends TestCase
         self::assertTrue(app(\App\Services\UserDeletionService::class)->needsPassword($created->fresh()));
     }
 
+    public function test_password_date_backfill_preserves_google_pending_and_is_idempotent(): void
+    {
+        $actor = $this->user('backfill-actor', 'superadmin');
+        $legacy = app(\App\Services\AdminUserService::class)->create([
+            'role_id' => DB::table('roles')->where('slug', 'user')->value('id'),
+            'username' => 'backfill-legacy', 'email' => 'backfill-legacy@example.test',
+            'password' => self::PASSWORD, 'status' => 'pending',
+        ], $actor);
+        // Simulate the old admin flow, which wrote the audit entry but omitted the password date.
+        $legacy->forceFill(['password_changed_at' => null])->save();
+        $this->linkGoogle($legacy, 'backfill-legacy-google');
+
+        $stamped = $this->user('backfill-stamped');
+        $existingDate = now()->subDay()->startOfSecond();
+        $stamped->forceFill(['password_changed_at' => $existingDate])->save();
+
+        config([
+            'mobile.google_auth.registration_enabled' => true,
+            'mobile.google_auth.auto_activate_registration' => false,
+        ]);
+        $google = app(\App\Services\GoogleAuthService::class)->resolve([
+            'sub' => 'backfill-google-pending', 'email' => 'backfill-google@example.test',
+            'email_verified' => true, 'hd' => null, 'name' => 'Google test',
+            'given_name' => null, 'family_name' => null,
+        ])['user'];
+        self::assertSame('pending', $google->status);
+        $reset = $this->user('backfill-reset');
+        DB::table('password_reset_tokens')->insert([
+            ['user_id' => $google->id, 'token_hash' => hash('sha256', 'backfill-unused'),
+                'expires_at' => now()->addHour(), 'used_at' => null],
+            ['user_id' => $reset->id, 'token_hash' => hash('sha256', 'backfill-used'),
+                'expires_at' => now()->addHour(), 'used_at' => now()],
+        ]);
+        $activated = $this->user('backfill-activated');
+        DB::table('user_activation_tokens')->insert([
+            'user_id' => $activated->id, 'token_hash' => hash('sha256', 'backfill-activation'),
+            'expires_at' => now()->addHour(), 'accepted_at' => now(),
+        ]);
+
+        $deletion = app(\App\Services\UserDeletionService::class);
+        self::assertFalse($deletion->needsPassword($legacy->fresh()));
+        self::assertNull($google->password_changed_at);
+        $this->travel(1)->days();
+
+        $migration = require database_path('migrations/2026_11_26_000001_backfill_password_changed_at.php');
+        $migration->up();
+
+        self::assertEquals($legacy->created_at, $legacy->fresh()->password_changed_at);
+        self::assertTrue($deletion->needsPassword($legacy->fresh()));
+        self::assertEquals($existingDate, $stamped->fresh()->password_changed_at);
+        self::assertNull($google->fresh()->password_changed_at);
+        self::assertFalse($deletion->needsPassword($google->fresh()));
+        self::assertEquals($reset->created_at, $reset->fresh()->password_changed_at);
+        self::assertEquals($activated->created_at, $activated->fresh()->password_changed_at);
+
+        $afterFirstRun = DB::table('users')->orderBy('id')->get()->all();
+        $migration->up();
+        self::assertEquals($afterFirstRun, DB::table('users')->orderBy('id')->get()->all());
+    }
+
     public function test_account_created_by_google_without_password_keeps_the_email_link_only_flow(): void
     {
         Notification::fake();
