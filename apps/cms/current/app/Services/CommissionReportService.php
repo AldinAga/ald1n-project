@@ -169,7 +169,16 @@ final class CommissionReportService
         };
         $ids = (clone $query)->reorder()->select('order_commissions.id');
         $hasAdjustments = \App\Support\CommissionMoney::hasAdjustments(); // stranica radi i pre migracije
-        $adjusted = static fn (string $kind, string $status = 'confirmed'): float => !$hasAdjustments ? 0.0 : (float) CommissionAdjustment::query()->where('kind', $kind)->where('status', $status)->whereIn('commission_id', $ids)->sum('amount_eur');
+        $confirmedTotals = $hasAdjustments
+            ? CommissionAdjustment::query()
+                ->whereIn('kind', ['reversal', 'debit', 'credit'])
+                ->where('status', 'confirmed')
+                ->whereIn('commission_id', $ids)
+                ->selectRaw('kind, SUM(amount_eur) AS total_eur')
+                ->groupBy('kind')
+                ->pluck('total_eur', 'kind')
+                ->all()
+            : [];
         // otvoreno dugovanje = potvrđena zaduženja minus već prebijeno pri isplatama
         $settled = $hasAdjustments && Schema::hasTable('commission_debit_settlements')
             ? (float) DB::table('commission_debit_settlements')->whereIn('adjustment_id', CommissionAdjustment::query()->where('kind', 'debit')->where('status', 'confirmed')->whereIn('commission_id', $ids)->select('id'))->sum('amount_eur')
@@ -185,10 +194,10 @@ final class CommissionReportService
             'due_eur' => $due['eur'],
             'not_due_count' => $notDue['count'],
             'not_due_eur' => $notDue['eur'],
-            'reversed_eur' => $adjusted('reversal'),
-            'owed_eur' => max(0.0, round($adjusted('debit') - $settled, 2)),
+            'reversed_eur' => (float) ($confirmedTotals['reversal'] ?? 0),
+            'owed_eur' => max(0.0, round((float) ($confirmedTotals['debit'] ?? 0) - $settled, 2)),
             // kredit agentu (void refundacije posle prebijanja/isplate): firma duguje agentu, isplata ručno
-            'credit_eur' => $adjusted('credit'),
+            'credit_eur' => (float) ($confirmedTotals['credit'] ?? 0),
             'proposed_debit_count' => (int) ($proposed->c ?? 0),
             'proposed_debit_eur' => (float) ($proposed->s ?? 0),
             'count' => (int) $rows->sum('total_count'),
