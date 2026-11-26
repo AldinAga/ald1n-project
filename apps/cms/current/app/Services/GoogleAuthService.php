@@ -8,11 +8,13 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserExternalIdentity;
 use App\Models\UserGroup;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Throwable;
 
 final class GoogleAuthService
 {
@@ -35,7 +37,7 @@ final class GoogleAuthService
                 if (!$user instanceof User) {
                     throw new RuntimeException('Google identitet nema povezanog korisnika.');
                 }
-                $this->assertUsableStatus($user);
+                $this->assertUsableStatus($user, true);
                 $this->maybeActivatePending($user);
                 return ['user' => $user->fresh(['role', 'group']), 'created' => false];
             }
@@ -144,12 +146,30 @@ final class GoogleAuthService
         ])->save();
     }
 
-    private function assertUsableStatus(User $user): void
+    /** $linkedIdentity: Google sub je već povezan sa ovim nalogom, pa sme da se kaže zašto nalog ne radi. */
+    private function assertUsableStatus(User $user, bool $linkedIdentity = false): void
     {
         if ($user->retired_at !== null || !in_array((string) $user->status, ['active', 'pending'], true)) {
+            $deletion = $linkedIdentity && $user->retired_at === null ? $this->deletionGraceUntil($user) : null;
             throw ValidationException::withMessages([
-                'google' => ['CMS nalog nije aktivan. Obrati se administratoru.'],
+                'google' => [$deletion !== null
+                    ? 'Nalog je u postupku brisanja do '.$deletion.'. Otkažite brisanje linkom iz e-pošte.'
+                    : 'CMS nalog nije aktivan. Obrati se administratoru.'],
             ]);
+        }
+    }
+
+    private function deletionGraceUntil(User $user): ?string
+    {
+        try {
+            $state = app(UserDeletionService::class)->state($user);
+            if ($state['status'] !== 'pending' || $state['grace_until'] === null) {
+                return null;
+            }
+
+            return Carbon::parse($state['grace_until'])->timezone((string) config('app.timezone'))->format('d.m.Y.');
+        } catch (Throwable) {
+            return null;
         }
     }
 
