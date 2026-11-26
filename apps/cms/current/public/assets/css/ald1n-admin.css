@@ -1515,15 +1515,16 @@ html[data-theme-mode=dark] .a1-header__theme-ico[data-theme-ico=dark]{display:in
 /* Cards: the value row carries a small trend line; EUR and the comparison are one line each. */
 .a1-kpi__eur,.a1-item__eur{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums;font-weight:var(--a1-typography-font-weight-regular)}
 
-/* Content width: the admin shell and every page inside it stop at 1440px, centred, same gutters as before. */
+/* Keep the page wrapper centred with the same gutters as the header and footer. */
 .a1-body .a1-shell{--a1x-container:1440px}
-.a1-body .page-shell{width:min(100% - 48px,1440px)}
-@media (max-width:1250px){.a1-body .page-shell{width:min(100% - 30px,1440px)}}
-@media (max-width:700px){.a1-body .page-shell{width:min(100% - 22px,1440px)}}
+.a1-body .page-shell{position:relative;width:min(100% - 48px,1440px);min-height:calc(100vh - 220px);margin:34px auto 42px;padding-block:clamp(20px,2.2vw,34px) 52px}
+@media (max-width:1250px){.a1-body .page-shell{width:min(100% - 30px,1440px);margin-block:24px 34px}}
+@media (max-width:768px){.a1-body .page-shell{padding-block:14px 24px}}
+@media (max-width:700px){.a1-body .page-shell{width:min(100% - 22px,1440px);margin-block-start:18px}}
 
-/* Base reset carried over from app.css (G7): same declarations, zero specificity so every component rule wins. */
+/* Shared shell reset with zero specificity so component rules win. */
 :where(.a1-body,.a1-body *,.a1-body *::before,.a1-body *::after){box-sizing:border-box}
-:where(body.a1-body){margin:0;min-height:100vh}
+:where(body.a1-body){margin:0;min-height:100vh;font:var(--a1-typography-font-weight-regular) var(--a1-typography-font-size-base)/var(--a1-typography-line-height-body) var(--a1-typography-font-family-sans)}
 :where(.a1-body a){color:inherit;text-decoration:none}
 :where(.a1-body button,.a1-body input,.a1-body select,.a1-body textarea){font:inherit}
 

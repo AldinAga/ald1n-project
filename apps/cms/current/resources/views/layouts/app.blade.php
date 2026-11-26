@@ -1,5 +1,4 @@
 @inject('moduleVisibility', 'App\Services\ModuleVisibilityService')
-{{-- Admin shell: Kobalt tokens + ald1n-admin.css (a1- components). Page content below still uses the old CSS. --}}
 @php
     $headerUser = null;
     try {
@@ -71,16 +70,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', $siteName) · {{ $siteName }}</title>
     @if($siteFaviconUrl)<link rel="icon" href="{{ $siteFaviconUrl }}">@endif
-    <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ @filemtime(public_path('assets/css/app.css')) ?: config('app.version') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-v2.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-v2.css')) ?: config('app.version') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-liquid-glass.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-liquid-glass.css')) ?: config('app.version') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/vendor/liquid-glass-web.css') }}?v={{ @filemtime(public_path('assets/css/vendor/liquid-glass-web.css')) ?: config('app.version') }}">
-    @stack('styles')
-    <link rel="stylesheet" href="{{ asset('assets/css/ald1n-ui-refinement.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-ui-refinement.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-tokens.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-admin.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icons.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icons.css')) ?: config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-icon-actions.css') }}?v={{ @filemtime(public_path('assets/css/ald1n-icon-actions.css')) ?: config('app.version') }}">
+    @stack('styles')
     <script nonce="{{ request()->attributes->get('_csp_nonce') }}">
         (() => {
             const mode = localStorage.getItem('ald1n-theme-mode') || localStorage.getItem('ald1n-theme') || 'auto';
