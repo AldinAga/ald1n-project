@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\PasswordChangeThrottle;
 use App\Services\TurnstileService;
 use App\Services\UserDeletionService;
 use App\Support\AppUrlOrigin;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
@@ -69,12 +71,39 @@ final class AccountDeletionController extends Controller
         return AppUrlOrigin::redirect($request, 'account-deletion.show')->with('status', $this->neutralMessage());
     }
 
-    /** Prijavljen korisnik: isti tok, link stiže na e-poštu naloga. */
-    public function requestOwn(Request $request, UserDeletionService $deletions): RedirectResponse
+    /**
+     * Prijavljen korisnik: isti tok, link stiže na e-poštu naloga. Pre slanja se traži trenutna
+     * lozinka, kao na API ruti. Nalog napravljen Google prijavom nema lozinku koju vlasnik zna
+     * (UserDeletionService::needsPassword); za njega ostaje samo link u e-pošti, jer web nema
+     * svež Google token kao aplikacija.
+     */
+    public function requestOwn(Request $request, UserDeletionService $deletions, PasswordChangeThrottle $throttle): RedirectResponse
     {
         // Prijavljeni korisnik ne mora da se skriva od sebe: jasna poruka umesto lažnog "poslato".
         if (!UserDeletionService::available()) {
             return redirect()->route('account.show')->withErrors(['deletion' => 'Brisanje naloga je trenutno nedostupno.']);
+        }
+        $user = $request->user();
+        if ($deletions->needsPassword($user)) {
+            $validator = Validator::make($request->all(), ['current_password' => ['required', 'string', 'max:4096']], [
+                'current_password.*' => 'Unesite trenutnu lozinku.',
+            ]);
+            if ($validator->fails()) {
+                return redirect()->route('account.show')->withErrors($validator);
+            }
+            $data = $validator->validated();
+            // Isti budžet pokušaja kao promena lozinke i API brisanje (5 u 15 min po nalogu): broji se pre
+            // poređenja, zaključan nalog odbija i tačnu lozinku, pa forma ne služi za pogađanje.
+            $attempt = $throttle->begin($user);
+            if ($attempt === null) {
+                return redirect()->route('account.show')->withErrors(['current_password' => $throttle->message($user)]);
+            }
+            if (!Hash::check((string) $data['current_password'], (string) $user->password_hash)) {
+                $throttle->failed($user, $request, 'web-deletion', $attempt);
+
+                return redirect()->route('account.show')->withErrors(['current_password' => 'Lozinka nije ispravna.']);
+            }
+            $throttle->clear($user);
         }
         $problem = $deletions->successorProblem($request->user());
         if ($problem !== null) {

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ApiAccessService;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleIdentityVerifier;
+use App\Services\OperationalNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -22,12 +23,16 @@ final class GoogleAuthController extends Controller
         GoogleIdentityVerifier $verifier,
         GoogleAuthService $googleAuth,
         ApiAccessService $access,
+        OperationalNotificationService $notifications,
     ): JsonResponse {
         $identity = $verifier->verify((string) $request->validated('id_token'));
         $result = $googleAuth->resolve($identity);
         $user = $result['user'];
 
         if ($user->status !== 'active') {
+            if ($result['created']) {
+                $notifications->googleRegistrationPending($user);
+            }
             return response()->json([
                 'status' => 'pending',
                 'message' => $result['created']

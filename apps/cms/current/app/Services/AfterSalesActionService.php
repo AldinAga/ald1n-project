@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\CommissionAdjustment;
+use App\Models\OrderCommission;
 use App\Models\AfterSalesAction;
 use App\Models\AfterSalesCase;
 use App\Models\AfterSalesCaseItem;
@@ -183,7 +185,7 @@ final class AfterSalesActionService
     {
         $this->assertExecutor($actor);
 
-        $completed = DB::transaction(function () use ($case, $action, $actor, $data, $fromWorkOrder): AfterSalesAction {
+        return DB::transaction(function () use ($case, $action, $actor, $data, $fromWorkOrder): AfterSalesAction {
             /** @var AfterSalesAction $locked */
             $locked = AfterSalesAction::query()
                 ->with(['case.order', 'items.caseItem', 'workOrder'])
@@ -203,9 +205,10 @@ final class AfterSalesActionService
 
             /** @var Order $order */
             $order = Order::query()->lockForUpdate()->findOrFail($locked->case->order_id);
+            $adjustment = null;
             if ($locked->action_type === 'refund') {
                 $locked->setRelation('case', $locked->case->setRelation('order', $order));
-                $payment = $this->payments->recordAfterSalesRefundLocked($locked, $order, $actor);
+                [$payment, $adjustment] = $this->payments->recordAfterSalesRefundLocked($locked, $order, $actor);
                 $locked->payment_id = $payment->id;
             } elseif ($locked->inventory_handling === 'automatic') {
                 $this->applyInventoryEffects($locked, $order, $actor);
@@ -229,33 +232,49 @@ final class AfterSalesActionService
             ])->save();
 
             $this->audit->log('after_sales.action_completed', 'Izvršena postprodajna radnja '.$locked->action_number, $locked, $before, $locked->toArray(), ['case_number' => $locked->case->case_number], $actor);
-            return $locked->fresh(['case.order', 'items.stockMovement', 'assignee', 'payment', 'workOrder.team']);
-        }, 5);
+            $completed = $locked->fresh(['case.order', 'items.stockMovement', 'assignee', 'payment', 'workOrder.team']);
+            DB::afterCommit(function () use ($completed, $actor, $adjustment): void {
+                $this->notify($completed, $actor, 'Postprodajna radnja je izvršena', 'Radnja '.$completed->action_number.' je završena.', 'success');
+                if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
+                    $this->notifyRefundCommission($completed, $actor, $adjustment);
+                }
+            });
 
-        $this->notify($completed, $actor, 'Postprodajna radnja je izvršena', 'Radnja '.$completed->action_number.' je završena.', 'success');
-        if ($completed->action_type === 'refund' && $actor->hasPermission('commissions.manage')) {
-            // Refundacija novca sama ne menja proviziju: odluka je ručna. Obaveštenje vodi na proviziju te porudžbine.
-            try {
-                // Refundacija upisuje negativnu uplatu: ako porudžbina time prestane da bude plaćena (a nije isporučena), automatski
-                // odobrena provizija se sama vraća na "Na čekanju". Poruka kaže šta se zaista desilo.
-                $commissionStatus = (string) \App\Models\OrderCommission::query()->where('order_id', $completed->case?->order_id)->value('status');
-                $orderNumber = $completed->case?->order?->order_number ?? '';
-                $this->notifications->send($actor, [
-                    'event' => 'after_sales_refund_commission_check',
-                    'title' => 'Proveri proviziju posle refundacije',
-                    'message' => $commissionStatus === 'pending'
-                        ? 'Refundacija je evidentirana. Provizija porudžbine '.$orderNumber.' je na čekanju jer porudžbina više nije u potpunosti plaćena ni isporučena. Iznos nije menjan; ako treba, koristi "Storniraj proviziju".'
-                        : 'Refundacija je evidentirana. Iznos i status provizije porudžbine '.$orderNumber.' nisu menjani; ako treba, koristi "Storniraj proviziju".',
-                    'url' => route('admin.commissions.index', ['q' => $completed->case?->order?->order_number]),
-                    'action_label' => 'Otvori provizije',
-                    'icon' => 'wallet',
-                    'severity' => 'warning',
-                ]);
-            } catch (\Throwable) {
-                // obaveštenje ne sme da poništi refundaciju
+            return $completed;
+        }, 5);
+    }
+
+    private function notifyRefundCommission(AfterSalesAction $completed, User $actor, ?CommissionAdjustment $adjustment): void
+    {
+        try {
+            $status = OrderCommission::query()->where('order_id', $completed->case?->order_id)->value('status');
+            $orderNumber = $completed->case?->order?->order_number ?? '';
+            $label = match ($status) {
+                'pending' => 'Na čekanju',
+                'approved' => 'Za isplatu',
+                'paid' => 'Isplaćena',
+                'cancelled' => 'Stornirana',
+                default => 'Nepoznat',
+            };
+            $message = $status === null
+                ? 'Refundacija je evidentirana. Porudžbina '.$orderNumber.' nema proviziju.'
+                : sprintf('Refundacija za porudžbinu %s je evidentirana. Status provizije: %s.', $orderNumber, $label);
+            if ($adjustment instanceof CommissionAdjustment) {
+                $message .= sprintf(' %s u iznosu od %s EUR.', $adjustment->kind === 'debit' ? 'Evidentirano je zaduženje' : 'Evidentiran je storno',
+                    number_format((float) $adjustment->amount_eur, 2, ',', '.'));
             }
+            $this->notifications->send($actor, [
+                'event' => 'after_sales_refund_commission_check',
+                'title' => 'Proveri proviziju posle refundacije',
+                'message' => $message,
+                'url' => route('admin.commissions.index', ['q' => $orderNumber]),
+                'action_label' => 'Otvori provizije',
+                'icon' => 'wallet',
+                'severity' => 'warning',
+            ]);
+        } catch (\Throwable) {
+            // Obaveštenje ne sme da poništi refundaciju.
         }
-        return $completed;
     }
 
     public function cancel(AfterSalesCase $case, AfterSalesAction $action, User $actor, string $reason): AfterSalesAction

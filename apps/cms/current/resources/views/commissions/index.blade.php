@@ -24,6 +24,7 @@
         <div class="a1-kpi"><p class="a1-kpi__label">Nisu dospele</p><p class="a1-kpi__value">{{ $eur($summary['not_due_eur']) }} <span class="a1-kpi__unit">EUR</span></p><p class="a1-kpi__note">Čekaju isporuku ili naplatu</p></div>
         <div class="a1-kpi"><p class="a1-kpi__label">Za isplatu</p><p class="a1-kpi__value">{{ $eur($summary['approved_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>
         @if((float)$summary['owed_eur'] > 0)<div class="a1-kpi"><p class="a1-kpi__label">Zaduženje</p><p class="a1-kpi__value">{{ $eur($summary['owed_eur']) }} <span class="a1-kpi__unit">EUR</span></p><p class="a1-kpi__note">Povrat posle isplate</p></div>@endif
+        @if((float)$summary['credit_eur'] > 0)<div class="a1-kpi"><p class="a1-kpi__label">Potraživanje za proviziju</p><p class="a1-kpi__value">{{ $eur($summary['credit_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>@endif
         <div class="a1-kpi"><p class="a1-kpi__label">Isplaćeno</p><p class="a1-kpi__value">{{ $eur($summary['paid_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>
         <div class="a1-kpi"><p class="a1-kpi__label">Ukupno zapisa</p><p class="a1-kpi__value">{{ $summary['count'] }}</p></div>
     </div>

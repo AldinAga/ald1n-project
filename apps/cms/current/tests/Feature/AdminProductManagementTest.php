@@ -62,7 +62,8 @@ final class AdminProductManagementTest extends TestCase
         $this->actingAs($superadmin)->get('/admin/catalog/'.$foreign->id.'/edit')->assertOk();
 
         $catalog = $this->actingAs($adminOne)->get('/catalog');
-        $catalog->assertOk()->assertSee('Artikal administratora 1')->assertDontSee('Artikal administratora 2');
+        // Vidljivost je za sve Admine (napomene); izmena i dalje samo autor/SuperAdmin.
+        $catalog->assertOk()->assertSee('Artikal administratora 1')->assertSee('Artikal administratora 2');
         $catalog->assertSee('/admin/catalog/'.$own->id.'/edit', false);
         $catalog->assertDontSee('/admin/catalog/'.$foreign->id.'/edit', false);
     }
