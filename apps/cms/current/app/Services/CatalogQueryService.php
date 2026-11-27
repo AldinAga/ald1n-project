@@ -134,7 +134,8 @@ final class CatalogQueryService
                 default => null,
             };
 
-            $ownership = trim((string) ($filters['ownership'] ?? ''));
+            $ownership = $filters['ownership'] ?? null;
+            $ownership = is_string($ownership) ? trim($ownership) : '';
             if ($ownership === 'mine') {
                 $query->where('created_by', (int) $user->getAuthIdentifier());
             } elseif ($ownership === 'unassigned' && $user->hasRole('superadmin')) {

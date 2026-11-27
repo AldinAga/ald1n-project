@@ -189,7 +189,7 @@
         @if(filled($product->description))
             <div class="a1-cat-desc a1-cat-desc--mobile">{!! nl2br(e((string) $product->description)) !!}</div>
         @endif
-        {{-- Napomene: svi s catalog.manage_products (Admin, SuperAdmin) na svim artiklima; nikad kupci, portal ni javna vitrina. --}}
+        {{-- Napomene su dostupne uz dozvolu catalog.view_notes. --}}
         @if($canViewNotes && filled($product->notes))
             <section class="a1-card a1-cat-notes" data-product-internal-notes aria-labelledby="product-notes-title">
                 <div class="a1-cat-descbar">

@@ -61,6 +61,20 @@ final class CatalogAccessTest extends TestCase
             ->assertDontSee($adminProduct->name);
     }
 
+    public function test_catalog_ignores_array_ownership_filter(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $author = User::factory()->create(['role_id' => $admin->role_id]);
+        $ownProduct = $this->product('own-product', 'Sopstveni artikal', $admin->id);
+        $otherProduct = $this->product('other-product', 'Artikal drugog autora', $author->id);
+
+        $this->actingAs($admin)->get('/catalog?ownership[]=x')
+            ->assertOk()
+            ->assertSee($ownProduct->name)
+            ->assertSee($otherProduct->name)
+            ->assertDontSee('Ukloni filter: Vlasništvo:');
+    }
+
     public function test_catalog_viewer_without_manage_permission_cannot_filter_by_author(): void
     {
         $group = UserGroup::query()->create([

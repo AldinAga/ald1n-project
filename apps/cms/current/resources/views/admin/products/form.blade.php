@@ -2,6 +2,9 @@
 @section('title', $product->exists ? 'Izmeni artikal' : 'Dodaj artikal')
 @section('content')
 @include('admin.products.partials.styles')
+@php
+    $canViewNotes = auth()->user()->can('catalog.view_notes');
+@endphp
 <div class="a1-ops" data-product-edit-ready="1" data-product-exists="{{ $product->exists ? '1' : '0' }}" data-product-id="{{ $product->exists ? $product->id : '' }}" data-initial-product-status="{{ old('status',$product->status) }}" data-name-preview-url="{{ route('admin.products.name-preview') }}" data-duplicate-url="{{ route('admin.products.duplicate-check') }}">
     <nav aria-label="Putanja">
         <ol class="a1-crumbs">
@@ -70,7 +73,7 @@
         </button>
         <button class="a1-pc-task" type="button" data-ux-product-task="description">
             <span class="a1-pc-task__idx">5</span>
-            <span class="a1-pc-task__copy"><strong>Opis</strong><small>opis i napomene</small></span>
+            <span class="a1-pc-task__copy"><strong>Opis</strong>@if($canViewNotes)<small>opis i napomene</small>@endif</span>
             <span class="a1-pc-task__state" data-ux-product-task-state>—</span>
         </button>
     </nav>
@@ -394,10 +397,12 @@
                 <section class="a1-card product-description-section" data-form-section aria-labelledby="pe-desc">
                     <div class="a1-pc-sechead">
                         <span class="a1-pc-secnum" aria-hidden="true">4</span>
-                        <div class="a1-card__title"><h2 class="a1-h2" id="pe-desc">Opis i napomene</h2></div>
+                        <div class="a1-card__title"><h2 class="a1-h2" id="pe-desc">{{ $canViewNotes ? 'Opis i napomene' : 'Opis' }}</h2></div>
                     </div>
                     <label class="a1-field"><span class="a1-label">Opis / specifikacije *</span><textarea class="a1-textarea" name="description" rows="10" required>{{ old('description',$product->description) }}</textarea></label>
-                    <label class="a1-field"><span class="a1-label">Napomene</span><textarea class="a1-textarea" name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
+                    @if($canViewNotes)
+                        <label class="a1-field"><span class="a1-label">Napomene</span><textarea class="a1-textarea" name="notes" rows="4">{{ old('notes',$product->notes) }}</textarea></label>
+                    @endif
                 </section>
             </div>
 

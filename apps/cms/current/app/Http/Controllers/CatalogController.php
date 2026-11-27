@@ -83,6 +83,7 @@ final class CatalogController extends Controller
             'filterFields' => $referenceOptions['filterFields'],
             'catalogPerPage' => $perPageOption,
             'canViewPrices' => $user->can('catalog.view_prices'),
+            'canViewNotes' => $user->can('catalog.view_notes'),
             'canManageCatalog' => $access->canCreateProducts($user),
             'isSuperAdministrator' => $user->hasRole('superadmin'),
         ]);
@@ -146,7 +147,7 @@ final class CatalogController extends Controller
             'commissionEur' => $commissionEur,
             'canViewPrices' => $user->can('catalog.view_prices'),
             'canManageProduct' => $access->canManage($product, $user),
-            'canViewNotes' => $access->canCreateProducts($user),
+            'canViewNotes' => $user->can('catalog.view_notes'),
             'canManageImages' => $access->canManageImages($product, $user),
             'canRecordDirectSale' => $canRecordDirectSale,
             'directSaleIdempotencyKey' => $canRecordDirectSale ? (string) Str::uuid() : null,

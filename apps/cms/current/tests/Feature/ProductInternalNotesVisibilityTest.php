@@ -60,11 +60,25 @@ final class ProductInternalNotesVisibilityTest extends TestCase
             ->assertSee('data-product-has-notes', false);
     }
 
-    public function test_notes_are_hidden_from_non_managers(): void
+    public function test_catalog_notes_are_visible_only_with_notes_permission(): void
     {
         $admin = $this->user('superadmin', 'notes-owner');
         $product = $this->product($admin->id);
-        $viewer = $this->user('user', 'notes-viewer', true);
+        $notesViewer = $this->user('user', 'notes-allowed', ['catalog.view', 'catalog.view_notes']);
+        $viewer = $this->user('user', 'notes-viewer', ['catalog.view']);
+
+        self::assertTrue($notesViewer->can('catalog.view_notes'));
+        self::assertFalse($notesViewer->can('catalog.manage_products'));
+        self::assertFalse($viewer->can('catalog.view_notes'));
+
+        $this->actingAs($notesViewer)->get('/catalog/'.$product->slug)
+            ->assertOk()
+            ->assertSee('data-product-internal-notes', false)
+            ->assertSee('Prvi red napomene');
+
+        $this->get('/catalog')
+            ->assertOk()
+            ->assertSee('data-product-has-notes', false);
 
         $this->actingAs($viewer)->get('/catalog/'.$product->slug)
             ->assertOk()
@@ -73,7 +87,21 @@ final class ProductInternalNotesVisibilityTest extends TestCase
 
         $this->actingAs($viewer)->get('/catalog')
             ->assertOk()
+            ->assertSee($product->name)
             ->assertDontSee('data-product-has-notes', false);
+    }
+
+    public function test_product_editor_without_notes_permission_cannot_see_notes(): void
+    {
+        $author = $this->user('user', 'notes-product-editor', ['catalog.manage_products']);
+        $product = $this->product($author->id);
+
+        self::assertFalse($author->can('catalog.view_notes'));
+
+        $this->actingAs($author)->get(route('admin.products.edit', $product))
+            ->assertOk()
+            ->assertDontSee('name="notes"', false)
+            ->assertDontSee('Prvi red napomene');
     }
 
     public function test_detail_without_notes_has_no_notes_card(): void
@@ -86,19 +114,22 @@ final class ProductInternalNotesVisibilityTest extends TestCase
             ->assertDontSee('data-product-internal-notes', false);
     }
 
-    private function user(string $role, string $name, bool $withCatalogView = false): User
+    /** @param list<string> $permissions */
+    private function user(string $role, string $name, array $permissions = []): User
     {
         $groupId = null;
-        if ($withCatalogView) {
+        if ($permissions !== []) {
             $group = UserGroup::query()->create([
                 'name' => $name, 'slug' => $name, 'status' => 'active',
                 'category_access_mode' => 'all', 'include_uncategorized' => true,
             ]);
-            DB::table('user_group_permissions')->insert([
-                'group_id' => $group->id,
-                'permission_id' => DB::table('permissions')->where('slug', 'catalog.view')->value('id'),
-                'created_at' => now(),
-            ]);
+            foreach ($permissions as $permission) {
+                DB::table('user_group_permissions')->insert([
+                    'group_id' => $group->id,
+                    'permission_id' => DB::table('permissions')->where('slug', $permission)->value('id'),
+                    'created_at' => now(),
+                ]);
+            }
             $groupId = $group->id;
         }
 
