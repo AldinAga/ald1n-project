@@ -170,7 +170,7 @@
                 <p class="a1-results__count">Aktivni filteri:</p>
                 <ul class="a1-chips">
                     @foreach($chips as [$chipParam, $chipName, $chipValue])
-                        <li><a class="a1-chip" href="{{ route('admin.orders.index', request()->except([$chipParam, 'page'])) }}" aria-label="Ukloni filter: {{ $chipName }}: {{ $chipValue }}">{{ $chipName }}: {{ $chipValue }} <x-icon name="x" :size="16" :shell="true" /></a></li>
+                        <li><a class="a1-chip" href="{{ route('admin.orders.index', request()->except([$chipParam, 'page'])) }}" aria-label="Ukloni filter: {{ $chipName }}: {{ $chipValue }}"><span>{{ $chipName }}: {{ $chipValue }}</span> <x-icon name="x" :size="16" :shell="true" /></a></li>
                     @endforeach
                 </ul>
             </div>

@@ -24,6 +24,7 @@
         <div class="a1-kpi"><p class="a1-kpi__label">Nisu dospele</p><p class="a1-kpi__value">{{ $eur($summary['not_due_eur']) }} <span class="a1-kpi__unit">EUR</span></p><p class="a1-kpi__note">Čekaju isporuku ili naplatu</p></div>
         <div class="a1-kpi"><p class="a1-kpi__label">Za isplatu</p><p class="a1-kpi__value">{{ $eur($summary['approved_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>
         @if((float)$summary['owed_eur'] > 0)<div class="a1-kpi"><p class="a1-kpi__label">Zaduženje</p><p class="a1-kpi__value">{{ $eur($summary['owed_eur']) }} <span class="a1-kpi__unit">EUR</span></p><p class="a1-kpi__note">Povrat posle isplate</p></div>@endif
+        @if((float)$summary['credit_eur'] > 0)<div class="a1-kpi"><p class="a1-kpi__label">Potraživanje za proviziju</p><p class="a1-kpi__value">{{ $eur($summary['credit_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>@endif
         <div class="a1-kpi"><p class="a1-kpi__label">Isplaćeno</p><p class="a1-kpi__value">{{ $eur($summary['paid_eur']) }} <span class="a1-kpi__unit">EUR</span></p></div>
         <div class="a1-kpi"><p class="a1-kpi__label">Ukupno zapisa</p><p class="a1-kpi__value">{{ $summary['count'] }}</p></div>
     </div>
@@ -40,6 +41,13 @@
             <button class="a1-btn a1-btn--primary" type="submit">Filtriraj</button>
             <a class="a1-btn" href="{{ route('commissions.index') }}">Resetuj</a>
         </div>
+    </form>
+
+    <form class="a1-filters" method="get" action="{{ route('commissions.statement.pdf') }}" target="_blank" aria-label="Mesečni PDF obračun">
+        <div class="a1-filters__fields">
+            <div class="a1-field"><label class="a1-label" for="mc-st-month">Mesec obračuna</label><input class="a1-input" id="mc-st-month" type="month" name="month" value="{{ now()->format('Y-m') }}" required></div>
+        </div>
+        <div class="a1-filters__actions"><button class="a1-btn" type="submit"><x-icon name="file-text" :size="18" :shell="true" /> PDF obračun</button></div>
     </form>
 
     @if($commissions->isEmpty())
@@ -71,6 +79,7 @@
                 <div class="a1-dl__row"><dt>Način isplate</dt><dd>{{ $methodLabels[$row->payment_method] ?? $row->payment_method ?? '—' }}</dd></div>
                 <div class="a1-dl__row"><dt>Referenca</dt><dd>{{ $row->payment_reference ?: $row->paymentBatch?->batch_number ?: '—' }}</dd></div>
                 <div class="a1-dl__row"><dt>Datum isplate</dt><dd>{{ $row->paid_at?->format('d.m.Y H:i') ?: '—' }}</dd></div>
+                @if($row->payment_batch_id)<div class="a1-dl__row"><dt>Potvrda isplate</dt><dd><a class="a1-link a1-link--inline" href="{{ route('commissions.payout.pdf', $row->payment_batch_id) }}" target="_blank" rel="noopener">PDF potvrda</a></dd></div>@endif
                 @endif
             </dl>
         </article>

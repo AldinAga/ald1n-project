@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="robots" content="noindex,nofollow">
     <title>@yield('title') — {{ config('app.name', 'Ald1n CMS') }}</title>
-    <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-tokens.css') }}?v={{ config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-admin.css') }}?v={{ config('app.version') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/ald1n-auth.css') }}?v={{ config('app.version') }}">

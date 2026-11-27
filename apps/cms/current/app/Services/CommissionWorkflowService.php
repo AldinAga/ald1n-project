@@ -38,8 +38,10 @@ final class CommissionWorkflowService
             }
         }
         $updated = DB::transaction(function () use ($commission, $newStatus, $actor, $data): OrderCommission {
+            $order = Order::query()->lockForUpdate()->findOrFail($commission->order_id);
             /** @var OrderCommission $locked */
-            $locked = OrderCommission::query()->with(['order', 'user'])->lockForUpdate()->findOrFail($commission->id);
+            $locked = OrderCommission::query()->with('user')->where('order_id', $order->id)->lockForUpdate()->findOrFail($commission->id);
+            $locked->setRelation('order', $order);
             $this->authorize($locked, $actor);
             $oldStatus = (string) $locked->status;
 
@@ -123,7 +125,7 @@ final class CommissionWorkflowService
             return $locked->fresh(['order', 'user', 'history.actor', 'paymentBatch']);
         }, 5);
 
-        $this->notifyStatus($updated);
+        DB::afterCommit(fn () => $this->notifyStatus($updated));
         return $updated;
     }
 
@@ -141,12 +143,17 @@ final class CommissionWorkflowService
         $paidCommissions = collect();
 
         $batch = DB::transaction(function () use ($ids, $actor, $method, $reference, $note, &$paidCommissions, &$skipped): CommissionPaymentBatch {
-            $query = OrderCommission::query()->with(['order', 'user'])->whereIn('id', $ids)->orderBy('id')->lockForUpdate();
+            $query = OrderCommission::query()->whereIn('id', $ids);
             $this->applyActorScope($query, $actor);
+            $orderIds = (clone $query)->pluck('order_id');
+            $orders = Order::query()->whereIn('id', $orderIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             /** @var Collection<int,OrderCommission> $commissions */
-            $commissions = $query->get();
+            $commissions = $query->with('user')->whereIn('order_id', $orders->keys())->orderBy('id')->lockForUpdate()->get();
             if ($commissions->count() !== count($ids)) {
                 throw ValidationException::withMessages(['commissions' => 'Jedna ili više provizija nisu dostupne za obradu.']);
+            }
+            foreach ($commissions as $commission) {
+                $commission->setRelation('order', $orders->get($commission->order_id));
             }
             // Samo odobrene (a odobrena je uvek prošla pravilo dospelosti ili je nasleđena): ostale se preskaču i prijavljuju.
             $skipped = [];
@@ -168,9 +175,10 @@ final class CommissionWorkflowService
             }
             $settlements = [];
             if (Schema::hasTable('commission_debit_settlements')) {
+                $openDebits = $this->reversals->openDebitsForUsers(array_keys($grossByUser));
                 foreach ($grossByUser as $userId => $gross) {
                     $budget = $gross;
-                    foreach ($this->reversals->openDebitsForUser($userId) as $adjustmentId => $left) {
+                    foreach ($openDebits[$userId] ?? [] as $adjustmentId => $left) {
                         if ($budget <= 0) {
                             break;
                         }
@@ -194,6 +202,13 @@ final class CommissionWorkflowService
             ];
             if (Schema::hasColumn('commission_payment_batches', 'debit_eur')) {
                 $attributes += ['debit_eur' => M::format($debitCents), 'net_eur' => M::format($grossCents - $debitCents)];
+            }
+            if (Schema::hasColumn('commission_payment_batches', 'eur_rsd_rate')) {
+                $rate = app(ExchangeRateService::class)->configuration()['rate'] ?? null;
+                $attributes['eur_rsd_rate'] = is_float($rate) && $rate > 0 ? number_format($rate, 6, '.', '') : null;
+                if ($attributes['eur_rsd_rate'] === null) {
+                    \Illuminate\Support\Facades\Log::warning('Isplata provizija bez važećeg kursa EUR/RSD: kurs isplate nije zabeležen.', ['actor_id' => $actor->id]);
+                }
             }
             $batch = CommissionPaymentBatch::query()->create($attributes);
             $batch->update(['batch_number' => sprintf('ISPL-%s-%06d', now()->format('Ymd'), $batch->id)]);
@@ -233,7 +248,7 @@ final class CommissionWorkflowService
         }, 5);
 
         foreach ($paidCommissions as $commission) {
-            $this->notifyStatus($commission);
+            DB::afterCommit(fn () => $this->notifyStatus($commission));
         }
 
         return $batch;

@@ -61,6 +61,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CommissionController as UserCommissionController;
+use App\Http\Controllers\CommissionStatementController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
@@ -322,6 +323,10 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
     Route::get('/commissions', [UserCommissionController::class, 'index'])
         ->middleware('permission:commissions.view_own')
         ->name('commissions.index');
+    Route::middleware(['permission:commissions.view_own', 'throttle:exports'])->group(function (): void {
+        Route::get('/commissions/statement.pdf', [CommissionStatementController::class, 'statement'])->name('commissions.statement.pdf');
+        Route::get('/commissions/payouts/{batch}.pdf', [CommissionStatementController::class, 'payout'])->whereNumber('batch')->name('commissions.payout.pdf');
+    });
 
     Route::middleware('permission:notifications.view')->group(function (): void {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -516,8 +521,11 @@ Route::middleware(['auth', 'active', 'tracked-session'])->group(function (): voi
             Route::post('/commissions/default-percent', [CommissionController::class, 'updateDefaultPercent'])->middleware('throttle:admin-write')->name('commissions.default-percent');
             Route::post('/commissions/adjustments/{adjustment}/confirm', [CommissionController::class, 'confirmDebit'])->whereNumber('adjustment')->middleware('throttle:admin-write')->name('commissions.debits.confirm');
             Route::post('/commissions/adjustments/{adjustment}/reject', [CommissionController::class, 'rejectDebit'])->whereNumber('adjustment')->middleware('throttle:admin-write')->name('commissions.debits.reject');
+            Route::post('/commissions/adjustments/{adjustment}/settle-credit', [CommissionController::class, 'settleCredit'])->whereNumber('adjustment')->middleware('throttle:admin-write')->name('commissions.credits.settle');
             Route::get('/commissions.csv', [CommissionController::class, 'csv'])->middleware('throttle:exports')->name('commissions.csv');
             Route::get('/commissions.pdf', [CommissionController::class, 'pdf'])->middleware('throttle:exports')->name('commissions.pdf');
+            Route::get('/commissions/statement.pdf', [CommissionStatementController::class, 'statement'])->middleware('throttle:exports')->name('commissions.statement.pdf');
+            Route::get('/commissions/payouts/{batch}.pdf', [CommissionStatementController::class, 'payout'])->whereNumber('batch')->middleware('throttle:exports')->name('commissions.payout.pdf');
         });
         Route::middleware('permission:reports.view')->group(function (): void {
             Route::get('/reports', [ManagementReportController::class, 'index'])->name('reports.index');

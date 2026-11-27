@@ -11,12 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 final class CommissionPaymentBatch extends Model
 {
     protected $fillable = [
-        'batch_number', 'payment_method', 'payment_reference', 'note', 'commission_count', 'total_eur', 'debit_eur', 'net_eur', 'paid_by', 'paid_at',
+        'batch_number', 'payment_method', 'payment_reference', 'note', 'commission_count', 'total_eur', 'debit_eur', 'net_eur', 'eur_rsd_rate', 'paid_by', 'paid_at',
     ];
 
     protected function casts(): array
     {
-        return ['total_eur' => 'decimal:2', 'debit_eur' => 'decimal:2', 'net_eur' => 'decimal:2', 'paid_at' => 'datetime'];
+        return ['eur_rsd_rate' => 'decimal:6', 'total_eur' => 'decimal:2', 'debit_eur' => 'decimal:2', 'net_eur' => 'decimal:2', 'paid_at' => 'datetime'];
     }
 
     public function commissions(): HasMany { return $this->hasMany(OrderCommission::class, 'payment_batch_id'); }

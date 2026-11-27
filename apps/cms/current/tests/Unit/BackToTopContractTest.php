@@ -102,8 +102,8 @@ final class BackToTopContractTest extends TestCase
             self::bottomBarRules($css),
             static fn (array $classes): bool => array_intersect($classes, $ignored) === []
         ));
-        // Floor: the action bar, the editor bar, the sort bar and the phone dock exist today.
-        self::assertGreaterThanOrEqual(4, count($rules));
+        // G7-D removed the legacy rules, leaving the Cobalt action bar and phone dock.
+        self::assertGreaterThanOrEqual(2, count($rules));
 
         $unknown = [];
         foreach ($rules as $classes) {
@@ -141,12 +141,26 @@ final class BackToTopContractTest extends TestCase
         self::assertMatchesRegularExpression('/@media \(forced-colors:active\)\{\.a1-btt\{/', $css);
     }
 
-    public function test_guest_and_error_layouts_load_the_tokens_and_component_css(): void
+    public function test_layouts_load_cobalt_css_in_order_without_legacy_stylesheets(): void
     {
-        foreach (['layouts/guest.blade.php', 'errors/minimal.blade.php'] as $name) {
-            $source = $this->layouts()[$name];
-            self::assertStringContainsString('assets/css/ald1n-tokens.css', $source, $name);
-            self::assertStringContainsString('assets/css/ald1n-admin.css', $source, $name);
+        $layouts = $this->layouts();
+        foreach ([
+            'layouts/app.blade.php' => "@stack('styles')",
+            'layouts/guest.blade.php' => "@stack('styles')",
+            'errors/minimal.blade.php' => 'assets/css/ald1n-auth.css',
+        ] as $name => $pageStyles) {
+            $source = $layouts[$name];
+            $previousOffset = -1;
+            foreach (['assets/css/ald1n-tokens.css', 'assets/css/ald1n-admin.css', $pageStyles] as $marker) {
+                $offset = strpos($source, $marker);
+                self::assertNotFalse($offset, $name.' is missing '.$marker);
+                self::assertGreaterThan($previousOffset, $offset, $name.' loads '.$marker.' out of order');
+                $previousOffset = $offset;
+            }
+
+            foreach (['app.css', 'ald1n-ui-v2.css', 'ald1n-liquid-glass.css', 'ald1n-ui-refinement.css', 'vendor/liquid-glass-web.css', 'ald1n-dashboard-d1.css'] as $legacy) {
+                self::assertStringNotContainsString('assets/css/'.$legacy, $source, $name);
+            }
         }
     }
 

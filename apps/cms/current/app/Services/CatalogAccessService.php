@@ -51,20 +51,15 @@ final class CatalogAccessService
      * Primeni objedinjeni katalog scope.
      *
      * - obican korisnik vidi samo aktivne artikle dozvoljenih kategorija;
-     * - administrator vidi isključivo svoje operativne (nearhivirane) artikle;
-     * - SuperAdministrator vidi sve operativne (nearhivirane) artikle;
+     * - svako s catalog.manage_products (Administrator, SuperAdministrator) vidi sve operativne (nearhivirane) artikle,
+     *   ali menja samo svoje (SuperAdministrator sve);
      * - arhivirani artikli se prikazuju samo kroz zaseban archive tok.
      */
     public function applyVisibleCatalog(Builder $query, User $user): Builder
     {
         if ($this->canCreateProducts($user)) {
-            $query->whereNull('deleted_at');
-
-            if ($user->hasRole('superadmin')) {
-                return $query;
-            }
-
-            return $query->where('created_by', (int) $user->getAuthIdentifier());
+            // Vidljivost je samo čitanje; izmena ostaje na applyManageable/canManage (autor ili SuperAdmin).
+            return $query->whereNull('deleted_at');
         }
 
         $query->where('status', 'active')->whereNull('deleted_at');

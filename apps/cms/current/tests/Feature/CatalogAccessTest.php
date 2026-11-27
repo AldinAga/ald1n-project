@@ -25,6 +25,130 @@ final class CatalogAccessTest extends TestCase
         $this->seed(CoreAccessSeeder::class);
     }
 
+    public function test_catalog_managers_can_filter_articles_by_their_own_author_id(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $superadmin = User::factory()->create(['role_id' => Role::query()->where('slug', 'superadmin')->valueOrFail('id')]);
+        $adminProduct = $this->product('admin-product', 'Artikal administratora', $admin->id);
+        $superadminProduct = $this->product('superadmin-product', 'Artikal superadministratora', $superadmin->id);
+
+        $this->actingAs($admin)->get('/catalog')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertSee($superadminProduct->name)
+            ->assertSee('name="ownership"', false)
+            ->assertSee('Moji artikli')
+            ->assertDontSee('<option value="unassigned"', false);
+
+        $this->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertDontSee($superadminProduct->name)
+            ->assertSee('Ukloni filter: Vlasništvo: Moji artikli');
+
+        $this->get('/admin/catalog/'.$superadminProduct->id.'/edit')->assertNotFound();
+
+        $this->actingAs($superadmin)->get('/catalog')
+            ->assertOk()
+            ->assertSee($adminProduct->name)
+            ->assertSee($superadminProduct->name)
+            ->assertSee('name="ownership"', false)
+            ->assertSee('<option value="unassigned"', false);
+
+        $this->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($superadminProduct->name)
+            ->assertDontSee($adminProduct->name);
+    }
+
+    public function test_catalog_ignores_array_ownership_filter(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $author = User::factory()->create(['role_id' => $admin->role_id]);
+        $ownProduct = $this->product('own-product', 'Sopstveni artikal', $admin->id);
+        $otherProduct = $this->product('other-product', 'Artikal drugog autora', $author->id);
+
+        $this->actingAs($admin)->get('/catalog?ownership[]=x')
+            ->assertOk()
+            ->assertSee($ownProduct->name)
+            ->assertSee($otherProduct->name)
+            ->assertDontSee('Ukloni filter: Vlasništvo:');
+    }
+
+    public function test_catalog_viewer_without_manage_permission_cannot_filter_by_author(): void
+    {
+        $group = UserGroup::query()->create([
+            'name' => 'Pregled kataloga', 'slug' => 'pregled-kataloga', 'status' => 'active',
+            'category_access_mode' => 'all', 'include_uncategorized' => true,
+        ]);
+        $catalogPermission = DB::table('permissions')->where('slug', 'catalog.view')->value('id');
+        DB::table('user_group_permissions')->insert(['group_id' => $group->id, 'permission_id' => $catalogPermission, 'created_at' => now()]);
+        $viewer = $this->user($group);
+        $other = User::factory()->create();
+        $ownProduct = $this->product('viewer-product', 'Artikal posmatrača', $viewer->id);
+        $otherProduct = $this->product('other-product', 'Artikal drugog autora', $other->id);
+
+        $this->actingAs($viewer)->get('/catalog?ownership=mine')
+            ->assertOk()
+            ->assertSee($ownProduct->name)
+            ->assertSee($otherProduct->name)
+            ->assertDontSee('name="ownership"', false)
+            ->assertDontSee('Moji artikli');
+    }
+
+    public function test_admin_can_read_but_cannot_update_or_archive_another_authors_draft_or_inactive_product(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $author = User::factory()->create(['role_id' => $admin->role_id]);
+        self::assertTrue($admin->can('catalog.manage_products'));
+        $this->actingAs($admin);
+
+        foreach (['draft' => 'Tuđi nacrt artikla', 'inactive' => 'Tuđi neaktivan artikal'] as $status => $name) {
+            $product = $this->product('other-'.$status, $name, $author->id, $status);
+
+            $this->get('/catalog')->assertOk()->assertSee($product->name);
+            $this->get('/catalog/'.$product->slug)->assertOk()->assertSee($product->name);
+
+            $this->put(route('admin.products.update', $product), [
+                'sku' => $product->sku,
+                'name' => 'Pokušaj izmene tuđeg artikla',
+                'price_amount' => $product->price_amount,
+                'price_currency' => $product->price_currency,
+                'description' => $product->description,
+                'stock_quantity' => $product->stock_quantity,
+                'low_stock_threshold' => 0,
+                'status' => $status,
+            ])->assertForbidden();
+            // Kontroler za arhiviranje odbija zahtev za tuđi artikal odgovorom 404.
+            $this->delete(route('admin.products.archive', $product))->assertNotFound();
+
+            $this->assertDatabaseHas('products', [
+                'id' => $product->id,
+                'name' => $name,
+                'status' => $status,
+                'deleted_at' => null,
+            ]);
+        }
+    }
+
+    public function test_admin_cannot_see_another_authors_archived_product_in_catalog_or_archive(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::query()->where('slug', 'admin')->valueOrFail('id')]);
+        $author = User::factory()->create(['role_id' => $admin->role_id]);
+        $archived = $this->product('other-archived', 'Tuđi arhivirani artikal', $author->id, 'archived');
+        $ownArchived = $this->product('own-archived', 'Sopstveni arhivirani artikal', $admin->id, 'archived');
+
+        $this->actingAs($admin)->get('/catalog')
+            ->assertOk()
+            ->assertDontSee($archived->name)
+            ->assertDontSee($ownArchived->name);
+        $this->get('/catalog/'.$archived->slug)->assertNotFound();
+        $this->get(route('admin.products.archived'))
+            ->assertOk()
+            ->assertSee($ownArchived->name)
+            ->assertDontSee($archived->name);
+    }
+
     public function test_selected_parent_category_includes_children_and_optional_uncategorized_products(): void
     {
         $group = UserGroup::query()->create([
@@ -92,7 +216,7 @@ final class CatalogAccessTest extends TestCase
         ]);
     }
 
-    private function product(string $slug, string $name, int $createdBy): Product
+    private function product(string $slug, string $name, int $createdBy, string $status = 'active'): Product
     {
         return Product::query()->create([
             'sku' => strtoupper($slug),
@@ -102,7 +226,8 @@ final class CatalogAccessTest extends TestCase
             'price_currency' => 'EUR',
             'description' => 'Opis',
             'stock_quantity' => 2,
-            'status' => 'active',
+            'status' => $status,
+            'deleted_at' => $status === 'archived' ? now() : null,
             'created_by' => $createdBy,
         ]);
     }

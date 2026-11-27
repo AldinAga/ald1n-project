@@ -134,6 +134,21 @@ final class CommissionController extends Controller
         return back()->with('status', 'Predlog zaduženja je odbijen.');
     }
 
+    public function settleCredit(Request $request, string $adjustment, CommissionReversalService $reversal): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor->hasRole('superadmin'), 403);
+        $data = $request->validate([
+            'amount_eur' => ['required', 'string', 'regex:/^\d{1,9}\.\d{2}$/'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $credit = CommissionAdjustment::query()->findOrFail($adjustment);
+        $settled = $reversal->settleCredit($credit, $actor, $data['amount_eur'], $data['note'] ?? null);
+
+        return back()->with('status', $settled ? 'Isplata kredita je evidentirana.' : 'Kredit je već označen kao isplaćen.');
+    }
+
     public function csv(Request $request, CommissionReportService $reports): Response
     {
         if ($reports->readinessIssues() !== []) return response('Provizije nisu spremne. Pokreni app:operations-doctor --repair.', 503);

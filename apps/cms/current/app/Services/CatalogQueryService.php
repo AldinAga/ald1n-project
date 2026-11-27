@@ -134,13 +134,12 @@ final class CatalogQueryService
                 default => null,
             };
 
-            if ($user->hasRole('superadmin')) {
-                $ownership = trim((string) ($filters['ownership'] ?? ''));
-                if ($ownership === 'mine') {
-                    $query->where('created_by', (int) $user->getAuthIdentifier());
-                } elseif ($ownership === 'unassigned') {
-                    $query->whereNull('created_by');
-                }
+            $ownership = $filters['ownership'] ?? null;
+            $ownership = is_string($ownership) ? trim($ownership) : '';
+            if ($ownership === 'mine') {
+                $query->where('created_by', (int) $user->getAuthIdentifier());
+            } elseif ($ownership === 'unassigned' && $user->hasRole('superadmin')) {
+                $query->whereNull('created_by');
             }
         } else {
             $query->where('status', 'active')->whereNull('deleted_at');

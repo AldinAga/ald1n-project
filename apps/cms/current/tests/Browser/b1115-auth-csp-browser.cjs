@@ -419,7 +419,9 @@ async function main() {
       const restricted = await context();
       const restrictedPage = await login(restricted, 'operator');
       const foreignProduct = await restrictedPage.goto(base+'/catalog/b812-browser-laptop', {waitUntil: 'networkidle'});
-      assert.equal(foreignProduct.status(), 404);
+      // Admin s pravom upravljanja katalogom vidi tuđi artikal (napomene); izmena ostaje samo autoru/SuperAdminu.
+      assert.equal(foreignProduct.status(), 200);
+      assert.equal(await restrictedPage.locator('a[href*="/admin/catalog/"][href$="/edit"]').count(), 0);
       const operator = await context();
       const financial = await login(operator, 'portal');
       try {

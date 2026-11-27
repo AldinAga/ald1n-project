@@ -8,18 +8,15 @@
  * token, so dark, light and system themes, reduced transparency and more
  * contrast follow the tokens without extra rules.
  *
- * Loaded last on purpose: the old app.css and ald1n-ui-v2.css may still carry
- * body.auth-body, .floating-theme and .auth-login-* rules until they are removed,
- * so the few rules that meet them are written with a higher specificity.
- * .floating-theme and .auth-login-form are page hooks styled only here; the theme
- * button no longer depends on .icon-button from app.css.
+ * Loaded after the shared stylesheets to adapt their components to these pages.
  * CSP: the login background settings (overlay, blur) are carried by data
  * attributes, never by style attributes.
  * Author: Ald1n <https://ald1n.com>
  */
 
 /* ---------- Page ---------- */
-html body.auth-body{display:block;margin:0;padding:0;min-height:100vh;background:var(--a1-surface-page);color:var(--a1-text-primary);overflow-x:clip}
+/* Keep the negative-z-index login backdrop inside the body's stacking context. */
+html body.auth-body{position:relative;isolation:isolate;display:block;margin:0;padding:0;min-height:100vh;background:var(--a1-surface-page);color:var(--a1-text-primary);overflow-x:clip}
 html body.auth-body::before,html body.auth-body::after{content:none;display:none}
 .a1-auth-page{display:grid;place-items:center;min-height:100vh;min-height:100dvh;padding:calc(var(--a1-space-72) + env(safe-area-inset-top,0px)) var(--a1-space-16) calc(var(--a1-space-48) + env(safe-area-inset-bottom,0px))}
 .a1-auth-page--bg{background:transparent}
@@ -81,7 +78,7 @@ html body.auth-body>.floating-theme:focus-visible{outline:var(--a1-focus-width) 
 .a1-auth__or{display:flex;align-items:center;gap:var(--a1-space-12);color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-auth__or::before,.a1-auth__or::after{content:"";flex:1 1 auto;height:1px;background:var(--a1-border-strong)}
 
-/* ---------- Form controls (they meet old rules from app.css and ui-v2) ---------- */
+/* ---------- Form controls ---------- */
 html body.auth-body .a1-auth .a1-input{min-height:var(--a1-size-control);padding:var(--a1-space-12) var(--a1-space-16);border:1px solid var(--a1-text-tertiary);border-radius:var(--a1-radius-sm);background:var(--a1-surface-field);color:var(--a1-text-primary);font-size:var(--a1-typography-font-size-md-plus);box-shadow:inset 0 1px 0 var(--a1-edge-sheen);-webkit-backdrop-filter:none;backdrop-filter:none;transform:none}
 html body.auth-body .a1-auth .a1-input:hover{border-color:var(--a1-accent-link)}
 html body.auth-body .a1-auth .a1-input:focus,html body.auth-body .a1-auth .a1-input:focus-visible{border-color:var(--a1-accent-link);background:var(--a1-surface-field);outline:var(--a1-focus-width) solid var(--a1-focus-ring);outline-offset:1px;box-shadow:none;transform:none}
