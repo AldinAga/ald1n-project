@@ -11,7 +11,9 @@ on:
     paths:
       - '.github/workflows/liquid-glass-cms-qa.yml'
       - 'apps/cms/current/public/assets/css/ald1n-liquid-glass.css'
+      - 'apps/cms/current/public/assets/css/ald1n-tokens.css'
       - 'apps/cms/current/public/assets/css/ald1n-admin.css'
+      - 'apps/cms/current/public/assets/css/ald1n-auth.css'
       - 'apps/cms/current/public/assets/css/app.css'
       - 'apps/cms/current/public/assets/js/**'
       - 'scripts/legacy-css-classes.mjs'

@@ -130,6 +130,10 @@ async function headerGeometry(page, persona, mode, width) {
     return {
       viewport: window.innerWidth,
       htmlWidth: document.documentElement.scrollWidth,
+      overflow: ['.a1-header', '#main-content'].map((selector) => {
+        const element = document.querySelector(selector);
+        return element ? { selector, width: element.clientWidth, scrollWidth: element.scrollWidth } : null;
+      }),
       docTheme: document.documentElement.dataset.theme,
       themeMode: document.documentElement.dataset.themeMode,
       themeBackground: getComputedStyle(document.documentElement).getPropertyValue('--a1-surface-page').trim(),
@@ -223,7 +227,7 @@ async function headerGeometry(page, persona, mode, width) {
     check(optics.lensHosts === 0, 'M2_DASHBOARD_HAS_NO_SVG_LENS', tag+': '+JSON.stringify(optics));
   }
   check(state.htmlWidth <= width + 2, 'HEADER_NO_PAGE_X_OVERFLOW',
-    tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width);
+    tag + ': scrollWidth=' + state.htmlWidth + ' viewport=' + width + ' ' + JSON.stringify(state.overflow));
   check(state.themeMode === mode, 'THEME_MODE', tag + ': ' + state.themeMode);
   if (mode !== 'auto') check(state.docTheme === mode, 'THEME_RESOLVED', tag + ': ' + state.docTheme);
   // Kobalt G0 (23.11.2026) / G7 PR B: this reads the --a1-* tokens directly; the --ald-* / --lg5-* alias layer is no longer needed here.
