@@ -12,14 +12,13 @@ use App\Models\User;
 use App\Services\OrderPaymentService;
 use Database\Seeders\CoreAccessSeeder;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class CommissionRefundSnapshotTest extends TestCase
 {
-    use DatabaseMigrations {
-        runDatabaseMigrations as private migrateForSnapshotTest;
-    }
+    use DatabaseMigrations;
 
     public function runDatabaseMigrations(): void
     {
@@ -27,7 +26,14 @@ final class CommissionRefundSnapshotTest extends TestCase
             self::markTestSkipped('Test zahteva dve MariaDB konekcije.');
         }
 
-        $this->migrateForSnapshotTest();
+        RefreshDatabaseState::$migrated = false;
+        $this->refreshTestDatabase();
+
+        // Dve konekcije zahtevaju potvrđene podatke, a šema uključuje nepovratne migracije.
+        $this->beforeApplicationDestroyed(function (): void {
+            $this->refreshTestDatabase();
+            RefreshDatabaseState::$migrated = true;
+        });
     }
 
     public function test_refund_sees_manual_debit_committed_after_its_transaction_snapshot(): void
@@ -80,8 +86,6 @@ final class CommissionRefundSnapshotTest extends TestCase
                 ->where('commission_id', $commission->id)->orderBy('id')->pluck('amount_eur')->all());
         } finally {
             DB::purge($writerName);
-            // Migracija štiti istoriju korekcija pri rollback-u; ovde se uklanjaju samo redovi ovog testa.
-            CommissionAdjustment::query()->where('commission_id', $commission->id)->delete();
         }
     }
 }
