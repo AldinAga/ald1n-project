@@ -35,6 +35,7 @@ final class CommissionAutoApprovalService
         }
 
         return DB::transaction(function () use ($order, $source, $notify): ?string {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
             /** @var OrderCommission|null $commission */
             $commission = OrderCommission::query()->where('order_id', $order->id)->lockForUpdate()->first();
             if (!$commission instanceof OrderCommission) {
@@ -44,8 +45,8 @@ final class CommissionAutoApprovalService
 
             if ($commission->status === 'pending' && $meets) {
                 // refundacija pre dospelosti (npr. refundacija pa isporuka) uračunava se pre "Za isplatu", istim pravilom kao refundacija
-                $this->reversals->reverseForRefund($order, null, 'auto-approval', CommissionReversalService::EVENT_APPROVAL);
-                $commission->refresh();
+                $this->reversals->reverseForRefund($order, null, 'auto-approval', CommissionReversalService::EVENT_APPROVAL, $notify);
+                $commission = OrderCommission::query()->lockForUpdate()->findOrFail($commission->id);
                 if ($commission->status !== 'pending') {
                     return null;
                 }
@@ -56,7 +57,7 @@ final class CommissionAutoApprovalService
                     'approved_by' => null, 'approved_at' => now(), 'auto_approved_at' => now(),
                 ]);
                 if ($notify) {
-                    $this->notifyOwner($commission, $order);
+                    DB::afterCommit(fn () => $this->notifyOwner($commission, $order));
                 }
 
                 return 'approved';
@@ -126,11 +127,11 @@ final class CommissionAutoApprovalService
 
     private function notifyOwner(OrderCommission $commission, Order $order): void
     {
-        $user = $commission->user()->first();
-        if (!$user instanceof User) {
-            return;
-        }
         try {
+            $user = $commission->user()->first();
+            if (!$user instanceof User) {
+                return;
+            }
             $this->notifications->commission(
                 $user,
                 'commission.approved',

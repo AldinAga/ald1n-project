@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AfterSalesAction;
+use App\Models\CommissionAdjustment;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\User;
@@ -86,11 +87,13 @@ final class OrderPaymentService
             throw $exception;
         }
 
-        $order->loadMissing('supplier');
-        if ($order->supplier instanceof User) {
-            $this->notifications->order($order->supplier, 'order.payment_proof_submitted', 'Nova potvrda uplate', sprintf('%s je poslao potvrdu uplate od %s RSD za %s.', $actor->displayName(), number_format((float) $payment->amount_rsd, 2, ',', '.'), $order->order_number), $order, ['icon' => 'wallet', 'severity' => 'warning']);
-        }
-        $this->emails->orderChanged($order->fresh(['user', 'supplier']) ?? $order, 'order_payment_changed', 'Poslata potvrda uplate za '.$order->order_number, sprintf('Poslata je potvrda uplate od %s RSD.', number_format((float) $payment->amount_rsd, 2, ',', '.')), ['payment_number' => $payment->payment_number, 'status' => $payment->status]);
+        DB::afterCommit(function () use ($order, $payment, $actor): void {
+            $order->loadMissing('supplier');
+            if ($order->supplier instanceof User) {
+                $this->notifications->order($order->supplier, 'order.payment_proof_submitted', 'Nova potvrda uplate', sprintf('%s je poslao potvrdu uplate od %s RSD za %s.', $actor->displayName(), number_format((float) $payment->amount_rsd, 2, ',', '.'), $order->order_number), $order, ['icon' => 'wallet', 'severity' => 'warning']);
+            }
+            $this->emails->orderChanged($order->fresh(['user', 'supplier']) ?? $order, 'order_payment_changed', 'Poslata potvrda uplate za '.$order->order_number, sprintf('Poslata je potvrda uplate od %s RSD.', number_format((float) $payment->amount_rsd, 2, ',', '.')), ['payment_number' => $payment->payment_number, 'status' => $payment->status]);
+        });
 
         return $payment;
     }
@@ -128,9 +131,7 @@ final class OrderPaymentService
                 }
             }
             if ($type === 'refund') {
-                $netPaid = (float) OrderPayment::query()->where('order_id', $locked->id)->where('status', 'verified')
-                    ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
-                    ->value('net_total');
+                $netPaid = $this->financial->derive($locked, lockPayments: true)['paid_total_rsd'];
                 if (round((float) ($data['amount_rsd'] ?? 0), 2) > round(max(0, $netPaid), 2) + 0.004) {
                     throw ValidationException::withMessages([
                         'amount_rsd' => 'Refundacija ne može biti veća od trenutno neto uplaćenog iznosa '.number_format(max(0, $netPaid), 2, ',', '.').' RSD.',
@@ -166,13 +167,20 @@ final class OrderPaymentService
         $payment->loadMissing('order.user', 'order.supplier');
         if ($payment->order instanceof Order) {
             $entry = $payment->entry_type === 'refund' ? 'Refundacija' : 'Uplata';
-            $this->emails->orderChanged($payment->order, 'order_payment_changed', $entry.' za '.$payment->order->order_number, sprintf('%s %s RSD je evidentirana.', $entry, number_format((float) $payment->amount_rsd, 2, ',', '.')), ['payment_number' => $payment->payment_number, 'status' => $payment->status, 'entry_type' => $payment->entry_type]);
+            DB::afterCommit(fn () => $this->emails->orderChanged(
+                $payment->order,
+                'order_payment_changed',
+                $entry.' za '.$payment->order->order_number,
+                sprintf('%s %s RSD je evidentirana.', $entry, number_format((float) $payment->amount_rsd, 2, ',', '.')),
+                ['payment_number' => $payment->payment_number, 'status' => $payment->status, 'entry_type' => $payment->entry_type],
+            ));
             $this->syncReceivable($payment->order);
         }
         return $payment;
     }
 
-    public function recordAfterSalesRefundLocked(AfterSalesAction $action, Order $order, User $actor): OrderPayment
+    /** @return array{OrderPayment, ?CommissionAdjustment} */
+    public function recordAfterSalesRefundLocked(AfterSalesAction $action, Order $order, User $actor): array
     {
         if ((int) $action->case?->order_id !== (int) $order->id) {
             throw ValidationException::withMessages(['amount_rsd' => 'Postprodajna radnja ne pripada izabranoj porudžbini.']);
@@ -183,7 +191,7 @@ final class OrderPaymentService
 
         $existing = OrderPayment::query()->where('after_sales_action_id', $action->id)->first();
         if ($existing instanceof OrderPayment) {
-            return $existing;
+            return [$existing, null];
         }
 
         $amount = round((float) $action->amount_rsd, 2);
@@ -191,9 +199,7 @@ final class OrderPaymentService
             throw ValidationException::withMessages(['amount_rsd' => 'Iznos refundacije mora biti veći od nule.']);
         }
 
-        $netPaid = (float) OrderPayment::query()->where('order_id', $order->id)->where('status', 'verified')
-            ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
-            ->value('net_total');
+        $netPaid = $this->financial->derive($order, lockPayments: true)['paid_total_rsd'];
         if ($amount > round(max(0, $netPaid), 2) + 0.004) {
             throw ValidationException::withMessages([
                 'amount_rsd' => 'Refundacija ne može biti veća od trenutno neto uplaćenog iznosa '.number_format(max(0, $netPaid), 2, ',', '.').' RSD.',
@@ -215,11 +221,11 @@ final class OrderPaymentService
             'verified_by' => $actor->id,
             'verified_at' => now(),
         ]);
-        $this->commissionReversal->reverseForRefund($order, $actor, (string) $payment->payment_number);
+        $adjustment = $this->commissionReversal->reverseForRefund($order, $actor, (string) $payment->payment_number);
         $this->recalculateLocked($order);
         $this->audit->log('after_sales.refund_recorded', 'Evidentirana refundacija '.$payment->payment_number.' po radnji '.$action->action_number, $payment, after: ['amount_rsd' => $payment->amount_rsd, 'after_sales_action_id' => $action->id], user: $actor);
 
-        return $payment;
+        return [$payment, $adjustment];
     }
 
     public function verify(OrderPayment $payment, User $actor): OrderPayment
@@ -229,10 +235,10 @@ final class OrderPaymentService
         $transitioned = false;
         $verified = DB::transaction(function () use ($payment, $actor, &$transitioned): OrderPayment {
             $transitioned = false;
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
             /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
+            /** @var OrderPayment $locked */
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'payment');
             if ($locked->status === 'verified') return $locked;
             if ($locked->status !== 'submitted') throw ValidationException::withMessages(['payment' => 'Samo poslata potvrda može biti verifikovana.']);
@@ -246,7 +252,9 @@ final class OrderPaymentService
             return $locked;
         }, 5);
 
-        if ($transitioned) $this->notifyCustomer($verified, 'Uplata je potvrđena', 'Potvrda uplate '.$verified->payment_number.' je verifikovana.', 'success');
+        if ($transitioned) {
+            DB::afterCommit(fn () => $this->notifyCustomer($verified, 'Uplata je potvrđena', 'Potvrda uplate '.$verified->payment_number.' je verifikovana.', 'success'));
+        }
         $verified->loadMissing('order');
         if ($verified->order instanceof Order) $this->syncReceivable($verified->order);
         return $verified;
@@ -255,17 +263,17 @@ final class OrderPaymentService
     public function reject(OrderPayment $payment, string $reason, User $actor): OrderPayment
     {
         $rejected = DB::transaction(function () use ($payment, $reason, $actor): OrderPayment {
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
             /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
+            /** @var OrderPayment $locked */
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'reason');
             if ($locked->status !== 'submitted') throw ValidationException::withMessages(['reason' => 'Samo poslata potvrda može biti odbijena.']);
             $locked->update(['status' => 'rejected', 'rejected_by' => $actor->id, 'rejected_at' => now(), 'rejection_reason' => trim($reason)]);
             $this->audit->log('order.payment_rejected', 'Odbijena potvrda uplate '.$locked->payment_number, $locked, before: ['status' => 'submitted'], after: ['status' => 'rejected', 'reason' => trim($reason)], user: $actor);
             return $locked;
         }, 5);
-        $this->notifyCustomer($rejected, 'Potvrda uplate nije prihvaćena', trim($reason), 'danger');
+        DB::afterCommit(fn () => $this->notifyCustomer($rejected, 'Potvrda uplate nije prihvaćena', trim($reason), 'danger'));
         return $rejected;
     }
 
@@ -275,10 +283,10 @@ final class OrderPaymentService
         $transitioned = false;
         $voided = DB::transaction(function () use ($payment, $actor, &$transitioned): OrderPayment {
             $transitioned = false;
-            /** @var OrderPayment $locked */
-            $locked = OrderPayment::query()->lockForUpdate()->findOrFail($payment->id);
             /** @var Order $order */
-            $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
+            $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
+            /** @var OrderPayment $locked */
+            $locked = OrderPayment::query()->where('order_id', $order->id)->lockForUpdate()->findOrFail($payment->id);
             $this->assertOrderOpen($order, 'payment');
             if ($locked->status === 'voided') return $locked;
             if ($locked->status !== 'verified') throw ValidationException::withMessages(['payment' => 'Samo verifikovana stavka može biti stornirana.']);
@@ -292,7 +300,9 @@ final class OrderPaymentService
             $transitioned = true;
             return $locked;
         }, 5);
-        if ($transitioned) $this->notifyCustomer($voided, 'Uplata je stornirana', 'Finansijska stavka '.$voided->payment_number.' je stornirana.', 'warning');
+        if ($transitioned) {
+            DB::afterCommit(fn () => $this->notifyCustomer($voided, 'Uplata je stornirana', 'Finansijska stavka '.$voided->payment_number.' je stornirana.', 'warning'));
+        }
         $voided->loadMissing('order');
         if ($voided->order instanceof Order) $this->syncReceivable($voided->order);
         return $voided;

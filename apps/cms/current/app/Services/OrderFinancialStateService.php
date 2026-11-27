@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderPayment;
+use App\Support\CommissionMoney;
 use Illuminate\Support\Facades\DB;
 
 final class OrderFinancialStateService
@@ -13,16 +14,28 @@ final class OrderFinancialStateService
     private const TOLERANCE = 0.004;
 
     /** @return array{paid_total_rsd:float,payment_state:string,payment_status:string,payment_verified_at:mixed} */
-    public function derive(Order $order): array
+    public function derive(Order $order, bool $lockPayments = false): array
     {
         $payments = OrderPayment::query()
             ->where('order_id', (int) $order->getKey())
             ->where('status', 'verified');
 
-        $net = (float) (clone $payments)
-            ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
-            ->value('net_total');
-        $refundGross = (float) (clone $payments)->where('entry_type', 'refund')->sum('amount_rsd');
+        $lockedPayments = $lockPayments
+            ? (clone $payments)->orderBy('id')->lockForUpdate()->get(['entry_type', 'amount_rsd', 'verified_at'])
+            : null;
+        if ($lockedPayments !== null) {
+            $gross = $lockedPayments->where('entry_type', '!=', 'refund')->sum(
+                static fn (OrderPayment $payment): int => CommissionMoney::rsdCents($payment->amount_rsd));
+            $refunds = $lockedPayments->where('entry_type', 'refund')->sum(
+                static fn (OrderPayment $payment): int => CommissionMoney::rsdCents($payment->amount_rsd));
+            $net = ($gross - $refunds) / 100;
+            $refundGross = $refunds / 100;
+        } else {
+            $net = (float) (clone $payments)
+                ->selectRaw("COALESCE(SUM(CASE WHEN entry_type='refund' THEN -amount_rsd ELSE amount_rsd END),0) AS net_total")
+                ->value('net_total');
+            $refundGross = (float) (clone $payments)->where('entry_type', 'refund')->sum('amount_rsd');
+        }
         $total = (float) $order->subtotal_rsd;
 
         if ((string) $order->status === 'cancelled') {
@@ -51,7 +64,9 @@ final class OrderFinancialStateService
         if (in_array($state, ['paid', 'overpaid'], true)) {
             $verifiedAt = $order->payment_verified_at;
             if ($verifiedAt === null) {
-                $verifiedAt = (clone $payments)->whereNotNull('verified_at')->max('verified_at') ?: now();
+                $verifiedAt = ($lockedPayments !== null
+                    ? $lockedPayments->max('verified_at')
+                    : (clone $payments)->whereNotNull('verified_at')->max('verified_at')) ?: now();
             }
         }
 
@@ -65,7 +80,7 @@ final class OrderFinancialStateService
 
     public function projectLocked(Order $order, bool $notifyCommission = true): Order
     {
-        $order->forceFill($this->derive($order));
+        $order->forceFill($this->derive($order, lockPayments: true));
         if ($order->isDirty(['paid_total_rsd', 'payment_state', 'payment_status', 'payment_verified_at'])) {
             $order->save();
         }
