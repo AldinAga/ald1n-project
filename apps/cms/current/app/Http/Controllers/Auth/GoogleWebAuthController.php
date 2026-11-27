@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\GoogleAuthService;
 use App\Services\GoogleIdentityVerifier;
+use App\Services\OperationalNotificationService;
 use App\Services\PortalSessionService;
 use App\Services\SecurityEventLogger;
 use Illuminate\Http\Client\ConnectionException;
@@ -73,6 +74,7 @@ final class GoogleWebAuthController extends Controller
         GoogleAuthService $googleAuth,
         PortalSessionService $portalSessions,
         SecurityEventLogger $securityEvents,
+        OperationalNotificationService $notifications,
     ): RedirectResponse {
         $config = $this->config();
 
@@ -167,11 +169,17 @@ final class GoogleWebAuthController extends Controller
                 $this->safeSecurityEvent($securityEvents, 'login.google_pending_or_inactive', 'warning', $request, [
                     'user_id' => $user instanceof User ? $user->getKey() : null,
                 ]);
+                if (($result['created'] ?? false) && $user instanceof User) {
+                    $notifications->googleRegistrationPending($user);
+                }
 
+                // resolve() vraća samo verifikovan i povezan Google identitet, pa poruka ne otkriva tuđi nalog.
                 return redirect()->route('login')->withErrors([
-                    'google' => ($result['created'] ?? false)
-                        ? 'Google nalog je povezan, ali CMS nalog čeka odobrenje administratora.'
-                        : 'CMS nalog nije aktivan. Obratite se administratoru.',
+                    'google' => match (true) {
+                        (bool) ($result['created'] ?? false) => 'Google nalog je povezan, ali CMS nalog čeka odobrenje administratora.',
+                        $user instanceof User && (string) $user->status === 'pending' => 'Nalog čeka odobrenje administratora.',
+                        default => 'CMS nalog nije aktivan. Obratite se administratoru.',
+                    },
                 ]);
             }
 

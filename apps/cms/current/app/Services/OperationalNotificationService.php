@@ -83,6 +83,42 @@ final class OperationalNotificationService
         ], $extra));
     }
 
+    /** Novi Google nalog na čekanju: SuperAdmin i Admini koji smeju da upravljaju korisnicima. Poziva se samo kad je nalog upravo kreiran. */
+    public function googleRegistrationPending(User $pending): void
+    {
+        try {
+            $recipients = User::query()
+                ->where('status', 'active')
+                ->whereNull('retired_at')
+                ->whereHas('role', static fn ($query) => $query->whereIn('slug', ['admin', 'superadmin']))
+                ->with('role')
+                ->get()
+                ->filter(static fn (User $user): bool => $user->hasPermission('system.manage_users'));
+        } catch (Throwable $exception) {
+            Log::warning('Google registration admin notification recipients could not be resolved.', [
+                'user_id' => $pending->id,
+                'exception' => $exception::class,
+            ]);
+            return;
+        }
+
+        foreach ($recipients as $recipient) {
+            $this->send($recipient, [
+                'event' => 'user.google_registration_pending',
+                'title' => 'Novi Google nalog čeka odobrenje',
+                'message' => $pending->displayName().' ('.$pending->email.') je poslao zahtev za nalog preko Google prijave.',
+                'url' => route('admin.users.index', ['status' => 'pending']),
+                'route' => '/admin/users',
+                'action_label' => 'Otvori naloge na čekanju',
+                'icon' => 'users',
+                'severity' => 'info',
+                'user_id' => $pending->id,
+                '_in_app' => true,
+                '_push' => false,
+            ]);
+        }
+    }
+
     /** @param array<string,mixed> $data */
     public function send(User $recipient, array $data): void
     {
