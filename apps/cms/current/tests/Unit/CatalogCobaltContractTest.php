@@ -143,12 +143,47 @@ final class CatalogCobaltContractTest extends TestCase
         self::assertMatchesRegularExpression('/\.a1-cat-card__image img\{[^}]*max-height:100%[^}]*object-fit:contain/', $css);
     }
 
+    /** A glass card (backdrop-filter) traps position:fixed descendants; the lightbox must be mounted on <body> when it opens. */
+    public function test_lightbox_is_mounted_on_body_when_it_opens(): void
+    {
+        $view = (string) file_get_contents(self::root().'/resources/views/catalog/show.blade.php');
+
+        self::assertStringContainsString('if (lightbox.parentElement !== document.body) document.body.appendChild(lightbox);', $view);
+        self::assertStringContainsString("lightbox.querySelector('[data-lightbox-close]:not([tabindex=\"-1\"])')", $view);
+    }
+
     public function test_lightbox_is_fullscreen_on_phones_and_never_taller_than_the_viewport(): void
     {
         $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
 
         self::assertStringContainsString('.a1-cat-lb{position:fixed;inset:0;', $css);
-        self::assertStringContainsString('height:min(940px,calc(100dvh - 32px))', $css);
-        self::assertMatchesRegularExpression('/@media \(max-width:820px\)\{[^@]*\.a1-cat-lb__dialog\{width:100%;height:100dvh;border:0;border-radius:0\}/', $css);
+        self::assertStringContainsString('height:min(940px,calc(100dvh - 48px))', $css);
+        // 24px free edge on desktop, 12px on phones (dialog fills the rest, no border), so the backdrop can be tapped to close.
+        self::assertMatchesRegularExpression('/\.a1-cat-lb\{position:fixed;inset:0;[^}]*padding:24px/', $css);
+        self::assertMatchesRegularExpression('/@media \(max-width:820px\)\{[^@]*\.a1-cat-lb\{padding:12px\}\s*\.a1-cat-lb__dialog\{width:100%;height:calc\(100dvh - 24px\);border:0\}/', $css);
+        self::assertMatchesRegularExpression('/\.a1-cat-lb__close\{[^}]*min-width:44px;min-height:44px/', $css);
+    }
+
+    public function test_lightbox_backdrop_closes_it_and_scroll_lock_never_sticks(): void
+    {
+        $view = (string) file_get_contents(self::root().'/resources/views/catalog/show.blade.php');
+        $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
+
+        self::assertMatchesRegularExpression('/<button class="a1-cat-lb__backdrop"[^>]*data-lightbox-close[^>]*tabindex="-1"/', $view);
+        self::assertStringContainsString('aria-modal="true"', $view);
+        self::assertStringContainsString('html.a1-cat-lb-open{scrollbar-gutter:stable}', $css);
+        foreach (["addEventListener('pagehide', unlockScroll)", "addEventListener('popstate', closeLightbox)", 'new MutationObserver(', "event.key === 'Tab'"] as $needle) {
+            self::assertStringContainsString($needle, $view);
+        }
+    }
+
+    public function test_wheel_zooms_only_with_ctrl_or_meta_and_touch_does_not_block_page_scroll(): void
+    {
+        $view = (string) file_get_contents(self::root().'/resources/views/catalog/show.blade.php');
+        $css = (string) file_get_contents(self::root().'/public/assets/css/ald1n-admin-catalog.css');
+
+        self::assertMatchesRegularExpression('/addEventListener\(\'wheel\', \(event\) => \{[^}]*if \(!event\.ctrlKey && !event\.metaKey\) return;\s*event\.preventDefault\(\);/s', $view);
+        self::assertDoesNotMatchRegularExpression('/\.a1-cat-lb__viewport\{[^}]*touch-action:none/', $css);
+        self::assertMatchesRegularExpression('/\.a1-cat-lb\{[^}]*overscroll-behavior:contain/', $css);
     }
 }

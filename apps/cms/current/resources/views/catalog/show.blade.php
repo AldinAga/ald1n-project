@@ -678,19 +678,35 @@
 
         const openLightbox = () => {
             lastFocus = document.activeElement;
+            // A glass card (backdrop-filter) becomes the containing block of position:fixed descendants, which squeezed the
+            // lightbox into the gallery card while the page scroll was locked. Mount it directly on <body> so it covers the viewport.
+            if (lightbox.parentElement !== document.body) document.body.appendChild(lightbox);
             lightbox.hidden = false;
-            document.body.classList.add('a1-cat-lb-open');
+            lockScroll(true);
             updateImage(index, false);
-            requestAnimationFrame(() => gallery.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
+            requestAnimationFrame(() => lightbox.querySelector('[data-lightbox-close]:not([tabindex="-1"])')?.focus());
         };
 
         const closeLightbox = () => {
+            unlockScroll();
             if (!isOpen()) return;
             lightbox.hidden = true;
-            document.body.classList.remove('a1-cat-lb-open');
             resetZoom();
-            if (lastFocus instanceof HTMLElement) lastFocus.focus();
+            const target = lastFocus instanceof HTMLElement && lastFocus.isConnected ? lastFocus : mainButton;
+            target.focus();
         };
+
+        // Page scroll is released on every exit path: close button, backdrop, Esc, hidden attribute set by anything else, history navigation, bfcache.
+        const lockScroll = (on) => {
+            document.documentElement.classList.toggle('a1-cat-lb-open', on);
+            document.body.classList.toggle('a1-cat-lb-open', on);
+        };
+        const unlockScroll = () => lockScroll(false);
+        new MutationObserver(() => { if (lightbox.hidden) unlockScroll(); }).observe(lightbox, { attributes: true, attributeFilter: ['hidden'] });
+        window.addEventListener('pagehide', unlockScroll);
+        window.addEventListener('popstate', closeLightbox);
+        window.addEventListener('pageshow', () => { if (!isOpen()) unlockScroll(); });
+        lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
 
         thumbnails.forEach((thumbnail, thumbnailIndex) => thumbnail.addEventListener('click', () => updateImage(thumbnailIndex)));
         gallery.querySelector('[data-gallery-prev]')?.addEventListener('click', previous);
@@ -737,6 +753,8 @@
         mainImage.addEventListener('error', () => mainImage.closest('.a1-cat-gal__main')?.classList.add('has-image-error'));
 
         lightboxViewport?.addEventListener('wheel', (event) => {
+            // Zoom only with Ctrl/Meta (also what a trackpad pinch sends); a plain wheel keeps its default behaviour.
+            if (!event.ctrlKey && !event.metaKey) return;
             event.preventDefault();
             setZoom(zoom + (event.deltaY < 0 ? .25 : -.25), event.clientX, event.clientY);
         }, { passive: false });
@@ -780,6 +798,16 @@
 
         document.addEventListener('keydown', (event) => {
             if (!isOpen()) return;
+            if (event.key === 'Tab') {
+                const items = Array.from(lightbox.querySelectorAll('button:not([tabindex="-1"]):not([disabled]), a[href]')).filter((el) => !el.closest('[hidden]'));
+                if (!items.length) return;
+                const first = items[0];
+                const last = items[items.length - 1];
+                if (!lightbox.contains(document.activeElement)) { event.preventDefault(); first.focus(); }
+                else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                return;
+            }
             if (event.key === 'Escape') closeLightbox();
             if (event.key === 'ArrowRight' && images.length > 1) next();
             if (event.key === 'ArrowLeft' && images.length > 1) previous();
