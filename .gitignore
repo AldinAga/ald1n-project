@@ -176,6 +176,8 @@ apps/cms/current/storage/app/public/*
 apps/cms/current/storage/app/release-check/*
 !apps/cms/current/storage/app/release-check/.gitignore
 !apps/cms/current/storage/app/release-check/.gitkeep
+# commissions:fix-norate CSV (brojevi porudžbina i iznosi) ne ide u javni repo.
+apps/cms/current/storage/app/reports/
 apps/mobile/builds/
 releases/**/*.tar.gz
 releases/**/*.zip
