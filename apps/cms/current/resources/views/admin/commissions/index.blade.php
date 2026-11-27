@@ -108,6 +108,16 @@
     <p class="a1-help">Isplatu provizija radi samo SuperAdministrator. Ovde vidiš provizije svojih porudžbina i možeš da ih storniraš dok nisu isplaćene.</p>
     @endif
 
+    @if($isSuper)
+    <form class="a1-filters" method="get" action="{{ route('admin.commissions.statement.pdf') }}" target="_blank" aria-label="Mesečni PDF obračun">
+        <div class="a1-filters__fields">
+            <div class="a1-field"><label class="a1-label" for="cm-st-user">SubAgent</label><select class="a1-select" id="cm-st-user" name="user_id" required><option value="">Izaberi</option>@foreach($users as $agent)<option value="{{ $agent->id }}">{{ $agent->displayName() }}</option>@endforeach</select></div>
+            <div class="a1-field"><label class="a1-label" for="cm-st-month">Mesec obračuna</label><input class="a1-input" id="cm-st-month" type="month" name="month" value="{{ now()->format('Y-m') }}" required></div>
+        </div>
+        <div class="a1-filters__actions"><button class="a1-btn" type="submit"><x-icon name="file-text" :size="18" :shell="true" /> PDF obračun</button></div>
+    </form>
+    @endif
+
     @if($isSuper && $commissions->isNotEmpty())
     <label class="a1-check"><input class="a1-check__input" type="checkbox" data-select-all="commission_ids[]"><span class="a1-check__box" aria-hidden="true"></span><span>Izaberi sve provizije za isplatu na ovoj strani</span></label>
     @endif
@@ -128,7 +138,7 @@
                 <td data-label="Odgovorno lice">{{ $row->order?->supplier_name_snapshot ?: $row->order?->supplier?->displayName() ?: '—' }}</td>
                 <td class="a1-table__num" data-label="Iznos"><strong>{{ $eur($row->total_eur) }} EUR</strong></td>
                 <td data-label="Status"><span class="a1-pill a1-pill--{{ $statePill[$check['state']] }}">{{ $check['state_label'] }}</span><span class="a1-table__sub">{{ $check['reason'] }}</span>@if($row->status_note)<span class="a1-table__sub">{{ $row->status_note }}</span>@endif</td>
-                <td data-label="Isplata">@if($row->status==='paid')<strong>{{ $paymentLabels[$row->payment_method] ?? $row->payment_method ?? '—' }}</strong><span class="a1-table__sub">{{ $row->payment_reference ?: $row->paymentBatch?->batch_number }}</span>@else—@endif</td>
+                <td data-label="Isplata">@if($row->status==='paid')<strong>{{ $paymentLabels[$row->payment_method] ?? $row->payment_method ?? '—' }}</strong><span class="a1-table__sub">{{ $row->payment_reference ?: $row->paymentBatch?->batch_number }}</span>@if($isSuper && $row->payment_batch_id)<a class="a1-link a1-link--inline" target="_blank" rel="noopener" href="{{ route('admin.commissions.payout.pdf', ['batch' => $row->payment_batch_id, 'user_id' => $row->user_id]) }}">PDF potvrda</a>@endif @else—@endif</td>
                 <td data-label="Datum">{{ $row->status_updated_at?->format('d.m.Y H:i') ?: $row->created_at?->format('d.m.Y H:i') }}</td>
                 <td class="a1-table__actions"><button class="a1-btn a1-btn--sm" type="button" data-process-open="process-{{ $row->id }}" aria-label="Obradi proviziju {{ $row->order?->order_number }}">Obradi</button></td>
             </tr>

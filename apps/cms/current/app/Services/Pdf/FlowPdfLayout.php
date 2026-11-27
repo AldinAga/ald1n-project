@@ -267,6 +267,26 @@ final class FlowPdfLayout
         $this->top += 16;
     }
 
+    /**
+     * Zbirni redovi ispod tabele (oznaka levo, iznos desno, bez prelamanja); poslednji red je istaknut.
+     * @param list<array{0:string,1:string}> $rows
+     */
+    public function totals(array $rows): void
+    {
+        $this->consumeSection(count($rows) * 22);
+        $this->ensure(count($rows) * 22 + 8);
+        $last = count($rows) - 1;
+        foreach ($rows as $i => [$label, $value]) {
+            $strong = $i === $last;
+            if ($strong) $this->pdf->rect(self::LEFT, $this->top, self::WIDTH, 24, '#eef4ff', '#1f6feb', 0.8);
+            $size = $strong ? 10.5 : 9;
+            $this->pdf->text(self::LEFT + 10, $this->top + 7, $label, $size, $strong, '#202735');
+            $this->pdf->text(self::LEFT + self::WIDTH - 10, $this->top + 7, $value, $size, true, '#202735', 'right');
+            $this->top += $strong ? 24 : 20;
+        }
+        $this->top += 14;
+    }
+
     public function paymentQr(string $path): bool
     {
         if ($path === '' || !is_file($path)) return false;
