@@ -221,6 +221,8 @@ final class CommissionReversalService
 
     public const EVENT_VOID = 'void';          // void refundacije: storno refundacije se vraća
 
+    public const EVENT_PAYMENT_VOID = 'payment_void'; // poništena uplata: storno refundacije može da poraste
+
     public const EVENT_PAYMENT = 'payment';    // nova uplata posle refundacije: storno se vraća srazmerno (odluka vlasnika 25.11.)
 
     public const EVENT_APPROVAL = 'approval';  // automatsko odobrenje: refundacija pre dospelosti se uračunava pre "Za isplatu"
@@ -274,7 +276,7 @@ final class CommissionReversalService
 
         if ($rateHeld) {
             // iznos provizije koja čeka kurs nije pouzdan: samo puna refundacija je otkazuje
-            if ($event === self::EVENT_REFUND && $refunded > 0) {
+            if (in_array($event, [self::EVENT_REFUND, self::EVENT_PAYMENT_VOID], true) && $refunded > 0) {
                 $this->cancelRateHeldForRefund($commission, $actor, $reference, $full);
             }
 
@@ -310,9 +312,12 @@ final class CommissionReversalService
         if ($cents <= 0) {
             return null;
         }
-        $reason = $event === self::EVENT_APPROVAL
-            ? sprintf('Refundacija pre dospelosti: refundirano %s od plaćenih %s RSD (uračunato pri automatskom odobrenju).', number_format($refunded / 100, 2, ',', '.'), number_format($base / 100, 2, ',', '.'))
-            : sprintf('Refundacija %s: refundirano %s od plaćenih %s RSD.', $reference, number_format($refunded / 100, 2, ',', '.'), number_format($base / 100, 2, ',', '.'));
+        $refundDetails = sprintf('refundirano %s od plaćenih %s RSD', number_format($refunded / 100, 2, ',', '.'), number_format($base / 100, 2, ',', '.'));
+        $reason = match ($event) {
+            self::EVENT_APPROVAL => 'Refundacija pre dospelosti: '.$refundDetails.' (uračunato pri automatskom odobrenju).',
+            self::EVENT_PAYMENT_VOID => 'Poništena uplata '.$reference.': '.$refundDetails.'.',
+            default => 'Refundacija '.$reference.': '.$refundDetails.'.',
+        };
         if ($commission->status === 'paid') {
             // otvoren kredit agentu (iz ranijeg void-a) se troši pre novog zaduženja
             $cents -= $this->consumeCredits($commission, $rows, $cents, $actor, $reason);
@@ -325,8 +330,11 @@ final class CommissionReversalService
             $this->notifyOwner($commission, $adjustment);
         }
         if ($notify && $adjustment->kind === 'debit') {
-            $this->notifySuperAdmins($commission, $adjustment, 'commission.debit_recorded', 'Zaduženje posle refundacije', sprintf(
-                'Refundacija na porudžbini #%d posle isplate provizije: upisano zaduženje %s EUR, prebija se iz sledeće isplate.',
+            $title = $event === self::EVENT_PAYMENT_VOID ? 'Zaduženje posle poništenja uplate' : 'Zaduženje posle refundacije';
+            $this->notifySuperAdmins($commission, $adjustment, 'commission.debit_recorded', $title, sprintf(
+                $event === self::EVENT_PAYMENT_VOID
+                    ? 'Poništena uplata na porudžbini #%d posle isplate provizije: upisano zaduženje %s EUR, prebija se iz sledeće isplate.'
+                    : 'Refundacija na porudžbini #%d posle isplate provizije: upisano zaduženje %s EUR, prebija se iz sledeće isplate.',
                 $commission->order_id,
                 number_format((float) $adjustment->amount_eur, 2, ',', '.'),
             ));

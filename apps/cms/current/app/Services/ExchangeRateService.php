@@ -116,7 +116,7 @@ final class ExchangeRateService
                     return;
                 }
                 $held->update(['eur_rsd_rate' => number_format($rate, 6, '.', '')]);
-                app(CommissionAutoApprovalService::class)->backfill($ids);
+                app(CommissionAutoApprovalService::class)->backfill($ids, notifyReversal: true);
             });
             if ((string) $this->settings->get('eur_rsd_last_error') === self::RELEASE_FAILED_MESSAGE) {
                 $this->settings->putMany(['eur_rsd_last_error' => ''], null);

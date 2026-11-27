@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\AfterSalesActionService;
 use App\Services\CommissionReversalService;
 use App\Services\CommissionWorkflowService;
+use App\Services\ExchangeRateService;
 use App\Services\OrderPaymentService;
 use App\Services\OrderWorkflowService;
 use App\Services\UserDeletionService;
@@ -604,6 +605,96 @@ final class CommissionRefundStornoTest extends TestCase
 
         self::assertSame('0.01', CommissionAdjustment::query()->sole()->amount_eur);
         self::assertSame('19.99', $commission->fresh()->total_eur);
+    }
+
+    public function test_void_of_repayment_reapplies_storno_to_delivered_unpaid_commission_once(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $this->pay($order, $admin, 12000);
+        $this->completeOrder($order, $admin);
+        $this->refund($order, $admin, 6000);
+        self::assertSame('10.00', $commission->fresh()->total_eur);
+        $repayment = $this->pay($order, $admin, 6000);
+        self::assertSame('20.00', $commission->fresh()->total_eur);
+
+        $payments = app(OrderPaymentService::class);
+        $payments->void($repayment, $admin);
+        $payments->void($repayment, $admin);
+
+        $fresh = $commission->fresh();
+        self::assertSame(['approved', '10.00'], [$fresh->status, $fresh->total_eur]);
+        $adjustment = CommissionAdjustment::query()->where('status', 'confirmed')->sole();
+        self::assertSame(['reversal', '10.00'], [$adjustment->kind, $adjustment->amount_eur]);
+    }
+
+    public function test_void_of_one_split_payment_leaves_no_payable_commission_when_net_is_zero(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $firstPayment = $this->pay($order, $admin, 6000);
+        $this->pay($order, $admin, 6000);
+        $this->completeOrder($order, $admin);
+        $this->refund($order, $admin, 6000);
+        self::assertSame('10.00', $commission->fresh()->total_eur);
+
+        app(OrderPaymentService::class)->void($firstPayment, $admin);
+
+        self::assertSame('0.00', $order->fresh()->paid_total_rsd);
+        $fresh = $commission->fresh();
+        self::assertSame(['cancelled', '0.00'], [$fresh->status, $fresh->total_eur]);
+        self::assertSame(['10.00', '10.00'], CommissionAdjustment::query()->where('kind', 'reversal')->where('status', 'confirmed')->orderBy('id')->pluck('amount_eur')->all());
+    }
+
+    public function test_void_of_repayment_records_a_debit_without_changing_paid_commission(): void
+    {
+        [, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $this->pay($order, $admin, 12000);
+        $this->completeOrder($order, $admin);
+        $batch = app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $this->refund($order, $admin, 6000);
+        self::assertSame('10.00', $commission->fresh()->openDebitEur());
+        $repayment = $this->pay($order, $admin, 6000);
+        self::assertSame('0.00', $commission->fresh()->openDebitEur());
+
+        $payments = app(OrderPaymentService::class);
+        $payments->void($repayment, $admin);
+        $payments->void($repayment, $admin);
+
+        $fresh = $commission->fresh();
+        self::assertSame(['paid', '20.00', (int) $batch->id], [$fresh->status, $fresh->total_eur, (int) $fresh->payment_batch_id]);
+        self::assertSame('10.00', $fresh->openDebitEur());
+        $debit = CommissionAdjustment::query()->where('status', 'confirmed')->sole();
+        self::assertSame(['debit', '10.00', 'order_refund'], [$debit->kind, $debit->amount_eur, $debit->source]);
+    }
+
+    public function test_exchange_rate_release_notifies_agent_of_storno_once_after_outer_commit(): void
+    {
+        $sub = $this->user('sub-'.++$this->seq, 'user');
+        $admin = $this->user('adm-'.++$this->seq, 'admin');
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $order = $this->placeManualRsdOrder($sub, $admin);
+        $commission = OrderCommission::query()->where('order_id', $order->id)->firstOrFail();
+        $this->pay($order, $admin, 12000);
+        $this->refund($order, $admin, 6000);
+        $this->completeOrder($order, $admin);
+        self::assertSame('pending', $commission->fresh()->status);
+        self::assertSame(0, CommissionAdjustment::query()->count());
+
+        $count = static fn (): int => $sub->notifications()->get()->filter(static fn ($notice): bool =>
+            $notice->data['event'] === 'commission.reversed' && (int) $notice->data['commission_id'] === (int) $commission->id)->count();
+        self::assertSame(0, $count());
+
+        $rates = app(ExchangeRateService::class);
+        DB::transaction(function () use ($rates, $super, $commission, $count): void {
+            self::assertTrue($rates->saveManual(117.0, $super->id));
+            $fresh = $commission->fresh();
+            self::assertSame(['approved', '10.00'], [$fresh->status, $fresh->total_eur]);
+            self::assertSame(0, $count());
+        });
+        self::assertSame(1, $count());
+        self::assertTrue($rates->releaseCommissionsWaitingForRate());
+        self::assertSame(1, $count());
+        self::assertSame('10.00', CommissionAdjustment::query()->sole()->amount_eur);
     }
 
     /** @return array{0:User,1:User,2:Order,3:OrderCommission} */
