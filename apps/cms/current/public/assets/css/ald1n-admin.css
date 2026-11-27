@@ -1887,3 +1887,22 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
 @media (min-width:901px){
   [class~="admin-table-wrap"],[class~="table-wrap"],[class~="commission-table-wrap"],[class~="build16-orders-table-wrap"]{overflow-x:auto;overflow-y:visible}
 }
+
+@media (max-width:767px){
+  /* Size single-track grids from the available space, including when a child scrolls. */
+  :where(.a1-stack,.a1-card,.a1-card__body,.a1-form,.a1-field,.a1-kpi,.a1-filters,.a1-filters__fields,.a1-od-main,.a1-od-side){grid-template-columns:minmax(0,1fr)}
+  .a1-tablewrap,.a1-tabs{min-width:0;max-width:100%}
+  .a1-periodbar__custom,.a1-dash .a1-profile{min-width:0;max-width:100%}
+  .a1-dash .a1-strip .a1-card__head{flex:0 1 auto;flex-wrap:wrap}
+  .a1-ordercard__top,.a1-ordercard__bottom{flex-wrap:wrap}
+  .a1-ordercard__title{flex-basis:min(100%,12ch)}
+  .a1-trend>li{grid-template-columns:minmax(0,1fr)}
+  .a1-trend__label{justify-self:center}
+  .a1-trend>li:first-child .a1-trend__label{justify-self:start}
+  .a1-trend>li:last-child .a1-trend__label{justify-self:end}
+  .a1-results__count{min-width:0;white-space:normal}
+  .a1-od-fact--money dd{overflow-wrap:normal}
+}
+@media (max-width:430px){
+  .a1-od-fact--money{grid-column:1/-1}
+}

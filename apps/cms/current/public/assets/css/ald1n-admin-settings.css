@@ -25,11 +25,16 @@
 .a1-set-hubsec .a1-item__main small{font:inherit}
 .a1-set-search{display:grid;gap:var(--a1-space-8)}
 .a1-set-links{display:flex;flex-wrap:wrap;gap:var(--a1-space-8);margin-top:var(--a1-space-4)}
+@media (max-width:767px){
+  :where(.a1-set-split,.a1-set-main,.a1-set-side,.a1-set-group,.a1-set-asset,.a1-set-slide__meta){grid-template-columns:minmax(0,1fr)}
+  .a1-set .a1-item--plain:has(> .a1-set-links){grid-template-columns:minmax(0,1fr)}
+  .a1-set .a1-btn,.a1-set-nav>.a1-btn{max-width:100%;white-space:normal}
+}
 .a1-set-assets{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:var(--a1-space-16);min-width:0}
 .a1-set-asset{display:grid;gap:var(--a1-space-12);align-content:start;min-width:0;padding:var(--a1-space-16);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-md);background-color:var(--a1-button-ghost-bg)}
 .a1-set-asset[data-mode-panel="image"]{display:none}
 .a1-set-asset[data-mode-panel="image"].is-mode-active{display:grid}
-.a1-set-asset input[type=file],.a1-set-file input[type=file]{max-width:100%;color:var(--a1-text-secondary);font:inherit}
+.a1-set-asset input[type=file],.a1-set-file input[type=file]{min-width:0;max-width:100%;color:var(--a1-text-secondary);font:inherit}
 .a1-set-preview{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--a1-space-12);min-height:96px;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);overflow:hidden;text-align:center;font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-set-preview img{display:block;max-width:100%;max-height:72px;width:auto;height:auto;object-fit:contain}
 .a1-set-preview--light{background:var(--a1-image-stage);color:var(--a1-image-stage-text)}
@@ -37,7 +42,7 @@
 .a1-set-preview--favicon img{max-height:48px}
 .a1-set-preview--cover{min-height:190px;padding:0;background:var(--a1-button-ghost-hover);color:var(--a1-text-secondary)}
 .a1-set-preview--cover img{width:100%;max-height:none;height:190px;object-fit:cover}
-.a1-set-svgprev{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--a1-space-12)}
+.a1-set-svgprev{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:var(--a1-space-12)}
 .a1-set-svgprev figure{display:grid;gap:var(--a1-space-4);margin:0}
 .a1-set-svgprev .a1-set-preview{min-height:96px}
 .a1-set-svgprev .a1-set-preview img{height:40px;width:auto;max-width:45%}
