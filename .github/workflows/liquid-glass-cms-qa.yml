@@ -16,7 +16,6 @@ on:
       - 'apps/cms/current/public/assets/css/ald1n-auth.css'
       - 'apps/cms/current/public/assets/css/app.css'
       - 'apps/cms/current/public/assets/js/**'
-      - 'scripts/legacy-css-classes.mjs'
       - 'apps/cms/current/resources/views/**'
       - 'apps/cms/current/tests/**'
 
@@ -107,9 +106,6 @@ jobs:
           php -l tests/Unit/BackToTopContractTest.php
           php artisan test tests/Unit/BackToTopContractTest.php --no-ansi
           php artisan test tests/Unit/AdminCssUniqueComponentsTest.php --no-ansi
-          php -l tests/Unit/LegacyCssClassesContractTest.php
-          php artisan test tests/Unit/LegacyCssClassesContractTest.php --no-ansi
-          node ../../../scripts/legacy-css-classes.mjs --check
           php artisan test -c phpunit.mysql.xml tests/Feature/DashboardLegacyDesignTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ArchivedOrdersLiquidGlassTest.php --no-ansi
           php artisan test -c phpunit.mysql.xml tests/Feature/ProductEditorLiquidGlassTest.php --no-ansi

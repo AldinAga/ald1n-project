@@ -102,8 +102,8 @@ final class BackToTopContractTest extends TestCase
             self::bottomBarRules($css),
             static fn (array $classes): bool => array_intersect($classes, $ignored) === []
         ));
-        // Floor: the action bar, the editor bar, the sort bar and the phone dock exist today.
-        self::assertGreaterThanOrEqual(4, count($rules));
+        // G7-D removed the legacy rules, leaving the Cobalt action bar and phone dock.
+        self::assertGreaterThanOrEqual(2, count($rules));
 
         $unknown = [];
         foreach ($rules as $classes) {
