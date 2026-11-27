@@ -34,7 +34,7 @@
 <img class="shop-logo{{ $logoVariant !== '' ? ' '.$logoVariant : '' }}" src="{{ $logo['src'] }}" alt="{{ $shopBrand['logo_alt'] }}" height="{{ $shopBrand['logo_height'] }}"@if($logo['width']) width="{{ $logo['width'] }}"@endif loading="eager" decoding="async">
 @endforeach
 @else
-<span class="shop-brand-mark" aria-hidden="true">{{ $shopBrand['initials'] }}</span><span class="shop-brand-text">{{ $shopBrand['brand'] }} <span>{{ $shopSubtitle }}</span></span>
+<span class="shop-brand-mark" aria-hidden="true">{{ $shopBrand['initials'] }}</span><span class="shop-brand-text" title="{{ $shopBrand['brand'] }} · {{ $shopSubtitle }}"><strong>{{ $shopBrand['brand'] }}</strong> <span>{{ $shopSubtitle }}</span></span>
 @endif
 </a>
 @if($hideShopNav ?? false)

@@ -6,6 +6,10 @@
 @php
     // Module 3 (admin order detail on Kobalt components). Author: Ald1n <https://ald1n.com>
     $order = $detail['order'] ?? [];
+    $orderNumber = $order['order_number'] ?? 'Porudžbina';
+    $buyerName = $order['shipping_full_name'] ?? '—';
+    $orderChannel = ($order['is_direct_sale'] ?? false) ? 'Prodajni kanal: Direktna prodaja' : 'Odgovorno lice: '.($order['supplier_name'] ?? 'Nije dodeljeno');
+    $orderSummary = ($order['created_at'] ?? '—').' · lager '.($order['inventory_state'] ?? '—');
     $items = $detail['items'] ?? [];
     $documents = $detail['documents'] ?? [];
     $commission = $detail['commission'] ?? null;
@@ -124,12 +128,10 @@
     <header class="a1-card a1-od-head" data-order-detail-workspace="1" aria-labelledby="od-title">
         <div class="a1-od-head__row">
             <div class="a1-od-head__text">
-                <span class="a1-eyebrow">{{ ($order['is_direct_sale'] ?? false) ? 'Prodajni kanal: Direktna prodaja' : 'Odgovorno lice: '.($order['supplier_name'] ?? 'Nije dodeljeno') }}</span>
-                <h1 class="a1-title" id="od-title">{{ $order['order_number'] ?? 'Porudžbina' }}</h1>
-                <p class="a1-text">
-                    {{ $order['shipping_full_name'] ?? '—' }} ·
-                    {{ $order['created_at'] ?? '—' }} ·
-                    lager {{ $order['inventory_state'] ?? '—' }}
+                <span class="a1-eyebrow" title="{{ $orderChannel }}">{{ $orderChannel }}</span>
+                <h1 class="a1-title" id="od-title" title="{{ $orderNumber }}">{{ $orderNumber }}</h1>
+                <p class="a1-text" title="{{ $buyerName }} · {{ $orderSummary }}">
+                    <span class="a1-od-buyer-name" title="{{ $buyerName }}">{{ $buyerName }}</span> · {{ $orderSummary }}
                 </p>
             </div>
 
@@ -209,7 +211,7 @@
             <dl class="a1-dl a1-od-dl">
                 <div class="a1-dl__row">
                     <dt>Ime i prezime primaoca</dt>
-                    <dd>{{ $order['shipping_full_name'] ?? '—' }}</dd>
+                    <dd class="a1-od-buyer-name" title="{{ $buyerName }}">{{ $buyerName }}</dd>
                 </div>
                 <div class="a1-dl__row">
                     <dt>Telefon</dt>
@@ -223,7 +225,7 @@
                 </div>
                 <div class="a1-dl__row">
                     <dt>Adresa za isporuku</dt>
-                    <dd>
+                    <dd class="a1-od-buyer-address">
                         {{ $order['shipping_address'] ?? '—' }},
                         {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}
                     </dd>

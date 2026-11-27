@@ -9,7 +9,7 @@
 <div class="shop-cart-items">
 @foreach($quote['items'] as $row)
 <div class="shop-cart-item">
-<div><h2><a href="{{ route('public-shop.show',$row['product']['slug'],false) }}">{{ $row['product']['name'] }}</a></h2>
+<div><h2 title="{{ $row['product']['name'] }}"><a href="{{ route('public-shop.show',$row['product']['slug'],false) }}">{{ $row['product']['name'] }}</a></h2>
 <p class="sku">{{ $row['product']['sku'] }}</p>
 <p>{{ $row['product']['price_original'] }} {{ $row['product']['currency'] }}</p></div>
 <form method="post" action="{{ route('public-shop.cart.update',$row['product']['id'],false) }}">@csrf @method('PATCH')
