@@ -97,16 +97,22 @@ final class ProductNotesFormSubmitTest extends TestCase
             ->assertOk()->assertSee('data-product-has-notes', false);
     }
 
-    public function test_manager_who_is_not_author_or_superadmin_does_not_see_notes(): void
+    public function test_admin_who_is_not_author_sees_notes_but_cannot_edit(): void
     {
         $author = $this->manager('notes-author');
         $product = $this->product($author->id, 'Tudja napomena');
         $other = $this->manager('notes-other');
 
-        // Admin vidi samo svoje artikle (applyVisibleCatalog): tuđi artikal i napomena nisu dostupni.
-        $this->actingAs($other)->get('/catalog/'.$product->slug)->assertNotFound();
+        $this->actingAs($other)->get('/catalog/'.$product->slug)
+            ->assertOk()->assertSee('data-product-internal-notes', false)->assertSee('Tudja napomena')
+            ->assertDontSee('Interno');
         $this->actingAs($other)->get('/catalog')
-            ->assertOk()->assertDontSee('data-product-has-notes', false)->assertDontSee('Tudja napomena');
+            ->assertOk()->assertSee('data-product-has-notes', false);
+
+        // Vidljivost ne širi pravo izmene.
+        $this->actingAs($other)->put('/admin/catalog/'.$product->id, $this->payload(['sku' => $product->sku, 'notes' => 'Upad']))
+            ->assertForbidden();
+        self::assertSame('Tudja napomena', $product->refresh()->notes);
     }
 
     public function test_non_superadmin_author_sees_own_notes(): void

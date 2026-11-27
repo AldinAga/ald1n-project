@@ -32,7 +32,7 @@
 'copy_specifications'=>'Specifikacije i tačni modeli',
 'copy_price'=>'Cena, valuta i provizija',
 'copy_description'=>'Opis artikla',
-'copy_notes'=>'Interne napomene',
+'copy_notes'=>'Napomene',
 'copy_images'=>'Slike proizvoda',
 'copy_warranty_rules'=>'Posebna garancijska pravila proizvoda',
 ] as $name=>$label)<label class="a1-check"><input type="hidden" name="{{ $name }}" value="0"><input class="a1-check__input" type="checkbox" name="{{ $name }}" value="1" @checked(old($name,in_array($name,['copy_basic','copy_specifications','copy_price','copy_description'],true)))><span class="a1-check__box" aria-hidden="true"></span><span>{{ $label }}</span></label>@endforeach
