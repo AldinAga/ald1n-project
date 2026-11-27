@@ -7,7 +7,7 @@ import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
 
 // SubAgent saves product photos straight from the APK (play3), without any new permission.
-// The save flow runs for real against fakes; the rest are source contracts. Nothing builds the app.
+// The save flow and Expo wiring run against fakes. Nothing builds the app.
 const mobile=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=f=>readFileSync(path.join(mobile,f),'utf8');
 const download=read('src/features/catalog/product-image-download.ts');
@@ -18,14 +18,114 @@ const pkg=JSON.parse(read('package.json'));
 const lock=JSON.parse(read('package-lock.json'));
 const appSource=read('app.config.js');
 
-const flow=(()=>{
- assert.ok(!/^import /m.test(flowSource),'flow module stays free of RN/Expo imports');
- const js=ts.transpileModule(flowSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+function loadModule(source,globals={}){
+ const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
  // Same Error realm as the fakes, so `instanceof Error` behaves as in the app.
- runInNewContext(js,{exports,Error});
+ runInNewContext(js,{exports,Error,...globals});
  return exports;
-})();
+}
+
+assert.ok(!/^import /m.test(flowSource),'flow module stays free of RN/Expo imports');
+const flow=loadModule(flowSource);
+
+function downloadWorld({status=200,headers={},body=[1,2,3],truncateWrite=false}={}){
+ const cacheRoot='file:///cache';
+ const cache=new Map([[cacheRoot,new Map()]]);
+ const created=[];
+ const saved=[];
+ const warnings=[];
+ let id=0;
+ class Directory {
+  constructor(root,name){
+   this.uri=name===undefined?root:`${root.uri}/${name}`;
+  }
+  get exists(){return this.uri==='tree:Pictures';}
+  create(){
+   assert.ok(!cache.has(this.uri));
+   cache.set(this.uri,new Map());
+   created.push(this.uri);
+  }
+  delete(){cache.delete(this.uri);}
+  createFile(name,mime){
+   return {write(bytes){saved.push({name,mime,bytes:[...bytes]});}};
+  }
+ }
+ class File {
+  constructor(directory,name){
+   this.files=cache.get(directory.uri);
+   this.name=name;
+  }
+  get exists(){return this.files.has(this.name);}
+  get size(){return 0;} // Metadata may still describe the empty file.
+  create(){this.files.set(this.name,new Uint8Array());}
+  write(bytes){this.files.set(this.name,truncateWrite?bytes.slice(0,-1):bytes);}
+  async bytes(){return this.files.get(this.name);}
+ }
+ const modules={
+  'expo-crypto':{randomUUID:()=>String(++id)},
+  'expo-file-system':{Directory,File,Paths:{cache:new Directory(cacheRoot)}},
+  'react-native':{Platform:{OS:'android'}},
+  '@/lib/storage':{imageSaveFolderStore:{get:async()=> 'tree:Pictures'}},
+  './product-image-save-flow':flow,
+ };
+ const wiring=loadModule(download,{
+  require:name=>modules[name],
+  URL,
+  console:{warn:(...args)=>warnings.push(args)},
+  fetch:async (_url,{method})=>{
+   if(method==='HEAD') return {};
+   return {
+    status,
+    ok:status>=200&&status<300,
+    headers:{get:name=>headers[name]??null},
+    arrayBuffer:async()=>Uint8Array.from(body).buffer,
+   };
+  },
+ });
+ const input={originalUrl:'https://example.test/original.jpg',productSku:'ABC#10%20',productName:'Artikal',imageNumber:1};
+ return {save:()=>wiring.saveProductImagesToDevice([input]),cacheRoot,cache,created,saved,warnings};
+}
+
+test('Expo wiring verifies actual bytes despite stale size and isolates parallel saves',async()=>{
+ const w=downloadWorld({headers:{'content-type':'image/jpeg','content-length':'3'}});
+ const results=await Promise.all([w.save(),w.save()]);
+ assert.ok(results.every(result=>result.saved===1&&result.firstError===null));
+ assert.equal(new Set(w.created).size,2);
+ assert.deepEqual([...w.cache.keys()],[w.cacheRoot]);
+ assert.deepEqual(w.saved,Array.from({length:2},()=>({
+  name:'ABC-10-20-original-slika-1.jpg',mime:'image/jpeg',bytes:[1,2,3],
+ })));
+ assert.deepEqual(w.warnings,[]);
+});
+
+test('Expo wiring rejects a truncated cache write, cleans it up and logs only byte counts and stage',async()=>{
+ const w=downloadWorld({truncateWrite:true});
+ const result=await w.save();
+ assert.equal(result.saved,0);
+ assert.match(result.firstError,/^Upis originalne fotografije/);
+ assert.equal(w.saved.length,0);
+ assert.deepEqual([...w.cache.keys()],[w.cacheRoot]);
+ assert.deepEqual(w.warnings,[['[product-image-cache]','readback',3,2]]);
+});
+
+test('Expo wiring rejects HTTP errors, partial, non-image and empty responses before writing',async()=>{
+ for(const [options,message] of [
+  [{status:404},/HTTP 404/],
+  [{status:206},/HTTP 206/],
+  [{headers:{'content-type':'text/html'}},/Server nije vratio originalnu fotografiju/],
+  [{headers:{'content-type':'application/json'}},/Server nije vratio originalnu fotografiju/],
+  [{body:[]},/prazna/],
+  [{headers:{'content-length':'4'}},/nije završeno u celosti/],
+ ]){
+  const w=downloadWorld(options);
+  const result=await w.save();
+  assert.equal(result.saved,0);
+  assert.match(result.firstError,message);
+  assert.deepEqual(w.created,[]);
+  assert.deepEqual(w.warnings,[]);
+ }
+});
 
 // A fake world: folders by URI, a store, a picker queue and a log of every side effect.
 function world({stored=null,folders={},picks=[],online=true,storeThrows=false,fetchFails={}}={}){
