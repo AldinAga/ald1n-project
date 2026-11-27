@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Services\ProductImageDerivativeService;
 use App\Support\ProductMediaUrl;
 use Database\Seeders\CoreAccessSeeder;
@@ -260,6 +261,7 @@ final class SignedProductMediaRouteTest extends TestCase
 
     public function test_draft_and_inactive_photos_stay_open_for_the_admin_catalog_but_retired_ones_are_404(): void
     {
+        // PR #254: važeći potpis omogućava pristup slikama nacrta i neaktivnih artikala i bez prijave.
         foreach (['active', 'draft', 'inactive'] as $status) {
             [, $image] = $this->publicImage($status);
             $this->fetch($image->url)->assertOk();
@@ -284,6 +286,39 @@ final class SignedProductMediaRouteTest extends TestCase
         $this->fetch($deletedUrl)->assertNotFound();
         $product->forceFill(['status' => 'active'])->save();
         $this->fetch($deletedUrl)->assertOk();
+    }
+
+    public function test_session_media_routes_hide_draft_and_inactive_images_from_subagent(): void
+    {
+        $viewer = User::factory()->create([
+            'role_id' => Role::query()->where('slug', 'user')->valueOrFail('id'),
+            'user_group_id' => UserGroup::query()->where('slug', 'standardni-korisnik')->valueOrFail('id'),
+        ]);
+        self::assertTrue($viewer->can('catalog.view'));
+        self::assertFalse($viewer->can('catalog.manage_images'));
+
+        $product = $this->product('active');
+        $bytes = $this->jpeg(30, 20);
+        $path = 'uploads/products/subagent-visibility.jpg';
+        file_put_contents($this->legacyRoot.'/'.$path, $bytes);
+        $image = ProductImage::query()->create([
+            'product_id' => $product->id, 'storage_disk' => 'legacy', 'file_path' => $path,
+            'original_filename' => 'subagent-visibility.jpg', 'mime_type' => 'image/jpeg', 'file_size' => strlen($bytes),
+            'sort_order' => 1, 'is_primary' => true,
+        ]);
+
+        $this->actingAs($viewer);
+        $view = route('media.product', $image);
+        $download = route('media.product.download', $image);
+        $this->get($view)->assertOk();
+        $this->get($download)->assertOk();
+
+        foreach (['draft', 'inactive'] as $status) {
+            $product->update(['status' => $status]);
+
+            $this->get($view)->assertNotFound();
+            $this->get($download)->assertNotFound();
+        }
     }
 
     public function test_url_from_the_new_product_mail_and_push_opens_and_stays_cacheable(): void
