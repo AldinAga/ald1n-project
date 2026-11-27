@@ -224,10 +224,12 @@
                     </dd>
                 </div>
                 <div class="a1-dl__row">
-                    <dt>Adresa za isporuku</dt>
-                    <dd class="a1-od-buyer-address">
-                        {{ $order['shipping_address'] ?? '—' }},
-                        {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}
+                    <dt id="od-buyer-address-label">Adresa za isporuku</dt>
+                    <dd>
+                        <div class="a1-od-buyer-address" tabindex="0" role="region" aria-labelledby="od-buyer-address-label">
+                            {{ $order['shipping_address'] ?? '—' }},
+                            {{ $order['shipping_postal_code'] ?? '' }} {{ $order['shipping_city'] ?? '' }}
+                        </div>
                     </dd>
                 </div>
                 <div class="a1-dl__row">

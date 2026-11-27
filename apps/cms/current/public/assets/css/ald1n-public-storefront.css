@@ -275,9 +275,8 @@ button:active{transform:translateY(1px)}
 .shop-nav{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;grid-template-areas:"brand menu theme";align-items:center;min-height:72px;gap:12px 18px}
 .shop-brand{grid-area:brand;display:inline-flex;align-items:center;gap:12px;min-height:44px;text-decoration:none;color:var(--text);min-width:0;border-radius:var(--radius-sm)}
 .shop-brand-mark{display:grid;place-items:center;flex:0 0 auto;width:40px;height:40px;border-radius:13px;background:linear-gradient(150deg,#4a6fe0,#2c47a8);color:#ffffff;font:800 15px/1 var(--font-display);letter-spacing:.02em;box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 8px 20px -10px rgba(40,72,190,.9)}
-.shop-brand-text{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;font:780 19px/1.15 var(--font-display);letter-spacing:-.01em}
-.shop-brand-text>*{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.shop-brand-text strong{font:inherit}
+.shop-brand-text{display:block;min-width:0;font:780 19px/1.15 var(--font-display);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shop-brand-text>span::before{content:"\A";white-space:pre}
 .shop-brand-text span,.shop-brand-sub{font:500 12px/1.3 var(--font);letter-spacing:.04em;color:var(--text-3)}
 /* Configured site logo: the height attribute carries the admin setting
    (24-80px) and the width attribute the intrinsic ratio, so the box is

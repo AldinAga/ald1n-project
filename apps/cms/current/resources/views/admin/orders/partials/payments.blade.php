@@ -146,9 +146,9 @@
 
     @if(($order['payment_method'] ?? '') === 'bank_transfer' && !empty($detail['ips_payload']))
         <details class="a1-acc">
-            <summary>IPS QR podaci za uplatu</summary>
+            <summary id="od-ips-payload-label">IPS QR podaci za uplatu</summary>
             <div class="a1-acc__body">
-                <code class="a1-od-code">{{ $detail['ips_payload'] }}</code>
+                <div class="a1-od-code" tabindex="0" role="region" aria-labelledby="od-ips-payload-label"><code>{{ $detail['ips_payload'] }}</code></div>
             </div>
         </details>
     @endif
