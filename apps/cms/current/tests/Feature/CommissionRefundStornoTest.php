@@ -571,6 +571,27 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame(['15.00', '5.00'], CommissionAdjustment::query()->where('kind', 'debit')->orderBy('id')->pluck('amount_eur')->all());
     }
 
+    public function test_open_debits_for_user_preserves_the_payout_statement_contract(): void
+    {
+        [$agent, $admin, $order, $commission] = $this->scenario();
+        $agentWithoutDebt = $this->user('sub-'.++$this->seq, 'user');
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $reversals = app(CommissionReversalService::class);
+        $this->pay($order, $admin, 12000);
+        app(CommissionWorkflowService::class)->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $reversals->reverse($commission->fresh(), $super, 'Ručno zaduženje', '15');
+        $this->refund($order, $admin, 12000);
+
+        $userId = (int) $agent->id;
+        $groupedDebits = $reversals->openDebitsForUsers([$userId])[$userId] ?? [];
+        $debits = $reversals->openDebitsForUser($userId);
+
+        self::assertCount(2, $debits);
+        self::assertSame($groupedDebits, $debits);
+        self::assertSame(array_sum($groupedDebits), array_sum($debits));
+        self::assertSame([], $reversals->openDebitsForUser((int) $agentWithoutDebt->id));
+    }
+
     public function test_bulk_payout_offsets_only_the_respective_agents_debts(): void
     {
         [$first, $admin, $firstOrder, $firstCommission] = $this->scenario();

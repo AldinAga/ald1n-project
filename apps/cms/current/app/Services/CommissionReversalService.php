@@ -443,6 +443,12 @@ final class CommissionReversalService
         return max(0, (int) $item->quantity - $done);
     }
 
+    /** Koristi ga PDF izvod isplate. @return array<int,int> */
+    public function openDebitsForUser(int $userId): array
+    {
+        return $this->openDebitsForUsers([$userId])[$userId] ?? [];
+    }
+
     /**
      * Otvorena potvrđena zaduženja po korisniku, najstarija prva.
      * @param list<int> $userIds
