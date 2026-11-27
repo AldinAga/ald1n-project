@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Servisni lager')
 @section('content')
-<div class="a1-ops a1-ow-stock">
+<div class="a1-ops" data-service-parts-stock>
     <header class="a1-pagehead">
         <div class="a1-pagehead__text">
             <span class="a1-eyebrow">Rezervni delovi</span>

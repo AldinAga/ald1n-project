@@ -1925,7 +1925,7 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
   [data-orders-page-ready] .a1-chips .a1-chip{white-space:normal}
   [data-orders-page-ready] .a1-chip>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
   .a1-od-fact--money{grid-column:1/-1}
-  .a1-ow-stock .a1-row,.a1-ops.a1-ow-stock .a1-ow-filters .a1-filters__fields,.a1-ow-stock .a1-ow-edit__panel{grid-template-columns:minmax(0,1fr)}
-  .a1-ow-stock .a1-ow-edit{flex:0 0 100%}
-  .a1-ow-stock .a1-label{hyphens:manual;overflow-wrap:normal;word-break:normal}
+  [data-service-parts-stock] .a1-row,.a1-ops[data-service-parts-stock] .a1-ow-filters .a1-filters__fields,[data-service-parts-stock] .a1-ow-edit__panel{grid-template-columns:minmax(0,1fr)}
+  [data-service-parts-stock] .a1-ow-edit{flex:0 0 100%}
+  [data-service-parts-stock] .a1-label{hyphens:manual;overflow-wrap:normal;word-break:normal}
 }
