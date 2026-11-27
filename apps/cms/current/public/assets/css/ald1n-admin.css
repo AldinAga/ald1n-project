@@ -757,7 +757,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-item__end .a1-item__sub{white-space:normal}
 .a1-item__money{font-weight:var(--a1-typography-font-weight-numeric)}
 .a1-item__go{color:var(--a1-text-secondary)}
-.a1-item--order{grid-template-columns:minmax(max-content,1fr) auto;grid-template-areas:"main main" "status money"}
+.a1-item--order{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main main" "status money"}
 .a1-item--order .a1-item__main{grid-area:main}
 .a1-item--order .a1-item__status{grid-area:status}
 .a1-item--order .a1-item__end{grid-area:money}
@@ -1797,6 +1797,10 @@ button.a1-drawer-rate{cursor:pointer}
   .a1-periodbar .a1-seg-form{max-width:100%}
   .a1-periodbar .a1-seg{flex-wrap:wrap}
   .a1-periodbar .a1-seg__opt{padding-inline:var(--a1-space-12)}
+  .a1-periodbar__fields{min-width:0}
+  .a1-periodbar__fields>.a1-row{grid-template-columns:minmax(0,1fr)}
+  .a1-periodbar__fields>div>.a1-btn{width:100%;max-width:100%}
+  .a1-periodbar>.a1-alert{flex:1 1 100%;min-width:0}
   .a1-periodbar__label{flex-basis:100%;text-align:left}
 }
 
@@ -1894,15 +1898,34 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
   .a1-tablewrap,.a1-tabs{min-width:0;max-width:100%}
   .a1-periodbar__custom,.a1-dash .a1-profile{min-width:0;max-width:100%}
   .a1-dash .a1-strip .a1-card__head{flex:0 1 auto;flex-wrap:wrap}
+  .a1-dash,.a1-dash .a1-list:has(>li>.a1-item--order){grid-template-columns:minmax(0,1fr)}
+  .a1-list>li:has(>.a1-item--order),.a1-item--order,.a1-item--order>*{min-width:0;max-width:100%}
+  .a1-item--order .a1-item__main,.a1-ordercard__amount{grid-template-columns:minmax(0,1fr)}
   .a1-ordercard__top,.a1-ordercard__bottom{flex-wrap:wrap}
-  .a1-ordercard__title{flex-basis:min(100%,12ch)}
+  .a1-ordercard__top>*,.a1-ordercard__bottom>*{min-width:0;max-width:100%}
+  .a1-ordercard__no,.a1-item--order .a1-item__end{white-space:normal}
+  .a1-item--order :is(.a1-item__title,.a1-item__sub,.a1-ordercard__title,.a1-ordercard__no){overflow-wrap:anywhere}
+  .a1-od-head__row,.a1-od-head__text{min-width:0;max-width:100%}
+  .a1-od-head__text{grid-template-columns:minmax(0,1fr);overflow-wrap:anywhere}
+  .a1-od-head__text>.a1-title{overflow-wrap:inherit}
   .a1-trend>li{grid-template-columns:minmax(0,1fr)}
   .a1-trend__label{justify-self:center}
   .a1-trend>li:first-child .a1-trend__label{justify-self:start}
   .a1-trend>li:last-child .a1-trend__label{justify-self:end}
-  .a1-results__count{min-width:0;white-space:normal}
+  .a1-results{min-width:0;max-width:100%}
+  .a1-results__count{flex-shrink:1;min-width:0;max-width:100%;white-space:normal}
   .a1-od-fact--money dd{overflow-wrap:normal}
 }
 @media (max-width:430px){
+  .a1-item--order{grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "status" "money"}
+  .a1-item--order .a1-item__end{justify-items:start;text-align:left}
+  :is(#wo-complete,[aria-labelledby="wo-cancel-title"])>.a1-form>div:has(>button.a1-btn){display:flex;flex-direction:column;min-width:0}
+  :is(#wo-complete,[aria-labelledby="wo-cancel-title"])>.a1-form>div>button.a1-btn{width:100%;max-width:100%;white-space:normal}
+  [data-orders-page-ready] .a1-chips>li{min-width:0;max-width:100%}
+  [data-orders-page-ready] .a1-chips .a1-chip{white-space:normal}
+  [data-orders-page-ready] .a1-chip>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
   .a1-od-fact--money{grid-column:1/-1}
+  .a1-ow-stock .a1-row,.a1-ops.a1-ow-stock .a1-ow-filters .a1-filters__fields,.a1-ow-stock .a1-ow-edit__panel{grid-template-columns:minmax(0,1fr)}
+  .a1-ow-stock .a1-ow-edit{flex:0 0 100%}
+  .a1-ow-stock .a1-label{hyphens:manual;overflow-wrap:normal;word-break:normal}
 }
