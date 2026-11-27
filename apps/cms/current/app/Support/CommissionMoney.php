@@ -12,8 +12,18 @@ final class CommissionMoney
 
     public static function cents(mixed $value): int
     {
+        return self::minorUnits($value, 9);
+    }
+
+    public static function rsdCents(mixed $value): int
+    {
+        return self::minorUnits($value, 12);
+    }
+
+    private static function minorUnits(mixed $value, int $integerDigits): int
+    {
         $value = str_replace(',', '.', trim((string) $value));
-        if (!preg_match('/^(\d{1,9})(?:\.(\d{1,2})\d*)?$/', $value, $m)) {
+        if (!preg_match('/^(\d{1,'.$integerDigits.'})(?:\.(\d{1,2})\d*)?$/', $value, $m)) {
             return 0;
         }
 

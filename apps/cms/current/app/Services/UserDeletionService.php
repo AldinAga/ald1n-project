@@ -631,6 +631,11 @@ final class UserDeletionService
                     $open++;
                 }
             }
+            // otvoren kredit agentu (firma mu duguje) je takođe obaveza koja sprečava brisanje naloga
+            $open += (int) DB::table('commission_adjustments')
+                ->where('kind', 'credit')->where('status', 'confirmed')->where('amount_eur', '>', 0)
+                ->whereIn('commission_id', DB::table('order_commissions')->where('user_id', $userId)->select('id'))
+                ->count();
         }
 
         // Neizmirena potraživanja po porudžbinama naloga (otvoreni slučajevi naplate).
