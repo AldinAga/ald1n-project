@@ -24,16 +24,18 @@ final class CommissionAutoApprovalService
         private readonly CommissionEligibilityService $eligibility,
         private readonly AuditLogger $audit,
         private readonly OperationalNotificationService $notifications,
+        private readonly CommissionReversalService $reversals,
     ) {}
 
     /** @return string|null 'approved' | 'pending' ako se stanje promenilo, inače null */
-    public function syncForOrder(Order $order, string $source = 'order_event', bool $notify = true): ?string
+    public function syncForOrder(Order $order, string $source = 'order_event', bool $notify = true, bool $notifyReversal = false): ?string
     {
         if (!$this->ready()) {
             return null; // migracija još nije izvršena: bez automatike, plaćanja i isporuke rade kao pre
         }
 
-        return DB::transaction(function () use ($order, $source, $notify): ?string {
+        return DB::transaction(function () use ($order, $source, $notify, $notifyReversal): ?string {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
             /** @var OrderCommission|null $commission */
             $commission = OrderCommission::query()->where('order_id', $order->id)->lockForUpdate()->first();
             if (!$commission instanceof OrderCommission) {
@@ -42,6 +44,12 @@ final class CommissionAutoApprovalService
             $meets = $this->eligibility->orderMeetsCondition($order);
 
             if ($commission->status === 'pending' && $meets) {
+                // refundacija pre dospelosti (npr. refundacija pa isporuka) uračunava se pre "Za isplatu", istim pravilom kao refundacija
+                $this->reversals->reverseForRefund($order, null, 'auto-approval', CommissionReversalService::EVENT_APPROVAL, $notify || $notifyReversal);
+                $commission = OrderCommission::query()->lockForUpdate()->findOrFail($commission->id);
+                if ($commission->status !== 'pending') {
+                    return null;
+                }
                 $reason = $order->completed_at !== null
                     ? 'Automatski za isplatu: isporuka je potvrđena.'
                     : 'Automatski za isplatu: porudžbina je u potpunosti naplaćena.';
@@ -49,7 +57,7 @@ final class CommissionAutoApprovalService
                     'approved_by' => null, 'approved_at' => now(), 'auto_approved_at' => now(),
                 ]);
                 if ($notify) {
-                    $this->notifyOwner($commission, $order);
+                    DB::afterCommit(fn () => $this->notifyOwner($commission, $order));
                 }
 
                 return 'approved';
@@ -74,8 +82,8 @@ final class CommissionAutoApprovalService
         return $ready ??= Schema::hasColumn('order_commissions', 'auto_approved_at');
     }
 
-    /** Jednokratni prenos postojećih pending provizija čija porudžbina već ispunjava uslov. Idempotentno; bez obaveštenja. */
-    public function backfill(?array $onlyOrderIds = null): int
+    /** Idempotentni prenos dospelih provizija. Migracija podrazumevano radi bez obaveštenja. */
+    public function backfill(?array $onlyOrderIds = null, bool $notifyReversal = false): int
     {
         $count = 0;
         $query = $this->eligibility->scopeState(OrderCommission::query(), 'due');
@@ -85,7 +93,7 @@ final class CommissionAutoApprovalService
         $ids = $query->pluck('order_commissions.order_id');
         foreach ($ids as $orderId) {
             $order = Order::query()->find($orderId);
-            if ($order instanceof Order && $this->syncForOrder($order, 'backfill_20261116', false) === 'approved') {
+            if ($order instanceof Order && $this->syncForOrder($order, 'backfill_20261116', notify: false, notifyReversal: $notifyReversal) === 'approved') {
                 $count++;
             }
         }
@@ -119,11 +127,11 @@ final class CommissionAutoApprovalService
 
     private function notifyOwner(OrderCommission $commission, Order $order): void
     {
-        $user = $commission->user()->first();
-        if (!$user instanceof User) {
-            return;
-        }
         try {
+            $user = $commission->user()->first();
+            if (!$user instanceof User) {
+                return;
+            }
             $this->notifications->commission(
                 $user,
                 'commission.approved',

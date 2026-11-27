@@ -47,6 +47,7 @@ final class CommissionController extends Controller
                 'due_eur' => (float) ($summary['due_eur'] ?? 0),
                 'not_due_eur' => (float) ($summary['not_due_eur'] ?? 0),
                 'owed_eur' => (float) ($summary['owed_eur'] ?? 0),
+                'credit_eur' => (float) ($summary['credit_eur'] ?? 0),
             ],
             'links' => [
                 'first' => $commissions->url(1),

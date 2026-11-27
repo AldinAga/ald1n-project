@@ -37,7 +37,7 @@ final class ProductImportService
         'price_currency' => 'Valuta',
         'purchase_price_rsd' => 'Nabavna cena RSD',
         'description' => 'Opis',
-        'notes' => 'Interne napomene',
+        'notes' => 'Napomene',
     ];
 
     private const ALIASES = [

@@ -143,13 +143,14 @@ final class OrderWorkflowService
                 'created_at' => now(),
             ]);
 
-            // Bez tabele zaduženja (kod pre migracije) isplaćena provizija ide starom granom ispod i otkazuje se kao u produkciji.
-            if ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status === 'paid' && \App\Support\CommissionMoney::hasAdjustments()) {
+            $commission = $newStatus === 'cancelled'
+                ? OrderCommission::query()->where('order_id', $locked->id)->lockForUpdate()->first()
+                : null;
+            // Bez tabele zaduženja (kod pre migracije) isplaćena provizija ide starom granom ispod.
+            if ($commission?->status === 'paid' && \App\Support\CommissionMoney::hasAdjustments()) {
                 // Isplata ostaje evidentirana; automatski potvrđeno zaduženje za ceo preostali iznos (odluka vlasnika 16.11.2026).
-                $paidCommission = OrderCommission::query()->lockForUpdate()->findOrFail($locked->commission->id);
-                app(CommissionReversalService::class)->debitForCancellation($paidCommission, $actor, (string) $note);
-            } elseif ($newStatus === 'cancelled' && $locked->commission !== null && $locked->commission->status !== 'cancelled') {
-                $commission = OrderCommission::query()->lockForUpdate()->findOrFail($locked->commission->id);
+                app(CommissionReversalService::class)->debitForCancellation($commission, $actor, (string) $note);
+            } elseif ($commission instanceof OrderCommission && $commission->status !== 'cancelled') {
                 $oldCommissionStatus = (string) $commission->status;
                 $commission->update([
                     'status' => 'cancelled',
@@ -192,17 +193,17 @@ final class OrderWorkflowService
         }
 
         if ($updated->user instanceof User) {
-            $this->notifications->order(
+            DB::afterCommit(fn () => $this->notifications->order(
                 $updated->user,
                 'order.status_changed',
                 'Status porudžbine je promenjen',
                 sprintf('Porudžbina %s je sada %s.%s', $updated->order_number, mb_strtolower(OrderStatus::label($updated->status)), $note ? ' Napomena: '.$note : ''),
                 $updated,
                 ['severity' => $updated->status === 'cancelled' ? 'danger' : ($updated->status === 'shipped' ? 'success' : 'info')],
-            );
+            ));
         }
         if ($updated->status === 'cancelled' && $updated->commission?->status === 'cancelled' && $updated->commission?->user instanceof User) {
-            $this->notifications->commission($updated->commission->user, 'commission.cancelled', 'Provizija je stornirana', 'Provizija je stornirana jer je porudžbina '.$updated->order_number.' otkazana.', $updated->commission, ['severity' => 'danger']);
+            DB::afterCommit(fn () => $this->notifications->commission($updated->commission->user, 'commission.cancelled', 'Provizija je stornirana', 'Provizija je stornirana jer je porudžbina '.$updated->order_number.' otkazana.', $updated->commission, ['severity' => 'danger']));
         }
         if ($updated->status === 'cancelled') {
             $this->reconciliation->reconcile($updated);
@@ -215,25 +216,25 @@ final class OrderWorkflowService
         if ($updated->status === 'cancelled'
             && (int) $actor->id === (int) $updated->user_id
             && $updated->supplier instanceof User) {
-            $this->notifications->order(
+            DB::afterCommit(fn () => $this->notifications->order(
                 $updated->supplier,
                 'order.cancelled_by_customer',
                 'Korisnik je otkazao porudžbinu',
                 'Korisnik je otkazao porudžbinu '.$updated->order_number.'.'.($note ? ' Razlog: '.$note : ''),
                 $updated,
                 ['severity' => 'danger'],
-            );
+            ));
         }
 
         // Kupac ne dobija mejl o potvrdi (odluka 38); mejlovi idu za primljenu, poslatu i isporučenu porudžbinu.
         if ($updated->status !== 'confirmed') {
-            $this->emails->orderChanged(
+            DB::afterCommit(fn () => $this->emails->orderChanged(
                 $updated,
                 'order_status_changed',
                 'Promenjen status porudžbine '.$updated->order_number,
                 'Novi status: '.OrderStatus::label($updated->status).($note ? '. Napomena: '.$note : '.'),
                 ['status' => $updated->status, 'note' => $note, 'actor_id' => $actor->id, 'changed_at' => $updated->updated_at?->toISOString()],
-            );
+            ));
         }
 
         return $updated;
@@ -379,7 +380,7 @@ final class OrderWorkflowService
                     user: $actor,
                 );
 
-                $projection = $this->financial->derive($locked);
+                $projection = $this->financial->derive($locked, lockPayments: true);
                 $net = (float) $projection['paid_total_rsd'];
                 $total = round((float) $locked->subtotal_rsd, 2);
                 $remaining = round(max(0.0, $total - $net), 2);
@@ -408,6 +409,7 @@ final class OrderWorkflowService
                     // while its required issuance ledger write fails.
                     $this->issuances->issueForVerifiedPaymentLocked($locked, $payment, $actor);
                     $paymentNumber = (string) $payment->payment_number;
+                    app(CommissionReversalService::class)->reverseForRefund($locked, $actor, $paymentNumber, CommissionReversalService::EVENT_PAYMENT);
                     $net = round($net + $remaining, 2);
                 }
 
@@ -496,20 +498,20 @@ final class OrderWorkflowService
             if ($invoice !== null) {
                 $message .= ' Račun '.$invoice->document_number.' je izdat.';
             }
-            $this->notifications->order(
+            DB::afterCommit(fn () => $this->notifications->order(
                 $updated->user,
                 'order.completed',
                 'Porudžbina je isporučena',
                 $message,
                 $updated,
                 ['severity' => 'success', 'icon' => 'check-circle'],
-            );
+            ));
         }
 
         $mail = 'Porudžbina '.$updated->order_number.' je isporučena.';
         $mail .= $invoice !== null ? ' Račun '.$invoice->document_number.' je u prilogu i dostupan u porudžbini.' : ' Račun će biti dostupan u porudžbini.';
         $mail .= ' Garantni listovi su dostupni u porudžbini.';
-        $this->emails->orderChanged($updated, 'order_completed', 'Porudžbina '.$updated->order_number.' je isporučena', $mail, ['completed_at' => $updated->completed_at?->toISOString(), 'actor_id' => $actor->id, 'invoice_number' => $invoice?->document_number]);
+        DB::afterCommit(fn () => $this->emails->orderChanged($updated, 'order_completed', 'Porudžbina '.$updated->order_number.' je isporučena', $mail, ['completed_at' => $updated->completed_at?->toISOString(), 'actor_id' => $actor->id, 'invoice_number' => $invoice?->document_number]));
 
         return $updated;
     }
@@ -523,7 +525,7 @@ final class OrderWorkflowService
             Log::warning('Automatic invoice after delivery failed.', ['incident' => $incident, 'order_id' => $order->id, 'exception' => $exception]);
             try {
                 $this->audit->log('order.invoice_auto_failed', 'Račun nije izdat automatski pri isporuci '.$order->order_number, $order, metadata: ['incident' => $incident, 'message' => mb_substr($exception->getMessage(), 0, 300)], user: $actor);
-                $this->notifications->order($actor, 'order.invoice_auto_failed', 'Račun nije izdat automatski', 'Isporuka porudžbine '.$order->order_number.' je sačuvana, ali račun nije izdat (incident '.$incident.'). Izdaj ga iz kartice Dokumenti.', $order, ['severity' => 'danger', 'icon' => 'alert-triangle']);
+                DB::afterCommit(fn () => $this->notifications->order($actor, 'order.invoice_auto_failed', 'Račun nije izdat automatski', 'Isporuka porudžbine '.$order->order_number.' je sačuvana, ali račun nije izdat (incident '.$incident.'). Izdaj ga iz kartice Dokumenti.', $order, ['severity' => 'danger', 'icon' => 'alert-triangle']));
             } catch (Throwable) {
                 // Prijava greške ne sme da poništi isporuku.
             }

@@ -36,7 +36,7 @@ $catalogDoctor = $source('app/Console/Commands/CatalogOwnershipDoctorCommand.php
 $layout = $source('resources/views/layouts/app.blade.php');
 $check('Jedinstveni katalog razlikuje vidljivo i izmenjivo', str_contains($catalogAccess, 'applyVisibleCatalog') && str_contains($catalogAccess, 'applyManageable') && str_contains($catalogAccess, "where('created_by'"));
 $check('SuperAdministrator može sve a Administrator samo svoje', str_contains($catalogAccess, "hasRole('superadmin')") && str_contains($catalogAccess, '(int) $product->created_by === (int) $user->getAuthIdentifier()'));
-$check('Administrator u jedinstvenom katalogu vidi samo svoje artikle', str_contains($catalogAccess, "return \$query->where('created_by', (int) \$user->getAuthIdentifier())") && !str_contains($catalogAccess, "orWhere('created_by'"));
+// CatalogAccessTest proverava prikaz tuđih artikala i zabranu izmene kroz HTTP zahteve.
 $check('Admin katalog URL preusmerava na jedinstveni katalog', str_contains($adminProducts, "redirect()->route('catalog.index'"));
 $check('Katalog prikazuje management akcije samo po artiklu', str_contains($catalogController, "'can_manage'") && str_contains($catalogView, '$canManageThis') && str_contains($catalogView, 'catalog-management-actions'));
 $check('Product forma proverava vlasništvo', str_contains($productRequest, 'CatalogAccessService') && str_contains($productRequest, 'canManage($product, $user)'));
