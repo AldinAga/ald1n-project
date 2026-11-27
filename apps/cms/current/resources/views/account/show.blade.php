@@ -135,9 +135,14 @@
             <h2 class="a1-h2" id="ac-delete-title">Brisanje naloga</h2>
             <p class="a1-muted">Poslaćemo link za potvrdu na {{ $user->email }}. Posle potvrde nalog se blokira, a konačno brisanje sledi posle {{ \App\Services\UserDeletionService::GRACE_DAYS }} dana, uz mogućnost poništavanja. Porudžbine i poslovna istorija ostaju bez veze sa vašim imenom. Više na <a href="{{ route('account-deletion.show', [], false) }}">stranici o brisanju naloga</a>.</p>
         </div>
-        <form method="post" action="{{ route('account.deletion.request') }}" data-confirm-submit="Poslati link za potvrdu brisanja naloga?">
+        <form method="post" action="{{ route('account.deletion.request') }}" class="a1-form" data-confirm-submit="Poslati link za potvrdu brisanja naloga?">
             @csrf
-            <button class="a1-btn a1-btn--danger" type="submit">Zatraži brisanje naloga</button>
+            @if(app(\App\Services\UserDeletionService::class)->needsPassword($user))
+            <label class="a1-field"><span class="a1-label">Trenutna lozinka</span><input class="a1-input" type="password" id="ac-delete-password" name="current_password" autocomplete="current-password" maxlength="4096" required></label>
+            @else
+            <p class="a1-help">Nalog je napravljen Google prijavom i nema lozinku, pa brisanje potvrđujete samo linkom iz e-pošte.</p>
+            @endif
+            <div><button class="a1-btn a1-btn--danger" type="submit">Zatraži brisanje naloga</button></div>
         </form>
     </section>
     @endif

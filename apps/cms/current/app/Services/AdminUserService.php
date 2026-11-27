@@ -31,6 +31,8 @@ final class AdminUserService
                 $data['user_group_id'] = null;
             }
             $data['password_hash'] = Hash::make($password);
+            // Invarijanta: poznata lozinka => password_changed_at nije null (UserDeletionService::needsPassword).
+            $data['password_changed_at'] = now();
             if ((string) $data['status'] === 'active') {
                 $data['approved_by'] = (int) $actor->getAuthIdentifier();
                 $data['approved_at'] = now();
