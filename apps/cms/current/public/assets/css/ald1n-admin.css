@@ -1792,6 +1792,7 @@ button.a1-drawer-rate{cursor:pointer}
 .a1-periodbar__custom>summary::-webkit-details-marker{display:none}
 .a1-periodbar__custom[open]{flex:1 1 100%}
 .a1-periodbar__fields{margin-top:var(--a1-space-12)}
+.a1-periodbar__custom:not([open])>.a1-periodbar__fields{display:none}
 .a1-periodbar__label{flex:1 1 auto;text-align:right}
 @media (max-width:767px){
   .a1-periodbar .a1-seg-form{max-width:100%}
