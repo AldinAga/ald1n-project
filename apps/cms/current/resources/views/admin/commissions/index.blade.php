@@ -176,12 +176,25 @@
             @foreach($adjustments->where('status','!=','rejected') as $adj)
                 @php
                     $adjustmentLabel = match ($adj->kind) {
-                        'credit' => 'Kredit agentu',
+                        'credit' => $adj->status === \App\Models\CommissionAdjustment::CREDIT_SETTLED ? 'Isplaćen kredit agentu' : 'Kredit agentu',
                         'debit' => $adj->status === 'proposed' ? 'Predlog zaduženja' : 'Zaduženje',
                         default => 'Storno',
                     };
                 @endphp
                 <p class="a1-help">{{ $adjustmentLabel }} {{ $adj->kind === 'credit' ? '+' : '-' }}{{ $eur($adj->amount_eur) }} EUR · {{ $adj->reason }}</p>
+                @if($isSuper && $adj->kind === 'credit' && $adj->status === 'confirmed' && \App\Support\CommissionMoney::cents($adj->amount_eur) > 0)
+                    <form method="post" action="{{ route('admin.commissions.credits.settle', $adj) }}" class="a1-form"
+                          data-confirm-submit="Evidentirati da je kredit od {{ $eur($adj->amount_eur) }} EUR isplaćen?">
+                        @csrf
+                        <input type="hidden" name="amount_eur" value="{{ $adj->amount_eur }}">
+                        <label class="a1-field">
+                            <span class="a1-label">Napomena o isplati (opciono)</span>
+                            <input class="a1-input" name="note" maxlength="500">
+                        </label>
+                        <div><button class="a1-btn a1-btn--primary a1-btn--sm" type="submit"
+                                     aria-label="Kredit isplaćen, {{ $eur($adj->amount_eur) }} EUR, kredit broj {{ $adj->id }}">Kredit isplaćen</button></div>
+                    </form>
+                @endif
             @endforeach
             <details class="a1-acc"><summary>Istorija</summary>
                 <div class="a1-acc__body">

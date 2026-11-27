@@ -697,6 +697,93 @@ final class CommissionRefundStornoTest extends TestCase
         self::assertSame('10.00', CommissionAdjustment::query()->sole()->amount_eur);
     }
 
+    public function test_superadmin_can_record_credit_payout_once_and_unblock_account_deletion(): void
+    {
+        [$sub, $super, , $credit] = $this->openCreditScenario();
+        $url = route('admin.commissions.credits.settle', $credit);
+        $deletion = app(UserDeletionService::class);
+        $reports = app(\App\Services\CommissionReportService::class);
+        self::assertSame(1, $deletion->openObligations((int) $sub->id));
+        self::assertSame(20.0, $reports->summaryManaged($super, [])['credit_eur']);
+
+        $this->actingAs($super)->get(route('admin.commissions.index'))->assertOk()
+            ->assertSee($url)->assertSee('Kredit isplaćen');
+        $this->post($url, ['amount_eur' => '10.00'])->assertSessionHasErrors('adjustment');
+        self::assertSame('confirmed', $credit->fresh()->status);
+
+        $this->post($url, ['amount_eur' => '20.00', 'note' => 'Isplaćeno u gotovini.'])
+            ->assertSessionHas('status', 'Isplata kredita je evidentirana.');
+        $closed = $credit->fresh();
+        $this->post($url, ['amount_eur' => '20.00', 'note' => 'Drugi zahtev.'])
+            ->assertSessionHas('status', 'Kredit je već označen kao isplaćen.');
+        self::assertSame('settled', $closed->status);
+        self::assertSame('20.00', $closed->amount_eur);
+        self::assertEquals($super->id, $closed->settled_by);
+        self::assertNotNull($closed->settled_at);
+        self::assertSame($closed->getAttributes(), $credit->fresh()->getAttributes());
+        $audit = AuditLog::query()->where('action', 'commission.credit_settled')->sole();
+        self::assertEquals($super->id, $audit->user_id);
+        self::assertSame('20.00', $audit->metadata_json['amount_eur']);
+        self::assertSame('Isplaćeno u gotovini.', $audit->metadata_json['note']);
+        self::assertSame(0, $deletion->openObligations((int) $sub->id));
+        self::assertSame(0.0, $reports->summaryManaged($super, [])['credit_eur']);
+        $this->get(route('admin.commissions.index'))->assertOk()->assertDontSee($url);
+        \Laravel\Sanctum\Sanctum::actingAs($sub, ['*']);
+        $this->getJson('/api/v1/commissions')->assertOk()->assertJsonPath('summary.credit_eur', 0);
+    }
+
+    public function test_paid_credit_is_not_used_in_a_later_refund_or_cancellation(): void
+    {
+        foreach (['refund', 'cancellation'] as $event) {
+            [, $super, $order, $credit, $admin] = $this->openCreditScenario();
+            $this->actingAs($super)->post(route('admin.commissions.credits.settle', $credit), ['amount_eur' => '20.00'])
+                ->assertSessionHasNoErrors();
+
+            if ($event === 'refund') {
+                $this->refund($order, $admin, 12000);
+            } else {
+                app(OrderWorkflowService::class)->cancel($order->fresh(), $super, 'Otkazivanje posle isplate.');
+            }
+
+            $commission = $credit->commission;
+            self::assertSame(2, $commission->adjustments()->where('kind', 'debit')->count());
+            self::assertSame('20.00', $commission->openDebitEur());
+            self::assertSame(['settled', '20.00'], [$credit->fresh()->status, $credit->fresh()->amount_eur]);
+        }
+
+        self::assertFalse(AuditLog::query()->where('action', 'commission.credit_consumed')->exists());
+    }
+
+    public function test_admin_and_subagent_cannot_record_credit_payout(): void
+    {
+        [$sub, , , $credit, $admin] = $this->openCreditScenario();
+        $url = route('admin.commissions.credits.settle', $credit);
+
+        foreach ([$admin, $sub] as $actor) {
+            $this->actingAs($actor)->post($url, ['amount_eur' => '20.00'])->assertForbidden();
+        }
+
+        self::assertSame('confirmed', $credit->fresh()->status);
+        self::assertFalse(AuditLog::query()->where('action', 'commission.credit_settled')->exists());
+    }
+
+    /** @return array{User, User, Order, CommissionAdjustment, User} */
+    private function openCreditScenario(): array
+    {
+        [$sub, $admin, $order, $commission] = $this->scenario();
+        $super = $this->user('super-'.++$this->seq, 'superadmin');
+        $workflow = app(CommissionWorkflowService::class);
+        $this->pay($order, $admin, 12000);
+        $workflow->markPaidBulk([(int) $commission->id], $super, ['payment_method' => 'bank_transfer']);
+        $refund = $this->refund($order, $admin, 12000);
+        $next = $this->placeOrder($sub, $admin);
+        $this->pay($next, $admin, 12000);
+        $workflow->markPaidBulk([(int) OrderCommission::query()->where('order_id', $next->id)->value('id')], $super, ['payment_method' => 'cash']);
+        app(OrderPaymentService::class)->void($refund, $admin);
+
+        return [$sub, $super, $order, $commission->adjustments()->where('kind', 'credit')->sole(), $admin];
+    }
+
     /** @return array{0:User,1:User,2:Order,3:OrderCommission} */
     private function scenario(): array
     {
