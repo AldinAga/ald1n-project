@@ -64,7 +64,6 @@ bd4e69d641b816d35d69f468d9281c440354a7fa62b199759336f84e8c129df7  ./src/constant
 cbff5f166a4c3b0191a71bd7e0834b4bdfb72f1f0cc5ad9c0a79422d29c50237  ./src/features/auth/auth-provider.tsx
 13115291398d0618e9823ba97abc0f4cc6102beacd4b113573c7270ff7141b51  ./src/features/auth/google-auth.ts
 d91b6f7ec103672b954ae03df3d830839be1c27c2696c875163ed529dc69e705  ./src/features/cart/cart-provider.tsx
-f357ed835f267c676906beac351c4b3693241ca521233bd28790593232150d17  ./src/features/device/device-registrar.tsx
 a32edc157857b9477c51a0b683b640aa4463060301eb5d6b063bb50c9ce83443  ./src/features/notifications/push-notification-bridge.tsx
 03e60dfa9289e3f7196f9d797d8be88c3966bdf16fa40113f281d8e1c1a017a4  ./src/features/notifications/push-service.ts
 08b7d40569ac96a8fc306d4be2c3086207780b901fbddd10cfdac7073e72bd5e  ./src/lib/api/client.ts

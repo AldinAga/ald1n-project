@@ -48,7 +48,7 @@ const required = [
   'src/features/after-sales/attachment-picker.ts',
   'src/features/after-sales/attachment-download.ts',
   'src/lib/api/client.ts', 'src/lib/api/endpoints.ts',
-  'src/features/auth/auth-provider.tsx', 'src/features/auth/google-auth.ts', 'src/features/device/device-registrar.tsx',
+  'src/features/auth/auth-provider.tsx', 'src/features/auth/google-auth.ts',
   'src/features/cart/cart-provider.tsx',
   'src/features/notifications/push-service.ts',
   'src/features/notifications/push-notification-bridge.tsx',
@@ -643,9 +643,6 @@ assert(checkout.includes("paymentMethod === 'bank_transfer'") && checkout.includ
 // MOBILE_V0_8_DEFERRED_PAYMENT_RECEIVABLES_VALIDATOR_BATCH4
 assert(apiTypes.includes("'deferred_payment'") && apiTypes.includes('requires_due_date: boolean') && apiTypes.includes('payment_due_at: Nullable<string>'), 'v0.8 Mobile API tipovi pokrivaju Odloženo plaćanje i datum dospeća.');
 assert(checkout.includes("paymentMethod !== 'deferred_payment'") && checkout.includes('selectedPayment?.requires_due_date') && checkout.includes('payment_due_at:'), 'v0.8 Checkout prikazuje i šalje datum dospeća samo za Odloženo plaćanje.');
-
-const deviceRegistrar = fs.readFileSync(path.join(root, 'src/features/device/device-registrar.tsx'), 'utf8');
-assert(!deviceRegistrar.includes('notifications_enabled: false'), 'Device heartbeat više ne gasi push registraciju pri svakom startu.');
 
 const pushService = fs.readFileSync(path.join(root, 'src/features/notifications/push-service.ts'), 'utf8');
 assert(pushService.includes('setNotificationChannelAsync') && pushService.indexOf('setNotificationChannelAsync') < pushService.indexOf('getExpoPushTokenAsync'), 'Android kanal se kreira pre Expo push tokena.');
