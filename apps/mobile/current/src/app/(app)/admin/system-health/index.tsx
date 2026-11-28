@@ -20,7 +20,7 @@ import {
 } from '@/features/admin/system-health-admin-api';
 import { adminQueryKeys } from '@/features/admin/admin-query-keys';
 import { useAuth } from '@/features/auth/auth-provider';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as errorMessage } from '@/lib/api/error-message';
 import { useAppTheme } from '@/theme/app-theme';
 
 function isObjectValue(
@@ -71,12 +71,6 @@ function formatCheckedAt(value: string | null): string {
 function formatBytes(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0 MB';
   return `${new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 2 }).format(value / 1048576)} MB`;
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
 }
 
 // MOBILE_V1_0_SYSTEM_HEALTH_MUTATIONS_PARITY_BATCH25

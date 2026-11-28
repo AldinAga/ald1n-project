@@ -28,16 +28,12 @@ import { useAppTheme } from '@/theme/app-theme';
 import type {
   AdminCatalogSpecificationField,
 } from '@/types/api';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 
 type StorageUnit = 'GB' | 'TB';
 type StorageRow = { type: string; capacityValue: string; unit: StorageUnit };
 
 function emptyStorageRow(): StorageRow { return { type: '', capacityValue: '', unit: 'GB' }; }
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 function serverFieldErrors(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {};
   const mapped: Record<string, string> = {};

@@ -11,15 +11,9 @@ import { TextField } from '@/components/ui/text-field';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { getGoogleIdToken } from '@/features/auth/google-auth';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { useThemedStyles } from '@/theme/app-theme';
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 
 export default function AccountDeleteScreen() {
   const styles = useThemedStyles(createStyles);

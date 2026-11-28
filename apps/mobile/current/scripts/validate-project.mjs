@@ -1360,7 +1360,8 @@ assert(
   'Admin Product Create ekran koristi catalog.manage_products i canonical admin catalog API.',
 );
 assert(
-  adminProductCreateScreenV06.includes('firstFieldError()')
+  adminProductCreateScreenV06.includes("from '@/lib/api/error-message'")
+    && fs.readFileSync(path.join(root, 'src/lib/api/error-message.ts'), 'utf8').includes('firstFieldError()')
     && adminProductCreateScreenV06.includes("pathname: '/product/[slug]'"),
   'Admin Product Create prikazuje server validation grešku i posle uspeha otvara novi artikal.',
 );

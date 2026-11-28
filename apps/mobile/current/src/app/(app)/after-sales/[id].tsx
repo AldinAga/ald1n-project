@@ -16,7 +16,7 @@ import {
   formatAfterSalesAttachmentSize,
   pickAfterSalesAttachments,
 } from '@/features/after-sales/attachment-picker';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
@@ -41,18 +41,6 @@ function formatBytes(value: number): string {
   if (value < 1024) return `${Math.round(value)} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    return error.firstFieldError() ?? error.message;
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return fallback;
 }
 
 export default function AfterSalesDetailScreen() {

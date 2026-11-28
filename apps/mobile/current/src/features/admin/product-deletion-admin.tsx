@@ -13,7 +13,7 @@ import {
   type AdminCatalogProductPurgeInput,
   type AdminCatalogProductTotalPurgeInput,
 } from '@/features/admin/catalog-admin-api';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { useAppTheme } from '@/theme/app-theme';
 
 type ConfirmationMode = 'purge' | 'total' | null;
@@ -22,12 +22,6 @@ type ReadinessItem = {
   label: string;
   ready: boolean;
 };
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 
 // MOBILE_BATCH174_TOTAL_PRODUCT_PURGE_UX_HARDENING
 export function ProductDeletionAdmin({
