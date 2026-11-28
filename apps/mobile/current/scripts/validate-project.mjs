@@ -164,10 +164,10 @@ assert(
     && productionSubmitHelper505R.includes("const EXPECTED_PACKAGE = 'com.ald1n.mobile'"),
   'Production Android submit zahteva explicitni Build ID, production profil i pinovani EAS CLI.',
 );
-assert(packageJson.dependencies?.expo === '~58.0.26' && packageLockJson.packages?.['']?.dependencies?.expo === '~58.0.26' && packageLockJson.packages?.['node_modules/expo']?.version === '58.0.26', 'Expo SDK 58 verzija prati aktuelni SDK 58 patch baseline.');
+assert(packageJson.dependencies?.expo === '~58.1.0' && packageLockJson.packages?.['']?.dependencies?.expo === '~58.1.0' && packageLockJson.packages?.['node_modules/expo']?.version === '58.1.0', 'Expo SDK 58 verzija prati aktuelni SDK 58 patch baseline.');
 assert(packageJson.dependencies?.['react-native'] === '0.88.1' && packageLockJson.packages?.['']?.dependencies?.['react-native'] === '0.88.1' && packageLockJson.packages?.['node_modules/react-native']?.version === '0.88.1', 'React Native verzija prati Expo SDK 58 template.');
-assert(packageJson.dependencies?.['expo-router'] === '~58.0.32' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~58.0.32' && packageLockJson.packages?.['node_modules/expo-router']?.version === '58.0.32', 'Expo Router verzija je zaključana.');
-assert(packageJson.dependencies?.['expo-dev-client'] === '~58.0.21' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~58.0.21' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '58.0.21', 'Expo development client je uključen.');
+assert(packageJson.dependencies?.['expo-router'] === '~58.0.33' && packageLockJson.packages?.['']?.dependencies?.['expo-router'] === '~58.0.33' && packageLockJson.packages?.['node_modules/expo-router']?.version === '58.0.33', 'Expo Router verzija je zaključana.');
+assert(packageJson.dependencies?.['expo-dev-client'] === '~58.0.22' && packageLockJson.packages?.['']?.dependencies?.['expo-dev-client'] === '~58.0.22' && packageLockJson.packages?.['node_modules/expo-dev-client']?.version === '58.0.22', 'Expo development client je uključen.');
 assert(Boolean(packageJson.dependencies?.['expo-secure-store']), 'SecureStore zavisnost postoji.');
 assert(Boolean(packageJson.dependencies?.['@tanstack/react-query']), 'TanStack Query zavisnost postoji.');
 assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odgovara SDK 58 zahtevu.');
@@ -176,7 +176,7 @@ assert(packageJson.engines?.node === '>=22.13.0', 'Minimalna Node.js verzija odg
 // MOBILE_V1_0_RELEASE_METADATA_LOCK_BATCH40
 assert(packageJson.version === '1.0.0', 'Aplikaciona package verzija je 1.0.0.');
 assert(packageLockJson.version === '1.0.0' && packageLockJson.packages?.['']?.version === '1.0.0', 'package-lock release verzija je 1.0.0.');
-assert(packageJson.dependencies?.['expo-notifications'] === '~58.1.9' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~58.1.9' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '58.1.9', 'expo-notifications prati SDK 58 preporučenu verziju.');
+assert(packageJson.dependencies?.['expo-notifications'] === '~58.1.10' && packageLockJson.packages?.['']?.dependencies?.['expo-notifications'] === '~58.1.10' && packageLockJson.packages?.['node_modules/expo-notifications']?.version === '58.1.10', 'expo-notifications prati SDK 58 preporučenu verziju.');
 assert(packageJson.dependencies?.['expo-symbols'] === '~58.0.5', 'Expo Symbols je uključen za native Material/SF ikonice.');
 assert(packageJson.dependencies?.['react-native-nitro-google-signin'] === '2.3.1', 'Moderni Google Credential Manager bridge je uključen.');
 assert(fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/expo-module.config.json')) && fs.existsSync(path.join(root, 'modules/ald1n-restore-credentials/android/src/main/java/expo/modules/ald1nrestorecredentials/Ald1nRestoreCredentialsModule.kt')), 'Build23 Restore Credentials local Expo Android module postoji.');
@@ -208,8 +208,8 @@ assert(packageJson.dependencies?.['@tamagui/config'] === '2.6.0', 'Tamagui Confi
 assert(packageJson.dependencies?.['@tamagui/animations-reanimated'] === '2.6.0', 'Tamagui Reanimated driver je pinovan.');
 assert(packageJson.dependencies?.['expo-system-ui'] === '~58.0.7' && packageLockJson.packages?.['']?.dependencies?.['expo-system-ui'] === '~58.0.7' && packageLockJson.packages?.['node_modules/expo-system-ui']?.version === '58.0.7', 'Expo System UI prati SDK 58 preporucenu verziju.');
 assert(packageJson.dependencies?.['expo-status-bar'] === '~58.0.5', 'Expo Status Bar prati SDK 58 preporucenu verziju.');
-assert(packageJson.dependencies?.['expo-file-system'] === '~58.0.14' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~58.0.14' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '58.0.14', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
-assert(packageJson.dependencies?.['expo-sharing'] === '~58.0.23' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~58.0.23' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '58.0.23', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
+assert(packageJson.dependencies?.['expo-file-system'] === '~58.0.15' && packageLockJson.packages?.['']?.dependencies?.['expo-file-system'] === '~58.0.15' && packageLockJson.packages?.['node_modules/expo-file-system']?.version === '58.0.15', 'Expo FileSystem je direktno zakljucan za after-sales izbor priloga.');
+assert(packageJson.dependencies?.['expo-sharing'] === '~58.0.24' && packageLockJson.packages?.['']?.dependencies?.['expo-sharing'] === '~58.0.24' && packageLockJson.packages?.['node_modules/expo-sharing']?.version === '58.0.24', 'Expo Sharing je zakljucan za bezbedno otvaranje privatnih after-sales priloga.');
 
 // MOBILE_BUILD21_ANDROID_R8_DEX_OPTIMIZATION_BATCH494_VALIDATOR
 const androidR8ConfigBuild21 = fs.readFileSync(path.join(root, 'app.config.js'), 'utf8');
@@ -348,20 +348,20 @@ assert(
 // MOBILE_BUILD22_SDK57_PATCH_ALIGNMENT_BATCH504R
 // MOBILE_BUILD23_SDK57_PATCH_ALIGNMENT_BATCH521R4
 const expoCompatibilityMatrixV08 = {
-  'expo': { spec: '~58.0.26', version: '58.0.26' },
+  'expo': { spec: '~58.1.0', version: '58.1.0' },
   'expo-constants': { spec: '~58.0.16', version: '58.0.16' },
-  'expo-crypto': { spec: '~58.0.8', version: '58.0.8' },
-  'expo-dev-client': { spec: '~58.0.21', version: '58.0.21' },
-  'expo-file-system': { spec: '~58.0.14', version: '58.0.14' },
+  'expo-crypto': { spec: '~58.0.9', version: '58.0.9' },
+  'expo-dev-client': { spec: '~58.0.22', version: '58.0.22' },
+  'expo-file-system': { spec: '~58.0.15', version: '58.0.15' },
   'expo-font': { spec: '~58.0.12', version: '58.0.12' },
   'expo-linking': { spec: '~58.0.17', version: '58.0.17' },
-  'expo-notifications': { spec: '~58.1.9', version: '58.1.9' },
-  'expo-router': { spec: '~58.0.32', version: '58.0.32' },
-  'expo-sharing': { spec: '~58.0.23', version: '58.0.23' },
+  'expo-notifications': { spec: '~58.1.10', version: '58.1.10' },
+  'expo-router': { spec: '~58.0.33', version: '58.0.33' },
+  'expo-sharing': { spec: '~58.0.24', version: '58.0.24' },
   'expo-secure-store': { spec: '~58.0.3', version: '58.0.3' },
   'expo-system-ui': { spec: '~58.0.7', version: '58.0.7' },
-  'expo-splash-screen': { spec: '~58.0.14', version: '58.0.14' },
-  'expo-updates': { spec: '~58.0.22', version: '58.0.22' },
+  'expo-splash-screen': { spec: '~58.0.15', version: '58.0.15' },
+  'expo-updates': { spec: '~58.0.23', version: '58.0.23' },
 };
 for (const [packageName, expected] of Object.entries(expoCompatibilityMatrixV08)) {
   assert(
@@ -4247,8 +4247,8 @@ const imagePerfResourceB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/c
 const imagePerfDerivativeB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ProductImageDerivativeService.php'), 'utf8');
 const imagePerfServiceB116 = fs.readFileSync(path.join(projectRoot, 'apps/cms/current/app/Services/ProductImageService.php'), 'utf8');
 assert(
-  packageJson.dependencies?.['expo-image'] === '~58.0.18'
-    && packageLockJson.packages?.['']?.dependencies?.['expo-image'] === '~58.0.18'
+  packageJson.dependencies?.['expo-image'] === '~58.0.19'
+    && packageLockJson.packages?.['']?.dependencies?.['expo-image'] === '~58.0.19'
     && /^58\.0\./.test(String(packageLockJson.packages?.['node_modules/expo-image']?.version ?? '')),
   'Batch116 expo-image je SDK58-kompatibilan i zaključan u package/lock authority.',
 );
