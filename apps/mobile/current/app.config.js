@@ -46,7 +46,7 @@ const KOBALT_ACCENT = '#3557c7'; // kobaltDark.button.primary.bg
 const DEV_RUNTIME = '1.0.0-dev-client';
 const m17Deps = require('./package.json').dependencies || {};
 const isM17Sdk58Source =
-  m17Deps.expo === '~58.0.26'
+  m17Deps.expo === '~58.1.0'
   && m17Deps['react-native'] === '0.88.1'
   && m17Deps['react-native-nitro-google-signin'] === '2.3.1'
   && m17Deps['react-native-nitro-modules'] === '0.37.1';

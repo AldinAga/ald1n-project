@@ -100,3 +100,28 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1157/B1157InstallCoordinator\.php$''']
 regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+# Same integrity pin in the B1158, B1159 and B1160 install coordinators (merged by #268; this turned redacted-secrets red on main-based PRs).
+[[allowlists]]
+description = "CSS file digest constant in the B1158 install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1158/B1158InstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+[[allowlists]]
+description = "CSS file digest constant in the B1159 install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1159/B1159InstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
+
+[[allowlists]]
+description = "CSS file digest constant in the B1160 install coordinator"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:.*/b1099-tracked-tree/)?tools/storefront/b1160/B1160InstallCoordinator\.php$''']
+regexes = ['''TOKENS_CSS_SHA256\s*=''']
