@@ -710,7 +710,7 @@ export default function AdminCatalogEditScreen() {
       <View style={[styles.section, activeWorkspace !== 'description' ? styles.workspaceHidden : null]}>
         <Text style={styles.sectionTitle}>Opis</Text>
         <TextField label="Opis" value={description} onChangeText={setDescription} multiline disabled={product.is_archived} error={errors.description} />
-        <TextField label="Interne napomene" value={notes} onChangeText={setNotes} multiline disabled={product.is_archived} error={errors.notes} />
+        <TextField label="Napomene" value={notes} onChangeText={setNotes} multiline disabled={product.is_archived} error={errors.notes} />
       </View>
 
       <View style={[styles.section, activeWorkspace !== 'images' ? styles.workspaceHidden : null]}>
