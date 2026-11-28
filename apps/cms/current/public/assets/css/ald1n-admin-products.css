@@ -13,7 +13,7 @@
 .a1-pc-bulkbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-12);margin-bottom:var(--a1-space-12)}
 .a1-pc-bulkbar [data-bulk-count]{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus)}
 .a1-pc-sub{display:block;color:var(--a1-text-tertiary);font-size:var(--a1-typography-font-size-sm)}
-.a1-pc-code{overflow-wrap:anywhere;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm)}
+.a1-pc-code{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm)}
 
 /* Zavisni filteri iz partials/correlated-specification-filters: prazna grupa se sakriva, onemogućena bledi. */
 .a1-pc-filterform .filter-spec-group{display:grid;gap:var(--a1-space-12);align-content:start}
@@ -138,7 +138,8 @@
 .a1-pc-card.is-dragging{opacity:.75;border-color:var(--a1-accent-link)}
 .a1-pc-cardhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-8)}
 .a1-pc-cardhead>div{display:grid;gap:var(--a1-space-4);min-width:0}
-.a1-pc-card code{overflow-wrap:anywhere;color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm)}
+.a1-pc-card code{color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm)}
+.a1-pc-code,.a1-pc-card code{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;white-space:nowrap}
 .a1-pc-handle{display:none;align-items:center;gap:var(--a1-space-8);min-height:var(--a1-size-touch-target);padding:0 var(--a1-space-12);border:var(--a1x-border-width) dashed var(--a1-border-strong);border-radius:var(--a1-radius-pill);background:transparent;color:var(--a1-text-secondary);font:inherit;cursor:grab;touch-action:none;justify-self:start}
 .is-reordering .a1-pc-handle{display:inline-flex}
 .is-reordering>.a1-pc-card:not(.is-dragging){border-style:dashed}

@@ -67,7 +67,7 @@
             <h2 class="a1-h2" id="br-form-title">{{ $formBrand ? $formBrand['name'] : 'Dodaj globalni brend' }}</h2>
             <p class="a1-text">Slug se generiše automatski. Uklanjanje veze sa tipom je blokirano ako je koristi bilo koji aktivni ili istorijski artikal.</p>
         </div>
-        @if($formBrand)<code class="a1-pc-code">{{ $formBrand['slug'] }}</code>@endif
+        @if($formBrand)<code class="a1-pc-code" title="{{ $formBrand['slug'] }}">{{ $formBrand['slug'] }}</code>@endif
     </div>
 
     <form method="post" action="{{ $formBrand ? route('admin.brand-manager.update',$formBrand['id']) : route('admin.brand-manager.store') }}" class="a1-form" data-brand-manager-form>
@@ -171,7 +171,7 @@
             @forelse($brands as $brand)
                 <tr>
                     <td class="a1-table__primary" data-label="Naziv">
-                        <strong>{{ $brand['name'] }}</strong><code class="a1-pc-code a1-pc-sub">{{ $brand['slug'] }}</code>
+                        <strong>{{ $brand['name'] }}</strong><code class="a1-pc-code a1-pc-sub" title="{{ $brand['slug'] }}">{{ $brand['slug'] }}</code>
                         @if($brand['website_url'])<a class="a1-link a1-link--inline" href="{{ $brand['website_url'] }}" target="_blank" rel="noopener noreferrer">Zvanični sajt</a>@endif
                     </td>
                     <td data-label="Povezani tipovi">

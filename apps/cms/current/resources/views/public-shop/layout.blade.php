@@ -28,7 +28,7 @@
 <span id="vrh" class="shop-top-anchor"></span>
 <a class="skip" href="#content">Preskoči navigaciju</a>
 @unless($shopAuth)<header class="shop-header"><div class="wrap shop-nav">
-<a class="shop-brand{{ $shopBrand['has_logo'] ? ' has-logo' : '' }}" href="{{ $shopHomeUrl }}">
+<a class="shop-brand{{ $shopBrand['has_logo'] ? ' has-logo' : '' }}" href="{{ $shopHomeUrl }}"@unless($shopBrand['has_logo']) title="{{ $shopBrand['brand'] }} · {{ $shopSubtitle }}"@endunless>
 @if($shopBrand['has_logo'])
 @foreach(($shopBrand['logo_light']['src'] === $shopBrand['logo_dark']['src'] ? ['' => $shopBrand['logo_light']] : ['shop-logo-light' => $shopBrand['logo_light'], 'shop-logo-dark' => $shopBrand['logo_dark']]) as $logoVariant => $logo)
 <img class="shop-logo{{ $logoVariant !== '' ? ' '.$logoVariant : '' }}" src="{{ $logo['src'] }}" alt="{{ $shopBrand['logo_alt'] }}" height="{{ $shopBrand['logo_height'] }}"@if($logo['width']) width="{{ $logo['width'] }}"@endif loading="eager" decoding="async">

@@ -2,7 +2,7 @@
 @section('title','Praćenje porudžbine')
 @section('content')
 <section class="shop-hero"><span class="eyebrow">Privatan pristup</span>
-<h1>Porudžbina {{ $order->order_number }}</h1>
+<h1 title="Porudžbina {{ $order->order_number }}">Porudžbina {{ $order->order_number }}</h1>
 <p>Ovaj link omogućava pregled samo ove porudžbine. Nemoj ga deliti javno.</p></section>
 <div class="shop-detail">
 <section class="shop-detail-content">

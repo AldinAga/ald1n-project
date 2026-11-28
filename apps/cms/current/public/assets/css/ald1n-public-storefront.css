@@ -275,7 +275,8 @@ button:active{transform:translateY(1px)}
 .shop-nav{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;grid-template-areas:"brand menu theme";align-items:center;min-height:72px;gap:12px 18px}
 .shop-brand{grid-area:brand;display:inline-flex;align-items:center;gap:12px;min-height:44px;text-decoration:none;color:var(--text);min-width:0;border-radius:var(--radius-sm)}
 .shop-brand-mark{display:grid;place-items:center;flex:0 0 auto;width:40px;height:40px;border-radius:13px;background:linear-gradient(150deg,#4a6fe0,#2c47a8);color:#ffffff;font:800 15px/1 var(--font-display);letter-spacing:.02em;box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 8px 20px -10px rgba(40,72,190,.9)}
-.shop-brand-text{display:grid;font:780 19px/1.15 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
+.shop-brand-text{display:block;min-width:0;font:780 19px/1.15 var(--font-display);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shop-brand-text>span::before{content:"\A";white-space:pre}
 .shop-brand-text span,.shop-brand-sub{font:500 12px/1.3 var(--font);letter-spacing:.04em;color:var(--text-3)}
 /* Configured site logo: the height attribute carries the admin setting
    (24-80px) and the width attribute the intrinsic ratio, so the box is
@@ -315,7 +316,7 @@ button:active{transform:translateY(1px)}
 
 /* ---------- Shared hero ---------- */
 .shop-hero{padding:48px 0 30px}
-.shop-hero h1{font-size:clamp(28px,4vw,48px);line-height:1.12;margin:6px 0 10px;overflow-wrap:anywhere}
+.shop-hero h1{font-size:clamp(28px,4vw,48px);line-height:1.12;margin:6px 0 10px}
 .shop-hero p{max-width:800px;color:var(--text-2)}
 .eyebrow{display:inline-block;margin:0;font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 
@@ -392,12 +393,13 @@ button:active{transform:translateY(1px)}
 .shop-image img{display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
 .no-image{display:grid;place-items:center;align-content:center;gap:8px;height:100%;color:var(--stage-text);font-size:13px;font-weight:600;text-align:center}
 .no-image svg{opacity:.75}
-.shop-product-body{display:flex;flex-direction:column;flex:1 1 auto;gap:4px;padding:18px 18px 18px}
+.shop-product-body{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;gap:4px;padding:18px 18px 18px}
 .shop-product-brand{margin:0;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
-.shop-product-title{margin:2px 0 0;font-size:17px;line-height:1.35;font-weight:650;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em;overflow-wrap:anywhere}
+.shop-product-title{margin:2px 0 0;font-size:17px;line-height:1.35;font-weight:650;letter-spacing:-.01em;min-height:2.7em}
+.shop-product-title,.shop-cart-item h2,.shop-hero h1[title]{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:normal;word-break:normal}
 .shop-product-title a{color:var(--text);text-decoration:none}
 .shop-product-title a:hover{text-decoration:underline}
-.sku{margin:0;font-size:12.5px;color:var(--text-3);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.sku{margin:0;min-width:0;font-size:12.5px;color:var(--text-3);overflow-x:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
 .shop-product-meta{display:grid;gap:6px;margin:12px 0 16px}
 .shop-price{margin:0;font-size:23px;font-weight:780;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums}
 .shop-price-amount{font:780 24px/1.15 var(--font-display);letter-spacing:-.02em}
@@ -457,17 +459,19 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .shop-detail-image img{width:100%;height:auto;max-height:600px;object-fit:contain;mix-blend-mode:multiply}
 .shop-detail-image .no-image{color:var(--stage-text)}
 .shop-detail-content{border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px;min-width:0;box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
-.shop-detail-content h1{line-height:1.25;overflow-wrap:anywhere}
+.shop-detail-content h1{line-height:1.25}
 .shop-detail-content h2{font-size:20px;margin:26px 0 10px}
 .shop-detail-content>h2:first-child{margin-top:0}
 .shop-detail-content p{color:var(--text-2)}
 .shop-detail-content .shop-price,.shop-detail-content p strong{color:var(--text)}
-.shop-description{white-space:pre-line;overflow-wrap:anywhere;color:var(--text-2)}
+.shop-detail-content h1,.shop-description{overflow-x:auto}
+.shop-description{white-space:pre-line;color:var(--text-2)}
 .shop-add-form{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:18px 0}
 .shop-add-form label{display:grid;gap:5px;color:var(--text-2);font-weight:600;font-size:14px}
 .shop-add-form input,.shop-cart-item input{max-width:100%;min-height:44px;background:var(--field);color:var(--text);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px 12px}
 .shop-specs{margin:0}
-.shop-specs div{display:grid;grid-template-columns:1fr 1.5fr;border-bottom:1px solid var(--border);padding:12px 0;gap:10px;overflow-wrap:anywhere}
+.shop-specs div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);border-bottom:1px solid var(--border);padding:12px 0;gap:10px}
+.shop-specs :is(dt,dd){overflow-x:auto}
 .shop-specs dt{color:var(--text-3)}
 .shop-specs dd{margin:0}
 
@@ -479,7 +483,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .shop-cart-items{border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px 22px;box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .shop-cart-item{display:grid;grid-template-columns:minmax(0,2fr) minmax(110px,1fr) 100px 140px;gap:16px;align-items:center;border-bottom:1px solid var(--border);padding:20px 0;min-width:0}
 .shop-cart-items .shop-cart-item:last-child{border-bottom:0}
-.shop-cart-item h2{font-size:19px;overflow-wrap:anywhere}
+.shop-cart-item h2{font-size:19px}
 .shop-cart-item h2 a{color:var(--text)}
 .shop-cart-item label{display:grid;gap:6px}
 .shop-button-subtle{background:var(--ghost-bg-hover);color:var(--text);border:1px solid var(--border-strong);box-shadow:none}
@@ -520,7 +524,7 @@ a.shop-page:hover{border-color:var(--accent);background-color:var(--glass-hover)
 .legal-nav a{display:flex;align-items:center;min-height:40px;padding:8px 12px;border-radius:10px;color:var(--text-2);text-decoration:none}
 .legal-nav a:hover{background:var(--ghost-bg-hover);color:var(--text)}
 .legal-nav a[aria-current=page]{background:var(--accent-soft);color:var(--text);font-weight:650;box-shadow:0 0 0 1px var(--border) inset}
-.legal-article{max-width:80ch;min-width:0;overflow-wrap:anywhere;padding:clamp(20px,3.4vw,40px);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
+.legal-article{max-width:80ch;min-width:0;overflow-x:auto;padding:clamp(20px,3.4vw,40px);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:inset 0 1px 0 var(--rim),var(--shadow-card)}
 .legal-article h1{font-size:clamp(28px,3.6vw,42px);line-height:1.2;margin:4px 0 18px}
 .legal-article h2{font-size:21px;margin:34px 0 10px;color:var(--text)}
 .legal-article h3{font-size:18px;margin:24px 0 8px}
