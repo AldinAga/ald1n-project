@@ -370,15 +370,20 @@ $wantViews=[];foreach(array_keys($new) as $p)if(str_ends_with($p,'.blade.php'))$
 if(DR::B1158_TREE_FILES!==8630||DR::HOST_TREE_FILES!==8630+$hostNewCount||DR::installedTreeFiles()!==8630+$hostNewCount+B1160Payload::NEW_FILES)throw new RuntimeException('PACKAGE_TREE_FILE_COUNTS');
 $dirs=[];foreach(DR::STEPS as [$p,$kind])if($kind==='new'){$d=dirname($p);while($d!=='.'&&$git(['cat-file','-e',$base.':'.CMS.$d],true)===null){$dirs[$d]=true;$d=dirname($d);}}
 $dirList=array_keys($dirs);usort($dirList,static fn($a,$b)=>strlen($a)<=>strlen($b));// New directories are created by the coordinator (mode 0755, group of the parent, removed again on rollback when empty) and listed in the provenance.
-// The storefront is not in this payload (not one file of it changes): the B1149 markers and the stylesheet and gallery versions are those of the live tree (the B1153 ones).
+// Public storefront overlay bytes must match their additional pins from the approved source.
+DR::verifyStorefrontPayload($new);
+foreach(array_keys(DR::ORPHANS) as $p)if(DR::storefrontPath($p))throw new RuntimeException('PACKAGE_STOREFRONT_UNPINNED_'.$p);
 $storeLayout='resources/views/public-shop/layout.blade.php';$themeForm='resources/views/public-shop/partials/theme-form.blade.php';$css='public/assets/css/ald1n-public-storefront.css';$gallery='public/assets/css/ald1n-public-gallery.css';$catalogView='resources/views/public-shop/catalog.blade.php';$show='resources/views/public-shop/show.blade.php';
-foreach([$storeLayout,$themeForm,$css,$gallery,$catalogView,$show] as $p)if(isset($new[$p])||$blob($base,$p)!==$blob($payloadCommit,$p))throw new RuntimeException('PACKAGE_STOREFRONT_FILE_IN_THE_PAYLOAD_OR_CHANGED_'.$p);
-foreach([['css',$css],['gallery',$gallery],['catalog',$catalogView],['catalog',$show]] as [$k,$p])if(!str_contains($blob($base,$p),MARKERS[$k]))throw new RuntimeException('PACKAGE_MARKER_'.strtoupper($k).'_'.$p);
-if(!str_contains($blob($base,$storeLayout).$blob($base,$themeForm),MARKERS['layout']))throw new RuntimeException('PACKAGE_MARKER_LAYOUT');
+foreach([$base,$payloadCommit] as $stateCommit){
+    foreach([['css',$css],['gallery',$gallery],['catalog',$catalogView],['catalog',$show]] as [$k,$p])if(!str_contains($blob($stateCommit,$p),MARKERS[$k]))throw new RuntimeException('PACKAGE_MARKER_'.strtoupper($k).'_'.$p);
+    if(!str_contains($blob($stateCommit,$storeLayout).$blob($stateCommit,$themeForm),MARKERS['layout']))throw new RuntimeException('PACKAGE_MARKER_LAYOUT');
+}
 $version=static function(string $text,string $file):string{if(preg_match_all('~'.preg_quote($file,'~').'\?v=([0-9]{1,12})[\'"]~',$text,$v)!==1)throw new RuntimeException('PACKAGE_CSS_VERSION');return $v[1][0];};
-$cssVersion=$version($blob($base,$storeLayout),'ald1n-public-storefront.css');$oldCssVersion=$cssVersion;
-if($cssVersion!=='202611141')throw new RuntimeException('PACKAGE_STOREFRONT_CSS_VERSION_NOT_202611141_'.$cssVersion);
-$galleryVersion=$version($blob($base,$catalogView),'ald1n-public-gallery.css');if($galleryVersion!==$version($blob($base,$show),'ald1n-public-gallery.css'))throw new RuntimeException('PACKAGE_GALLERY_VERSION_DIFFERS');
+$oldCssVersion=$version($blob($base,$storeLayout),'ald1n-public-storefront.css');
+$cssVersion=$version($blob($payloadCommit,$storeLayout),'ald1n-public-storefront.css');
+if($oldCssVersion!=='202611141')throw new RuntimeException('PACKAGE_STOREFRONT_CSS_VERSION_NOT_202611141_'.$oldCssVersion);
+$galleryVersion=$version($blob($base,$catalogView),'ald1n-public-gallery.css');
+foreach([$base,$payloadCommit] as $stateCommit)foreach([$catalogView,$show] as $p)if($galleryVersion!==$version($blob($stateCommit,$p),'ald1n-public-gallery.css'))throw new RuntimeException('PACKAGE_GALLERY_VERSION_DIFFERS');
 // The source markers the CLI helper reads from the live files: in every payload file, absent from the pre-state bytes of a modified file (a new file has none).
 foreach(DR::SOURCE_MARKERS as $k=>[$p,$needle])if(!isset($new[$p])||!str_contains($new[$p],$needle)||(is_string($old[$p]??null)&&str_contains($old[$p],$needle)))throw new RuntimeException('PACKAGE_SOURCE_MARKER_'.strtoupper($k));
 if(count(DR::SOURCE_MARKERS)>40)throw new RuntimeException('PACKAGE_MORE_THAN_40_SOURCE_MARKERS');

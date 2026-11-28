@@ -1,19 +1,20 @@
-# B1160: {{FILES}} fajlova ({{NEW}} novih, {{MOD}} izmijenjenih), migracije: {{MIGRATIONS}}
+# B1160 – {{FILES}} fajlova i pripadajuće migracije
 
 Autor: Ald1n <https://ald1n.com>
 
-Ovaj README se generiše iz `README-SR.tpl.md` komandom `php tools/storefront/b1160/generate.php <SHA>`. Ne uređuje se ručno.
+Generator popunjava ovaj dokument na osnovu `README-SR.tpl.md`.
 
-Paket prebacuje produkciju sa stanja B1158 (Izvještaj 1124, 8630 fajlova, 597 ruta, `origin/main` 8fc5a4c7) na `origin/main` {{SRC8}} (`{{SRC}}`).
+Paket je namenjen prelazu sa B1158 (izveštaj 1124, 8630 fajlova, 597 ruta, `origin/main` 8fc5a4c7) na `origin/main` {{SRC8}} (`{{SRC}}`).
 
 ## Šta se mijenja
 
-- {{FILES}} fajlova u `apps/cms/current`: {{NEW}} novih, {{MOD}} izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: {{GROUPS}}.
-- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: {{ORPHAN_LIST}} (broj: {{ORPHANS}}).
-- Stablo posle instalacije ima {{TREE}} fajlova (8630 + {{NEW}} novih).
-- Rute: 597 postaje {{ROUTES_AFTER}} (razlika {{ROUTE_DELTA}}). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
-- Migracije: {{MIGRATIONS}}. Izvršene posle migracije: 77 postaje {{RAN_AFTER}}.
-- Nema izmjena `composer`, `.env` ni `config`.
+- Izmene u `apps/cms/current` obuhvataju {{NEW}} novih i {{MOD}} izmenjenih fajlova u grupama {{GROUPS}}.
+- Instalater podržava zamenu i dodavanje fajlova. Fajlovi obrisani na `main` ostaju u stablu sa pinovanim digestima radi provere stabla i povratka koda ({{ORPHANS}}) {{ORPHAN_LIST}}.
+- Očekivano stablo posle instalacije ima {{TREE}} fajlova. U računicu ulaze prihvaćene promene stanja `vendor/` posle B1158 i {{NEW}} novih fajlova.
+- Generator očekuje {{ROUTES_AFTER}} ruta (razlika {{ROUTE_DELTA}}). CI proverava broj na pokrenutoj aplikaciji.
+- Planirane migracije su {{MIGRATIONS}}. Broj izvršenih migracija prelazi sa 77 na {{RAN_AFTER}}.
+- Provera stabla uključuje {{HOST_FILES}} pinovanih putanja u `vendor/`. Instalater menja `composer.lock` sa originalnog manifesta na bajtove ciljnog SHA. `vendor/` se samo proverava, bez pokretanja Composera.
+- `MANIFEST-SHA256.txt` je izvan runtime manifesta. `bin/stable-maintenance-smoke.php` zadržava verziju iz originalnog manifesta jer prethodni paketi nisu instalirali njegovu verziju iz baze ovog prelaza.
 
 ## Redoslijed
 
@@ -76,9 +77,9 @@ Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija s
 5. Redoslijed grupa je izveden pravilom (nove datoteke, biblioteke, kontroleri, provider, rute, prikazi; unutar grupe pozvani prije pozivaoca). Pravilo ne vidi da li stari prikaz pada na novu promjenljivu kontrolera; CI to hvata tek kad stranica ima podatke.
 6. Cloudflare se ne dira i nije potrebno čišćenje keša.
 
-## Šta se mijenja za korisnike
+## Šta se menja za korisnike
 
-Vidljivo je ono što piše u spisku fajlova iznad (u ovom izdanju samo CSS kataloga). `composer.lock` je izuzet: `vendor/web-auth/webauthn-lib` na hostu ostaje 5.3.9 dok se posebno ne ažurira. Obrisani fajlovi iz main-a ostaju na serveru.
+Paket obuhvata G7 stilove, prikaz kartica i galerije kataloga, Napomene, poruke pri Google prijavi, potvrdu lozinke pri brisanju naloga i obračun provizija, uključujući storno i PDF. Ne koristite dugme „Kredit isplaćen“ tokom instalacije. Ruta se objavljuje pre migracije koja dodaje kolone `settled_at` i `settled_by`, pa zahtev može da vrati grešku. Potvrdu isplate proverite posle uspešnog završetka migracija.
 
 ## Šta NIJE provjeravano ovim alatom
 
@@ -87,8 +88,7 @@ Prijavljene strane i POST tokovi; slanje pošte; PDF; stvarna jačina opterećen
 ## Kako se pravi paket za novi SHA
 
 ```
-php tools/storefront/b1160/generate.php <ciljni SHA> --base <SHA instaliranog main-a> --chain-report docs/operations/1124-B1158-INSTALLER-<datum>-<vrijeme>.md [--routes-after <broj>] [--pin <putanja>=<A-F>]
-git add tools/storefront/b1160 && git commit
+php tools/storefront/b1160/generate.php <ciljni SHA> --chain-report docs/operations/1124-B1158-INSTALLER-20261125-100235.md --host-state tools/storefront/b1160/host-state.tsv
 ```
 
 Generator piše `Payload.php` i ovaj README; workflow `b1160-installer.yml` čita sve iz `Payload.php` i pada ako on nije tačno izlaz generatora (`--check`).

@@ -1,19 +1,20 @@
-# B1160: 2 fajlova (0 novih, 2 izmijenjenih), migracije: nema
+# B1160 – 67 fajlova i pripadajuće migracije
 
 Autor: Ald1n <https://ald1n.com>
 
-Ovaj README se generiše iz `README-SR.tpl.md` komandom `php tools/storefront/b1160/generate.php <SHA>`. Ne uređuje se ručno.
+Generator popunjava ovaj dokument na osnovu `README-SR.tpl.md`.
 
-Paket prebacuje produkciju sa stanja B1158 (Izvještaj 1124, 8630 fajlova, 597 ruta, `origin/main` 8fc5a4c7) na `origin/main` 208fb62e (`208fb62ebab351cf4fadc888f05f65e175c8cd44`).
+Paket je namenjen prelazu sa B1158 (izveštaj 1124, 8630 fajlova, 597 ruta, `origin/main` 8fc5a4c7) na `origin/main` 993e38fa (`993e38fa73d9fcccb574c40afaa5217db65c5fed`).
 
 ## Šta se mijenja
 
-- 2 fajlova u `apps/cms/current`: 0 novih, 2 izmijenjenih. Testovi i dokumentacija se ne instaliraju. Grupe: B1 C1.
-- Fajlovi koje je main obrisao ostaju na serveru, jer ništa na serveru ne brišemo: nema (broj: 0).
-- Stablo posle instalacije ima 8634 fajlova (8630 + 0 novih).
-- Rute: 597 postaje 597 (razlika 0). Ova brojka se u generatoru procjenjuje iz razlike deklaracija `Route::` osim ako je zadat `--routes-after`; CI je mjeri na stvarnoj aplikaciji i pada ako se razlikuje.
-- Migracije: nema. Izvršene posle migracije: 77 postaje 77.
-- Nema izmjena `composer`, `.env` ni `config`.
+- Izmene u `apps/cms/current` obuhvataju 7 novih i 60 izmenjenih fajlova u grupama A7 B22 C14 E1 F23.
+- Instalater podržava zamenu i dodavanje fajlova. Fajlovi obrisani na `main` ostaju u stablu sa pinovanim digestima radi provere stabla i povratka koda (5) `public/assets/css/ald1n-liquid-glass.css`, `public/assets/css/ald1n-ui-refinement.css`, `public/assets/css/ald1n-ui-v2.css`, `public/assets/css/app.css`, `public/assets/css/vendor/liquid-glass-web.css`.
+- Očekivano stablo posle instalacije ima 8641 fajlova. U računicu ulaze prihvaćene promene stanja `vendor/` posle B1158 i 7 novih fajlova.
+- Generator očekuje 602 ruta (razlika 5). CI proverava broj na pokrenutoj aplikaciji.
+- Planirane migracije su `2026_11_25_000001_add_payout_rate_to_commission_payment_batches`, `2026_11_26_000001_backfill_password_changed_at`, `2026_11_27_000001_add_credit_settlement_to_commission_adjustments`. Broj izvršenih migracija prelazi sa 77 na 80.
+- Provera stabla uključuje 27 pinovanih putanja u `vendor/`. Instalater menja `composer.lock` sa originalnog manifesta na bajtove ciljnog SHA. `vendor/` se samo proverava, bez pokretanja Composera.
+- `MANIFEST-SHA256.txt` je izvan runtime manifesta. `bin/stable-maintenance-smoke.php` zadržava verziju iz originalnog manifesta jer prethodni paketi nisu instalirali njegovu verziju iz baze ovog prelaza.
 
 ## Redoslijed
 
@@ -21,8 +22,8 @@ Paket prebacuje produkciju sa stanja B1158 (Izvještaj 1124, 8630 fajlova, 597 r
 2. Kopija svakog izmijenjenog fajla u privatni prostor B1160.
 3. Fajlovi po grupama, sa pauzom i provjerom da sajt radi poslije svake: A novi fajlovi (neaktivni), B biblioteke, C kontroleri i bin alati, D `AppServiceProvider`, E rute, F prikazi.
 4. Tek kad je svaki fajl na mjestu: svježa rezervna kopija baze (`app:backup-create` pa `app:backup-verify`), ponovna provjera te kopije, tačno nove migracije na čekanju, pa jedan poziv `artisan migrate --force --realpath --path=…`. Nikad `fresh`, `refresh`, `rollback` ni `reset`, nikad `down()`, nikad brisanje tabele.
-5. Provjera poslije migracije: 77 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
-6. Prijem: kompajliranje svih 0 prikaza, stilovi, rute, ponovno stablo od 8634 fajlova.
+5. Provjera poslije migracije: 80 izvršenih, 0 na čekanju, nove tabele i kolone postoje, nijedan red u tabelama obavještenja nije dodat tokom migracije (u produkciji se prijavljuje samo kao INFO).
+6. Prijem: kompajliranje svih 23 prikaza, stilovi, rute, ponovno stablo od 8641 fajlova.
 
 Ako payload nema migracija (migracije: nema), koraci 4 i 5 se preskaču: nema rezervne kopije baze ni migracije, a vraćanje je običan povratak fajlova (`PASS_ROLLED_BACK_BY_OWNER`).
 
@@ -76,9 +77,9 @@ Prva raspakuje, druga instalira, treća i četvrta vraćaju fajlove (migracija s
 5. Redoslijed grupa je izveden pravilom (nove datoteke, biblioteke, kontroleri, provider, rute, prikazi; unutar grupe pozvani prije pozivaoca). Pravilo ne vidi da li stari prikaz pada na novu promjenljivu kontrolera; CI to hvata tek kad stranica ima podatke.
 6. Cloudflare se ne dira i nije potrebno čišćenje keša.
 
-## Šta se mijenja za korisnike
+## Šta se menja za korisnike
 
-Vidljivo je ono što piše u spisku fajlova iznad (u ovom izdanju samo CSS kataloga). `composer.lock` je izuzet: `vendor/web-auth/webauthn-lib` na hostu ostaje 5.3.9 dok se posebno ne ažurira. Obrisani fajlovi iz main-a ostaju na serveru.
+Paket obuhvata G7 stilove, prikaz kartica i galerije kataloga, Napomene, poruke pri Google prijavi, potvrdu lozinke pri brisanju naloga i obračun provizija, uključujući storno i PDF. Ne koristite dugme „Kredit isplaćen“ tokom instalacije. Ruta se objavljuje pre migracije koja dodaje kolone `settled_at` i `settled_by`, pa zahtev može da vrati grešku. Potvrdu isplate proverite posle uspešnog završetka migracija.
 
 ## Šta NIJE provjeravano ovim alatom
 
@@ -87,8 +88,7 @@ Prijavljene strane i POST tokovi; slanje pošte; PDF; stvarna jačina opterećen
 ## Kako se pravi paket za novi SHA
 
 ```
-php tools/storefront/b1160/generate.php <ciljni SHA> --base <SHA instaliranog main-a> --chain-report docs/operations/1124-B1158-INSTALLER-<datum>-<vrijeme>.md [--routes-after <broj>] [--pin <putanja>=<A-F>]
-git add tools/storefront/b1160 && git commit
+php tools/storefront/b1160/generate.php <ciljni SHA> --chain-report docs/operations/1124-B1158-INSTALLER-20261125-100235.md --host-state tools/storefront/b1160/host-state.tsv
 ```
 
 Generator piše `Payload.php` i ovaj README; workflow `b1160-installer.yml` čita sve iz `Payload.php` i pada ako on nije tačno izlaz generatora (`--check`).

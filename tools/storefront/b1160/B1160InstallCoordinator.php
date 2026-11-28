@@ -99,6 +99,7 @@ final class B1160InstallCoordinator
     // ===== B1160_PAYLOAD (end) =====
     public const GUARDS=B1160Payload::GUARDS;
     public const ADMIN_CSS_PATHS=B1160Payload::ADMIN_CSS_PATHS;
+    public const STOREFRONT_APPROVED_SOURCE='993e38fa73d9fcccb574c40afaa5217db65c5fed';
     /** The B1154 stylesheet that this payload does not touch: still served with its B1154 payload bytes. */
     public const TOKENS_CSS_PATH='/assets/css/ald1n-tokens.css';
     public const TOKENS_CSS_SHA256='9fc9e850adee6325bce7edc75a4e70fe9d01a7076cfecdac80614147ad2c9701';
@@ -509,6 +510,25 @@ final class B1160InstallCoordinator
         return $out;
     }
 
+    public static function storefrontPath(string $path):bool
+    {
+        return str_starts_with($path,'resources/views/public-shop/')
+            || preg_match('~^public/assets/css/(?:ald1n-public-[^/]+|ald1n-tokens)\.css$~D',$path)===1;
+    }
+
+    /** Match the actual payload bytes and require every generated pin to be represented. */
+    public static function verifyStorefrontPayload(array $payload):void
+    {
+        $pins=B1160Payload::STOREFRONT_DIGESTS;
+        foreach($payload as $path=>$bytes){
+            if(!self::storefrontPath($path))continue;
+            if(self::SOURCE_COMMIT!==self::STOREFRONT_APPROVED_SOURCE||!isset($pins[$path]))throw new RuntimeException('PACKAGE_STOREFRONT_UNPINNED_'.$path);
+            if(!hash_equals($pins[$path],hash('sha256',$bytes)))throw new RuntimeException('PACKAGE_STOREFRONT_DIGEST_MISMATCH_'.$path);
+            unset($pins[$path]);
+        }
+        if($pins!==[])throw new RuntimeException('PACKAGE_STOREFRONT_PIN_NOT_IN_PAYLOAD_'.array_key_first($pins));
+    }
+
     /**
      * No Cloudflare change and no purge is needed: the views link the changed admin stylesheet and the new registration stylesheet as ?v=<file modification time>, a URL the edge has never
      * seen (the new file did not exist, the changed one gets a new modification time, and the tool asks for both only with a random release marker, never under the URL the views link, so
@@ -677,9 +697,13 @@ final class B1160InstallCoordinator
     }
 
     /** The tree before this rollout: the B1158 tree with the accepted host state applied (composer changed these vendor files on the host after Report1124). A host file that is not exactly in its pinned state is a HOLD. */
-    private function hostManifest():array
+    private function hostManifest(bool $atStart=true):array
     {
         $ch=[];foreach($this->hostState as $p=>[$old,$new]){if(!is_string($p)||!str_starts_with($p,'vendor/')||str_contains($p,'..')||!is_string($new)||($old!==null&&!is_string($old))||$old===$new)throw new RuntimeException('HOST_STATE_ENTRY');$ch[]=['path'=>$p,'kind'=>$old===null?'new':'modified','sha256'=>$new,'preSHA256'=>$old];}
+        if($atStart&&$this->lockAlreadyCurrent()){
+            [$old,$target]=self::DIGESTS['composer.lock'];
+            $ch[]=['path'=>'composer.lock','kind'=>'modified','sha256'=>$target,'preSHA256'=>$old];
+        }
         $files=self::applied($this->b1158Manifest()['files'],$ch,'HOST_STATE');if(count($files)!==self::HOST_TREE_FILES)throw new RuntimeException('HOST_STATE_COUNT');return ['files'=>$files];
     }
 
@@ -695,7 +719,7 @@ final class B1160InstallCoordinator
     private function installedManifest():array
     {
         $changes=array_map(static fn($s)=>['path'=>$s['path'],'kind'=>$s['kind'],'sha256'=>$s['payloadSHA256'],'preSHA256'=>$s['preSHA256']],$this->plan);
-        $files=self::applied($this->hostManifest()['files'],$changes,'B1160_MANIFEST');if(count($files)!==self::installedTreeFiles())throw new RuntimeException('B1160_MANIFEST_COUNT');return ['files'=>$files];
+        $files=self::applied($this->hostManifest(false)['files'],$changes,'B1160_MANIFEST');if(count($files)!==self::installedTreeFiles())throw new RuntimeException('B1160_MANIFEST_COUNT');return ['files'=>$files];
     }
 
     /** Last value of every KEY=value line of the B1158 terminal report (Report1124); it must also carry the tree and route count facts of the B1158 acceptance ($routes = the count B1158 left). */
@@ -750,19 +774,35 @@ final class B1160InstallCoordinator
         if(!hash_equals($step['payloadSHA256'],hash('sha256',$bytes))||strlen($bytes)!==$step['size'])throw new RuntimeException('PAYLOAD_INTEGRITY');return $bytes;
     }
 
-    /** pre | payload | absent | foreign | link for one target; never writes. */
+    private function lockAlreadyCurrent():bool
+    {
+        return isset(self::DIGESTS['composer.lock'])&&($this->state['composerLockAtStart']??null)===self::DIGESTS['composer.lock'][1];
+    }
+
+    private function recordInitialComposerLock():?string
+    {
+        unset($this->state['composerLockAtStart']);
+        if(!isset(self::DIGESTS['composer.lock']))return null;
+        $step=$this->step('composer.lock');$lock=$this->classify($step);
+        if(!in_array($lock['state'],['pre','payload'],true))throw new RuntimeException('COMPOSER_LOCK_UNKNOWN_PRE_STATE');
+        return $this->state['composerLockAtStart']=$lock['sha256'];
+    }
+
+    /** pre | payload | unchanged | absent | foreign | link for one target; never writes. */
     private function classify(array $step):array
     {
         $t=$this->target($step);clearstatcache(true,$t);if(is_link($t))return ['state'=>'link','sha256'=>null];if(!file_exists($t))return ['state'=>'absent','sha256'=>null];if(!is_file($t))return ['state'=>'foreign','sha256'=>null];
-        $sha=hash_file('sha256',$t);$state=$sha===$step['payloadSHA256']?'payload':($step['preSHA256']!==null&&$sha===$step['preSHA256']?'pre':'foreign');return ['state'=>$state,'sha256'=>$sha];
+        $sha=hash_file('sha256',$t);
+        if($step['path']==='composer.lock'&&$this->lockAlreadyCurrent())return ['state'=>$sha===$step['payloadSHA256']?'unchanged':'foreign','sha256'=>$sha];
+        $state=$sha===$step['payloadSHA256']?'payload':($step['preSHA256']!==null&&$sha===$step['preSHA256']?'pre':'foreign');return ['state'=>$state,'sha256'=>$sha];
     }
 
     private function targets():array
     {
-        $out=['pre'=>0,'payload'=>0,'absent'=>0,'foreign'=>[],'link'=>[]];
+        $out=['pre'=>0,'payload'=>0,'unchanged'=>0,'absent'=>0,'foreign'=>[],'link'=>[]];
         foreach($this->plan as $s){$c=$this->classify($s);if(in_array($c['state'],['foreign','link'],true))$out[$c['state']][]=['n'=>$s['n'],'path'=>$s['path'],'sha256'=>$c['sha256'],'expectedPre'=>$s['preSHA256'],'payload'=>$s['payloadSHA256']];else $out[$c['state']]++;}
-        $new=count(array_filter($this->plan,static fn($s)=>$s['kind']==='new'));$out['preState']=$out['foreign']===[]&&$out['link']===[]&&$out['pre']===count($this->plan)-$new&&$out['absent']===$new;
-        $out['installed']=$out['foreign']===[]&&$out['link']===[]&&$out['payload']===count($this->plan);return $out;
+        $new=count(array_filter($this->plan,static fn($s)=>$s['kind']==='new'));$out['preState']=$out['foreign']===[]&&$out['link']===[]&&$out['pre']+$out['unchanged']===count($this->plan)-$new&&$out['absent']===$new;
+        $out['installed']=$out['foreign']===[]&&$out['link']===[]&&$out['payload']+$out['unchanged']===count($this->plan);return $out;
     }
 
     private function routeCacheFiles():array
@@ -862,7 +902,8 @@ final class B1160InstallCoordinator
         $t=[];foreach($this->plan as $s){
             // After a schema-ahead rollback the two migration files stay on the host (their rows are in the migrations table): they are not a target of the old-state probe.
             if(!$installed&&($this->state['keepMigrations']??false)===true&&in_array($s['path'],self::migrationFiles(),true))continue;
-            $dir=realpath(dirname($this->target($s)));$path=($dir===false?dirname($this->target($s)):$dir).'/'.basename($s['path']);$t[$path]=$installed?$s['payloadSHA256']:$s['preSHA256'];}
+            $dir=realpath(dirname($this->target($s)));$path=($dir===false?dirname($this->target($s)):$dir).'/'.basename($s['path']);
+            $t[$path]=$installed||($s['path']==='composer.lock'&&$this->lockAlreadyCurrent())?$s['payloadSHA256']:$s['preSHA256'];}
         return $t;
     }
 
@@ -1214,18 +1255,25 @@ final class B1160InstallCoordinator
         else $emailVerdict='INFO_DIFFERS_FROM_THE_OLD_STATE_NOT_JUDGED_(EDGE_FACT_THE_PAYLOAD_TOUCHES_NO_LAYOUT_OR_LEGAL_TEXT)';
         $rows[]=['check'=>'LEGAL_EMAIL_STATE','result'=>$emailVerdict,'now'=>$emailNow,'oldState'=>$emailBase];
         $this->fault('DURING_SMOKES_'.$state);
-        $css=function(string $path,array $query,?string $mk,string $label,string $needle)use(&$rows,&$inconclusive,$add):void{
+        $css=function(string $path,array $query,?string $mk,string $label,string $needle,?string $sha=null)use(&$rows,&$inconclusive,$add):void{
             $r=$this->get($path,$query,$mk);$has=str_contains($r['body'],$needle);$okay=!$r['transport']&&$r['status']===200;
-            if($okay&&!$has&&CatalogWeb::edgeCached($r['cfCache'])){$inconclusive[]=$label;$rows[]=['check'=>$label,'expected'=>'200_CSS','observed'=>$r['status'],'result'=>'INCONCLUSIVE_EDGE_CACHED_COPY','cfCache'=>$r['cfCache'],'cssMarker'=>$has,'attempts'=>$r['attempts']];}
+            if($sha!==null){$f=self::assetFacts($r,$sha);$add($label,$r,'200_TEXT_CSS_SHA256_EQUALS_THE_PAYLOAD',$has&&$f['ok'],$f+['cssMarker'=>$has]);}
+            elseif($okay&&!$has&&CatalogWeb::edgeCached($r['cfCache'])){$inconclusive[]=$label;$rows[]=['check'=>$label,'expected'=>'200_CSS','observed'=>$r['status'],'result'=>'INCONCLUSIVE_EDGE_CACHED_COPY','cfCache'=>$r['cfCache'],'cssMarker'=>$has,'attempts'=>$r['attempts']];}
             else $add($label,$r,'200_CSS',$okay&&$has,['cfCache'=>$r['cfCache'],'cssMarker'=>$has]);
         };
-        // The storefront stylesheet is not in this payload: the B1153 URL (?v=cssVersion) and its view switch rules are asserted in BOTH states.
-        $cssVersion=$this->cssVersion;
-        $css(self::CSS_PATH,[],$marker,self::CSS_PATH,$m['css']);
+        // Keep the linked URL checks and separately verify the fresh CSS response against the payload.
+        $cssVersion=$installed?$this->cssVersion:$this->oldCssVersion;
+        $publicCss=$installed?array_filter(B1160Payload::STOREFRONT_DIGESTS,static fn($p)=>str_starts_with($p,'public/assets/css/'),ARRAY_FILTER_USE_KEY):[];
+        $css(self::CSS_PATH,[],$marker,self::CSS_PATH,$m['css'],$publicCss['public'.self::CSS_PATH]??null);
         $css(self::CSS_PATH,['v'=>$cssVersion],null,self::CSS_PATH.'?v='.$cssVersion,$m['css']);
         $css(self::CSS_PATH,['v'=>$cssVersion],null,self::CSS_PATH.'?v='.$cssVersion.' (view switch rules)','.shop-view-group');
-        $css(self::GALLERY_CSS_PATH,[],$marker,self::GALLERY_CSS_PATH,$m['gallery']);
+        $css(self::GALLERY_CSS_PATH,[],$marker,self::GALLERY_CSS_PATH,$m['gallery'],$publicCss['public'.self::GALLERY_CSS_PATH]??null);
         $css(self::GALLERY_CSS_PATH,['v'=>$this->galleryVersion],null,self::GALLERY_CSS_PATH.'?v='.$this->galleryVersion,$m['gallery']);
+        unset($publicCss['public'.self::CSS_PATH],$publicCss['public'.self::GALLERY_CSS_PATH]);
+        foreach($publicCss as $path=>$sha){
+            $url=substr($path,strlen('public'));$r=$this->get($url,[],$marker);$f=self::assetFacts($r,$sha);
+            $add($url,$r,'200_TEXT_CSS_SHA256_EQUALS_THE_PAYLOAD',$f['ok'],$f);
+        }
         // The theme route exists since B1148 and accepts POST only: GET and HEAD are answered 405 by the router in both states.
         foreach(['GET','HEAD'] as $method){$r=$this->get(self::THEME_PATH,[],$marker,$method);$add($method.' '.self::THEME_PATH,$r,'405_NEVER_5XX',$ok($r,405));}
         // The admin dashboard / (the page that renders the dashboard once logged in), the SMTP admin page (B1149), the merchant settings page (B1151) and the document settings page for a guest:
@@ -1534,6 +1582,7 @@ final class B1160InstallCoordinator
     {
         $g=[];$v=['stage'=>$stage];$installed=$stage==='installed';
         $try=static function(string $gate,callable $check)use(&$g):mixed{try{$r=$check();$g[$gate]=null;return $r;}catch(Throwable $e){$g[$gate]=self::code($e);return null;}};
+        if(!$installed)$v['composerLockAtStart']=$try('composerLockPreState',fn()=>$this->recordInitialComposerLock());
         $chain=$try('chainB1158Report1124',fn()=>$this->chain());if($chain!==null){$this->state['chain']=$chain;$v['retainedDirectoryModes']=$this->retainedModes();}$v['chain']=$chain;
         $manifest=$try('runtimeManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155B1156B1157B1158',fn()=>$this->hostManifest());
         $verify=function(array $m,int $n)use($chain):array{try{return LeanGates::verifyTree($this->active(),$m,self::CONFIG_SHA,$chain['htaccessSHA256'],$n);}catch(RuntimeException $e){$this->emit('TREE_MISMATCH_PATHS',['paths'=>$this->treeMismatches($m,$chain['htaccessSHA256'])]);throw $e;}};
@@ -1543,7 +1592,7 @@ final class B1160InstallCoordinator
         if(!$installed)$g['newPathsAbsent']=count(array_filter($this->plan,fn($s)=>$s['kind']==='new'&&(file_exists($this->target($s))||is_link($this->target($s)))))===0?null:'NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED';
         $v['tree']=$manifest!==null&&$chain!==null?$try('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155B1156B1157B1158',fn()=>$installed?$verify($this->installedManifest(),self::installedTreeFiles()):$verify($manifest,self::HOST_TREE_FILES)):null;
         if(!array_key_exists('activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155B1156B1157B1158',$g))$g['activeTreeEqualsManifestPlusB1146B1147B1148B1149B1150B1151B1152B1153B1154B1155B1156B1157B1158']='NOT_EVALUATED_CHAIN_OR_MANIFEST';
-        if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['kind']==='modified'){B1160Files::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
+        if(!$installed)$v['replaceable']=$try('targetsReplaceable',function():array{$n=0;foreach($this->plan as $s){if($s['path']==='composer.lock'&&$this->lockAlreadyCurrent())continue;if($s['kind']==='modified'){B1160Files::replaceable($this->target($s));$n++;}else{$d=dirname($this->target($s));while(!is_dir($d))$d=dirname($d);if(is_link($d)||!is_writable($d))throw new RuntimeException('TARGET_DIRECTORY_NOT_WRITABLE');}}return ['modifiedOneLinkNoAcl'=>$n];});
         // This payload has six new PHP classes: an authoritative composer classmap would hide them from the autoloader, so it blocks (the check cannot fire where B1155 passed).
         $g['composerClassmapNotAuthoritative']=$this->classmapBlocker();
         // Two migrations (the only files under database/), no composer change, no config change and no .env change: asserted and printed (the migration gate below reads the live state).
@@ -1633,6 +1682,11 @@ final class B1160InstallCoordinator
         $dir=$this->state['private'].'/backup';if(!is_dir($dir)&&!mkdir($dir,0700))throw new RuntimeException('BACKUP_DIRECTORY_CREATE');$files=[];
         foreach($this->plan as $s){
             if($s['kind']==='new'){$files[$s['n']]=['path'=>$s['path'],'kind'=>'new','before'=>'ABSENT'];continue;}
+            if($s['path']==='composer.lock'&&$this->lockAlreadyCurrent()){
+                if($this->classify($s)['state']!=='unchanged')throw new RuntimeException('PRE_STATE_CHANGED_BEFORE_BACKUP');
+                $files[$s['n']]=['path'=>$s['path'],'kind'=>'unchanged','sha256'=>$s['payloadSHA256']];
+                continue;
+            }
             $t=$this->target($s);$bytes=(string)file_get_contents($t);if(!hash_equals((string)$s['preSHA256'],hash('sha256',$bytes)))throw new RuntimeException('PRE_STATE_CHANGED_BEFORE_BACKUP');clearstatcache(true,$t);$st=stat($t);
             $copy=$dir.'/'.sprintf('%02d',$s['n']).'.orig';$this->privateBackupCopy($copy,$bytes);
             $files[$s['n']]=['path'=>$s['path'],'kind'=>'modified','copy'=>$copy,'sha256'=>$s['preSHA256'],'size'=>strlen($bytes),'mode'=>$st['mode']&0777,'gid'=>$st['gid'],'mtime'=>$st['mtime']];
@@ -1712,7 +1766,7 @@ final class B1160InstallCoordinator
     private function guardGroupCheck(string $group):void
     {
         $kind=self::GUARDS[$group]??null;if($kind===null)return;
-        foreach($this->plan as $x)if($x['group']<$group&&$this->classify($x)['state']!=='payload')throw new RuntimeException('GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE');
+        foreach($this->plan as $x)if($x['group']<$group&&!in_array($this->classify($x)['state'],['payload','unchanged'],true))throw new RuntimeException('GUARD_REFUSED_AN_EARLIER_FILE_IS_NOT_IN_PLACE');
         if($kind==='classes'){$proof=$this->state['webClassProof'][$group]??null;if(!is_array($proof)||($proof['classes']??null)!==array_keys($this->proofClassFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_CLASS_PROOF');if($group==='D'&&!is_array($this->state['bootProof']??null))throw new RuntimeException('GUARD_REFUSED_NO_BOOT_PROOF');}
         else{$proof=$this->state['webAssetProof']??null;if(!is_array($proof)||($proof['assets']??null)!==array_keys($this->assetFiles()))throw new RuntimeException('GUARD_REFUSED_NO_WEB_SAPI_ASSET_PROOF');}
     }
@@ -1909,7 +1963,13 @@ final class B1160InstallCoordinator
                 elseif($guard==='assets'){$this->hold('before-guard-group-'.$s['group'],$this->fullHold());$this->webAssetProof('before-guard-group-'.$s['group']);$this->fault('ASSETS_PROVEN');}
             }
             $group=$s['group'];
-            $this->fault('BEFORE_STEP_'.$s['n']);$this->guardGroupCheck($s['group']);$t=$this->target($s);$bytes=$this->payload($s);$this->state['applied'][$s['n']]='PENDING';
+            $this->fault('BEFORE_STEP_'.$s['n']);$this->guardGroupCheck($s['group']);$t=$this->target($s);$bytes=$this->payload($s);
+            if($s['path']==='composer.lock'&&$this->lockAlreadyCurrent()){
+                if($this->classify($s)['state']!=='unchanged')throw new RuntimeException('COMPOSER_LOCK_CHANGED_BEFORE_NO_OP');
+                $this->emit('OVERLAY_STEP',['n'=>$s['n'],'group'=>$group,'kind'=>'unchanged','path'=>$s['path'],'sha256'=>$s['payloadSHA256']]);
+                $this->fault('AFTER_STEP_'.$s['n']);continue;
+            }
+            $this->state['applied'][$s['n']]='PENDING';
             if($s['kind']==='new'){
                 // Missing directories (the parents of the new files that do not exist yet; package.php lists them in the provenance as directoriesTheInstallCreates) are created outermost first, each recorded in the saved
                 // state BEFORE its mkdir, so a kill leaves a record; a rollback removes the empty ones in reverse (innermost first). Nothing outside the CMS tree is ever created.
@@ -1981,14 +2041,14 @@ final class B1160InstallCoordinator
                 $key=$s['group'];$boundary=$group!==null&&$group!==$key;$prev=$group;$group=$key;
                 try{
                     if($boundary){
-                        if(isset(self::GUARDS[$prev])){$this->emit('ROLLBACK_AFTER_GUARD_GROUP',['group'=>$prev,'guardGroupIsOld'=>count(array_filter($this->plan,fn($x)=>$x['group']===$prev&&$this->classify($x)['state']!=='pre'))===0]);$this->hold('rollback-after-guard-group-'.$prev,$this->fullHold());}
+                        if(isset(self::GUARDS[$prev])){$this->emit('ROLLBACK_AFTER_GUARD_GROUP',['group'=>$prev,'guardGroupIsOld'=>count(array_filter($this->plan,fn($x)=>$x['group']===$prev&&!in_array($this->classify($x)['state'],['pre','unchanged'],true)))===0]);$this->hold('rollback-after-guard-group-'.$prev,$this->fullHold());}
                         elseif($key==='A')$this->hold('rollback-before-new-classes',$this->fullHold());
                         else{$this->emit('ROLLBACK_GROUP_PAUSE',['before'=>$key,'seconds'=>$pause]);$this->hold('rollback-pause-'.$key,$pause);}
                     }
                     $this->fault('BEFORE_RESTORE_'.$s['n']);$c=$this->classify($s);$t=$this->target($s);
                     if($s['kind']==='modified'){
                         if($c['state']==='payload'){$b=$backup['files'][$s['n']];$bytes=AtomicFile::readPrivate($b['copy'],$b['sha256']);B1160Files::replace($t,$bytes,$b['mode'],$b['gid'],$this->recordTemp(B1160Files::tempFor($t)),$s['payloadSHA256']);$restored++;$this->changed();}
-                        elseif($c['state']!=='pre')throw new RuntimeException('ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_'.$s['n']);
+                        elseif(!in_array($c['state'],['pre','unchanged'],true))throw new RuntimeException('ROLLBACK_FOREIGN_CONTENT_NOT_OVERWRITTEN_'.$s['n']);
                     }elseif($c['state']==='payload'){B1160Files::removeExact($t,$s['payloadSHA256']);$removed++;$this->changed();}
                     elseif($c['state']!=='absent')throw new RuntimeException('ROLLBACK_FOREIGN_NEW_FILE_NOT_REMOVED_'.$s['n']);
                     $this->fault('AFTER_RESTORE_'.$s['n']);
@@ -2041,7 +2101,7 @@ final class B1160InstallCoordinator
     /** The old state except that the two migration files hold their payload bytes (a schema-ahead rollback keeps them). */
     private function preStateKeepingMigrations():bool
     {
-        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if(in_array($s['path'],self::migrationFiles(),true)){if($c!=='payload')return false;}elseif($c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
+        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if($c==='unchanged')continue;if(in_array($s['path'],self::migrationFiles(),true)){if($c!=='payload')return false;}elseif($c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
         return true;
     }
 
@@ -2059,7 +2119,7 @@ final class B1160InstallCoordinator
     /** Verified, not assumed: steps 1..$k hold the payload, every later step its old bytes (a later new file is absent). */
     private function isInstallPrefix(int $k):bool
     {
-        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if($s['n']<=$k?$c!=='payload':$c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
+        try{foreach($this->plan as $s){$c=$this->classify($s)['state'];if($c==='unchanged')continue;if($s['n']<=$k?$c!=='payload':$c!==($s['kind']==='new'?'absent':'pre'))return false;}}catch(Throwable){return false;}
         return true;
     }
 
@@ -2085,7 +2145,7 @@ final class B1160InstallCoordinator
             elseif($f['kind']==='modified'&&$f['now']==='payload')$act=['echo '.$q('NO_BACKUP_COPY_FOR '.$t.' STOP').' >&2','exit 2'];
             elseif($f['kind']==='new'&&$f['now']==='payload'&&$record&&!($keepMig&&in_array($f['path'],self::migrationFiles(),true)))$act=['rm -f -- '.$q($t)];
             elseif($f['kind']==='modified'&&$f['now']==='absent')echo 'OWNER_INSPECT: '.$t.' IS_MISSING_NOT_REMOVED_BY_B1160_THE_OLD_BYTES_ARE_IN '.($f['backupCopy']??'NO_BACKUP_COPY').' SHA256 '.($f['sha256']??'UNKNOWN').PHP_EOL;
-            elseif(!in_array($f['now'],['pre','absent','payload'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1160'.PHP_EOL;
+            elseif(!in_array($f['now'],['pre','absent','payload','unchanged'],true))echo 'OWNER_INSPECT: '.$t.' IS_'.strtoupper($f['now']).'_NOT_TOUCHED_BY_B1160'.PHP_EOL;
             if($act===[])continue;
             if($last!==null&&$last!==$key){if(isset(self::GUARDS[$last])||$key==='A')$lines[]='sleep '.$this->fullHold();else $lines[]='sleep '.$pause;}
             $last=$key;array_push($lines,...$act);

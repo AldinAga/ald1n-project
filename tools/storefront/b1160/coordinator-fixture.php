@@ -371,10 +371,13 @@ $groups=array_values(array_unique(array_column($plan,'group')));sort($groups);ch
 check(B1160InstallCoordinator::GUARDS===B1160Payload::GUARDS,'GUARDS_ARE_THE_GENERATED_ONES_WITH_D_AND_E');
 $byPath=[];foreach($plan as $s)$byPath[$s['path']]=$s;
 $groupSteps=static fn(string $g):array=>array_values(array_filter($plan,static fn($s)=>$s['group']===$g));
-$stepProvider=$byPath['app/Providers/AppServiceProvider.php']??null;$stepRoutesWeb=$byPath['routes/web.php']??null;$stepRoutesApi=$byPath['routes/api.php']??null;$nMig=count(B1160InstallCoordinator::NEW_MIGRATIONS);$zero=$nMig===0;$stepMig1=$zero?['path'=>'database/migrations/0000_00_00_000000_none.php','n'=>0,'group'=>'A']:$byPath[B1160InstallCoordinator::migrationFiles()[0]];$stepMig2=$stepMig1;
-check(($stepProvider===null||$stepRoutesApi===null||$stepRoutesWeb===null||($stepProvider['n']<$stepRoutesApi['n']&&$stepRoutesApi['n']<$stepRoutesWeb['n']))&&$stepMig1['group']==='A','THE_PROVIDER_THE_ROUTES_AND_THE_MIGRATION_ARE_IN_THEIR_GROUPS');
+$stepProvider=$byPath['app/Providers/AppServiceProvider.php']??null;$stepRoutesWeb=$byPath['routes/web.php']??null;$stepRoutesApi=$byPath['routes/api.php']??null;
+$migrationSteps=array_map(static fn(string $path):array=>$byPath[$path],B1160InstallCoordinator::migrationFiles());
+$nMig=count($migrationSteps);$zero=$nMig===0;
+check(($stepProvider===null||$stepRoutesApi===null||$stepRoutesWeb===null||($stepProvider['n']<$stepRoutesApi['n']&&$stepRoutesApi['n']<$stepRoutesWeb['n']))&&array_column($migrationSteps,'group')===array_fill(0,$nMig,'A'),'THE_PROVIDER_THE_ROUTES_AND_THE_MIGRATIONS_ARE_IN_THEIR_GROUPS');
 $newSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='new'));$modifiedSteps=array_values(array_filter($plan,static fn($s)=>$s['kind']==='modified'));check(count($newSteps)===B1160Payload::NEW_FILES&&count($modifiedSteps)===B1160Payload::MODIFIED_FILES,'NEW_AND_MODIFIED_COUNTS');
 $stateOf=static function(array $s)use($active):string{$t=$active.'/'.$s['path'];if(!is_file($t))return 'absent';$h=hash_file('sha256',$t);return $h===$s['payloadSHA256']?'payload':($h===$s['preSHA256']?'pre':'foreign');};
+$migrationFilesAre=static fn(string $state):bool=>array_map($stateOf,$migrationSteps)===array_fill(0,$nMig,$state);
 $cssUrls=array_keys(B1160InstallCoordinator::ADMIN_CSS_PATHS);
 $undoMigrationPlaceholder=null;
 $seedSnapshot=null;
@@ -550,7 +553,7 @@ foreach([reset($modifiedSteps),end($modifiedSteps)] as $victim){
 }
 $results['unknownPreState']='HOLD_NOTHING_CHANGED_FIRST_AND_LAST_MODIFIED_FILE';
 // 7b. A foreign file at the path of a new class and at the path of a migration is a HOLD with nothing changed too.
-$nvList=[];$appNew=array_values(array_filter(array_column($newSteps,'path'),static fn($p)=>str_starts_with($p,'app/')&&str_ends_with($p,'.php')))[0]??(array_column($newSteps,'path')[0]??null);if($appNew!==null)$nvList[]=$byPath[$appNew];if(!$zero)$nvList[]=$stepMig1;
+$nvList=[];$appNew=array_values(array_filter(array_column($newSteps,'path'),static fn($p)=>str_starts_with($p,'app/')&&str_ends_with($p,'.php')))[0]??(array_column($newSteps,'path')[0]??null);if($appNew!==null)$nvList[]=$byPath[$appNew];$nvList=array_merge($nvList,$migrationSteps);
 foreach($nvList as $nv){$foreignNew=$active.'/'.$nv['path'];$madeDir=!is_dir(dirname($foreignNew));if($madeDir)mkdir(dirname($foreignNew),0755,true);file_put_contents($foreignNew,"<?php\n// foreign file at a new path\n");[$rc,$o]=$run();$p=lastLine($o,'PREFLIGHT');
     check($rc===2&&in_array('UNKNOWN_PRE_STATE_REFUSED',$p['blockers'],true)&&in_array('NEW_PATH_OR_DIRECTORY_ALREADY_EXISTS_NOTHING_CHANGED',$p['blockers'],true)&&!str_contains($o,'OVERLAY_STEP=')&&!str_contains($o,'PER_FILE_BACKUP=')&&file_get_contents($foreignNew)==="<?php\n// foreign file at a new path\n",'FOREIGN_FILE_AT_A_NEW_PATH_HOLDS_NOTHING_CHANGED_'.$nv['path']);unlink($foreignNew);if($madeDir)@rmdir(dirname($foreignNew));$reset();}
 $results['newPathAlreadyThere']='HOLD_NOTHING_CHANGED_CLASS_AND_MIGRATION_PATH';
@@ -688,7 +691,7 @@ check($notifCounts()===$notifBefore,'NO_NOTIFICATION_ROW_WRITTEN_BY_THE_MIGRATIO
 
 
 // Retained orphans, tree and routes.
-check($orphanOk()&&($zero||is_file($active.'/'.$stepMig1['path'])),'THE_ORPHANS_ARE_RETAINED_AND_THE_MIGRATION_FILE_IS_THERE');
+check($orphanOk()&&$migrationFilesAre('payload'),'THE_ORPHANS_AND_ALL_MIGRATION_FILES_MATCH_THEIR_DIGESTS');
 $tr=lastLine($o,'ACTIVE_TREE_AFTER_INSTALL');check(is_array($tr)&&$tr['verifiedFiles']===B1160Payload::TREE_FILES_AFTER&&count(glob($active.'/database/migrations/*.php'))===B1160InstallCoordinator::RAN+$nMig,'THE_TREE_IS_THE_GENERATED_SIZE_WITH_THE_NEW_MIGRATION_FILES');
 $rcNew=array_values(array_filter(allLines($o,'ROUTES_CHECK'),static fn($x)=>$x['installed']===true))[0]??null;
 check(is_array($rcNew)&&$rcNew['routeCount']===$pin['routes']+(B1160Payload::ROUTES_AFTER-B1160Payload::ROUTES),'ROUTE_COUNT_IS_THE_B1156_COUNT_PLUS_THE_GENERATED_DELTA_(IF_THIS_FAILS_THE_GENERATOR_ESTIMATE_IS_WRONG_PASS_--routes-after_WITH_THE_MEASURED_COUNT):'.json_encode($rcNew));
@@ -725,7 +728,7 @@ $reset();check($schemaOld()&&$tree()==='PRE'&&$orphanOk(),'RESET_AFTER_THE_OWNER
 // 15. Failures BEFORE the migration started: the full reverse-order file rollback, the schema untouched, the migration files removed.
 foreach([['BEFORE_DB_BACKUP','BEFORE_THE_BACKUP'],['AFTER_DB_BACKUP','AFTER_THE_BACKUP_BEFORE_MIGRATE_INTENT'],['AFTER_MIGRATE_INTENT','AFTER_MIGRATE_INTENT_BEFORE_THE_COMMAND']] as [$point,$label]){
     [$rc,$o]=$run([$point=>['fail']]);
-    check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&!is_file($active.'/'.$stepMig2['path'])&&!preg_match('/^MIGRATE=\{/m',$o),'FAILURE_'.$label.'_IS_A_FULL_ROLLBACK_NOTHING_MIGRATED');
+    check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&$migrationFilesAre('absent')&&!preg_match('/^MIGRATE=\{/m',$o),'FAILURE_'.$label.'_IS_A_FULL_ROLLBACK_NOTHING_MIGRATED');
     $tr=lastLine($o,'ACTIVE_TREE_AFTER_ROLLBACK');check(is_array($tr)&&$tr['verifiedFiles']===B1160InstallCoordinator::HOST_TREE_FILES&&$tr['migrationFilesKept']===false&&$orphanOk(),'THE_TREE_AFTER_'.$label.'_IS_THE_8583_TREE');$reset();
 }
 $results['failureBeforeTheMigration']='FULL_ROLLBACK_THREE_POINTS_SCHEMA_UNTOUCHED';
@@ -733,7 +736,7 @@ $results['failureBeforeTheMigration']='FULL_ROLLBACK_THREE_POINTS_SCHEMA_UNTOUCH
 // 16. Failures AFTER the migration ran: the files go back, the two migration files stay, final HOLD_ROLLED_BACK_SCHEMA_AHEAD; a re-run is refused; the old code serves the new schema.
 foreach([['AFTER_MIGRATE_COMMAND',['fail'],'THE_COMMAND_RAN_THEN_A_FAILURE'],['AFTER_SMOKES_INSTALLED',['logError'],'AN_ERROR_LINE_IN_THE_LOG_AFTER_THE_MIGRATION']] as [$point,$act,$label]){
     [$rc,$o]=$run([$point=>$act],'install',[],$extraCfg);
-    check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_SCHEMA_AHEAD'&&$schemaNew()&&$orphanOk()&&is_file($active.'/'.$stepMig1['path'])&&is_file($active.'/'.$stepMig2['path'])&&str_contains($o,'OWNER_NEXT_STEPS=')&&lastLine($o,'ROLLED_BACK_SCHEMA_AHEAD')['backupBeforeTheMigration']===lastLine($o,'DB_BACKUP')['key'],'FAILURE_'.$label.'_KEEPS_THE_MIGRATION_FILES_AND_REPORTS_THE_SCHEMA_AHEAD');
+    check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_SCHEMA_AHEAD'&&$schemaNew()&&$orphanOk()&&$migrationFilesAre('payload')&&str_contains($o,'OWNER_NEXT_STEPS=')&&lastLine($o,'ROLLED_BACK_SCHEMA_AHEAD')['backupBeforeTheMigration']===lastLine($o,'DB_BACKUP')['key'],'FAILURE_'.$label.'_KEEPS_THE_MIGRATION_FILES_AND_REPORTS_THE_SCHEMA_AHEAD');
     $ok=true;foreach($plan as $s){$isMig=in_array($s['path'],B1160InstallCoordinator::migrationFiles(),true);$want=$isMig?$s['payloadSHA256']:($s['kind']==='new'?'ABSENT':$s['preSHA256']);if($tampered($s['path'])!==$want)$ok=false;}check($ok,'FILES_BACK_EXCEPT_THE_MIGRATIONS_AFTER_'.$label);
     $j=[];$l=B1160FixtureWeb::adminLogin(PORT,$winLogin,$winPassword,$j);$r=$l['ok']?B1160FixtureWeb::jarGet(PORT,'/admin/commissions',$j):['status'=>0];check($r['status']===200,'THE_OLD_COMMISSIONS_PAGE_SERVES_THE_BACKFILLED_ROWS_AFTER_'.$label.':'.$r['status']);
     [$rc2,$o2]=$run();check($rc2===2&&lastRaw($o2,'B1160_FINAL')==='HOLD_SCHEMA_AHEAD'&&!str_contains($o2,'OVERLAY_STEP='),'RERUN_REFUSED_AFTER_'.$label);$reset();
@@ -755,7 +758,7 @@ $results['killAroundTheMigration']='FORWARD_RESUME_PASS_BOTH_POINTS';
 // 18. SIGKILL in the middle of the files and right after the backup: the generic restore, the schema untouched.
 foreach([['AFTER_STEP_'.max(1,intdiv(count($plan),2)),'IN_THE_MIDDLE_OF_THE_FILES'],['AFTER_DB_BACKUP','RIGHT_AFTER_THE_BACKUP'],['BEFORE_DB_BACKUP','IN_DB_BACKUP_INTENT_BEFORE_THE_BACKUP_COMMAND']] as [$point,$label]){
     [$rc,$o]=$run([$point=>['kill']],'install',[],$extraCfg);check($rc!==0&&$rc!==2,'KILLED_'.$label);
-    [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&!is_file($active.'/'.$stepMig1['path'])&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL='),'RESUME_AFTER_A_KILL_'.$label.'_IS_THE_GENERIC_RESTORE_NOTHING_MIGRATED');$reset();
+    [$rc,$o]=$run();check($rc===2&&lastRaw($o,'B1160_FINAL')==='HOLD_ROLLED_BACK_OLD_STATE_VERIFIED'&&$tree()==='PRE'&&$schemaOld()&&$migrationFilesAre('absent')&&str_contains($o,'RESUMED_INTERRUPTED_INSTALL='),'RESUME_AFTER_A_KILL_'.$label.'_IS_THE_GENERIC_RESTORE_NOTHING_MIGRATED');$reset();
 }
 $results['killBeforeTheMigration']='GENERIC_RESTORE_TWO_POINTS';
 
