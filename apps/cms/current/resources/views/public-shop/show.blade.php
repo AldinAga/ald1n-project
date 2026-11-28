@@ -61,8 +61,8 @@
 </div>
 <div class="shop-detail-content">
 <span class="eyebrow">{{ $product['brand'] }}</span>
-<h1>{{ $product['name'] }}</h1>
-<p class="sku">SKU {{ $product['sku'] }}</p>
+<h1 title="{{ $product['name'] }}">{{ $product['name'] }}</h1>
+<div class="sku" tabindex="0" role="group" aria-label="Šifra artikla">SKU {{ $product['sku'] }}</div>
 <div class="shop-price">{{ $product['price_original'] }} {{ $product['currency'] }}</div>
 <p class="shop-stock {{ $product['stock']>0 ? 'is-in' : 'is-out' }}"><span class="shop-stock-dot" aria-hidden="true"></span>{{ $product['stock']>0 ? 'Dostupno' : 'Trenutno nema na lageru' }}</p>
 @if($product['can_buy'])

@@ -1,6 +1,6 @@
 # Ald1n CMS & Mobile
 
-Private monorepo for the Ald1n business platform. The repository contains the Laravel CMS/backend, the Expo/React Native mobile application, shared API contracts, design-system packages, release evidence, and operational tooling used to run the production system.
+Monorepo (public repository on GitHub; never commit secrets) for the Ald1n business platform. The repository contains the Laravel CMS/backend, the Expo/React Native mobile application, shared API contracts, design-system packages, release evidence, and operational tooling used to run the production system.
 
 > **Status:** active internal production project. This repository is proprietary and is not intended for public redistribution.
 
@@ -9,7 +9,7 @@ Private monorepo for the Ald1n business platform. The repository contains the La
 | Area | Current baseline |
 | --- | --- |
 | Mobile app | `1.0.0` |
-| Mobile runtime | `1.0.0-m17-sdk58-play2` (no default runtime; config fails closed) |
+| Mobile runtime | `1.0.0-m17-sdk58-play3` (no default runtime; config fails closed) |
 | Expo | SDK 58 |
 | React Native | 0.88.x |
 | CMS | Laravel 13 / PHP 8.4 |
@@ -113,8 +113,8 @@ apps/cms/current
 
 ### Mobile
 
-- Expo SDK 57
-- React Native 0.86.x
+- Expo SDK 58
+- React Native 0.88.x
 - TypeScript
 - Expo Router
 - TanStack Query
@@ -207,7 +207,7 @@ Current production mobile authority:
 ```text
 App:             Ald1n CMS
 Version:         1.0.0
-Runtime:         1.0.0-m17-sdk58-play2 (EAS profile m17-sdk58-play-rc, Play versionCode 29)
+Runtime:         1.0.0-m17-sdk58-play3 (EAS profile m17-sdk58-play-rc, Play versionCode 30)
 Android package: com.ald1n.mobile
 Channel:         production
 ```

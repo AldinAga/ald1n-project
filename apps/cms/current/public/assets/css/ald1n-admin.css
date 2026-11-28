@@ -1060,7 +1060,12 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 /* Header band: order number, status pills, money, one primary action. */
 .a1-od-head{display:grid;gap:var(--a1-space-16)}
 .a1-od-head__row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-16) var(--a1-space-24)}
-.a1-od-head__text{display:grid;gap:var(--a1-space-4);flex:1 1 320px;min-width:0}
+.a1-od-head__text{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--a1-space-4);flex:1 1 320px;min-width:0}
+.a1-od-head__text>:is(.a1-eyebrow,.a1-title,.a1-text),.a1-od-buyer-name{min-width:0;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;word-break:normal}
+.a1-od-head__text>.a1-title,.a1-od-buyer-name{white-space:nowrap}
+.a1-od-head__text>:is(.a1-eyebrow,.a1-text){display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal}
+.a1-od-head__text .a1-od-buyer-name{display:inline-block;max-width:100%;vertical-align:bottom}
+.a1-od-buyer-address{overflow-wrap:normal;word-break:normal;overflow-x:auto}
 .a1-od-head__actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);min-width:0}
 .a1-od-head__actions form,.a1-od-actions form{margin:0}
 .a1-od-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--a1-space-12) var(--a1-space-16);margin:0;padding-top:var(--a1-space-16);border-top:var(--a1x-border-width) solid var(--a1-border-normal)}
@@ -1109,7 +1114,7 @@ html:has(.a1-app){scroll-padding-block:var(--a1x-sticky-top) var(--a1x-sticky-bo
 .a1-ops .a1-table .a1-table__actions .a1-od-rowactions{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:var(--a1-space-8);white-space:normal}
 .a1-od-rowactions form{display:flex;flex-wrap:wrap;align-items:center;gap:var(--a1-space-8);margin:0}
 .a1-ops .a1-od-rowactions .a1-field{flex:1 1 160px}
-.a1-od-code{display:block;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-sm-plus);overflow-wrap:break-word;word-break:break-all}
+.a1-od-code{display:block;min-width:0;padding:var(--a1-space-12);border:var(--a1x-border-width) solid var(--a1-border-normal);border-radius:var(--a1-radius-sm);background-color:var(--a1-surface-field);color:var(--a1-text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--a1-typography-font-size-sm-plus);overflow-x:auto;overflow-wrap:normal;white-space:nowrap}
 
 /* Documents. */
 .a1-od-doclist{display:grid;gap:var(--a1-space-12);margin:0;padding:0;list-style:none}
@@ -1835,7 +1840,10 @@ button.a1-drawer-rate{cursor:pointer}
 /* Order card: full-width lines instead of a squeezed text block. */
 .a1-list--stacked .a1-item--order{display:flex;flex-direction:column;align-items:stretch;gap:2px;min-height:0;padding:var(--a1-space-8) var(--a1-space-16)}
 .a1-ordercard__top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--a1-space-12)}
-.a1-ordercard__title{flex:1 1 auto;min-width:0;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary)}
+.a1-ordercard__title{flex:1 1 0}
+.a1-ordercard__title,.a1-item--order .a1-item__title{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:normal;word-break:normal;font-weight:var(--a1-typography-font-weight-semibold);color:var(--a1-text-primary)}
+.a1-item--order .a1-item__sub,.a1-ordercard__no{overflow-wrap:normal;word-break:normal}
+.a1-item--order .a1-item__sub>.a1-ordercard__who{display:inline-block;max-width:100%;vertical-align:bottom}
 .a1-ordercard__top>.a1-pill{flex:0 0 auto}
 .a1-ordercard__num{display:flex;flex-wrap:wrap;gap:0 var(--a1-space-8);color:var(--a1-text-secondary);font-size:var(--a1-typography-font-size-sm-plus);font-variant-numeric:tabular-nums}
 .a1-ordercard__no,.a1-ordercard__date{white-space:nowrap}
@@ -1905,10 +1913,7 @@ button,input[type=submit],input[type=button],input[type=reset],summary{overflow-
   .a1-ordercard__top,.a1-ordercard__bottom{flex-wrap:wrap}
   .a1-ordercard__top>*,.a1-ordercard__bottom>*{min-width:0;max-width:100%}
   .a1-ordercard__no,.a1-item--order .a1-item__end{white-space:normal}
-  .a1-item--order :is(.a1-item__title,.a1-item__sub,.a1-ordercard__title,.a1-ordercard__no){overflow-wrap:anywhere}
   .a1-od-head__row,.a1-od-head__text{min-width:0;max-width:100%}
-  .a1-od-head__text{grid-template-columns:minmax(0,1fr);overflow-wrap:anywhere}
-  .a1-od-head__text>.a1-title{overflow-wrap:inherit}
   .a1-trend>li{grid-template-columns:minmax(0,1fr)}
   .a1-trend__label{justify-self:center}
   .a1-trend>li:first-child .a1-trend__label{justify-self:start}
