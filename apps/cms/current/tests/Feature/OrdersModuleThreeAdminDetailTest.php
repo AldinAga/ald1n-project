@@ -43,7 +43,7 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
 
         self::assertStringContainsString('data-order-detail-ready="1"', $root);
         self::assertSame(1, substr_count($root, '<h1 '));
-        self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0001</h1>', $root);
+        self::assertStringContainsString('<h1 class="a1-title" id="od-title" title="ODM3-0001">ODM3-0001</h1>', $root);
         self::assertStringContainsString('aria-label="Nazad na vrh"', $html);
         self::assertSame(1, substr_count($root, 'a1-btn--primary'), 'exactly one primary action');
         // Nova porudžbina: glavna akcija je prava forma "Potvrdi porudžbinu" (token svežine + jedan korak), nikad "Preuzmi".
@@ -146,7 +146,7 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
 
         // Positive controls: both roles got the full page, the buyer card and the one-step confirm.
         foreach ([$asSuper, $asAdmin] as $page) {
-            self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0004</h1>', $page);
+            self::assertStringContainsString('<h1 class="a1-title" id="od-title" title="ODM3-0004">ODM3-0004</h1>', $page);
             self::assertStringContainsString('id="order-workspace-customer"', $page);
             self::assertStringContainsString('id="order-confirm-form"', $page);
             self::assertSame(1, substr_count($page, 'a1-btn--primary'));
@@ -177,11 +177,11 @@ final class OrdersModuleThreeAdminDetailTest extends TestCase
         $openRoot = $this->root((string) $this->actingAs($super)->get('/admin/orders/'.$open->id)->assertOk()->getContent());
         $closedRoot = $this->root((string) $this->actingAs($super)->get('/admin/orders/'.$closed->id)->assertOk()->getContent());
 
-        self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0005</h1>', $openRoot);
+        self::assertStringContainsString('<h1 class="a1-title" id="od-title" title="ODM3-0005">ODM3-0005</h1>', $openRoot);
         self::assertStringNotContainsString('id="order-workspace-danger"', $openRoot);
         self::assertStringNotContainsString('data-order-archive-workspace', $openRoot);
 
-        self::assertStringContainsString('<h1 class="a1-title" id="od-title">ODM3-0006</h1>', $closedRoot);
+        self::assertStringContainsString('<h1 class="a1-title" id="od-title" title="ODM3-0006">ODM3-0006</h1>', $closedRoot);
         self::assertStringContainsString('id="order-workspace-danger"', $closedRoot);
         self::assertStringContainsString('Opasne radnje', $closedRoot);
         self::assertStringContainsString('data-order-archive-workspace', $closedRoot);

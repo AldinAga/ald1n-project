@@ -69,7 +69,7 @@
         @if($resource==='product-types')
             <article class="a1-card a1-pc-card" data-dictionary-card data-sort-item data-sort-id="{{ $item->id }}">
                 <button class="a1-pc-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
-                <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2><code>{{ $item->slug }}</code></div><x-icon name="settings" size="26" /></div>
+                <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2><code title="{{ $item->slug }}">{{ $item->slug }}</code></div><x-icon name="settings" size="26" /></div>
                 <dl class="a1-pc-stats"><div><dt>Specifikacije</dt><dd>{{ $item->fields->count() }}</dd></div><div><dt>Artikli</dt><dd>{{ $item->products_count }}</dd></div></dl>
                 <p class="a1-text"><strong>Kategorija:</strong> {{ $item->category?->name ?? 'Nije povezana' }}</p>
                 <div class="a1-cluster">
@@ -83,7 +83,7 @@
                 <button class="a1-pc-handle" type="button" data-sort-handle aria-label="Prevuci {{ $item->name }}"><x-icon name="grip" size="18" /><span>Prevuci</span></button>
                 <form class="a1-form" method="post" action="{{ route('admin.dictionary.update',[$resource,$item->id]) }}">
                     @csrf @method('PUT')
-                    <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2></div>@if($resource==='specification-fields')<code>{{ $item->slug }}</code>@endif</div>
+                    <div class="a1-pc-cardhead"><div><span class="{{ $pillClass }}" data-status="{{ $item->status }}">{{ $item->status === 'active' ? 'Aktivno' : 'Neaktivno' }}</span><h2 class="a1-h3">{{ $item->name }}</h2></div>@if($resource==='specification-fields')<code title="{{ $item->slug }}">{{ $item->slug }}</code>@endif</div>
                     @include('admin.dictionary.fields',['item'=>$item])
                     @if($resource==='specification-fields')
                         @php($usage=$usageCounts[$item->id]??['types'=>0,'products'=>0,'children'=>0])

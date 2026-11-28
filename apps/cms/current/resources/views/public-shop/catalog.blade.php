@@ -122,7 +122,7 @@ Nema rezultata
 </a>
 <div class="shop-product-body">
 @if($p['brand'] !== '')<p class="shop-product-brand">{{ $p['brand'] }}</p>@endif
-<h3 class="shop-product-title" id="artikal-{{ $p['id'] }}"><a href="{{ $detailUrl }}">{{ $p['name'] }}</a></h3>
+<h3 class="shop-product-title" id="artikal-{{ $p['id'] }}" title="{{ $p['name'] }}"><a href="{{ $detailUrl }}">{{ $p['name'] }}</a></h3>
 <p class="sku"><span class="sr-only">Šifra artikla: </span>SKU {{ $p['sku'] }}</p>
 <div class="shop-product-meta">
 <p class="shop-price"><span class="shop-price-amount">{{ $p['price_original'] }}</span> <span class="shop-price-currency">{{ $p['currency'] }}</span></p>
