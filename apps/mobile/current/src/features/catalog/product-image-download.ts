@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -42,7 +43,7 @@ type ProductImageDownloadInput = {
 };
 
 function sanitizeFilePart(value: string): string {
-  return value.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/[\u0000-\u001f\u007f]/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'artikal';
+  return value.trim().replace(/[\\/:*?"<>|#%]/g, '-').replace(/[\u0000-\u001f\u007f]/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 72).replace(/[\uD800-\uDBFF]$/, '') || 'artikal';
 }
 
 function extensionFromUrl(url: string): string | null {
@@ -81,9 +82,9 @@ async function loadSharingModule() {
   }
 }
 
-type CachedOriginal = { file: File; bytes: Uint8Array; mimeType: string; fileName: string };
+type CachedOriginal = { file: File; bytes: Uint8Array; mimeType: string; fileName: string; discard(): void };
 
-async function fetchOriginalToCache(input: ProductImageDownloadInput): Promise<CachedOriginal> {
+async function fetchOriginalToCache(input: ProductImageDownloadInput, forSharing = false): Promise<CachedOriginal> {
   assertRemoteImageUrl(input.originalUrl);
 
   // BATCH116 invariant: this transport accepts only the canonical original URL.
@@ -95,13 +96,16 @@ async function fetchOriginalToCache(input: ProductImageDownloadInput): Promise<C
     // RN fetch rejects only on transport failure (no network, DNS, TLS).
     throw new Error(OFFLINE_MESSAGE);
   }
-  if (!response.ok) {
-    throw new Error(`Preuzimanje originalne fotografije nije uspelo (${response.status}).`);
+  if (!response.ok || response.status === 206) {
+    throw new Error(`Preuzimanje originalne fotografije nije uspelo (HTTP ${response.status}).`);
   }
 
   const contentLengthHeader = response.headers.get('content-length');
-  const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
-  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > MAX_PRODUCT_IMAGE_BYTES) {
+  const contentEncoding = response.headers.get('content-encoding')?.trim().toLowerCase();
+  const contentLength = (!contentEncoding || contentEncoding === 'identity') && contentLengthHeader && /^\d+$/.test(contentLengthHeader)
+    ? Number(contentLengthHeader)
+    : null;
+  if (contentLength !== null && contentLength > MAX_PRODUCT_IMAGE_BYTES) {
     throw new Error('Originalna fotografija je veća od dozvoljenih 30 MB.');
   }
 
@@ -111,31 +115,60 @@ async function fetchOriginalToCache(input: ProductImageDownloadInput): Promise<C
   const extension = mimeExtension ?? urlExtension ?? 'jpg';
   const mimeType = rawContentType.startsWith('image/') ? rawContentType : EXTENSION_MIME[extension] ?? 'image/jpeg';
 
-  if (rawContentType !== '' && !rawContentType.startsWith('image/') && rawContentType !== 'application/octet-stream' && urlExtension === null) {
+  if (rawContentType !== '' && !rawContentType.startsWith('image/') && rawContentType !== 'application/octet-stream') {
     throw new Error('Server nije vratio originalnu fotografiju.');
   }
 
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await response.arrayBuffer();
+  } catch {
+    throw new Error('Preuzimanje originalne fotografije nije završeno u celosti.');
+  }
+  const bytes = new Uint8Array(buffer);
   if (bytes.byteLength === 0) throw new Error('Preuzeta originalna fotografija je prazna.');
   if (bytes.byteLength > MAX_PRODUCT_IMAGE_BYTES) throw new Error('Originalna fotografija je veća od dozvoljenih 30 MB.');
+  if (contentLength !== null && contentLength !== bytes.byteLength) {
+    throw new Error('Preuzimanje originalne fotografije nije završeno u celosti.');
+  }
 
   const safeSku = sanitizeFilePart(input.productSku || input.productName);
   const safeNumber = Math.max(1, Math.floor(input.imageNumber));
   const fileName = `${safeSku}-original-slika-${safeNumber}.${extension}`;
-  const file = new File(Paths.cache, fileName);
-  file.create({ overwrite: true, intermediates: true });
-  file.write(bytes);
-
-  if (!file.exists || file.size !== bytes.byteLength) {
-    if (file.exists) file.delete();
-    throw new Error('Originalnu fotografiju nije moguće bezbedno pripremiti za čuvanje.');
+  let discard: (() => void) | undefined;
+  let stage = 'create';
+  let readBytes: number | null = null;
+  try {
+    // Sharing keeps a reusable cache path because the receiving app may still read the URI.
+    const directory = forSharing ? Paths.cache : new Directory(Paths.cache, `product-image-${randomUUID()}`);
+    if (!forSharing) {
+      directory.create();
+      discard = () => directory.delete();
+    }
+    const file = new File(directory, fileName);
+    file.create({ overwrite: forSharing });
+    discard ??= () => file.delete();
+    stage = 'write';
+    file.write(bytes);
+    stage = 'readback';
+    readBytes = (await file.bytes()).byteLength;
+    if (readBytes !== bytes.byteLength) {
+      throw new Error('Nepotpun privremeni fajl.');
+    }
+    return { file, bytes, mimeType, fileName, discard };
+  } catch {
+    console.warn('[product-image-cache]', stage, bytes.byteLength, readBytes);
+    try {
+      discard?.();
+    } catch {
+      // Keep the original write failure if the cache cannot be cleaned up.
+    }
+    throw new Error('Upis originalne fotografije u privremeni prostor nije uspeo.');
   }
-
-  return { file, bytes, mimeType, fileName };
 }
 
 export async function downloadAndShareProductImage(input: ProductImageDownloadInput): Promise<void> {
-  const { file, mimeType } = await fetchOriginalToCache(input);
+  const { file, mimeType } = await fetchOriginalToCache(input, true);
   const safeNumber = Math.max(1, Math.floor(input.imageNumber));
 
   const Sharing = await loadSharingModule();
@@ -195,10 +228,7 @@ export async function saveProductImagesToDevice(inputs: ProductImageDownloadInpu
     openFolder: openSaveFolder,
     pickFolder: pickSaveFolder,
     isOnline: isOriginalReachable,
-    fetchOriginal: async (input) => {
-      const original = await fetchOriginalToCache(input);
-      return { ...original, discard: () => { if (original.file.exists) original.file.delete(); } };
-    },
+    fetchOriginal: fetchOriginalToCache,
   });
 }
 
