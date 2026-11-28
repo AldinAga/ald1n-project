@@ -42,10 +42,10 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process'),p=require('./package.json'),e=require('./eas.json'),lock=require('./package-lock.json');
           const files={
-           'package.json':'26ebe5b85f0af7dd22356fdd72e78bb34799cbe1',
+           'package.json':'61ea0c487d0f945b7bc87ffa409d509fc7632825',
            'eas.json':'962921a34d4f1dfc5d4cd8313030e218358d9da4',
-           'app.config.js':'e7999f46f89ab8479964decc8180c913732e87f2',
-           'package-lock.json':'f1655fd6f7bfd9e23238b02bbf81fc4d9bf04af8'
+           'app.config.js':'31b4e100f38686dfd8c9f3bb4bf0172949c19d28',
+           'package-lock.json':'daca55c216543744f9f9518b782f5804c16428f6'
           };
           for(const [path,sha] of Object.entries(files)){
             const r=cp.spawnSync('git',['hash-object',path],{encoding:'utf8'});
