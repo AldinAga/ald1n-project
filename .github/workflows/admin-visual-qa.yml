@@ -21,6 +21,8 @@ on:
       - 'apps/cms/current/tests/Browser/lib-inpage-words.cjs'
       - 'apps/cms/current/tests/Browser/seed-admin-visual-qa.php'
   push:
+    branches:
+      - main
     paths:
       - '.github/workflows/admin-visual-qa.yml'
       - 'apps/cms/current/resources/views/**'
