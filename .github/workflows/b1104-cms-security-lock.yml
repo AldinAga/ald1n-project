@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.number == 150 && github.head_ref == 'codex/b1125-symfony-patch-20261104' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.sha == '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' && '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' || 'a178533687ff75f7e7efbf8db606a623883513ce' }}
+          ref: ${{ github.repository == 'AldinAga/ald1n-project' && github.event.pull_request.head.repo.full_name == 'AldinAga/ald1n-project' && github.event.pull_request.number == 150 && github.head_ref == 'codex/b1125-symfony-patch-20261104' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.sha == '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' && '1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca' || github.event.pull_request.base.sha }}
           path: baseline
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -106,10 +106,10 @@ jobs:
               git -C candidate diff --exit-code 1ad0c4832496d2ea31ed5a92a8774c8c8c2667ca HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile packages
               ;;
             false)
-              # Reviewed lock: web-auth/webauthn-lib 5.3.9 -> 5.3.17 only, on main a1785336 (PR 253).
-              test "$(git -C baseline rev-parse HEAD)" = a178533687ff75f7e7efbf8db606a623883513ce
-              echo '14c8674060018b8155afb06accaa2b523b5e1018b476eadd507c36263d8bdb68  candidate/apps/cms/current/composer.lock' | sha256sum --check
-              git -C candidate diff --exit-code a178533687ff75f7e7efbf8db606a623883513ce HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile
+              # Reviewed lock (28.11.2026): Symfony http-foundation 8.2.0, http-kernel 8.1.13, mailer 8.1.12, mime 8.2.0, routing 8.1.12, serializer 8.1.13 + polyfill-deepclone (7 advisories closed). The baseline is the PR base, so this guard no longer freezes on an old main; the PR may change composer.lock only.
+              test "$(git -C baseline rev-parse HEAD)" = "$B1125_EVENT_BASE"
+              echo '24591d62d0b669f1521fc435b5fb3cb3e9136d87882a61a552449f045a97ef5f  candidate/apps/cms/current/composer.lock' | sha256sum --check
+              git -C candidate diff --exit-code "$B1125_EVENT_BASE" HEAD -- apps/cms/current/app apps/cms/current/resources apps/cms/current/routes apps/cms/current/config apps/cms/current/database apps/cms/current/tests apps/cms/current/composer.json apps/mobile
               ;;
             *) exit 46 ;;
           esac
