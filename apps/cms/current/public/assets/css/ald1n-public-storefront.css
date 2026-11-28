@@ -393,7 +393,7 @@ button:active{transform:translateY(1px)}
 .shop-image img{display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
 .no-image{display:grid;place-items:center;align-content:center;gap:8px;height:100%;color:var(--stage-text);font-size:13px;font-weight:600;text-align:center}
 .no-image svg{opacity:.75}
-.shop-product-body{display:flex;flex-direction:column;flex:1 1 auto;gap:4px;padding:18px 18px 18px}
+.shop-product-body{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;gap:4px;padding:18px 18px 18px}
 .shop-product-brand{margin:0;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 .shop-product-title{margin:2px 0 0;font-size:17px;line-height:1.35;font-weight:650;letter-spacing:-.01em;min-height:2.7em}
 .shop-product-title,.shop-detail-content h1,.shop-cart-item h2,.shop-hero h1[title]{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:normal;word-break:normal}
