@@ -31,7 +31,7 @@ import {
   formatAfterSalesAttachmentSize,
   pickAfterSalesAttachments,
 } from '@/features/after-sales/attachment-picker';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as errorMessage } from '@/lib/api/error-message';
 import { formatDate } from '@/lib/formatters';
 import { useAppTheme } from '@/theme/app-theme';
 import type { AfterSalesUploadFile } from '@/types/api';
@@ -54,12 +54,6 @@ function statusTone(status: string): PillTone {
   if (status === 'en_route' || status === 'on_site') return 'info';
   if (status === 'planned') return 'warning';
   return 'primary';
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
 }
 
 function compact(value: string): string | null {

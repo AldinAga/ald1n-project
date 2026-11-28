@@ -23,7 +23,7 @@ import {
   openOrderPaymentProof,
   pickOrderPaymentProof,
 } from '@/features/orders/order-post-create-files';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { formatDate, humanize } from '@/lib/formatters';
 import type {
@@ -32,18 +32,6 @@ import type {
   OrderPaymentProofUploadFile,
   SubmitOrderPaymentProofInput,
 } from '@/types/api';
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    return error.firstFieldError() ?? error.message;
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return fallback;
-}
 
 function localPaymentDateValue(): string {
   const date = new Date();

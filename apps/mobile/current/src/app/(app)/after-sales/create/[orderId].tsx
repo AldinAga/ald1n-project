@@ -24,6 +24,7 @@ import type {
   AfterSalesUploadFile,
   CreateAfterSalesCaseInput,
 } from '@/types/api';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 
 const CASE_TYPES: AfterSalesCaseType[] = ['complaint', 'return', 'service'];
 const PRIORITIES: AfterSalesPriority[] = ['low', 'normal', 'high', 'urgent'];
@@ -42,18 +43,6 @@ type ItemDraft = {
   quantity: string;
   issueDescription: string;
 };
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    return error.firstFieldError() ?? error.message;
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return fallback;
-}
 
 export default function AfterSalesCreateScreen() {
   const styles = useThemedStyles(createStyles);

@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
 import { radii, spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { useThemedStyles } from '@/theme/app-theme';
 
@@ -29,12 +29,6 @@ const passwordSchema = z
   });
 
 type PasswordForm = z.infer<typeof passwordSchema>;
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 
 export default function AccountSecurityScreen() {
   const styles = useThemedStyles(createStyles);

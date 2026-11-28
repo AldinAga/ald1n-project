@@ -22,12 +22,7 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { ApiError } from '@/lib/api/client';
 import { useAppTheme } from '@/theme/app-theme';
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 
 function fieldErrors(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {};

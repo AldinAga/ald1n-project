@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
 import { spacing, typography, type AppColors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { useThemedStyles } from '@/theme/app-theme';
 import type { User } from '@/types/api';
@@ -43,12 +43,6 @@ function profileDefaults(user?: User): ProfileForm {
 function nullable(value: string): string | null {
   const normalized = value.trim();
   return normalized === '' ? null : normalized;
-}
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
 }
 
 export default function AccountProfileScreen() {

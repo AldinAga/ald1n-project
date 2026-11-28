@@ -13,7 +13,7 @@ import {
   formatProductImageSize,
   pickProductImages,
 } from '@/features/catalog/product-image-picker';
-import { ApiError } from '@/lib/api/client';
+import { apiErrorMessage as apiMessage } from '@/lib/api/error-message';
 import { api } from '@/lib/api/endpoints';
 import { useAppTheme } from '@/theme/app-theme';
 import type {
@@ -27,12 +27,6 @@ export type DraftImageRotation = 0 | 90 | 180 | 270;
 export type DraftProductImage = AdminProductImageUploadFile & {
   rotation_degrees: DraftImageRotation;
 };
-
-function apiMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.firstFieldError() ?? error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 
 function nextRotation(value: DraftImageRotation): DraftImageRotation {
   if (value === 0) return 90;
